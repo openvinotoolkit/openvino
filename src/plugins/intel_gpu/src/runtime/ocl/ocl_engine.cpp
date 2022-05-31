@@ -43,12 +43,12 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
             const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor)
     : engine(dev, conf, task_executor) {
     if (runtime_type != runtime_types::ocl) {
-        throw std::runtime_error("Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
+        IE_THROW() << "Invalid runtime type specified for OCL engine. Only OCL runtime is supported";
     }
 
     auto casted = dynamic_cast<ocl_device*>(dev.get());
     if (!casted)
-        throw std::runtime_error("[CLDNN] Invalid device type passed to ocl engine");
+        IE_THROW() << "[CLDNN] Invalid device type passed to ocl engine";
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
@@ -62,7 +62,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::engine& ocl_engine::get_onednn_engine() const {
     if (!_onednn_engine)
-        throw std::runtime_error("[GPU] onednn engine is nullptr");
+        IE_THROW() << "[GPU] onednn engine is nullptr";
     return *_onednn_engine;
 }
 #endif
@@ -70,14 +70,14 @@ dnnl::engine& ocl_engine::get_onednn_engine() const {
 const cl::Context& ocl_engine::get_cl_context() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
     if (!cl_device)
-        throw std::runtime_error("Invalid device type for ocl_engine");
+        IE_THROW() << "Invalid device type for ocl_engine";
     return cl_device->get_context();
 }
 
 const cl::Device& ocl_engine::get_cl_device() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
     if (!cl_device)
-        throw std::runtime_error("Invalid device type for ocl_engine");
+        IE_THROW() << "Invalid device type for ocl_engine";
     return cl_device->get_device();
 }
 
@@ -91,13 +91,13 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         ss << "Exceeded max size of memory object allocation: "
             << "Requested " << layout.bytes_count() << " bytes "
             << "but max alloc size is " << get_device_info().max_alloc_mem_size << " bytes";
-        throw std::runtime_error(ss.str());
+        IE_THROW() << ss.str();
     }
 
     if (type != allocation_type::cl_mem && !supports_allocation(type)) {
         std::ostringstream type_str;
         type_str << type;
-        throw std::runtime_error("Unsupported allocation type " + type_str.str());
+        IE_THROW() << "Unsupported allocation type " + type_str.str();
     }
 
     try {
@@ -121,9 +121,9 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
             case CL_OUT_OF_RESOURCES:
             case CL_OUT_OF_HOST_MEMORY:
             case CL_INVALID_BUFFER_SIZE:
-                throw std::runtime_error("out of GPU resources");
+                IE_THROW() << "out of GPU resources";
             default:
-                throw std::runtime_error("GPU buffer allocation failed");
+                IE_THROW() << "GPU buffer allocation failed";
         }
     }
 }
@@ -176,8 +176,8 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             auto actual_mem_size = buf.getInfo<CL_MEM_SIZE>();
             auto requested_mem_size = new_layout.bytes_count();
             if (actual_mem_size < requested_mem_size) {
-                throw std::runtime_error("[GPU] shared buffer has smaller size (" + std::to_string(actual_mem_size) +
-                                         ") than specified layout (" + std::to_string(requested_mem_size) + ")");
+                IE_THROW() << "[GPU] shared buffer has smaller size (" << std::to_string(actual_mem_size) <<
+                                  ") than specified layout (" << std::to_string(requested_mem_size) << ")";
             }
             return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
@@ -185,12 +185,12 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
             auto requested_mem_size = new_layout.bytes_count();
             if (actual_mem_size < requested_mem_size) {
-                throw std::runtime_error("[GPU] shared USM buffer has smaller size (" + std::to_string(actual_mem_size) +
-                                         ") than specified layout (" + std::to_string(requested_mem_size) + ")");
+                IE_THROW() << "[GPU] shared USM buffer has smaller size (" << std::to_string(actual_mem_size)
+                           << ") than specified layout (" << std::to_string(requested_mem_size) << ")";
             }
             return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
-            throw std::runtime_error("unknown shared object fromat or type");
+            IE_THROW() << "unknown shared object fromat or type";
         }
     }
     catch (const cl::Error& clErr) {
@@ -199,9 +199,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         case CL_OUT_OF_RESOURCES:
         case CL_OUT_OF_HOST_MEMORY:
         case CL_INVALID_BUFFER_SIZE:
-            throw std::runtime_error("out of GPU resources");
+            IE_THROW() << "out of GPU resources";
         default:
-            throw std::runtime_error("GPU buffer allocation failed");
+            IE_THROW() << "GPU buffer allocation failed";
         }
     }
 }
