@@ -186,21 +186,21 @@ Offline OpenCL compiler (`clc`) features automatic vectorization over `get_globa
 For example, the kernel below could be automatically vectorized:
 ```cpp
 __kernel void cvtf32f16(__global float* restrict inImage, __global half*  restrict outImage,
-                        float   scale, float   bais)
+                        float   scale, float   bias)
 {
     int idx = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(0) * get_global_size(1);
-    outImage[idx] = convert_half(inImage[idx]*scale+bais);
+    outImage[idx] = convert_half(inImage[idx]*scale+bias);
 }
 ```
 However, this work-group based vectorizer (WGV) conflicts with the default LLVM vectorizer based on superword level parallelism (SLP) for the current compiler version. Manual vectorization is recommended to provide the best performance for non-uniform code patterns. WGV works if and only if vector types are not used in the code.
 
 Here is a short list of optimization tips:
 
-1. Help auto-vectorizer ensure non-aliasing pointers for kernel parameters by putting `restrict` where possible.
-  - This can give a performance boost, especially for kernels with unrolling, like `ocl_grn` from the example below.
-  - Place `restrict` markers for kernels with manually vectorized codes. In the `ocl_grn` kernel below, the unrolled version without `restrict` is up to 20% slower than the most optimal one, which combines unrolling and `restrict`.
+1. Help auto-vectorizer ensure non-aliasing pointers for kernel parameters by putting the `restrict` markers where possible.
+  - This can give a performance boost, especially for kernels with unrolling, like the `ocl_grn` from the example below.
+  - Place `restrict` markers for kernels with manually vectorized codes. In the `ocl_grn` kernel below, the unrolled version without the `restrict` is up to 20% slower than the most optimal one, which combines unrolling and `restrict`.
 2. Put `#&zwj;pragma unroll N` to your loop header. The compiler does not trigger unrolling by default, so it is your responsibility to annotate the code with pragmas as appropriate. The `ocl_grn` version with `#&zwj;pragma unroll 4` is up to 50% faster, most of which comes from unrolling the first loop, because LLVM, in general, is better in scheduling 3-stage loops (load-compute-store), while the first loop
- `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4` to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel® Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
+ `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4` to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
 ```cpp
 __kernel void ocl_grn(__global const half* restrict src_data, __global half* restrict dst_data, int C, float bias)
 {
@@ -258,14 +258,14 @@ __kernel void ocl_grn_line(__global const half* restrict src_data,  __global hal
 ```
 Both versions perform the same, but the second one has more complex code.
 
-3. If it is easy to predict the work group size, you may also use the `reqd_work_group_size` kernel attribute to ask the compiler to unroll the code up to the local size of the work group. If the kernel is actually executed with the different work group configuration, the result is undefined.
+3. If it is easy to predict the work group size, use the `reqd_work_group_size` kernel attribute to ask the compiler to unroll the code up to the local size of the work group. If the kernel is actually executed with the different work group configuration, the result is undefined.
 
-4. Prefer to use the `half` compute if it keeps reasonable accuracy. 16-bit float is a native type for Intel® Neural Compute Stick 2, most of the functions `half_*` are mapped to a single hardware instruction.
+4. Prefer to use the `half` compute if it keeps reasonable accuracy. A 16-bit float is a native type for Intel Neural Compute Stick 2, most of the `half_*` functions are mapped to a single hardware instruction.
 Use the standard `native_*` function for the rest of types.
 
-5. Prefer to use the `convert_half` function over `vstore_half` if conversion to 32-bit float is required. `convert_half` is mapped to a single hardware instruction. For the `cvtf32f16` kernel above, the line `outImage[idx] = convert_half(inImage[idx]*scale+bais);` is eight times slower than the code with `vstore_half`.
+5. Prefer to use the `convert_half` function over the `vstore_half` if conversion to 32-bit float is required. The `convert_half` function is mapped to a single hardware instruction. For the `cvtf32f16` kernel above, the `outImage[idx] = convert_half(inImage[idx]*scale+bias);` code is eight times slower than the code with `vstore_half`.
 
-6. Mind early exits. Early exit can be extremely costly for the current version of the `clc` compiler due to conflicts with the auto-vectorizer. The generic advice would be to setup local size by `x` dimension equal to inputs or/and outputs width. If it is impossible to define the work grid that exactly matches inputs or/and outputs to eliminate checks, for example, `if (get_global_id(0) >= width) return`, use line-wise kernel variant with manual vectorization. 
+6. Be aware of early exits. An early exit can be extremely costly for the current version of the `clc` compiler due to conflicts with the auto-vectorizer. It is recommended to setup local size by `x` dimension equal to inputs or/and outputs width. If it is impossible to define the work grid that exactly matches inputs or/and outputs to eliminate checks, for example, `if (get_global_id(0) >= width) return`, use line-wise kernel variant with manual vectorization. 
 The kernel example below demonstrates the impact of early exits on kernel performance.
    ```cpp
    // Initial version
@@ -288,8 +288,8 @@ The kernel example below demonstrates the impact of early exits on kernel perfor
    }
    ```
 This `reorg` kernel is auto-vectorizable, but an input for YOLO v2 topology is `NCHW=<1,64,26,26>` and it is not multiple of vector width, which is `8` for `half` data type. As a result, the Inference Engine does not select the auto-vectorized kernel.
-To compare performance of auto-vectorized and scalar version of the kernel, change the input size to`NCHW=<1,64,26,32>`. This enables the auto-vectorized version to be selected by the Inference Engine and can give you about 30% uplift.
-Since the auto-vectorized version is faster, it makes sense to enable it for the YOLO v2 topology input size by setting the local size multiple of vector, for example, 32, and adjust global sizes accordingly. As a result, the execution work grid exceeds actual input dimension, so out-of-bound checks should be inserted. See the updated kernel version below:
+To compare performance of auto-vectorized and scalar version of the kernel, change the input size to `NCHW=<1,64,26,32>`. This enables the auto-vectorized version to be selected by the Inference Engine and can give you about 30% uplift.
+Since the auto-vectorized version is faster, it is recommended to enable it for the YOLO v2 topology input size by setting the local size multiple of vector, for example, `32`, and adjust global sizes accordingly. As a result, the execution work grid exceeds actual input dimension, so out-of-bound checks should be inserted. See the updated kernel version below:
    ```cpp
    // Version with out-of-bound checks added
    __kernel void reorg(const __global half* restrict src, __global half* restrict out, int W, int stride)
