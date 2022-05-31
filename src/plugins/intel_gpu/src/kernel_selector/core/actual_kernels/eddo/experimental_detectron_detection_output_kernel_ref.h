@@ -43,11 +43,11 @@ protected:
 private:
     JitConstants GetJitConstants(const experimental_detectron_detection_output_params& params) const;
     void PrepareKernelCommon(const experimental_detectron_detection_output_params& params,
-                                const optional_params& options,
-                                std::vector<size_t> gws,
-                                const std::string& stage_name,
-                                size_t stage_index,
-                                clKernelData& kernel) const;
+                             const optional_params& options,
+                             std::vector<size_t> gws,
+                             const std::string& stage_name,
+                             size_t stage_index,
+                             clKernelData& kernel) const;
     void PrepareRefineBoxesKernel(const experimental_detectron_detection_output_params&,
                                   const optional_params&,
                                   clKernelData&) const;

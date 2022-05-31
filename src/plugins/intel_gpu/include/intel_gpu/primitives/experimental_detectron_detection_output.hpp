@@ -35,7 +35,7 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             size_t max_detections_per_image,
                                             bool class_agnostic_box_regression,
                                             float max_delta_log_wh,
-                                            std::vector<float>  deltas_weights,
+                                            std::vector<float> deltas_weights,
                                             const primitive_id& ext_prim_id = "",
                                             const padding& output_padding = {})
         : primitive_base{id,
