@@ -249,7 +249,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
