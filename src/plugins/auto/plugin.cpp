@@ -393,6 +393,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_strDevices = strDevices;
         autoSContext->_plugin = this;
         autoSContext->_core = GetCore();
+        auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
+        if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
+            autoSContext->_bindBuffer = true;
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");

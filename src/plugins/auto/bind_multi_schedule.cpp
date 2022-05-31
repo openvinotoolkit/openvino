@@ -141,6 +141,9 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                 INFO_RUN([workerInferRequest]() {
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
                 });
+                if (_disableBind) {
+                    _thisWorkerInferRequest = nullptr;
+                }
             }}
     };
     return pipeline;
