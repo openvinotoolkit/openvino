@@ -189,14 +189,14 @@ TEST(ReduceMerge, NoReduceDifferentKeepDims) {
     ASSERT_TRUE(count_ops_of_type<opset9::Concat>(f) == 0);
 }
 
-TEST(ReduceMerge, NoReduceInvalidAxes) {
+TEST(ReduceMerge, NoReduceMergeInvalidAxes) {
     std::shared_ptr<Function> f;
     {
         Shape shape{2, 1};
         auto type = element::f32;
         auto A = std::make_shared<op::Parameter>(type, shape);
-        auto reduce1_axes = op::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce1 = std::make_shared<opset9::ReduceL2>(A, reduce1_axes, false);
+        auto reduce1_axis = op::Constant::create(element::i64, Shape{1}, {0});
+        auto reduce1 = std::make_shared<opset9::ReduceL2>(A, reduce1_axis, false);
         auto reduce2_axis = op::Constant::create(element::i64, Shape{1}, {0});
         f = std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, false)},
                                        ParameterVector{A});
