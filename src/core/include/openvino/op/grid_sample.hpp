@@ -18,10 +18,10 @@ class OPENVINO_API GridSample : public Op {
 public:
     OPENVINO_OP("GridSample", "opset9");
     BWDCMP_RTTI_DECLARATION;
-    
+
     enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
     enum class PaddingMode { ZEROS, BORDER, REFLECTION };
-    
+
     /// \brief A Structure which contains all GridSample attributes
     struct Attributes {
         // A flag which specifies whether to align the grid extrema values with the borders or center points
