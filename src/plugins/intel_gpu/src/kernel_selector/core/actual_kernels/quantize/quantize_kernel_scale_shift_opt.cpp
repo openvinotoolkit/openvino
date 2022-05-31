@@ -53,6 +53,14 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = feature_size;
         dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
+    } else if (output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
+        dispatchData.gws[0] = output.Z().v * output.Y().v * output.X().v;
+        dispatchData.gws[1] = Align(output.Feature().v, feature_size);
+        dispatchData.gws[2] = Align(output.Batch().v, feature_size);
+
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = feature_size;
+        dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
     } else {
         dispatchData.gws = GetTensorFriendlyWorkGroups(output);
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
