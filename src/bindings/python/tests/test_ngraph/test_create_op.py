@@ -1830,7 +1830,7 @@ def test_multiclass_nms():
     assert nms_node.get_output_size() == 3
     assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
     assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
