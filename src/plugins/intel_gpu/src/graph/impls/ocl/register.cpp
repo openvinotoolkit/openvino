@@ -8,8 +8,7 @@
 namespace cldnn {
 namespace ocl {
 
-#define REGISTER_OCL(prim)                      \
-    static detail::attach_##prim##_impl attach_##prim
+#define REGISTER_OCL(prim) static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
     REGISTER_OCL(activation);

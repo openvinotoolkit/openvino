@@ -61,8 +61,8 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                               inputs[1],
                                                               inputs[2],
                                                               inputs[3],
-                                                              inputs[4], // output classes
-                                                              inputs[5], // output scores
+                                                              inputs[4],  // output classes
+                                                              inputs[5],  // output scores
                                                               attrs.score_threshold,
                                                               attrs.nms_threshold,
                                                               attrs.num_classes,

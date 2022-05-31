@@ -203,8 +203,7 @@ void nms_cf(const float* conf_data,
 
 template <typename T>
 bool SortScorePairDescend(const std::pair<float, T>& pair1, const std::pair<float, T>& pair2) {
-    return pair1.first >
-           pair2.first || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
+    return pair1.first > pair2.first || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
 }
 }  // namespace
 
