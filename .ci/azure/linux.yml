@@ -280,6 +280,7 @@ jobs:
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend UT'
     continueOnError: false
 
