@@ -262,8 +262,8 @@ def generate_proposals(
     scores: NodeInput,
     min_size: float,
     nms_threshold: float,
-    post_nms_count: int,
     pre_nms_count: int,
+    post_nms_count: int,
     normalized: bool = True,
     nms_eta: float = 1.0,
     roi_num_type: str = "i64",
@@ -271,17 +271,17 @@ def generate_proposals(
 ) -> Node:
     """Return a node which performs GenerateProposals operation.
 
-    :param im_info: Tensor with input image info.
-    :param anchors: Tensor with input anchors.
-    :param deltas: Tensor with input deltas.
-    :param scores: Tensor with input scores.
+    :param im_info: Input with image info.
+    :param anchors: Input anchors.
+    :param deltas: Input deltas.
+    :param scores: Input scores.
     :param min_size: Specifies minimum box width and height.
     :param nms_threshold: Specifies threshold to be used in the NMS stage.
     :param pre_nms_count: Specifies number of top-n proposals before NMS.
     :param post_nms_count: Specifies number of top-n proposals after NMS.
-    :param normalized: Specifies whether proposal bboxes are normalized or not.
-    :param nms_eta: Specifies eta parameter for adaptive NMS.
-    :param roi_num_type: Specifies element type of output roi_num.
+    :param normalized: Specifies whether proposal bboxes are normalized or not. Optional attribute, default value is `True`.
+    :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`. Optional attribute, default value is `1.0`.
+    :param roi_num_type: Specifies the element type of the third output `rpnroisnum`. Optional attribute, range of values: `i64` (default) or `i32`.
     :param name: The optional name for the output node.
     :return: New node performing GenerateProposals operation.
     """
@@ -290,8 +290,8 @@ def generate_proposals(
     attributes = {
         "min_size": min_size,
         "nms_threshold": nms_threshold,
-        "post_nms_count": post_nms_count,
         "pre_nms_count": pre_nms_count,
+        "post_nms_count": post_nms_count,
         "normalized": normalized,
         "nms_eta": nms_eta,
         "roi_num_type": roi_num_type

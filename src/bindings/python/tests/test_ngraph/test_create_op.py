@@ -2122,8 +2122,8 @@ def test_generate_proposals():
                                  scores_param,
                                  min_size=1.0,
                                  nms_threshold=0.5,
-                                 post_nms_count=100,
                                  pre_nms_count=200,
+                                 post_nms_count=100,
                                  normalized=False,
                                  nms_eta=1.0,
                                  roi_num_type="i32")
