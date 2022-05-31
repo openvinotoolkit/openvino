@@ -197,7 +197,7 @@ def irdft(
 def grid_sample(
         data: NodeInput,
         grid: NodeInput,
-        attributes: dict, 
+        attributes: dict,
         name: Optional[str] = None
 ) -> Node:
     """Return a node which performs GridSample operation.
