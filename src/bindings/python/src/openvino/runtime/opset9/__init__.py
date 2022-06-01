@@ -94,11 +94,11 @@ from openvino.runtime.opset1.ops import maximum
 from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
 from openvino.runtime.opset1.ops import mod
-from openvino.runtime.opset8.ops import multiclass_nms
+from openvino.runtime.opset9.ops import multiclass_nms
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative
-from openvino.runtime.opset5.ops import non_max_suppression
+from openvino.runtime.opset9.ops import non_max_suppression
 from openvino.runtime.opset3.ops import non_zero
 from openvino.runtime.opset1.ops import normalize_l2
 from openvino.runtime.opset1.ops import not_equal

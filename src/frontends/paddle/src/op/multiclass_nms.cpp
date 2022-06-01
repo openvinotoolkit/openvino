@@ -3,14 +3,14 @@
 //
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs multiclass_nms(const NodeContext& node) {
-    using namespace opset8;
+    using namespace opset9;
     using namespace element;
 
     auto bboxes = node.get_input("BBoxes");
@@ -48,7 +48,20 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
     attrs.output_type = type_index;
     attrs.sort_result_across_batch = false;
 
-    nms_outputs = std::make_shared<MulticlassNms>(bboxes, scores, attrs)->outputs();
+    if (node.has_input("RoisNum")) {
+        const auto roisnum = node.get_input("RoisNum");
+
+        // transpose scores and boxes first
+        auto input_order_scores = Constant::create(element::i64, {2}, {1, 0});
+        auto transposed_scores = std::make_shared<Transpose>(scores, input_order_scores);
+
+        auto input_order_boxes = Constant::create(element::i64, {3}, {1, 0, 2});
+        auto transposed_boxes = std::make_shared<Transpose>(bboxes, input_order_boxes);
+
+        nms_outputs = std::make_shared<MulticlassNms>(transposed_boxes, transposed_scores, roisnum, attrs)->outputs();
+    } else {
+        nms_outputs = std::make_shared<MulticlassNms>(bboxes, scores, attrs)->outputs();
+    }
 
     named_outputs["Out"] = {nms_outputs[0]};
     named_outputs["Index"] = {nms_outputs[1]};
