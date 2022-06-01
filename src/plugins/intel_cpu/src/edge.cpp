@@ -261,7 +261,7 @@ int Edge::getOutputNum() const {
     return child_port;
 }
 
-void Edge::allocate(const void* mem_ptr) {
+void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -276,9 +276,29 @@ void Edge::allocate(const void* mem_ptr) {
     auto parentPtr = getParent();
     memoryPtr.reset(new Memory(parentPtr->getEngine()));
 
-    memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    allocate(memoryPtr, inputDesc);
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
+}
+
+void Edge::allocate(const void* mem_ptr) {
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    };
+
+    allocateCommon(allocateFunc);
+}
+
+void Edge::allocate(DnnlMemoryMngrPtr memMngr) {
+    if (!memMngr) {
+        IE_THROW(Unexpected) << "Memory manager ptr is NULL";
+    }
+
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, memMngr);
+    };
+
+    allocateCommon(allocateFunc);
 }
 
 std::string Edge::name() const {
@@ -293,34 +313,10 @@ std::string Edge::name() const {
 }
 
 void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
-    auto isInPlace = [](const NodePtr node, int port) -> bool {
-        const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-
-        const auto& config = selected_pd->getConfig();
-
-        for (const auto& in : config.inConfs) {
-            if (in.inPlace() == port) {
-                return true;
-            }
-        }
-        for (const auto& out : config.outConfs) {
-            if (out.inPlace() == port) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
     if (status != Status::NeedAllocation)
         return;
 
-    bool isTheOnlyChildEdgeAtPort = getParent()->getChildEdgesAtPort(getInputNum()).size() == 1;
-    bool isConcurrentUpdatePossible = isInPlace(getParent(), getInputNum()) || isInPlace(getChild(), getOutputNum()) || !isTheOnlyChildEdgeAtPort;
-
-    if (weightsCache && !isConcurrentUpdatePossible) {
+    if (weightsCache) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
