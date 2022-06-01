@@ -15,7 +15,7 @@ Based on the steps, the following code demostrates how to change the application
 
 ## 1. Create a Core Object
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -29,7 +29,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -47,7 +47,7 @@ API 2.0:
 
 To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](../../Extensibility_UG/Intro.md) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -61,7 +61,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -77,7 +77,7 @@ API 2.0:
 
 ## 2. Read a Model from a Drive
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -91,7 +91,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -115,7 +115,7 @@ When the application input data does not perfectly match the model input format,
 
 ## 3. Load the Model to the Device
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -129,7 +129,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -147,7 +147,7 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 
 ## 4. Create an Inference Request
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -161,7 +161,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -176,6 +176,8 @@ API 2.0:
 @endsphinxtabset
 
 ## 5. Fill Input Tensors with Data
+
+**Inference Engine API**
 
 The Inference Engine API fills inputs with data of the `I32` precision (**not** aligned with the original model):
 
@@ -246,6 +248,8 @@ The Inference Engine API fills inputs with data of the `I32` precision (**not** 
 @endsphinxtab
 
 @endsphinxtabset
+
+**API 2.0**
 
 API 2.0 fills inputs with data of the `I64` precision (aligned with the original model):
 
@@ -319,7 +323,7 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 ## 6. Start Inference
 
-Inference Engine API:
+**Inference Engine API**
 
 @sphinxtabset
 
@@ -357,7 +361,7 @@ Inference Engine API:
 
 @endsphinxtabset
 
-OpenVINO™ Runtime API 2.0:
+**API 2.0**
 
 @sphinxtabset
 
@@ -396,6 +400,8 @@ OpenVINO™ Runtime API 2.0:
 @endsphinxtabset
 
 ## 7. Process the Inference Results
+
+**Inference Engine API**
 
 The Inference Engine API processes outputs as they are of the `I32` precision (**not** aligned with the original model):
 
@@ -466,6 +472,8 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 @endsphinxtab
 
 @endsphinxtabset
+
+**API 2.0**
 
 API 2.0 processes outputs:
 

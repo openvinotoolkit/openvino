@@ -50,7 +50,7 @@ However, Post-Training Optimization Tool and Deep Learning Workbench of OpenVINO
 
 > **NOTE**: To quantize your OpenVINO IR v10 models to run with OpenVINO 2022.1, download and use Post-Training Optimization Tool of OpenVINO 2021.4.
 
-### Differences in API 2.0 and Inference Engine API Behaviors
+### <a name="differences-api20-ie"></a>Differences in API 2.0 and Inference Engine API Behaviors
 
 Inference Engine and nGraph APIs do not become deprecated with the introduction of the new API, and they can still be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers more features (further extended in future releases), such as:
 - [Working with dynamic shapes](../ov_dynamic_shapes.md), which increases performance when working with compatible models such as NLP (Neural Language Processing) and super-resolution models.
