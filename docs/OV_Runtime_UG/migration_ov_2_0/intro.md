@@ -14,7 +14,7 @@
 
 @endsphinxdirective
 
-This guide introduces the new API of OpenVINO™ 2022.1, which is also known as API 2.0 or OpenVINO API v2. You will learn about the API 2.0 and OpenVINO IR v11, as well as some comparisons between API 2.0 and the previous Inference Engine API. 
+This guide introduces the new OpenVINO™ API: API 2.0, as well as the new OpenVINO IR model format: IR v11. Here, you will find comparisons of their "old" and "new" versions. 
 
 ### Introduction of API 2.0
 
