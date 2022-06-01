@@ -14,11 +14,11 @@
 
 @endsphinxdirective
 
-This guide introduces the new API of OpenVINO 2022.1, which is also known as API 2.0 or OpenVINO API v2. You will learn about the API 2.0 and OpenVINO IR v11, as well as some comparisons between API 2.0 and the previous Inference Engine API. 
+This guide introduces the new API of OpenVINO™ 2022.1, which is also known as API 2.0 or OpenVINO API v2. You will learn about the API 2.0 and OpenVINO IR v11, as well as some comparisons between API 2.0 and the previous Inference Engine API. 
 
 ### Introduction of API 2.0
 
-Versions of OpenVINO™ prior to 2022.1 required changes in the application logic when migrating an app from other frameworks, such as TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The changes were required because:
+Versions of OpenVINO prior to 2022.1 required changes in the application logic when migrating an app from other frameworks, such as TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The changes were required because:
 
 - Model Optimizer changed input precisions for some inputs. For example, neural language processing models with `I64` inputs were changed to include `I32` ones.
 - Model Optimizer changed layouts for TensorFlow models (see the [Layouts in OpenVINO](../layout_overview.md)). It lead to unusual requirement of using the input data with a different layout than that of the framework:
@@ -75,7 +75,7 @@ The table below demonstrates which behavior, **old** or **new**, is used for mod
 |Inference Engine / nGraph APIs |              Old |              Old |        Old |                    Old |
 |API 2.0                        |              Old |              New |        New |                    New |
 
-### More Details
+### More Information
 
 See the following pages to understand how to migrate Inference Engine-based applications to API 2.0:
  - [Installation & Deployment](deployment_migration.md)
