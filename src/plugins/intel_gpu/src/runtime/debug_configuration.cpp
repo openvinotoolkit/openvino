@@ -116,6 +116,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
     message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
                               " Supported on only on linux.");
+    message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -143,7 +144,8 @@ debug_configuration::debug_configuration()
         , dry_run_path(std::string())
         , disable_onednn(0)
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
-        , base_batch_for_memory_estimation(-1) {
+        , base_batch_for_memory_estimation(-1)
+        , serialize_compile(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -161,6 +163,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayers", dump_layers_str);
     std::string after_proc_str;
     get_gpu_debug_env_var("AfterProc", after_proc_str);
+    get_gpu_debug_env_var("SerialCompile", serialize_compile);
 
     if (help > 0) {
         print_help_messages();

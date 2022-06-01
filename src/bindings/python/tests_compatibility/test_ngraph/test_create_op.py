@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+
 import pytest
+
 from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
 import ngraph.opset5 as ng_opset5
+from ngraph.utils.types import make_constant_node
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Type
 
@@ -1884,7 +1887,33 @@ def test_multiclass_nms():
     scores_data = scores_data.reshape([1, 2, 6])
     score = ng.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
+    nms_node = ng.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
+                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
+                                 nms_eta=1.0)
+
+    assert nms_node.get_type_name() == "MulticlassNms"
+    assert nms_node.get_output_size() == 3
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert nms_node.get_output_element_type(0) == Type.f32
+    assert nms_node.get_output_element_type(1) == Type.i32
+    assert nms_node.get_output_element_type(2) == Type.i32
+
+    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
+                            [7.25, 0.47, 12.28, 17.77]],
+                           [[4.06, 5.15, 16.11, 18.40],
+                            [9.66, 3.36, 18.57, 13.26]],
+                           [[6.50, 7.00, 13.33, 17.63],
+                            [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
+    box = ng.constant(boxes_data, dtype=np.float)
+    scores_data = np.array([[0.34, 0.66],
+                            [0.45, 0.61],
+                            [0.39, 0.59]]).astype("float32")
+    score = ng.constant(scores_data, dtype=np.float)
+    rois_num_data = np.array([3]).astype("int32")
+    roisnum = ng.constant(rois_num_data, dtype=np.int)
+    nms_node = ng.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
 
@@ -1921,6 +1950,51 @@ def test_matrix_nms():
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
+
+
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
+    [
+        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expected_shape):
+    boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64))
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
+
+
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "soft_nms_sigma", "expected_shape"),
+    [
+        ([1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, expected_shape):
+    boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    max_output_boxes = make_constant_node(max_output_boxes, np.int64)
+    iou_threshold = make_constant_node(iou_threshold, np.float32)
+    score_threshold = make_constant_node(score_threshold, np.float32)
+    soft_nms_sigma = make_constant_node(soft_nms_sigma, np.float32)
+
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma)
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
 
 
 def test_slice():
@@ -2071,4 +2145,28 @@ def test_softsign():
     assert node.get_type_name() == "SoftSign"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_rdft():
+    param = ng.parameter([5, 3, 4], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.rdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "RDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4, 2]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_irdft():
+    param = ng.parameter([5, 3, 4, 2], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.irdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "IRDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4]
     assert node.get_output_element_type(0) == Type.f32

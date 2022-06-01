@@ -47,6 +47,10 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
                 sm_params.dim = kernel_selector::softmax_dim::FEATURE;
                 break;
 
+            case softmax::normalize_b:
+                sm_params.dim = kernel_selector::softmax_dim::BATCH;
+                break;
+
             case softmax::normalize_f:
                 sm_params.dim = kernel_selector::softmax_dim::FEATURE;
                 break;
