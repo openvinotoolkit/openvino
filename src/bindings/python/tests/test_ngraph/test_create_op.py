@@ -2109,7 +2109,7 @@ def test_grid_sample():
     img = ov.parameter([1, 3, 100, 100], name="image")
     grid = ov.parameter([1, 10, 10, 2], name="grid")
 
-    node = ov.grid_sample(img, grid, dict())
+    node = ov.grid_sample(img, grid, {})
 
     assert node.get_type_name() == "GridSample"
     assert node.get_output_size() == 1
