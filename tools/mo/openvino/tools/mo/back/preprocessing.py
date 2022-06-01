@@ -290,8 +290,8 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
                 break
 
         if layout_item is not None:
-            # we check layouts for model before layout change is applied, so we need to check only
-            # source_layout, even if target_layout is also provided
+            # RIC transformation is applied before changing layout so only source_layout
+            # should be checked (even is target_layout is also provided)
             if layout_item.get('source_layout'):
                 if check_suitable_for_reverse(Layout(layout_item['source_layout']), ov_input):
                     suitable_params.append(param_info)
