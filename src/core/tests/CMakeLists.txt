@@ -127,6 +127,7 @@ set(SRC
     type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
+    type_prop/generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
     type_prop/strided_slice.cpp
@@ -298,6 +299,7 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/generate_proposals.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/eye.cpp
@@ -423,6 +425,7 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
+                                type_prop/multiclass_nms.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 

@@ -20,6 +20,7 @@
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -84,6 +85,7 @@ namespace detail {
     }
 
 REGISTER_OCL(activation);
+REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
@@ -100,6 +102,9 @@ REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
+REGISTER_OCL(dft);
+REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
+REGISTER_OCL(experimental_detectron_prior_grid_generator);
 REGISTER_OCL(experimental_detectron_roi_feature_extractor);
 REGISTER_OCL(experimental_detectron_topk_rois);
 REGISTER_OCL(eltwise);
