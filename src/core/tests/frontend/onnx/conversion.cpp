@@ -67,7 +67,7 @@ TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
 
-    const auto input_model = fe->load(std::string(TEST_ONNX_MODELS_DIRNAME) + "/missing_op_domain.onnx");
+    const auto input_model = fe->load(ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"}));
 
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = fe->convert(input_model));
