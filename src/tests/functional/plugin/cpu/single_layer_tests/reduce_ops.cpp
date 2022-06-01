@@ -281,19 +281,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
-// TODO: should remove inputShapesFusingKeepNoDims and inputShapesFusingKeepNoDims_5D,
-//       and use inputShapes and inputShapes_5D directly,
-//       after Shape mismatching in fusing per channel[Issue: 62846] being fixed
-std::vector<std::vector<ov::test::InputShape>> inputShapesFusingKeepNoDims = {
-    {{{}, {{2, 19, 2, 9}}}},
-    {{{{1, 5}, 19, 2, 9}, {{2, 19, 2, 9}, {3, 19, 2, 9}}}},
-};
-
-std::vector<std::vector<ov::test::InputShape>> inputShapesFusingKeepNoDims_5D = {
-    {{{}, {{2, 19, 2, 2, 9}}}},
-    {{{{1, 5}, 19, 2, 2, 2}, {{2, 19, 2, 2, 2}, {3, 19, 2, 2, 2}}}},
-};
-
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2, 2}, {2, 19, 2, 2, 3, 2}}}},
@@ -327,6 +314,18 @@ const std::vector<fusingSpecificParams> fusingParamsSet {
 
         /* FQ */
         fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
+        /* another patterns */
+        fusingScaleShift
+};
+
+// Exclude cases of fusingFakeQuantizePerChannelRelu, where FQ for non-1 channel fallbacks
+// to decomposed ngraph reference implementation, so such fusing tests are N/A
+const std::vector<fusingSpecificParams> fusingParamsSet_KeepNoDims {
+        /* activations */
+        fusingSwish,
+
+        /* FQ */
         fusingFakeQuantizePerTensorRelu,
         /* another patterns */
         fusingScaleShift
@@ -645,9 +644,9 @@ const auto params_OneAxis_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapesFusingKeepNoDims)),
+            testing::ValuesIn(inputShapes)),
         testing::Values(emptyCPUSpec),
-        testing::ValuesIn(fusingParamsSet));
+        testing::ValuesIn(fusingParamsSet_KeepNoDims));
 
 const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
@@ -658,9 +657,9 @@ const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapesFusingKeepNoDims)),
+            testing::ValuesIn(inputShapes)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_4D)),
-        testing::ValuesIn(fusingParamsSet));
+        testing::ValuesIn(fusingParamsSet_KeepNoDims));
 
 const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
@@ -671,9 +670,9 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inpOutPrc),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapesFusingKeepNoDims_5D)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
-        testing::ValuesIn(fusingParamsSet));
+        testing::ValuesIn(fusingParamsSet_KeepNoDims));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_fusing_KeepNoDims_CPU,

@@ -1864,7 +1864,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        const size_t channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
+        const auto channelPos = parent->getParentEdgeAt(0)->getParent()->getFusingAxis();
 
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {

@@ -12,7 +12,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_load_store_emitters.hpp"
@@ -29,7 +29,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
+using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
 
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -633,15 +634,21 @@ private:
 
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
         if (!roiAlign) {
-            errorMessage = "Only opset3 ROIAlign operation is supported";
+            errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
         }
 
         const ngPoolingMode mode = roiAlign->get_mode();
         if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
             errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            return false;
+        }
+
+        const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
+        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
             return false;
         }
     } catch (...) {
@@ -656,7 +663,7 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& 
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset3::ROIAlign>(op);
+        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
@@ -666,6 +673,14 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& 
             algorithm = Algorithm::ROIAlignMax;
         } else if (m == ngPoolingMode::AVG) {
             algorithm = Algorithm::ROIAlignAvg;
+        }
+        const ngAlignedMode mAligned = roiAlign->get_aligned_mode();
+        if (mAligned == ngAlignedMode::ASYMMETRIC) {
+            alignedMode = ROIAlignedMode::ra_asymmetric;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL_FOR_NN) {
+            alignedMode = ROIAlignedMode::ra_half_pixel_for_nn;
+        } else if (mAligned == ngAlignedMode::HALF_PIXEL) {
+            alignedMode = ROIAlignedMode::ra_half_pixel;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -885,6 +900,28 @@ void ROIAlign::executeSpecified() {
     else
         srcIndexTbl.resize(realRois);
 
+    bool aligned = false;
+    float offset_src = 0;
+    float offset_dst = 0;
+
+    switch (alignedMode) {
+    case ROIAlignedMode::ra_half_pixel_for_nn: {
+        aligned = true;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_half_pixel: {
+        aligned = true;
+        offset_src = 0.5;
+        offset_dst = -0.5;
+        break;
+    }
+    case ROIAlignedMode::ra_asymmetric:
+    default: {
+        break;
+    }
+    }
+
     parallel_for(realRois, [&](size_t n) {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
@@ -895,13 +932,17 @@ void ROIAlign::executeSpecified() {
             IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 
-        float x1 = srcRoiPtr[0] * spatialScale;
-        float y1 = srcRoiPtr[1] * spatialScale;
-        float x2 = srcRoiPtr[2] * spatialScale;
-        float y2 = srcRoiPtr[3] * spatialScale;
+        float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
+        float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
+        float x2 = (srcRoiPtr[2] + offset_src) * spatialScale + offset_dst;
+        float y2 = (srcRoiPtr[3] + offset_src) * spatialScale + offset_dst;
 
-        float roiHeight = std::max(y2 - y1, 1.0f);
-        float roiWidth = std::max(x2 - x1, 1.0f);
+        float roiHeight = y2 - y1;
+        float roiWidth = x2 - x1;
+        if (!aligned) {
+            roiHeight = std::max(roiHeight, 1.0f);
+            roiWidth = std::max(roiWidth, 1.0f);
+        }
         float binHeight = roiHeight / pooledH;
         float binWidth = roiWidth / pooledW;
 

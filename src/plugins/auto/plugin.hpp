@@ -12,8 +12,8 @@
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include "executable_network.hpp"
 #include "utils/log_util.hpp"
+#include "common.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -45,9 +45,11 @@ public:
     MOCKTESTMACRO std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                                        const std::map<std::string, std::string> & config) const;
 
-    std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+    MOCKTESTMACRO std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+
     std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
                                                    const std::string& networkPrecision = METRIC_VALUE(FP32));
+
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
                                                  const std::string& networkPrecision = METRIC_VALUE(FP32),
                                                  unsigned int priority = 0);
@@ -63,7 +65,7 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    static void CheckConfig(const std::map<std::string, std::string>& config, AutoContext& context,
+    static void CheckConfig(const std::map<std::string, std::string>& config, AutoScheduleContext::Ptr& context,
                             std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);

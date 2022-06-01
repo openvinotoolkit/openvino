@@ -141,7 +141,9 @@ public:
                     struct softmax_t {
                         uint32_t dimX : 1;
                         uint32_t dimY : 1;
+                        uint32_t dimZ : 1;
                         uint32_t dimFeature : 1;
+                        uint32_t dimBatch : 1;
                     } softmax;
                     struct region_yolo_t {
                         uint32_t dimX : 1;

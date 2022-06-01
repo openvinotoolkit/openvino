@@ -118,22 +118,13 @@ class Computation(object):
         if self.network_cache.get(str(input_shapes)) is None:
             function = self.function
             if self.function.is_dynamic():
+                function = function.clone()
                 function.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
             self.network_cache[str(input_shapes)] = function
         else:
             function = self.network_cache[str(input_shapes)]
 
         executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
-
-        for parameter, input in zip(self.parameters, input_values):
-            parameter_shape = parameter.get_output_partial_shape(0)
-            input_shape = PartialShape([]) if isinstance(input, (int, float)) else PartialShape(input.shape)
-            if not parameter_shape.compatible(input_shape):
-                raise UserInputError(
-                    "Provided tensor's shape: %s does not match the expected: %s.",
-                    input_shape,
-                    parameter_shape,
-                )
 
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         if is_bfloat16:

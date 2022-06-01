@@ -552,16 +552,16 @@ private:
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
-        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
+        using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
+        if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
                     ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
-            errorMessage = "Only NonMaxSuppression v5 and NonMaxSuppressionIEInternal are supported";
+            errorMessage = "Only NonMaxSuppression v9 and NonMaxSuppressionIEInternal are supported";
             return false;
         }
 
-        if (const auto nms5 = std::dynamic_pointer_cast<const NonMaxSuppressionV5>(op)) {
-            const auto boxEncoding = nms5->get_box_encoding();
-            if (!one_of(boxEncoding, NonMaxSuppressionV5::BoxEncodingType::CENTER, NonMaxSuppressionV5::BoxEncodingType::CORNER)) {
+        if (const auto nms9 = std::dynamic_pointer_cast<const NonMaxSuppressionV9>(op)) {
+            const auto boxEncoding = nms9->get_box_encoding();
+            if (!one_of(boxEncoding, NonMaxSuppressionV9::BoxEncodingType::CENTER, NonMaxSuppressionV9::BoxEncodingType::CORNER)) {
                 errorMessage = "Supports only CENTER and CORNER box encoding type";
                 return false;
             }
@@ -573,7 +573,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
 }
 
 NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(true) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(false) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;
@@ -587,9 +587,9 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
         if (getOriginalOutputsNumber() != 3)
             IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-        if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
-            boxEncodingType = static_cast<NMSBoxEncodeType>(nms5->get_box_encoding());
-            sortResultDescending = nms5->get_sort_result_descending();
+        if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
+            boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
+            sortResultDescending = nms9->get_sort_result_descending();
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;

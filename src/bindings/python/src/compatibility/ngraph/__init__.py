@@ -88,6 +88,7 @@ from ngraph.opset9 import hswish
 from ngraph.opset9 import idft
 from ngraph.opset9 import if_op
 from ngraph.opset9 import interpolate
+from ngraph.opset9 import irdft
 from ngraph.opset9 import i420_to_bgr
 from ngraph.opset9 import i420_to_rgb
 from ngraph.opset9 import less
@@ -130,6 +131,7 @@ from ngraph.opset9 import psroi_pooling
 from ngraph.opset9 import proposal
 from ngraph.opset9 import random_uniform
 from ngraph.opset9 import range
+from ngraph.opset9 import rdft
 from ngraph.opset9 import read_value
 from ngraph.opset9 import reduce_l1
 from ngraph.opset9 import reduce_l2
@@ -165,6 +167,7 @@ from ngraph.opset9 import sinh
 from ngraph.opset9 import slice
 from ngraph.opset9 import softmax
 from ngraph.opset9 import softplus
+from ngraph.opset9 import softsign
 from ngraph.opset9 import space_to_batch
 from ngraph.opset9 import space_to_depth
 from ngraph.opset9 import split

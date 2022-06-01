@@ -38,6 +38,9 @@ std::vector<int64_t> coords_from_index(int64_t index, const std::vector<int64_t>
 
 // Calculates offset of value using corresponding coordinates and strides.
 int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const std::vector<int64_t>& strides);
+
+// Reverse order of given axes of complex number (where last dimension represents real and imaginary part)
+std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank);
 }  // namespace fft_common
 }  // namespace reference
 }  // namespace runtime

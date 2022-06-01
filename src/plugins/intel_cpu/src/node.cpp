@@ -1135,11 +1135,11 @@ InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGro
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
@@ -1272,7 +1272,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
-    const size_t channelAxis = parentNode->getFusingAxis();
+    const auto channelAxis = parentNode->getFusingAxis();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         Node *node = getParentEdgesAtPort(i)[0]->getParent().get();

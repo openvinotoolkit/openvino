@@ -141,20 +141,28 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
                (l2.format == format && l1.format != format);
     };
 
-    if (check_format(format::b_fs_yx_fsv4) ||
+    if (check_format(format::b_fs_yx_fsv2) ||
+        check_format(format::b_fs_yx_fsv4) ||
         check_format(format::fs_b_yx_fsv32) ||
         check_format(format::b_fs_yx_fsv16) ||
         check_format(format::b_fs_yx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv2) ||
+        check_format(format::b_fs_zyx_fsv2) ||
         check_format(format::b_fs_zyx_fsv32) ||
         check_format(format::b_fs_zyx_fsv16) ||
         check_format(format::bs_fs_yx_bsv4_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_zyx_bsv8_fsv4) ||
         check_format(format::bs_fs_yx_bsv8_fsv2) ||
+        check_format(format::bs_fs_zyx_bsv8_fsv2) ||
         check_format(format::bs_fs_yx_bsv4_fsv2) ||
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
         check_format(format::bs_fs_yx_bsv16_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv16))
+        check_format(format::bs_fs_zyx_bsv16_fsv32) ||
+        check_format(format::bs_fs_zyx_bsv16_fsv16) ||
+        check_format(format::bs_fs_zyx_bsv32_fsv16) ||
+        check_format(format::bs_fs_zyx_bsv32_fsv32))
         return {false, false};
 
     // If data is actually 1d along f and dense, the layouts are identical

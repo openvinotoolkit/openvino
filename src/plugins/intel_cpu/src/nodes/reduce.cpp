@@ -2844,7 +2844,7 @@ void Reduce::setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims
 
         auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -2919,6 +2919,23 @@ bool Reduce::canApplyJIT(const Precision &input_prec, const Precision &output_pr
     return (mayiuse(cpu::x64::sse41)) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), input_prec) != std::end(supportedPrecisions) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) != std::end(supportedPrecisions);
+}
+
+int Reduce::getFusingAxis() const {
+    int channelAxis = 1;
+    if (!keep_dims) {
+        for (auto &raw_axis : raw_axes) {
+            int axis = raw_axis >= 0 ? raw_axis : raw_axis + static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            if (axis == 1) {
+                // channel axis has been reduced and doesn't exist any more
+                channelAxis = -1;
+                break;
+            } else if (axis == 0) {
+                channelAxis = 0;
+            }
+        }
+    }
+    return channelAxis;
 }
 
 bool Reduce::canFuse(const NodePtr& node) const {
