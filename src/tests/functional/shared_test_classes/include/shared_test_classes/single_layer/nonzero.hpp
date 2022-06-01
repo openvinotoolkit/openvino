@@ -34,7 +34,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
 
 protected:
-    size_t startFrom = 0, range = 10;
+    size_t startFrom = 0, range = 3;
 };
 
 }  // namespace LayerTestsDefinitions
