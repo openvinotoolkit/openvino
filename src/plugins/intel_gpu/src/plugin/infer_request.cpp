@@ -522,6 +522,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
     } else {
         allocate_inputs();
         allocate_outputs();
+        variables_states_ = m_graph->AllocateVariablesMemories();
     }
 }
 
@@ -595,6 +596,7 @@ void InferRequest::SetBatch(int new_batch) {
 
         batchOutputs[no.first] = out_buf;
     }
+    variables_states_ = m_graph->AllocateVariablesMemories();
 
     m_curBatch = new_batch;
 }
@@ -734,6 +736,14 @@ void InferRequest::enqueue() {
         }
     }
 
+    cldnn::network::variables_states_map variables_states;
+    for (auto &variable_state_pair : variables_states_)
+        variables_states.insert({ variable_state_pair.first, variable_state_pair.second[0] });
+
+    auto networkPtr = m_graph->GetNetwork();
+
+    networkPtr->assign_variables_memories(std::move(variables_states));
+
     for (auto& item : _outputs) {
         std::string outputName = item.first;
         Blob::Ptr& outputBlob = item.second;
@@ -741,7 +751,7 @@ void InferRequest::enqueue() {
     }
 
     internal_outputs.clear();
-    internal_outputs = m_graph->GetNetwork()->execute(dependencies);
+    internal_outputs = networkPtr->execute(dependencies);
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -816,7 +826,16 @@ void InferRequest::enqueue_dynamic() {
                 inputLayout.size.batch[0] = mask;
                 copy_input_data(m_graph->GetNetwork(nb), inputName, inputLayout, *inputBlob, &batchInputs[inputName][nb]);
             }
-            internal_outputs_dynamic[nb] = m_graph->GetNetwork(nb)->execute();
+
+            cldnn::network::variables_states_map variables_states;
+            for (auto &variable_state_pair : variables_states_)
+                variables_states.insert({ variable_state_pair.first, variable_state_pair.second[nb] });
+
+            auto networkPtr = m_graph->GetNetwork(nb);
+
+            networkPtr->assign_variables_memories(std::move(variables_states));
+
+            internal_outputs_dynamic[nb] = networkPtr->execute();
         }
     }
 }

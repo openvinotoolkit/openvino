@@ -106,6 +106,7 @@ private:
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
+    Graph::variable_states_map variables_states_;
 };
 
 }  // namespace intel_gpu
