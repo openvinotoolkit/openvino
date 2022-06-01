@@ -176,6 +176,9 @@ public:
         return prim != nullptr;
     }
 
+    /**
+     * @brief Resets the memory manager to a new one created with the provided raw memory
+     */
     void setDataHandle(void* data);
 
     const MemoryDesc& getDesc() const {

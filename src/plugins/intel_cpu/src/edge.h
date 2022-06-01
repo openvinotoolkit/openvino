@@ -51,6 +51,7 @@ public:
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
+    void allocate(DnnlMemoryMngrPtr memMngr);
     void externalAllocate(WeightsSharing::Ptr weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
@@ -104,6 +105,8 @@ private:
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
     bool inPlace(LOOK look = LOOK_BOTH);
+    void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
+
     friend class Graph;
 };
 
