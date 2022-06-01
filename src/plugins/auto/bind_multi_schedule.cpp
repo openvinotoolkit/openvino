@@ -11,72 +11,9 @@
 namespace MultiDevicePlugin {
 
 thread_local SoInfer BinderMultiSchedule::_sharedRequest = {};
-std::atomic_bool BinderMultiSchedule::_disableBind(false);
 
 void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
      MultiSchedule::init(sContext);
-}
-void BinderMultiSchedule::GenerateWorkers(const std::string& device,
-    const SoExecNetwork& executableNetwork) {
-    auto itNumRequests = std::find_if(_multiSContext->_devicePriorities.cbegin(), _multiSContext->_devicePriorities.cend(),
-                            [&device](const DeviceInformation & d) {
-                                return d.deviceName == device;
-                            });
-    unsigned int optimalNum = 0;
-    try {
-        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-    } catch (const IE::Exception& iie) {
-        IE_THROW()
-                << "Every device used with the Multi-Device should "
-                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                    << "Failed to query the metric for the " << device << " with error:" <<
-                    iie.what();
-    }
-    const auto numRequests = (_multiSContext->_devicePriorities.end() == itNumRequests ||
-                              itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
-    auto& workerRequests = _workerRequests[device];
-    auto& idleWorkerRequests = _idleWorkerRequests[device];
-    workerRequests.resize(numRequests);
-    _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>(new IE::ThreadSafeQueue<IE::Task>);
-    auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
-    idleWorkerRequests.set_capacity(numRequests);
-    int num = 0;
-    for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = {executableNetwork->CreateInferRequest(), executableNetwork._so};
-        auto* workerRequestPtr = &workerRequest;
-        workerRequestPtr->_index = num++;
-        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
-        workerRequest._inferRequest->SetCallback(
-            [workerRequestPtr, this, device, idleWorkerRequestsPtr](std::exception_ptr exceptionPtr) mutable {
-                IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                workerRequestPtr->_exceptionPtr = exceptionPtr;
-                {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
-                }
-                if (_disableBind) {
-                    // try to return the request to the idle list (fails if the overall object destruction has began)
-                    if (idleGuard.Release()->try_push(workerRequestPtr)) {
-                        // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
-                        // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                        IE::Task t;
-                        if (_inferPipelineTasks.try_pop(t)) {
-                            ScheduleToWorkerInferRequest(std::move(t));
-                        } else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t)) {
-                            ScheduleToWorkerInferRequest(std::move(t), device);
-                        }
-                    }
-                } else {
-                    // Do not need to return the request to the idle list
-                    IE::Task t;
-                    if (_inferPipelineTasks.try_pop(t)) {
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    } else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t)) {
-                        ScheduleToWorkerInferRequest(std::move(t), device);
-                    }
-                }
-            });
-    }
 }
 
 Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
@@ -141,9 +78,6 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                 INFO_RUN([workerInferRequest]() {
                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
                 });
-                if (_disableBind) {
-                    _thisWorkerInferRequest = nullptr;
-                }
             }}
     };
     return pipeline;
@@ -179,28 +113,15 @@ bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     WorkerInferRequest* workerRequestPtr = nullptr;
     WorkerInferRequest* headWorker = nullptr;
     bool flag = false;
-    if (!_disableBind) {
-        while (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            if (flag && workerRequestPtr == headWorker)
-                break;
-            if (!flag) {
-                headWorker = workerRequestPtr;
-                flag = true;
-            }
-            IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
-            if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
-                _thisWorkerInferRequest = workerRequestPtr;
-                {
-                    auto capturedTask = std::move(inferPipelineTask);
-                    capturedTask();
-                }
-                idleGuard.Release();
-                return true;
-            }
+    while (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        if (flag && workerRequestPtr == headWorker)
+            break;
+        if (!flag) {
+            headWorker = workerRequestPtr;
+            flag = true;
         }
-    } else {
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+        if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
             _thisWorkerInferRequest = workerRequestPtr;
             {
                 auto capturedTask = std::move(inferPipelineTask);
@@ -214,7 +135,7 @@ bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
 }
 
 void BinderMultiSchedule::run(IE::Task inferPipelineTask) {
-    if (_thisWorkerInferRequest && !_disableBind) {
+    if (_thisWorkerInferRequest) {
         auto capturedTask = std::move(inferPipelineTask);
         capturedTask();
     } else {
@@ -242,8 +163,9 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
         sum += dev_requests.size();
     }
     if (!request_to_share_blobs_with) {
-        LOG_INFO("[AUTOPLUGIN]:oversubscription of infer requests, will not bind buffers");
-        _disableBind = true;
+        IE_THROW() <<
+                    "binder mode does not allow oversubsciption of infer requests"
+                    " please use optimal infer request";
     }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     return syncImpl;
@@ -265,8 +187,9 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
         sum += dev_requests.size();
     }
     if (!request_to_share_blobs_with) {
-        LOG_INFO("[AUTOPLUGIN]:oversubscription of infer requests, will not bind buffers");
-        _disableBind = true;
+        IE_THROW() <<
+                    "binder mode does not allow oversubsciption of infer requests"
+                    " please use optimal infer request";
     }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     return syncImpl;
