@@ -17,7 +17,7 @@ TEST_P(NonZeroLayerTest, Serialize) {
 std::vector<ov::test::InputShape> inputDims = {
     {{}, {{7}}},
     {{}, {{1000}}},
-    {{}, {{3, 5}}},
+    {{}, {{3, 5}}, {{2, 4}}, {{3, 5}}},
     {{}, {{65, 33}}},
     {{}, {{33, 65}}},
     {{}, {{1, 1000}}},
