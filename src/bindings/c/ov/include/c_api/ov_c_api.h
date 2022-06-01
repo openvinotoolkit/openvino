@@ -272,17 +272,23 @@ typedef enum {
 /**
  * @struct ov_layout_t
  */
-typedef char ov_layout_t[4];
+typedef char ov_layout_t[MAX_DIMENSION];
 
 /**
  * @struct ov_shape_t
  */
-typedef size_t ov_shape_t[MAX_DIMENSION];
+typedef struct {
+    int ranks;
+    size_t dims[MAX_DIMENSION];
+} ov_shape_t;
 
 /**
  * @struct ov_PartialShape_t
  */
-typedef const char* ov_partial_shape_t[MAX_DIMENSION];
+typedef struct {
+    int ranks;
+    const char *dims[MAX_DIMENSION];
+} ov_partial_shape_t;
 
 /**
  * @enum ov_performance_mode_e
@@ -340,6 +346,30 @@ typedef struct ov_property{
     ov_property_value value;
     struct ov_property* next;
 }ov_property_t;
+
+/**
+ * @brief Initialize a partial shape.
+ * @param ov_status_e a status code.
+ */
+OPENVINO_C_API(ov_status_e) ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char* str);
+
+/**
+ * @brief Parse the partial shape to readable string.
+ * @param ov_status_e a status code.
+ */
+OPENVINO_C_API(const char*) ov_partial_shape_parse(ov_partial_shape_t* partial_shape);
+
+/**
+ * @brief Release partial shape.
+ * @param ov_status_e a status code.
+ */
+OPENVINO_C_API(ov_status_e) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
+
+/**
+ * @brief Covert partial shape to static shape.
+ * @param ov_status_e a status code, return OK if successful
+ */
+OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape);
 
 /**
  * @brief Print the error info.
@@ -571,7 +601,7 @@ OPENVINO_C_API(ov_status_e) ov_node_get_tensor_name(ov_output_node_list_t *nodes
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_node_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_node_get_tensor_shape(ov_output_node_list_t *nodes, size_t idx, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the tensor type of ov_output_node.
@@ -641,9 +671,9 @@ OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
 
 /**
  * @brief free char
- * @param content The pointer to the tensor name to free.
+ * @param content The pointer to the char to free.
  */
-OPENVINO_C_API(void) ov_name_free(char *content);
+OPENVINO_C_API(void) ov_free(char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 

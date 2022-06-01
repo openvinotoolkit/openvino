@@ -543,7 +543,7 @@ ov_status_e ov_node_get_tensor_name(ov_output_node_list_t* nodes, size_t idx,
 }
 
 ov_status_e ov_node_get_tensor_shape(ov_output_node_list_t* nodes, size_t idx,
-                                    ov_shape_t tensor_shape) {
+                                    ov_shape_t* tensor_shape) {
     if (!nodes || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -553,7 +553,8 @@ ov_status_e ov_node_get_tensor_shape(ov_output_node_list_t* nodes, size_t idx,
         if (shape.size() > MAX_DIMENSION) {
             return ov_status_e::GENERAL_ERROR;
         }
-        std::copy_n(shape.begin(), shape.size(), tensor_shape);
+        tensor_shape->ranks = shape.size();
+        std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     } CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
@@ -618,9 +619,9 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     try {
         std::vector<ngraph::Dimension> shape;
         for (int i = 0; i < MAX_DIMENSION; i++) {
-            if (partial_shape[i] == nullptr)
+            if (partial_shape.dims[i] == nullptr)
                 break;
-            std::string dim = partial_shape[i];
+            std::string dim = partial_shape.dims[i];
             if (dim == "?" || dim == "-1") {
                 shape.push_back(ov::Dimension::dynamic());
             } else {
@@ -666,7 +667,7 @@ void ov_output_node_free(ov_output_node_t *output_node) {
     delete output_node;
 }
 
-void ov_name_free(char *content) {
+void ov_free(char *content) {
     delete content;
 }
 
@@ -1246,16 +1247,14 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t *profiling_infos) {
 }
 
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
-    if (!tensor || !shape || element_type_map.find(type) == element_type_map.end()) {
+    if (!tensor || !shape.dims || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + MAX_DIMENSION,
-                     std::back_inserter(tmp_shape),
-                     [](size_t x) { return x != 0; });
+        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1263,37 +1262,33 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
 
 ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const ov_shape_t shape, void *host_ptr,
                                       ov_tensor_t **tensor) {
-    if (!tensor || !host_ptr || !shape || element_type_map.find(type) == element_type_map.end()) {
+    if (!tensor || !host_ptr || !shape.dims || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + MAX_DIMENSION,
-                     std::back_inserter(tmp_shape),
-                     [](size_t x) { return x != 0; });
+        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
-    if (!tensor || !shape) {
+    if (!tensor || !shape.dims) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
         ov::Shape tmp_shape;
-        std::copy_if(shape, shape + MAX_DIMENSION,
-                     std::back_inserter(tmp_shape),
-                     [](size_t x) { return x != 0;});
+        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
         tensor->object->set_shape(tmp_shape);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
 ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
-    if (!tensor || !shape) {
+    if (!tensor || !shape->dims) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -1301,9 +1296,8 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
         if (tmp_shape.size() > MAX_DIMENSION) {
             return ov_status_e::GENERAL_ERROR;
         }
-        std::copy_if(tmp_shape.begin(), tmp_shape.end(),
-                     *shape,
-                     [](size_t x) { return x != 0;});
+        shape->ranks = tmp_shape.size();
+        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }

@@ -83,9 +83,9 @@ void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
 {
     ov_shape_t shape = {0};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
-    size_t channels = shape[1];
-    size_t width = shape[3];
-    size_t height = shape[2];
+    size_t channels = shape.dims[1];
+    size_t width = shape.dims[3];
+    size_t height = shape.dims[2];
     void* tensor_data = NULL;
     OV_EXPECT_OK(ov_tensor_get_data(tensor, &tensor_data));
     uint8_t *tmp_data = (uint8_t *)(tensor_data);
@@ -825,7 +825,7 @@ TEST(ov_preprocess, ov_preprocess_build_apply) {
     OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
     ov_tensor_t* tensor = nullptr;
-    ov_shape_t shape = {1, 416, 416, 3};
+    ov_shape_t shape = {4, {1, 416, 416, 3}};
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
     ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
@@ -1078,7 +1078,7 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
 }
 
 void get_tensor_info(ov_model_t *model, bool input, size_t idx,
-                char **name, ov_shape_t shape, ov_element_type_e *type) {
+                char **name, ov_shape_t* shape, ov_element_type_e *type) {
     ov_output_node_list_t output_nodes;
     output_nodes.num = 0;
     output_nodes.output_nodes = nullptr;
@@ -1113,9 +1113,9 @@ protected:
         EXPECT_NE(nullptr, model);
 
         in_tensor_name = nullptr;
-        ov_shape_t tensor_shape = {0};
+        ov_shape_t tensor_shape = {0, {0}};
         ov_element_type_e tensor_type;
-        get_tensor_info(model, true, 0, &in_tensor_name, tensor_shape, &tensor_type);
+        get_tensor_info(model, true, 0, &in_tensor_name, &tensor_shape, &tensor_type);
 
         input_tensor = nullptr;
         output_tensor = nullptr;
@@ -1134,7 +1134,7 @@ protected:
     void TearDown() override {
         ov_tensor_free(input_tensor);
         ov_tensor_free(output_tensor);
-        ov_name_free(in_tensor_name);
+        ov_free(in_tensor_name);
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
         ov_model_free(model);
@@ -1176,7 +1176,7 @@ protected:
         OV_EXPECT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
         EXPECT_NE(nullptr, input_tensor_info);
 
-        ov_shape_t shape = {1, 224, 224, 3};
+        ov_shape_t shape = {4, {1, 224, 224, 3}};
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
         OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, input_tensor));
@@ -1271,14 +1271,14 @@ TEST_P(ov_infer_request, infer) {
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
     char *out_tensor_name = nullptr;
-    ov_shape_t tensor_shape = {0};
+    ov_shape_t tensor_shape = {0,{0}};
     ov_element_type_e tensor_type;
-    get_tensor_info(model, false, 0, &out_tensor_name, tensor_shape, &tensor_type);
+    get_tensor_info(model, false, 0, &out_tensor_name, &tensor_shape, &tensor_type);
 
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, out_tensor_name, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
-    ov_name_free(out_tensor_name);
+    ov_free(out_tensor_name);
 }
 
 TEST_P(ov_infer_request, cancel) {
@@ -1397,30 +1397,32 @@ TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
 
 TEST(ov_tensor, ov_tensor_get_shape) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {10, 20, 30, 40};
+    ov_shape_t shape = {4, {10, 20, 30, 40}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    ov_shape_t shape_res = {0};
+    ov_shape_t shape_res = {0,{0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
-    OV_EXPECT_ARREQ(shape, shape_res);
+    EXPECT_EQ(shape.ranks, shape_res.ranks);
+    OV_EXPECT_ARREQ(shape.dims, shape_res.dims);
 
     ov_tensor_free(tensor);
 }
 
 TEST(ov_tensor, ov_tensor_set_shape) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {1, 1, 1, 1};
+    ov_shape_t shape = {4, {1, 1, 1, 1}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    ov_shape_t shape_update = {10, 20, 30, 40};
+    ov_shape_t shape_update = {4, {10, 20, 30, 40}};
     OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
-    ov_shape_t shape_res = {0};
+    ov_shape_t shape_res = {0,{0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
-    OV_EXPECT_ARREQ(shape_update, shape_res);
+    EXPECT_EQ(shape_update.ranks, shape_res.ranks);
+    OV_EXPECT_ARREQ(shape_update.dims, shape_res.dims);
 
     ov_tensor_free(tensor);
 }
@@ -1447,9 +1449,7 @@ static size_t product(const std::vector<size_t>& dims) {
 
 size_t calculate_size(ov_shape_t shape) {
     std::vector<size_t> tmp_shape;
-    std::copy_if(shape, shape + MAX_DIMENSION,
-                 std::back_inserter(tmp_shape),
-                 [](size_t x) { return x != 0;});
+    std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
     return product(tmp_shape);
 }
 
@@ -1607,7 +1607,7 @@ TEST(ov_model, ov_model_reshape) {
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_get_tensor_name(&input_node_list1, 0, &tensor_name));
 
-    ov_partial_shape_t partial_shape = {"1","3","896","896"};
+    ov_partial_shape_t partial_shape = {4, {"1","3","896","896"}};
     OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
 
     ov_output_node_list_t input_node_list2;
@@ -1617,7 +1617,7 @@ TEST(ov_model, ov_model_reshape) {
 
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
 
-    ov_name_free(tensor_name);
+    ov_free(tensor_name);
     ov_output_node_list_free(&input_node_list1);
     ov_output_node_list_free(&input_node_list2);
     ov_model_free(model);
@@ -1637,7 +1637,7 @@ TEST(ov_model, ov_model_get_friendly_name) {
     OV_ASSERT_OK(ov_model_get_friendly_name(model, &friendly_name));
     ASSERT_NE(nullptr, friendly_name);
 
-    ov_name_free(friendly_name);
+    ov_free(friendly_name);
     ov_model_free(model);
     ov_core_free(core);
 }

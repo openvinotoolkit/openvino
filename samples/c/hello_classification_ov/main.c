@@ -52,7 +52,7 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
     if (status != OK)
         return NULL;
 
-    *result_size = output_shape[1];
+    *result_size = output_shape.dims[1];
 
     struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
     if (!results)
@@ -96,7 +96,7 @@ void print_model_input_output_info(ov_model_t* model) {
     char* friendly_name = NULL;
     ov_model_get_friendly_name(model, &friendly_name);
     printf("[INFO] model name: %s \n", friendly_name);
-    ov_name_free(friendly_name);
+    ov_free(friendly_name);
 }
 
 #define CHECK_STATUS(return_status)                                                      \
