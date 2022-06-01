@@ -25,11 +25,7 @@ OutputVector grid_sample(const Node& node) {
 
     return {std::make_shared<ov::opset9::GridSample>(data, grid, attributes)};
 }
-
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

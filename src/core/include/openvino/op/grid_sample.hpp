@@ -54,7 +54,6 @@ private:
     Attributes m_attributes = {};
 };
 }  // namespace v9
-
 }  // namespace op
 
 OPENVINO_API
@@ -83,5 +82,4 @@ public:
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::GridSample::PaddingMode>");
     BWDCMP_RTTI_DECLARATION;
 };
-
 }  // namespace ov
