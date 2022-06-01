@@ -330,9 +330,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
-        CheckConfig(fullConfig, autoSContext, filterConfig);
-        // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
+        // keep the secondary priorities when the config key is one of the available hardware devices
+        CheckConfig(fullConfig, autoSContext, filterConfig, strDevices);
+        // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
@@ -379,6 +380,33 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                             });
              if (tmpiter != fullConfig.end())
                  deviceConfig.insert({tmpiter->first, tmpiter->second});
+             // promote secondary property to first level and pass them to target device
+             auto secPropertyIter = std::find_if(fullConfig.begin(),
+                                                 fullConfig.end(),
+                                                 [&](const std::pair<std::string, std::string>& config) {
+                                                     return (config.first == iter->deviceName);
+                                                 });
+             if (secPropertyIter != fullConfig.end()) {
+                 std::string::size_type i = 0;
+                 std::string key = "";
+                 std::string::size_type idelimeter;
+                 while ((idelimeter = secPropertyIter->second.find(' ', i)) != std::string::npos) {
+                     if (key == "") {
+                         key = secPropertyIter->second.substr(i, idelimeter - i);
+                     } else {
+                         auto value = secPropertyIter->second.substr(i, idelimeter - i);
+                         deviceConfig[key] = value;
+                         LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s",
+                                  iter->deviceName.c_str(),
+                                  key.c_str(),
+                                  value.c_str());
+                         key = "";
+                     }
+                     i = idelimeter + 1;
+                 }
+                 // last value in the string (which has no comma after that)
+                 deviceConfig[key] = secPropertyIter->second.substr(i, secPropertyIter->second.length() - i);
+             }
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -744,9 +772,8 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        AutoScheduleContext::Ptr& context, std::map<std::string, std::string>& filterConfig) {
+        AutoScheduleContext::Ptr& context, std::map<std::string, std::string>& filterConfig, std::string devicesList) {
     // TODO need to optimize this code, too much duplicated code
-
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
         if (kvp.first == ov::enable_profiling) {
@@ -805,7 +832,10 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
             context->_performanceHint = kvp.second;
-        } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
+        } else if (!devicesList.empty() && devicesList.find(kvp.first) != std::string::npos) {
+            continue;
+        } else if (supported_configKeys.end() ==
+                   std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;

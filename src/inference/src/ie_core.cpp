@@ -121,15 +121,26 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    for (auto&& property : properties) {
-        auto parsed = parseDeviceNameIntoConfig(property.first);
-        if (device.find(parsed._deviceName) != std::string::npos) {
-            if (property.second.is<ov::AnyMap>()) {
-                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
+    if (device == "AUTO") {
+        // keep the secondary priorities.
+        return result;
+    }
+    for (auto item = result.begin(); item != result.end(); ) {
+        auto parsed = parseDeviceNameIntoConfig(item->first);
+        if (item->second.is<ov::AnyMap>()) {
+            if (device.find(parsed._deviceName) != std::string::npos) {
+                if (device.find("AUTO:") != std::string::npos) {
+                    item++;
+                    continue;
+                }
+                for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
                     result[sub_property.first] = sub_property.second;
                 }
             }
+            item = result.erase(item);
+            continue;
         }
+        item++;
     }
     return result;
 }

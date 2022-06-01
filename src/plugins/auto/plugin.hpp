@@ -66,7 +66,7 @@ private:
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
     static void CheckConfig(const std::map<std::string, std::string>& config, AutoScheduleContext::Ptr& context,
-                            std::map<std::string, std::string>& filterConfig);
+                            std::map<std::string, std::string>& filterConfig, std::string devicesList = std::string(""));
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
