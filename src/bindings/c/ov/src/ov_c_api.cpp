@@ -610,6 +610,58 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
     return model->object->is_dynamic();
 }
 
+std::vector<std::string> split(std::string s, std::vector<std::string> delimiter) {
+    size_t s_start = 0, s_end;
+    std::string token;
+    std::vector<std::string> result;
+    for (int i = 0; i < s.size(); ++i) {
+        for (auto delm : delimiter) {
+            if ((s_end = s.find(delm, s_start)) != std::string::npos) {
+                token = s.substr(s_start, s_end - s_start);
+                s_start = s_end + delm.size();
+                result.push_back(token);
+            }
+        }
+    }
+    result.push_back(s.substr(s_start));
+    return result;
+}
+
+ov_status_e ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char* str) {
+    if (!partial_shape || !str) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::string s = str;
+        std::vector<std::string> delimiter = {",", ":", "+", ";"};
+        std::vector<std::string> result = split(s, delimiter);
+        partial_shape->ranks = result.size();
+        std::vector<char*> res;
+        for (auto i : result) {
+            res.push_back(str_to_char_array(i));
+        }
+        std::copy_n(res.begin(), res.size(), partial_shape->dims);
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
+    if (!partial_shape) {
+        return "error";
+    }
+
+    std::string str = "";
+    const char* res;
+    for (int i = 0; i < partial_shape->ranks; ++i) {
+        std::string tmp = partial_shape->dims[i];
+        str += tmp;
+        if (i != partial_shape->ranks - 1)
+            str += ",";
+    }
+    res = str_to_char_array(str);
+    return res;
+}
+
 ov_status_e ov_model_reshape(const ov_model_t* model,
                         const char* tensor_name,
                         const ov_partial_shape_t partial_shape) {
@@ -669,6 +721,17 @@ void ov_output_node_free(ov_output_node_t *output_node) {
 
 void ov_free(char *content) {
     delete content;
+}
+
+void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
+    if (partial_shape) {
+        for (int i = 0; i < partial_shape->ranks; i++) {
+            if (partial_shape->dims[i]) {
+                delete [] partial_shape->dims[i];
+            }
+        }
+        partial_shape->ranks = 0;
+    }
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,

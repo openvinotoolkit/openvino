@@ -1641,3 +1641,17 @@ TEST(ov_model, ov_model_get_friendly_name) {
     ov_model_free(model);
     ov_core_free(core);
 }
+
+TEST(ov_partial_shape, ov_partial_shape_init) {
+    const char* str = "1,2,3,4..5";
+
+    ov_partial_shape_t* partial_shape;
+    partial_shape = new ov_partial_shape_t;
+    partial_shape->ranks = 0;
+
+    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+    auto tmp = ov_partial_shape_parse(partial_shape);
+    EXPECT_EQ(*tmp, *str);
+
+    ov_partial_shape_free(partial_shape);
+}

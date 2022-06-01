@@ -363,7 +363,7 @@ OPENVINO_C_API(const char*) ov_partial_shape_parse(ov_partial_shape_t* partial_s
  * @brief Release partial shape.
  * @param ov_status_e a status code.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(void) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Covert partial shape to static shape.
