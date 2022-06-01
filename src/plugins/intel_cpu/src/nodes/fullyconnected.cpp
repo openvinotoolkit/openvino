@@ -165,7 +165,7 @@ void FullyConnected::getSupportedDescriptors() {
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
+    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (inputDataType == memory::data_type::f32) {
         outputDataType = memory::data_type::f32;
@@ -393,9 +393,142 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
         return binaryShape;
     };
 
-    for (auto &node : fusedWith) {
+    const auto channelAxis = getFusingAxis();
+
+    for (int i = 0; i < fusedWith.size(); i++) {
+        auto& node = fusedWith[i];
+
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+            if (i == 0) {
+                if (node == fusedWith[fusedWith.size() - 1]) {
+                    auto &cl = fakeQuantizeNode->getCropLow();
+                    auto &ch = fakeQuantizeNode->getCropHigh();
+                    auto &isc = fakeQuantizeNode->getInputScale();
+                    auto &ish = fakeQuantizeNode->getInputShift();
+                    auto &osc = fakeQuantizeNode->getOutputScale();
+                    auto &osh = fakeQuantizeNode->getOutputShift();
+                    if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQQuantization) {
+                        if (outputDataType == memory::data_type::u8 &&
+                            std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+                            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; })) {
+                            std::vector<float> outScale = isc;
+                            if (!outScale.empty()) {
+                                size_t size = outScale.size();
+                                size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
+                                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
+                                    outScale.resize(OC);
+                                    for (size_t k = 0; k < OC; k++)
+                                        outScale[k] = outScale[0];
+                                }
+
+                                attr.set_output_scales(1 << 1, outScale);
+
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (outputDataType == memory::data_type::s8 &&
+                        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
+                        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
+                        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
+                        bool isCropAligned = true;
+                        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+                            if (std::abs(cl[0] * isc[0] + 128.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+                            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        if (isCropAligned) {
+                            std::vector<float> outScale = isc;
+                            if (!outScale.empty()) {
+                                size_t size = outScale.size();
+                                size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
+                                if (size == 1 && Shape::UNDEFINED_DIM != OC) {
+                                    outScale.resize(OC);
+                                    for (size_t k = 0; k < OC; k++)
+                                        outScale[k] = outScale[0];
+                                }
+
+                                attr.set_output_scales(1<<1, outScale);
+
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (node == fusedWith[fusedWith.size() - 1] &&
+                outputDataType == memory::data_type::u8 &&
+                fakeQuantizeNode->getAlgorithm() == Algorithm::FQQuantization &&
+                ops.len() == 1 && ops.kind(0) == primitive::kind::sum
+                /*levels == 256*/) {
+                auto &cl = fakeQuantizeNode->getCropLow();
+                auto &isc = fakeQuantizeNode->getInputScale();
+                auto &ish = fakeQuantizeNode->getInputShift();
+
+                if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+                    std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
+                    std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == 0; })) {
+                    std::vector<float> outScales;
+                    int mask = 1 << 1;
+                    attr.get_output_scales(mask, outScales);
+
+                    for (int j = 0; j < outScales.size(); j++) {
+                        outScales[j] *= isc[0];
+                    }
+                    attr.set_output_scales(mask, outScales);
+
+                    ops.get()->entry_[0].sum.scale = isc[0];
+
+                    continue;
+                }
+            }
+
+            if (node == fusedWith[fusedWith.size() - 1] &&
+                outputDataType == memory::data_type::s8 &&
+                ops.len() != 0 && ops.kind(ops.len() - 1) == primitive::kind::eltwise) {
+                auto &cl = fakeQuantizeNode->getCropLow();
+                auto &ch = fakeQuantizeNode->getCropHigh();
+                auto &isc = fakeQuantizeNode->getInputScale();
+                auto &ish = fakeQuantizeNode->getInputShift();
+                auto &osc = fakeQuantizeNode->getOutputScale();
+                auto &osh = fakeQuantizeNode->getOutputShift();
+
+                if (std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
+                    std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
+                    std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
+                        bool isCropAligned = true;
+                        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+                            if (std::abs(cl[0] * isc[0] + 128.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+                            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        if (isCropAligned) {
+                            auto len = ops.len();
+                            ops.get()->entry_[len - 1].eltwise.scale = isc[0];
+                            continue;
+                        }
+                }
+            }
+
+            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs,
+                    node == fusedWith[fusedWith.size() - 1], outputDataType);
+
             continue;
         }
 
