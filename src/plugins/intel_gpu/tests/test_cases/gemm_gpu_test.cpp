@@ -3842,7 +3842,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_combo_tests_onednn, ::testing::Valu
     gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_1, "" },
     gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_2, "" },
     gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_3, "" },
-    gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_4, "" },
+    //gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_4, "" },
 }));
 
 class gemm_uint8_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
