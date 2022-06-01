@@ -33,5 +33,5 @@ protected:
 
 protected:
     static thread_local SoInfer                               _sharedRequest;
-};p
+};
 }  // namespace MultiDevicePlugin
