@@ -3,10 +3,15 @@
 //
 
 #include "non_zero.h"
+
+#include <nodes/common/cpu_memcpy.h>
+
+#include <cpu/platform.hpp>
 #include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
+using namespace dnnl::impl::cpu::platform;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -67,20 +72,40 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     T zero = 0;
     std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
-    if (inShape.getRank() == 0) {
+    size_t inRank = inShape.getRank();
+
+    switch (inRank) {
+    case 0: {
         size_t count = src[0] != zero ? 1 : 0;
         counts.push_back(count);
-    } else {
-        int nthr = std::min(parallel_get_num_threads(), static_cast<int>(inSize));
-        if (nthr == 0)
-            nthr = 1;
+        break;
+    }
+    case 1: {
+        size_t count = 0;
+        for (size_t i = 0; i < inSize; i++) {
+            if (src[i] != zero) {
+                count++;
+            }
+        }
+        counts.push_back(count);
+        break;
+    }
+    default: {
+        threadsCount = std::min(parallel_get_num_threads(), static_cast<int>(inSize));
+        if (threadsCount == 0)
+            threadsCount = 1;
 
-        counts.resize(nthr);
+        counts.resize(threadsCount);
 
-        parallel_for(inSize, [&](size_t ithr, size_t i) {
-            if (src[i] != zero)
-                counts[ithr]++;
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            for_1d(ithr, nthr, inSize, [&](size_t i) {
+                if (src[i] != zero) {
+                    counts[ithr]++;
+                }
+            });
         });
+        break;
+    }
     }
     return counts;
 }
@@ -131,122 +156,229 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
+    int* dst = reinterpret_cast<int*>(dstMemPtr->GetPtr());
     if (totalNonZeroCount == 0)
         return;
 
     std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
-            return static_cast<int>(x);
-        });
+        return static_cast<int>(x);
+    });
 
     switch (inRank) {
     case 0:
         dst[0] = 0;
         break;
-    case 1:
-        parallel_for(srcDims[0],
-                     [&](size_t ithr, int i0) {
-                         int inputIndex = i0;
-                         size_t& outputIndex = destIndices[ithr];
-
-                         if (src[inputIndex] != zero) {
-                             dst[outputIndex] = i0;
-                             outputIndex++;
-                         }
-                     });
-        break;
-    case 2:
-    {
-        parallel_for2d(srcDims[0], srcDims[1],
-                       [&](size_t ithr, size_t inputIndex, int i0, int i1) {
-                           size_t& outputIndex = destIndices[ithr];
-
-                           if (src[inputIndex] != zero) {
-                               dst[outputIndex] = i0;
-                               dst[outputIndex + totalNonZeroCount] = i1;
-                               outputIndex++;
-                           }
-                       });
+    case 1: {
+        size_t& outputIndex = destIndices[0];
+        for (int i = 0; i < srcDims[0]; ++i) {
+            if (src[i] != zero) {
+                dst[outputIndex] = i;
+                outputIndex++;
+            }
+        }
         break;
     }
-    case 3:
-    {
+    case 2: {
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            constexpr auto blockSize = get_cache_line_size() * 2;
+            constexpr auto elementsStride = blockSize / sizeof(int);
+            constexpr auto elementsCount = elementsStride * 2;  // elementsStride * inRank
+            int cache[elementsCount];
+            int counter = 0;
+
+            size_t& outputIndex = destIndices[ithr];
+
+            for_2d(ithr, nthr, srcDims[0], srcDims[1], [&](size_t, size_t inputIndex, int i0, int i1) {
+                if (src[inputIndex] != zero) {
+                    cache[counter] = i0;
+                    cache[counter + elementsStride] = i1;
+                    counter++;
+
+                    if (counter >= elementsStride) {
+                        cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                        cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+
+                        outputIndex += elementsStride;
+                        counter = 0;
+                    }
+                }
+            });
+
+            if (counter != 0) {
+                cpu_memcpy(&dst[outputIndex], cache, counter * sizeof(int));
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], counter * sizeof(int));
+            }
+        });
+        break;
+    }
+    case 3: {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
-        parallel_for3d(srcDims[0], srcDims[1], srcDims[2],
-                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2) {
-                           size_t& outputIndex = destIndices[ithr];
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            constexpr auto blockSize = get_cache_line_size() * 2;
+            constexpr auto elementsStride = blockSize / sizeof(int);
+            constexpr auto elementsCount = elementsStride * 3;  // elementsStride * inRank
+            int cache[elementsCount];
+            int counter = 0;
 
-                           if (src[inputIndex] != zero) {
-                               dst[outputIndex] = i0;
-                               dst[outputIndex + totalNonZeroCount] = i1;
-                               dst[outputIndex + x2totalNonZeroCount] = i2;
-                               outputIndex++;
-                           }
-                       });
+            size_t& outputIndex = destIndices[ithr];
+            for_3d(ithr,
+                   nthr,
+                   srcDims[0],
+                   srcDims[1],
+                   srcDims[2],
+                   [&](size_t, size_t inputIndex, int i0, int i1, int i2) {
+                       if (src[inputIndex] != zero) {
+                            cache[counter] = i0;
+                            cache[counter + elementsStride] = i1;
+                            cache[counter + elementsStride * 2] = i2;
+                            counter++;
+
+                            if (counter >= elementsStride) {
+                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+
+                                outputIndex += elementsStride;
+                                counter = 0;
+                            }
+                       }
+                   });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+            }
+        });
         break;
     }
-    case 4:
-    {
+    case 4: {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
-        parallel_for4d(srcDims[0], srcDims[1], srcDims[2], srcDims[3],
-                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2, int i3) {
-                           size_t& outputIndex = destIndices[ithr];
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            constexpr auto blockSize = get_cache_line_size() * 2;
+            constexpr auto elementsStride = blockSize / sizeof(int);
+            constexpr auto elementsCount = elementsStride * 4;  // elementsStride * inRank
+            int cache[elementsCount];
+            int counter = 0;
 
-                           if (src[inputIndex] != zero) {
-                               dst[outputIndex] = i0;
-                               dst[outputIndex + totalNonZeroCount] = i1;
-                               dst[outputIndex + x2totalNonZeroCount] = i2;
-                               dst[outputIndex + x3totalNonZeroCount] = i3;
-                               outputIndex++;
-                           }
-                       });
+            size_t& outputIndex = destIndices[ithr];
+            for_4d(
+                ithr,
+                nthr,
+                srcDims[0],
+                srcDims[1],
+                srcDims[2],
+                srcDims[3],
+                [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3) {
+                    if (src[inputIndex] != zero) {
+                        cache[counter] = i0;
+                        cache[counter + elementsStride] = i1;
+                        cache[counter + elementsStride * 2] = i2;
+                        cache[counter + elementsStride * 3] = i3;
+                        counter++;
+
+                        if (counter >= elementsStride) {
+                            cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                            cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
+
+                            outputIndex += elementsStride;
+                            counter = 0;
+                        }
+                    }
+                });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], remainingBlockSize);
+            }
+        });
         break;
     }
-    case 5:
-    {
+    case 5: {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
         size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
-        parallel_for5d(srcDims[0], srcDims[1], srcDims[2], srcDims[3], srcDims[4],
-                       [&](size_t ithr, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
-                           size_t& outputIndex = destIndices[ithr];
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            constexpr auto blockSize = get_cache_line_size() * 2;
+            constexpr auto elementsStride = blockSize / sizeof(int);
+            constexpr auto elementsCount = elementsStride * 5;  // elementsStride * inRank
+            int cache[elementsCount];
+            int counter = 0;
 
-                           if (src[inputIndex] != zero) {
-                               dst[outputIndex] = i0;
-                               dst[outputIndex + totalNonZeroCount] = i1;
-                               dst[outputIndex + x2totalNonZeroCount] = i2;
-                               dst[outputIndex + x3totalNonZeroCount] = i3;
-                               dst[outputIndex + x4totalNonZeroCount] = i4;
-                               outputIndex++;
-                           }
-                       });
+            size_t& outputIndex = destIndices[ithr];
+            for_5d(ithr,
+                   nthr,
+                   srcDims[0],
+                   srcDims[1],
+                   srcDims[2],
+                   srcDims[3],
+                   srcDims[4],
+                   [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
+                        if (src[inputIndex] != zero) {
+                            cache[counter] = i0;
+                            cache[counter + elementsStride] = i1;
+                            cache[counter + elementsStride * 2] = i2;
+                            cache[counter + elementsStride * 3] = i3;
+                            cache[counter + elementsStride * 4] = i4;
+                            counter++;
+
+                            if (counter >= elementsStride) {
+                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], blockSize);
+
+                                outputIndex += elementsStride;
+                                counter = 0;
+                            }
+                        }
+                   });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], remainingBlockSize);
+            }
+        });
         break;
     }
-    default:
-    {
+    default: {
         size_t inSize = inShape.getElementsCount();
         auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        parallel_for(inSize,
-                     [&](size_t ithr, size_t i) {
-                         size_t& colIndex = destIndices[ithr];
-
-                         if (src[i] != zero) {
-                             size_t outIndex = 0;
-                             size_t temp = i;
-                             for (size_t j = 0; j < inRank; j++) {
-                                 outIndex = j * totalNonZeroCount + colIndex;
-                                 dst[outIndex] = static_cast<int>(temp / srcStrides[j]);
-                                 temp = temp % srcStrides[j];
-                             }
-                             colIndex++;
-                         }
-                     });
+        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+            size_t& colIndex = destIndices[ithr];
+            for_1d(ithr, nthr, inSize, [&](size_t, size_t i) {
+                if (src[i] != zero) {
+                    size_t outIndex = 0;
+                    size_t temp = i;
+                    for (size_t j = 0; j < inRank; j++) {
+                        outIndex = j * totalNonZeroCount + colIndex;
+                        dst[outIndex] = static_cast<int>(temp / srcStrides[j]);
+                        temp = temp % srcStrides[j];
+                    }
+                    colIndex++;
+                }
+            });
+        });
         break;
     }
     }

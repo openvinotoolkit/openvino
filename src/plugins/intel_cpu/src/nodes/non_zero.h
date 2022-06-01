@@ -30,6 +30,7 @@ public:
     bool isExecutable() const override { return true; }
 
 private:
+    int threadsCount = 1;
     std::string errorPrefix;
     template <typename inputType>
     void executeSpecified();
