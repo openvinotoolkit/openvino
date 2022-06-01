@@ -28,7 +28,7 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto add = std::make_shared<ngraph::opset8::Add>(reduce_sum, eps_const);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
-    // Sqrt can be represented by Sqrt node or as Power node with exponent 2
+    // Sqrt can be represented by Sqrt node or as Power node with exponent 0.5
     auto sqrt = std::make_shared<ngraph::opset8::Sqrt>(max_or_add);
     auto exp2 = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto pow_as_sqrt = std::make_shared<ngraph::opset8::Power>(max_or_add, exp2);
