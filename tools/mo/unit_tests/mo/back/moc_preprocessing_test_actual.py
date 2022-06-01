@@ -541,12 +541,10 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         with self.assertRaisesRegex(Error, '.*2.*inputs.*input1.*input2.*'):
             process_function(ov_function=function, argv=argv)
 
-    # due to commit af4731a1 '[WA] remove layout compatibility check that leads to the
-    # fase-positve exceptions', temporary disable the case
-    # def test_incompatible_layout(self):
-    #     function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
-    #     with self.assertRaisesRegex(Exception, '.*input1.*'):
-    #         function.get_parameters()[0].layout = Layout("NDHWC")
+    def test_incompatible_layout(self):
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
+        with self.assertRaisesRegex(Exception, '.*input1.*'):
+            function.get_parameters()[0].layout = Layout("NDHWC")
 
     def test_guess_layout_reverse_channels_dont_apply_to_4(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
