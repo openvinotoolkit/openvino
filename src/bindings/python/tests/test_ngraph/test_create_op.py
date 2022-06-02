@@ -2105,7 +2105,7 @@ def test_irdft():
     assert node.get_output_element_type(0) == Type.f32
 
 
-def test_grid_sample():
+def test_grid_sample_default():
     img = ov.parameter([1, 3, 100, 100], dtype=np.int32, name="image")
     grid = ov.parameter([1, 10, 10, 2], dtype=np.float32, name="grid")
 
@@ -2115,3 +2115,26 @@ def test_grid_sample():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 3, 10, 10]
     assert node.get_output_element_type(0) == Type.i32
+
+
+def test_grid_sample_custom_attributes():
+    img = ov.parameter([1, 3, 100, 100], dtype=np.int32, name="image")
+    grid = ov.parameter([1, 5, 6, 2], dtype=np.float32, name="grid")
+
+    attributes = {
+        "align_corners": True,
+        "mode": "nearest",
+        "padding_mode": "reflection"
+    }
+
+    node = ov.grid_sample(img, grid, attributes)
+
+    assert node.get_type_name() == "GridSample"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 3, 5, 6]
+    assert node.get_output_element_type(0) == Type.i32
+
+    node_attributes = node.get_attributes()
+    assert node_attributes["align_corners"] is True
+    assert node_attributes["mode"] == "nearest"
+    assert node_attributes["padding_mode"] == "reflection"
