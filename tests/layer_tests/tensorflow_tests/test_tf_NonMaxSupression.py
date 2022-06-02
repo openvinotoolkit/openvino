@@ -84,6 +84,8 @@ class TestNonMaxSupression(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_NonMaxSupression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, api_2):
+        if ie_device == 'GPU':
+            pytest.skip("Skip TF NonMaxSuppresion test on GPU")
         self.api_2 = api_2
         self._test(*self.create_nms_net(test_params), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
@@ -94,6 +96,8 @@ class TestNonMaxSupression(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_NonMaxSupressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
                                         use_new_frontend, api_2):
+        if ie_device == 'GPU':
+            pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")
         self.api_2 = api_2
         self._test(*self.create_nms_net(test_params, with_scores=True), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend,
