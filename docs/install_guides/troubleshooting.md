@@ -13,5 +13,5 @@
 
 This guide will provide general troubleshooting steps and possible issues related to the installation and configuration of OpenVINO™. 
 
-If you meet any issues, you are encouraged to run some [Troubleshooting Steps](./troubleshooting-steps.md) first, or look for information on the [Issues & Solutions](./troubleshooting-issues.md) page.
+If you met any issues, you are encouraged to run some [Troubleshooting Steps](./troubleshooting-steps.md) first, or look for information on the [Issues & Solutions](./troubleshooting-issues.md) page.
 
