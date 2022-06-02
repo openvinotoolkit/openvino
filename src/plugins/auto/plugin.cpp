@@ -439,8 +439,32 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (tmpiter != fullConfig.end())
                 p.config.insert({tmpiter->first, tmpiter->second});
-            const auto &deviceName = p.deviceName;
-            const auto &deviceConfig = p.config;
+
+            // promote secondary property to first level and pass them to target device
+            auto secPropertyIter = std::find_if(fullConfig.begin(),
+                                                fullConfig.end(),
+                                                [&](const std::pair<std::string, std::string>& config) {
+                                                    return (config.first == p.deviceName);
+                                                });
+            if (secPropertyIter != fullConfig.end()) {
+                std::string::size_type i = 0;
+                std::string key = "";
+                std::string::size_type idelimeter;
+                while ((idelimeter = secPropertyIter->second.find(' ', i)) != std::string::npos) {
+                    if (key == "") {
+                        key = secPropertyIter->second.substr(i, idelimeter - i);
+                    } else {
+                        auto value = secPropertyIter->second.substr(i, idelimeter - i);
+                        p.config[key] = value;
+                        key = "";
+                    }
+                    i = idelimeter + 1;
+                }
+                // last value in the string (which has no comma after that)
+                p.config[key] = secPropertyIter->second.substr(i, secPropertyIter->second.length() - i);
+            }
+            const auto& deviceName = p.deviceName;
+            const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
             if (modelPath.empty()) {
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
