@@ -9,7 +9,6 @@ import numpy as np
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.input_validation import check_valid_attributes
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
@@ -283,11 +282,4 @@ def grid_sample(
                     Required: no
     :return: A new GridSample node.
     """
-    requirements = [
-        ("align_corners", False, np.bool_, None),
-        ("mode", False, np.str_, None),
-        ("padding_mode", False, np.str_, None),
-    ]
-
-    check_valid_attributes("GridSample", attributes, requirements)
     return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)
