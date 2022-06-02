@@ -2,9 +2,9 @@
 
 To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
 1. Create a Core object.
-- 1.1. (Optional) Load extensions.
+   - 1.1. (Optional) Load extensions.
 2. Read a model from a drive.
-- 2.1. (Optional) Perform model preprocessing.
+   - 2.1. (Optional) Perform model preprocessing.
 3. Load the model to the device.
 4. Create an inference request.
 5. Fill input tensors with data.
@@ -477,8 +477,8 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 
 API 2.0 processes outputs:
 
-- as they are of the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the [**old** behavior](intro.md#differences-api20-ie).
-- as they are of the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the [**new** behavior](intro.md#differences-api20-ie).
+- as they are of the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the [old behavior](./intro.md#differences-api20-ie).
+- as they are of the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model and PaddlePaddle models, to match the [new behavior](./intro.md#differences-api20-ie).
 
 @sphinxtabset
 
