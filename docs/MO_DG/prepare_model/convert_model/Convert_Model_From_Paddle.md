@@ -1,13 +1,12 @@
-# Converting a PaddlePaddle* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
+# Converting a PaddlePaddle Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
 
-## Convert a PaddlePaddle Model <a name="Convert_From_Paddle"></a>
-To convert a PaddlePaddle model, use the `mo` script and specify the path to the input model `.pdmodel` file:
+To convert a PaddlePaddle model, use the `mo` script and specify a path to the input model `.pdmodel` file:
 
 ```sh
  mo --input_model <INPUT_MODEL>.pdmodel
 ```
 
-### Example of Converting a PaddlePaddle Model
+## Example of Converting a PaddlePaddle Model
 Below is the example command to convert yolo v3 PaddlePaddle network to OpenVINO IR network with Model Optimizer.
 
 ```sh
@@ -15,11 +14,11 @@ Below is the example command to convert yolo v3 PaddlePaddle network to OpenVINO
 ```
 
 ## Supported PaddlePaddle Layers
-Refer to [Supported Framework Layers](../Supported_Frameworks_Layers.md) for the list of supported standard layers.
+For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
 
 ## Frequently Asked Questions (FAQ)
 
-When Model Optimizer is unable to run to completion due to issues like typographical errors, incorrectly used options, etc., it provides explanatory messages. They describe the potential cause of the problem and give a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md), which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md), which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
 
 ## See Also
 [Model Conversion Tutorials](Convert_Model_Tutorials.md)
