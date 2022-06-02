@@ -60,9 +60,9 @@ protected:
     int32_t get_split() const override { return _outer.get_split(); }
 
 public:
-    static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params impl_param) {
+    static primitive_impl* create(const binary_convolution_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = impl_param.weights_layout.convert_to_weights_layout(false);
+        const auto& weights_layout = impl_param->weights_layout.convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
         const auto& split = primitive->split();
@@ -74,9 +74,9 @@ public:
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
 
-        assert(impl_param.output_layout.feature() / primitive->split() == weights_layout.batch());
+        assert(impl_param->output_layout.feature() / primitive->split() == weights_layout.batch());
 
-        auto conv_params = get_weights_bias_default_params<kernel_selector::binary_convolution_params>(impl_param, actual_split);
+        auto conv_params = get_weights_bias_default_params<kernel_selector::binary_convolution_params>(*impl_param, actual_split);
         auto conv_optional_params = get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(
                 arg.get_program());
 

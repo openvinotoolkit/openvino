@@ -34,15 +34,15 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const lstm_elt_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
+        auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(*impl_param);
         auto lstm_elt_optional_params =
             get_default_optional_params<kernel_selector::lstm_elt_optional_params>(arg.get_program());
 
         if (arg.cell_term()) {
             const auto& cell_idx = 1;
-            const auto& cell_layout = impl_param.input_layouts[cell_idx];
+            const auto& cell_layout = impl_param->input_layouts[cell_idx];
             lstm_elt_params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
             if (cell_layout.spatial(1) > 1) {

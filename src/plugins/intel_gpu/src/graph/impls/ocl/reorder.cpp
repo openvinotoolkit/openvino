@@ -41,28 +41,28 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const reorder_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto&& output_layout = impl_param.output_layout;
-        auto reorder_params = get_default_params<kernel_selector::reorder_params>(impl_param);
+        auto&& output_layout = impl_param->output_layout;
+        auto reorder_params = get_default_params<kernel_selector::reorder_params>(*impl_param);
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reorder_optional_params>(arg.get_program());
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            reorder_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
+            reorder_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[i]));
         }
-        if (impl_param.output_layout.data_padding) {
+        if (impl_param->output_layout.data_padding) {
             reorder_params.has_padded_output = true;
         }
 
         if (arg.has_mean()) {
-            if (impl_param.input_layouts[0].format == cldnn::format::nv12) {
+            if (impl_param->input_layouts[0].format == cldnn::format::nv12) {
                 const auto& mean_layout = arg.mean_nv12().get_output_layout();
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             } else {
                 const auto mean_idx = 1;
-                const auto& mean_layout = impl_param.input_layouts[mean_idx];
+                const auto& mean_layout = impl_param->input_layouts[mean_idx];
                 reorder_params.mean = convert_data_tensor(mean_layout);
                 reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
@@ -98,7 +98,7 @@ public:
             reorder_params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
         }
 
-        reorder_params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
+        reorder_params.winograd = impl_param->input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
 
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);

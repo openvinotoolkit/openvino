@@ -21,9 +21,9 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
         return make_unique<lrn_impl>(*this);
     }
 
-    static primitive_impl* create(const lrn_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const lrn_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
-        auto lrn_params = get_default_params<kernel_selector::lrn_params>(impl_param);
+        auto lrn_params = get_default_params<kernel_selector::lrn_params>(*impl_param);
         auto lrn_optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(arg.get_program());
 
         lrn_params.alpha = primitive->alpha;

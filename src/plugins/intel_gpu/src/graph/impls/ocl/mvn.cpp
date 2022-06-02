@@ -26,9 +26,9 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
 public:
-    static primitive_impl* create(const mvn_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const mvn_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto mvn_params = get_default_params<kernel_selector::mvn_params>(impl_param);
+        auto mvn_params = get_default_params<kernel_selector::mvn_params>(*impl_param);
         auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
 
         mvn_params.mvnMode = prim->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS

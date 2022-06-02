@@ -51,15 +51,15 @@ private:
     }
 
 public:
-    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
-        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(impl_param);
+    static primitive_impl* create(const detection_output_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+        auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(*impl_param);
         auto detect_out_optional_params =
             get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
 
         const auto confidence_idx = 1;
         const auto prior_box_idx = 2;
-        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[confidence_idx]));
-        detect_out_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[prior_box_idx]));
+        detect_out_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[confidence_idx]));
+        detect_out_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[prior_box_idx]));
         set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();

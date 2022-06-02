@@ -40,13 +40,13 @@ public:
         return parent::execute_impl(tmp_events, instance);
     }
 
-    static primitive_impl* create(const max_unpooling_node& arg, const kernel_impl_params& impl_param) {
-        auto max_unpooling_params = get_default_params<kernel_selector::max_unpooling_params>(impl_param);
+    static primitive_impl* create(const max_unpooling_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+        auto max_unpooling_params = get_default_params<kernel_selector::max_unpooling_params>(*impl_param);
         auto max_unpooling_optional_params =
             get_default_optional_params<kernel_selector::max_unpooling_optional_params>(arg.get_program());
 
         const auto max_idx = 1;
-        max_unpooling_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[max_idx]));
+        max_unpooling_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[max_idx]));
 
         auto& kernel_selector = kernel_selector::max_unpooling_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(max_unpooling_params, max_unpooling_optional_params);

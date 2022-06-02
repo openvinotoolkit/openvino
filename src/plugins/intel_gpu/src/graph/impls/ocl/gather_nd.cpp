@@ -22,9 +22,9 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
         return make_unique<gather_nd_impl>(*this);
     }
 
-    static primitive_impl* create(const gather_nd_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const gather_nd_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto gather_nd_params = get_default_params<kernel_selector::gather_nd_params>(impl_param);
+        auto gather_nd_params = get_default_params<kernel_selector::gather_nd_params>(*impl_param);
         auto gather_nd_optional_params =
             get_default_optional_params<kernel_selector::gather_nd_optional_params>(arg.get_program());
 
@@ -32,7 +32,7 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
         gather_nd_params.batch_dims = prim->batch_dims;
         gather_nd_params.batch_merged_output = prim->batch_merged_output;
 
-        gather_nd_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        gather_nd_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::gather_nd_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(gather_nd_params, gather_nd_optional_params);

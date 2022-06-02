@@ -69,22 +69,22 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const concatenation_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         if (arg.can_be_optimized()) {
             return new concatenation_impl(arg, {});
         }
         const auto& primitive = arg.get_primitive();
-        auto concat_params = get_default_params<kernel_selector::concatenation_params>(impl_param);
+        auto concat_params = get_default_params<kernel_selector::concatenation_params>(*impl_param);
         auto concat_optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(arg.get_program());
         auto axis = primitive->axis;
 
         concat_params.inputs.resize(arg.inputs_count());
         for (size_t i = 0; i < arg.inputs_count(); ++i) {
-            const layout& input_layout = impl_param.input_layouts[i];
+            const layout& input_layout = impl_param->input_layouts[i];
             concat_params.inputs[i] = convert_data_tensor(input_layout);
         }
 
-        concat_params.axis = convert_axis(axis, impl_param.output_layout.get_rank());
+        concat_params.axis = convert_axis(axis, impl_param->output_layout.get_rank());
         concat_optional_params.kernelPerInput = true;
 
         auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();

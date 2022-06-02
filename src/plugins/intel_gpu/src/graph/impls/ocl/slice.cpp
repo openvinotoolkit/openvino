@@ -70,8 +70,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         return make_unique<slice_impl>(*this);
     }
 
-    static primitive_impl* create(const slice_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::slice_params>(impl_param);
+    static primitive_impl* create(const slice_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+        auto params = get_default_params<kernel_selector::slice_params>(*impl_param);
         auto op_params = get_default_optional_params<kernel_selector::slice_optional_params>(arg.get_program());
         const auto& inputs = arg.get_dependencies();
         const stream& stream = arg.get_program().get_stream();

@@ -34,7 +34,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg, const kernel_impl_params impl_param) {
+    static primitive_impl* create(const arg_max_min_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
@@ -44,7 +44,7 @@ public:
         const auto& values_first = primitive->values_first;
         const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
 
-        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
+        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(*impl_param);
         auto argm_optional_params =
             get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
 
@@ -83,7 +83,7 @@ public:
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
         if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+            argm_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[2]));
         }
 
         argm_params.values_first = values_first;

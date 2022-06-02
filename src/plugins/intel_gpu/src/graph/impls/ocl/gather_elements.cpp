@@ -42,15 +42,15 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     }
 
 public:
-    static primitive_impl* create(const gather_elements_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const gather_elements_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(impl_param);
+        auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(*impl_param);
         auto gather_elements_optional_params =
             get_default_optional_params<kernel_selector::gather_elements_optional_params>(arg.get_program());
 
         gather_elements_params.axis = convert_axis(prim->axis);
 
-        gather_elements_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        gather_elements_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::gather_elements_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(gather_elements_params, gather_elements_optional_params);

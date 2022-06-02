@@ -105,7 +105,7 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
     void init_kernels() override {}
 };
 
-static primitive_impl* create(const generic_layer_node& arg, const kernel_impl_params&) {
+static primitive_impl* create(const generic_layer_node& arg, std::shared_ptr<kernel_impl_params>) {
     if (arg.get_primitive()->generic_params.engine == kernel_selector::generic_kernel_params::Engine::GPU) {
         return new generic_layer_impl(arg);
     } else {

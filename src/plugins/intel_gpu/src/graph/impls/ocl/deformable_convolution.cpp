@@ -37,7 +37,7 @@ protected:
     uint32_t get_groups() const override { return _outer.get_groups(); }
 
 public:
-    static primitive_impl* create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const deformable_conv_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& split = primitive->split();
         const auto& groups = primitive->groups;
@@ -46,14 +46,14 @@ public:
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
 
         auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(
-            impl_param,
+            *impl_param,
             (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
             groups);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
         const auto weight_idx = 1 + 0;
-        const auto& weights_layout = impl_param.input_layouts[weight_idx].convert_to_weights_layout(false);
+        const auto& weights_layout = impl_param->input_layouts[weight_idx].convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
         conv_params.depthwise_separable_opt = depthwise_separable_opt;
@@ -92,12 +92,12 @@ protected:
     uint32_t get_groups() const override { return 1; }
 
 public:
-    static primitive_impl* create(const deformable_interp_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const deformable_interp_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto input_idx = 0;
         const auto trans_idx = 1;
         const auto mask_idx = 2;
         const auto& primitive = arg.get_primitive();
-        const auto& input_layout = impl_param.input_layouts[input_idx];
+        const auto& input_layout = impl_param->input_layouts[input_idx];
         const auto& kernel_size = primitive->kernel_size;
 
         auto stride = primitive->stride;
@@ -106,7 +106,7 @@ public:
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
 
-        auto conv_params = get_default_params<kernel_selector::convolution_params>(impl_param, groups);
+        auto conv_params = get_default_params<kernel_selector::convolution_params>(*impl_param, groups);
         auto conv_optional_params =
             get_default_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
@@ -114,9 +114,9 @@ public:
         auto weights_layout = layout(input_layout.data_type, input_layout.format, kernel_size);
         conv_params.weights = convert_weights_tensor(weights_layout);
 
-        conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[trans_idx]));
+        conv_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[trans_idx]));
         if (primitive->input.size() == 3) {
-            conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[mask_idx]));
+            conv_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[mask_idx]));
             conv_params.deformable_mask_enabled = true;
         }
         conv_params.bilinear_interpolation_pad = primitive->bilinear_interpolation_pad;

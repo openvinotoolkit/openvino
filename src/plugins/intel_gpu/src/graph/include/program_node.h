@@ -125,13 +125,13 @@ public:
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
 
-    virtual kernel_impl_params get_kernel_impl_params() const {
+    virtual std::shared_ptr<kernel_impl_params> get_kernel_impl_params() const {
         return get_kernel_impl_params(get_input_layouts(), output_layout);
     }
 
-    virtual kernel_impl_params get_kernel_impl_params(const std::vector<layout>& in_layouts,
+    virtual std::shared_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
                                                       const layout& out_layout) const {
-        return kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
+        return std::make_shared<kernel_impl_params>(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
                                   get_fused_primitives(),
                                   get_fused_activations_funcs(), get_fused_activations_params());
     }

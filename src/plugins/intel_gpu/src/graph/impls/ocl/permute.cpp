@@ -50,13 +50,13 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static primitive_impl* create(const permute_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const permute_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto permute_params = get_default_params<kernel_selector::permute_params>(impl_param);
+        auto permute_params = get_default_params<kernel_selector::permute_params>(*impl_param);
         auto permute_optional_params =
             get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
 
-        auto in_rank = impl_param.input_layouts[0].get_rank();
+        auto in_rank = impl_param->input_layouts[0].get_rank();
         auto permute_order = convert_permute_order(prim->permute_order, in_rank);
         permute_params.order = permute_order;
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();

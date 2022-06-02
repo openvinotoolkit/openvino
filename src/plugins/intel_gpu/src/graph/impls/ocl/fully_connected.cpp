@@ -40,9 +40,9 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const fully_connected_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto primitive = arg.get_primitive();
-        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(impl_param);
+        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(*impl_param);
         auto fc_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
                 arg.get_program());
@@ -52,7 +52,7 @@ public:
             fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (auto& input : impl_param->input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {

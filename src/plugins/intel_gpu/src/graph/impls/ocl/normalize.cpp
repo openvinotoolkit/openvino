@@ -33,13 +33,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const normalize_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const normalize_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto norm_params = get_default_params<kernel_selector::normalize_params>(impl_param);
+        auto norm_params = get_default_params<kernel_selector::normalize_params>(*impl_param);
         auto norm_optional_params =
             get_default_optional_params<kernel_selector::normalize_optional_params>(arg.get_program());
 
-        const auto& scale_layout = impl_param.input_layouts[1];
+        const auto& scale_layout = impl_param->input_layouts[1];
 
         norm_params.normMode = prim->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
                                                                    : kernel_selector::normalize_mode::WITHIN_SPATIAL;

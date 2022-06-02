@@ -22,10 +22,10 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const border_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         auto desc = arg.get_primitive();
 
-        auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
+        auto b_params = get_default_params<kernel_selector::border_params>(*impl_param, 1);
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
 

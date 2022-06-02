@@ -36,19 +36,19 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const scale_node& arg, const kernel_impl_params& impl_param) {
-        auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param);
+    static primitive_impl* create(const scale_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+        auto ew_params = get_default_params<kernel_selector::eltwise_params>(*impl_param);
         auto ew_optional_params =
             get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
-        ew_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        ew_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[1]));
 
         ew_params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
                                         kernel_selector::eltwise_mode::MUL});
 
         if (arg.bias_term()) {
-            ew_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+            ew_params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[2]));
             ew_params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(0),
                                              kernel_selector::eltwise_params::InputType::Buffer(2)},
                                             kernel_selector::eltwise_mode::ADD});

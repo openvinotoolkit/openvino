@@ -59,7 +59,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const reorder_node& arg, std::shared_ptr<kernel_impl_params>) {
         auto desc = get_reorder_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
 

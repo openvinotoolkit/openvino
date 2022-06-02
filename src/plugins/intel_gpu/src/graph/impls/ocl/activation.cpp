@@ -30,17 +30,17 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         return args;
     }
-    static primitive_impl* create(const activation_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const activation_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto activation_params = get_default_params<kernel_selector::activation_params>(impl_param);
+        auto activation_params = get_default_params<kernel_selector::activation_params>(*impl_param);
         auto activation_optional_params =
             get_default_optional_params<kernel_selector::activation_optional_params>(arg.get_program());
 
         convert_new_activation_func(prim, activation_params.activations);
 
         if (arg.is_parameterized()) {
-            const auto& slope_layout = impl_param.input_layouts[1];
-            const auto& output_layout = impl_param.output_layout;
+            const auto& slope_layout = impl_param->input_layouts[1];
+            const auto& output_layout = impl_param->output_layout;
 
             const auto params_num =
                 kernel_selector::GetActivationAdditionalParamsNumber(activation_params.activations[0].function);

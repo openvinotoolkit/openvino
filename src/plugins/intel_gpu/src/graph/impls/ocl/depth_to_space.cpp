@@ -24,10 +24,10 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     }
 
 public:
-    static primitive_impl* create(const depth_to_space_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const depth_to_space_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
 
-        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
+        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(*impl_param);
         auto depth_to_space_optional_params =
             get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
 

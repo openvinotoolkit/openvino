@@ -58,9 +58,9 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const reduce_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
+        auto reduce_params = get_default_params<kernel_selector::reduce_params>(*impl_param);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
 
         reduce_params.reduceAxes = prim->axes;

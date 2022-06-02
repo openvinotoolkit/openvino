@@ -45,10 +45,10 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     }
 
 public:
-    static primitive_impl* create(const cum_sum_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const cum_sum_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& prim = arg.get_primitive();
 
-        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
+        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(*impl_param);
         auto cum_sum_optional_params =
             get_default_optional_params<kernel_selector::cum_sum_optional_params>(arg.get_program());
 

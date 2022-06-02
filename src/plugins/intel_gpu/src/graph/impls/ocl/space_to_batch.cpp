@@ -25,9 +25,9 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     }
 
 public:
-    static primitive_impl* create(const space_to_batch_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const space_to_batch_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         auto primitive = arg.get_primitive();
-        auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
+        auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(*impl_param);
         auto space_to_batch_optional_params =
             get_default_optional_params<kernel_selector::space_to_batch_optional_params>(arg.get_program());
 

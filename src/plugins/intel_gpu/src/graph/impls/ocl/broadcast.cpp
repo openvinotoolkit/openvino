@@ -22,13 +22,13 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static primitive_impl* create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const broadcast_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
-        auto bc_params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto bc_params = get_default_params<kernel_selector::broadcast_params>(*impl_param, 1);
         auto bc_optional_params =
             get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
 
-        const auto format = impl_param.output_layout.format;
+        const auto format = impl_param->output_layout.format;
         size_t max_axes_num = format.dimension();
 
         const auto& broadcast_axes = primitive->broadcast_axes;

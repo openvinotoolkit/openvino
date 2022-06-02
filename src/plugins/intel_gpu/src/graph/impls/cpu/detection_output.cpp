@@ -833,7 +833,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 
     void init_kernels() override {}
 
-    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params&) { return new detection_output_impl(arg); }
+    static primitive_impl* create(const detection_output_node& arg, std::shared_ptr<kernel_impl_params>) { return new detection_output_impl(arg); }
 };
 
 namespace detail {

@@ -104,13 +104,13 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         return make_unique<resample_impl>(*this);
     }
 
-    static primitive_impl* create(const resample_node& arg, const kernel_impl_params& impl_param) {
+    static primitive_impl* create(const resample_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
-        auto us_params = get_default_params<kernel_selector::resample_params>(impl_param);
+        auto us_params = get_default_params<kernel_selector::resample_params>(*impl_param);
         auto us_optional_params =
             get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
 
-        size_t dimsNum = impl_param.output_layout.format.dimension();
+        size_t dimsNum = impl_param->output_layout.format.dimension();
         us_params.resampleType = convert_to_sample_type(primitive->operation_type);
         us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
         us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
