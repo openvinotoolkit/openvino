@@ -9,7 +9,6 @@ import numpy as np
 from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import nameable_op
-from ngraph.utils.input_validation import check_valid_attributes
 from ngraph.utils.types import (
     NodeInput,
     as_nodes,
@@ -265,7 +264,7 @@ def grid_sample(
     """Return a node which performs GridSample operation.
 
     :param data: The input image.
-    :param grid: Grrid values (normalized input coordinates).
+    :param grid: Grid values (normalized input coordinates).
     :param attributes: A dictionary containing GridSample's attributes.
     :param name: Optional name of the node.
     Available attributes:
@@ -284,11 +283,4 @@ def grid_sample(
                     Required: no
     :return: A new GridSample node.
     """
-    requirements = [
-        ("align_corners", False, np.bool_, None),
-        ("mode", False, np.str_, None),
-        ("padding_mode", False, np.str_, None),
-    ]
-
-    check_valid_attributes("GridSample", attributes, requirements)
     return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)

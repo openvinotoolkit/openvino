@@ -264,7 +264,7 @@ def grid_sample(
     """Return a node which performs GridSample operation.
 
     :param data: The input image.
-    :param grid: Grrid values (normalized input coordinates).
+    :param grid: Grid values (normalized input coordinates).
     :param attributes: A dictionary containing GridSample's attributes.
     :param name: Optional name of the node.
     Available attributes:
