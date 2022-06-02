@@ -14,44 +14,17 @@
    Creating a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
-
-<!--
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Additional Configurations
-<!--   
-   Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
-   Configurations for NCS2 <openvino_docs_install_guides_configurations_for_ncs2>
-   Configurations for VPU <openvino_docs_install_guides_installing_openvino_ivad_vpu>
-   Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>
--->
+   Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
    
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Get Started Guides
    
-   Step-by-step Demo <openvino_docs_get_started_get_started_demos>
-   Python Tutorials <tutorials>
-   Code Samples <openvino_docs_OV_UG_Samples_Overview>
+   Python Tutorials - Jupyter Notebooks <tutorials>
+   Samples <openvino_docs_OV_UG_Samples_Overview>
 
-<!--
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: OpenVINO Code Samples
-<!--
-   openvino_docs_OV_UG_Samples_Overview
--->
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Troubleshooting
-   
-   Installation & Configuration Issues <openvino_docs_get_started_guide_troubleshooting>
-   
 @endsphinxdirective
  
 @sphinxdirective
@@ -79,10 +52,6 @@
    <p>After all the installation and configuration steps are done, you are ready to run your first inference and learn the workflow. Here is a set of hands-on demonstrations of various complexity levels to guide you through the process. You can run code samples, demo applications, or Jupyter notebooks.</p>
  
    <div id="GSG_nextstepchoice">
-     <a href="openvino_docs_get_started_get_started_demos.html" >
-        <h4>Step-by-step demo		</h4>
-        <p>Follow the step-by-step instructions to execute simple tasks with OpenVINO. </p>
-     </a>
      <a href="tutorials.html" >
         <h4>Python tutorials		</h4>
         <p>Learn from a choice of interactive Python tutorials targeting typical OpenVINO use cases.</p>
@@ -105,12 +74,5 @@
      </a> 
    </div>
    <div style="clear:both;"> </div>
-
-<!--
-     <a href="workbench_docs_Workbench_DG_Introduction.html" >
-        <h4>DL Workbench		</h4>
-        <p>Use a web-based version of OpenVINO with a Graphical User Interface. Installing a DL Workbench container is required. </p>
-     </a> 
--->
 
 @endsphinxdirective

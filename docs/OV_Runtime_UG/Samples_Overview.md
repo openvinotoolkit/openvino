@@ -8,6 +8,7 @@
    :maxdepth: 1
    :hidden:
    
+   openvino_docs_get_started_get_started_demos
    openvino_inference_engine_samples_classification_sample_async_README
    openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
    openvino_inference_engine_samples_hello_classification_README
