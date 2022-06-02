@@ -13,7 +13,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             if input == 'indices':
-                inputs_dict[input] = np.sort(np.random.choice(range(inputs_dict['input'][0]), inputs_dict[input]))
+                inputs_dict[input] = np.random.choice(range(inputs_dict['input'][0]), inputs_dict[input])
             elif input == 'input':
                 inputs_dict[input] = np.ones(inputs_dict[input]).astype(np.float32)
             else:
