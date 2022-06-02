@@ -6,6 +6,8 @@
 
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
+#include "ngraph/runtime/reference/grid_sample.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ov {
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
@@ -63,3 +65,77 @@ NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSam
     return enum_names;
 }
 }  // namespace ov
+namespace {
+
+template <element::Type_t DATA_ET, element::Type_t GRID_ET>
+bool evaluate_exec(const HostTensorPtr& output,
+                   const HostTensorPtr& data,
+                   const HostTensorPtr& grid,
+                   const op::v9::GridSample::Attributes& attributes) {
+    ngraph::runtime::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
+                                            data->get_data_ptr<DATA_ET>(),
+                                            grid->get_data_ptr<GRID_ET>(),
+                                            data->get_shape(),
+                                            grid->get_shape(),
+                                            attributes.align_corners,
+                                            attributes.mode,
+                                            attributes.padding_mode);
+    return true;
+}
+
+#define GRID_SAMPLE_TYPE_CASE(a, ...)                                 \
+    case element::Type_t::a: {                                        \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_exec_grid_sample, _, a)); \
+        rc = evaluate_exec<DATA_ET, element::Type_t::a>(__VA_ARGS__); \
+    } break
+
+template <ov::element::Type_t DATA_ET>
+bool evaluate(const HostTensorPtr& output,
+              const HostTensorPtr& data,
+              const HostTensorPtr& grid,
+              const op::v9::GridSample::Attributes& attributes) {
+    auto rc = true;
+    switch (grid->get_element_type()) {
+        GRID_SAMPLE_TYPE_CASE(f16, output, data, grid, attributes);
+        GRID_SAMPLE_TYPE_CASE(bf16, output, data, grid, attributes);
+        GRID_SAMPLE_TYPE_CASE(f32, output, data, grid, attributes);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+
+bool evaluate_grid_sample(const HostTensorPtr& output,
+                          const HostTensorPtr& data,
+                          const HostTensorPtr& grid,
+                          const op::v9::GridSample::Attributes& attributes) {
+    auto rc = true;
+    switch (output->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, i8, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, u8, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, f16, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, bf16, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, i32, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, u32, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, f32, output, data, grid, attributes);
+        NGRAPH_TYPE_CASE(evaluate_grid_sample, i64, output, data, grid, attributes);
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
+}  // namespace
+
+bool ov::op::v9::GridSample::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v9_GridSample_evaluate);
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid GridSample input TensorVector.");
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid GridSample output TensorVector.");
+
+    return evaluate_grid_sample(outputs[0], inputs[0], inputs[1], m_attributes);
+}
+
+bool ov::op::v9::GridSample::has_evaluate() const {
+    return true;
+}
