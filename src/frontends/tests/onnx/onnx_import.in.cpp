@@ -5140,3 +5140,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_seq_lens) {
         FAIL() << "Expected exception was not thrown.";
     }
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softsign) {
+    auto model = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/softsign.onnx"));
+
+    Inputs inputs{std::vector<float>{1.0, 0.1, 20.0, 12.0, -12.0, -0.2, 0.5, 100.0, 0.0, -1.0}};
+
+    std::vector<float>
+        output{0.5, 0.09090909, 0.95238096, 0.9230769, -0.9230769, -0.16666666, 0.33333334, 0.990099, 0., -0.5};
+
+    auto test_case = test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(output);
+    test_case.run();
+}
