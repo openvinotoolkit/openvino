@@ -23,39 +23,41 @@ void shape_infer(const NonMaxSuppression* op,
     const auto& boxes_ps = input_shapes[0];
     const auto& scores_ps = input_shapes[1];
 
-    NODE_VALIDATION_CHECK(op,
-                          boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'boxes' input. Got: ",
-                          boxes_ps);
+    if (!boxes_ps.is_dynamic() && !scores_ps.is_dynamic()) {
+        NODE_VALIDATION_CHECK(op,
+                            boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'boxes' input. Got: ",
+                            boxes_ps);
 
-    NODE_VALIDATION_CHECK(op,
-                          scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'scores' input. Got: ",
-                          scores_ps);
+        NODE_VALIDATION_CHECK(op,
+                            scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'scores' input. Got: ",
+                            scores_ps);
 
-    const auto num_batches_boxes = boxes_ps[0];
-    const auto num_batches_scores = scores_ps[0];
-    NODE_VALIDATION_CHECK(op,
-                          num_batches_boxes.same_scheme(num_batches_scores),
-                          "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
-                          num_batches_boxes,
-                          "; Scores: ",
-                          num_batches_scores);
+        const auto num_batches_boxes = boxes_ps[0];
+        const auto num_batches_scores = scores_ps[0];
+        NODE_VALIDATION_CHECK(op,
+                            num_batches_boxes.same_scheme(num_batches_scores),
+                            "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
+                            num_batches_boxes,
+                            "; Scores: ",
+                            num_batches_scores);
 
-    const auto num_boxes_boxes = boxes_ps[1];
-    const auto num_boxes_scores = scores_ps[2];
-    NODE_VALIDATION_CHECK(op,
-                          num_boxes_boxes.same_scheme(num_boxes_scores),
-                          "'boxes' and 'scores' input shapes must match at the second and third "
-                          "dimension respectively. Boxes: ",
-                          num_boxes_boxes,
-                          "; Scores: ",
-                          num_boxes_scores);
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto num_boxes_scores = scores_ps[2];
+        NODE_VALIDATION_CHECK(op,
+                            num_boxes_boxes.same_scheme(num_boxes_scores),
+                            "'boxes' and 'scores' input shapes must match at the second and third "
+                            "dimension respectively. Boxes: ",
+                            num_boxes_boxes,
+                            "; Scores: ",
+                            num_boxes_scores);
 
-    NODE_VALIDATION_CHECK(op,
-                          boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
-                          "The last dimension of the 'boxes' input must be equal to 4. Got:",
-                          boxes_ps[2]);
+        NODE_VALIDATION_CHECK(op,
+                            boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
+                            "The last dimension of the 'boxes' input must be equal to 4. Got:",
+                            boxes_ps[2]);
+    }
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
