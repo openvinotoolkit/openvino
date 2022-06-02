@@ -61,7 +61,7 @@ const auto testCaseNegativeUnorderedAxes4D = ::testing::Combine(
 );
 
 const auto testCaseRepeatingAxes5D = ::testing::Combine(
-    ::testing::Values(std::vector<size_t>{2, 16, 32, 32}), // Input shape
+    ::testing::Values(std::vector<size_t>{2, 16, 32, 7, 32}), // Input shape
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 2, 8, 1, 1}), // Shift
     ::testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 3, 2, -2, -3}), // Axes
