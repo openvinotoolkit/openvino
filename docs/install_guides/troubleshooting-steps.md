@@ -52,8 +52,6 @@ For PIP, make sure that you have installed the latest version. To check and upgr
 
 For Ubuntu and RHEL 8 systems, if you installed OpenVINO Runtime via the installer, APT, or YUM repository, and decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> first. 
 
- <!--if you installed OpenVINO via PyPI, is it necessary to get system libraries or install dependencies? and how? Does the [install OpenVINO Development Tools](installing-model-dev-tools.md) page have enough information?-->
-
 For Windows systems, if C++ is still required, make sure that Microsoft Visual Studio 2019 with MSBuild and CMake 3.14 or higher (64-bit) are installed. While installing Microsoft Visual Studio 2019, make sure that you have selected **Desktop development with C++** in the **Workloads** tab. If not, launch the installer again to select that option. For more information on modifying the installation options for Microsoft Visual Studio, see its [official support page](https://docs.microsoft.com/en-us/visualstudio/install/modify-visual-studio?view=vs-2022).
 
 ## Check if you have installed OpenVINO before 
