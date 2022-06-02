@@ -34,6 +34,10 @@ function(ie_add_onednn)
     else()
         set(DNNL_VERBOSE "OFF" CACHE STRING "" FORCE)
     endif()
+
+    set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
+    set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
+
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
