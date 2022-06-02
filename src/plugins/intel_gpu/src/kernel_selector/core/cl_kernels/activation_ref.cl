@@ -92,7 +92,8 @@ KERNEL(activation)(
         #define NL_M_PARAMETERIZED (float)params[2*feature + 0]
         #define NL_N_PARAMETERIZED (float)params[2*feature + 1]
     #elif PARAMS_NUM == 1
-        #define NL_M_PARAMETERIZED (float)params[feature]
+        const unsigned param_index = GET_INDEX(ADDITIONAL_PARAMS,,ORDER);
+        #define NL_M_PARAMETERIZED (float)params[param_index]
         #define NL_N_PARAMETERIZED (float)NL_N
     #else
         #define NL_M_PARAMETERIZED (float)NL_M
