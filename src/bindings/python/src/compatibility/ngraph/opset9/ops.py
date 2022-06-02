@@ -9,6 +9,7 @@ import numpy as np
 from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import nameable_op
+from ngraph.utils.input_validation import check_valid_attributes
 from ngraph.utils.types import (
     NodeInput,
     as_nodes,
@@ -253,3 +254,41 @@ def multiclass_nms(
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
+
+
+def grid_sample(
+        data: NodeInput,
+        grid: NodeInput,
+        attributes: dict,
+        name: Optional[str] = None
+) -> Node:
+    """Return a node which performs GridSample operation.
+
+    :param data: The input image.
+    :param grid: Grrid values (normalized input coordinates).
+    :param attributes: A dictionary containing GridSample's attributes.
+    :param name: Optional name of the node.
+    Available attributes:
+    * align_corners A flag which specifies whether to align the grid extrema values
+                    with the borders or center points of the input tensor's border pixels.
+                    Range of values: true, false
+                    Default value: false
+                    Required: no
+    * mode          Specifies the type of interpolation.
+                    Range of values: bilinear, bicubic, nearest
+                    Default value: bilinear
+                    Required: no
+    * padding_mode  Specifies how the out-of-bounds coordinates should be handled.
+                    Range of values: zeros, border, reflection
+                    Default value: zeros
+                    Required: no
+    :return: A new GridSample node.
+    """
+    requirements = [
+        ("align_corners", False, np.bool_, None),
+        ("mode", False, np.str_, None),
+        ("padding_mode", False, np.str_, None),
+    ]
+
+    check_valid_attributes("GridSample", attributes, requirements)
+    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)
