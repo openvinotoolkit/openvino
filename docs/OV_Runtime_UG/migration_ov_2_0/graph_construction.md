@@ -1,9 +1,10 @@
-# Model Creation in Runtime {#openvino_2_0_model_creation}
+# Model Creation in OpenVINO™ Runtime {#openvino_2_0_model_creation}
 
-OpenVINO™ Runtime API 2.0 includes the nGraph engine as a common part. The `ngraph` namespace has been changed to `ov`, but all other parts of the ngraph API have been preserved.
-The code snippets below show how to change application code for migration to OpenVINO™ Runtime API 2.0.
+OpenVINO™ Runtime with API 2.0 includes the nGraph engine as a common part. The `ngraph` namespace has been changed to `ov`, but all other parts of the ngraph API have been preserved.
 
-### nGraph API
+The code snippets below show how to change the application code for migration to API 2.0.
+
+## nGraph API
 
 @sphinxtabset
 
@@ -17,7 +18,7 @@ The code snippets below show how to change application code for migration to Ope
 
 @endsphinxtabset
 
-### OpenVINO™ Runtime API 2.0:
+## API 2.0
 
 @sphinxtabset
 
@@ -31,6 +32,7 @@ The code snippets below show how to change application code for migration to Ope
 
 @endsphinxtabset
 
-**See also:**
+## Additional Resources
+
 - [Hello Model Creation C++ Sample](../../../samples/cpp/model_creation_sample/README.md)
 - [Hello Model Creation Python Sample](../../../samples/python/model_creation_sample/README.md)
