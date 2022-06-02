@@ -761,6 +761,7 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
 }
 
 static bool is_node_for_onednn(reduce_node const& node) {
+    auto& input = node.input();
     auto reduce_prim = node.get_primitive();
     // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
     switch (reduce_prim->mode) {
@@ -769,28 +770,25 @@ static bool is_node_for_onednn(reduce_node const& node) {
         case reduce_mode::min:
         case reduce_mode::sum:
         case reduce_mode::prod:
+            break;
         case reduce_mode::sum_square:
         case reduce_mode::l1:
         case reduce_mode::l2:
-            break;
+            // modes have a limitation of data type
+            if (input.get_output_layout().data_type == data_types::f16 ||
+                input.get_output_layout().data_type == data_types::f32)
+                break;
         default:
             return false;
     }
 
-    auto& input = node.input();
     auto input_layout = input.get_output_layout();
-    auto reduce_axes = reduce_prim->axes;
-    // redundant reduce is not acceptable on oneDNN reduction
-    if (node.get_output_layout() == input_layout) {
+    if (input_layout.get_dims().size() > 4) {
         return false;
     }
-    // tensor size mismatch of unreduced axis is not supported
-    for (size_t idx = 0 ; idx < input_layout.get_dims().size() ; idx++) {
-        bool reduced_axis = std::find(reduce_axes.begin(), reduce_axes.end(), idx) != reduce_axes.end();
-        if (!reduced_axis && (input_layout.get_dim(idx) != node.get_output_layout().get_dim(idx)))
-            return false;
-    }
-    if (input_layout.get_dims().size() > 4) {
+
+    // redundant reduce is not acceptable on oneDNN reduction
+    if (node.get_output_layout() == input_layout) {
         return false;
     }
 
@@ -1832,6 +1830,23 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
                 expected = format::b_fs_yx_fsv32;
             }
+        }
+    } else if (node.is_type<reduce>()) {
+        auto& reduce_node = node.as<reduce>();
+        auto prim = reduce_node.get_primitive();
+        auto reduce_axes = prim->axes;
+        auto input_layout = reduce_node.input().get_output_layout();
+        // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
+        // But oneDNN does not allow this. So planar format is used for this case.
+        if (prim->keep_dims == false &&
+            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_f) != reduce_axes.end() ||
+            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_b) != reduce_axes.end() && input_layout.batch() > 1))) {
+            if (input_layout.format.dimension() == 6)
+                expected = format::bfwzyx;
+            else if (input_layout.format.dimension() == 5)
+                expected = format::bfzyx;
+            else if (input_layout.format.dimension() == 4)
+                expected = format::bfyx;
         }
     }
 
