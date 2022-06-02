@@ -615,10 +615,10 @@ std::vector<std::string> split(std::string s, std::vector<std::string> delimiter
     std::string token;
     std::vector<std::string> result;
     for (int i = 0; i < s.size(); ++i) {
-        for (auto delm : delimiter) {
-            if ((s_end = s.find(delm, s_start)) != std::string::npos) {
+        for (auto delim : delimiter) {
+            if ((s_end = s.find(delim, s_start)) != std::string::npos) {
                 token = s.substr(s_start, s_end - s_start);
-                s_start = s_end + delm.size();
+                s_start = s_end + delim.size();
                 result.push_back(token);
             }
         }
@@ -649,7 +649,6 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     if (!partial_shape) {
         return "error";
     }
-
     std::string str = "";
     const char* res;
     for (int i = 0; i < partial_shape->ranks; ++i) {
@@ -660,6 +659,26 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     }
     res = str_to_char_array(str);
     return res;
+}
+
+ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape) {
+    if (!partial_shape || !shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::vector<size_t> tmp_shape;
+        for (int i = 0; i < partial_shape->ranks; ++i) {
+            std::string dim = partial_shape->dims[i];
+            if (dim == "?" || dim == "-1" || dim.find("..") != std::string::npos) {
+                return ov_status_e::GENERAL_ERROR;
+            } else {
+                tmp_shape.push_back(std::stoi(dim));
+            }
+        }
+        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        shape->ranks = partial_shape->ranks;
+    } CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
 }
 
 ov_status_e ov_model_reshape(const ov_model_t* model,
@@ -732,6 +751,10 @@ void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
         }
         partial_shape->ranks = 0;
     }
+}
+
+void ov_shape_free(ov_shape_t* shape) {
+    delete shape;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,
