@@ -6,12 +6,10 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
-#include <cpu/platform.hpp>
 #include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
-using namespace dnnl::impl::cpu::platform;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -91,18 +89,20 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
         break;
     }
     default: {
-        threadsCount = std::min(parallel_get_num_threads(), static_cast<int>(inSize));
-        if (threadsCount == 0)
+        threadsCount = parallel_get_num_threads();
+        if (inSize < blockSize * threadsCount)
             threadsCount = 1;
 
         counts.resize(threadsCount);
-
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+            size_t count = 0;
             for_1d(ithr, nthr, inSize, [&](size_t i) {
                 if (src[i] != zero) {
-                    counts[ithr]++;
+                    count++;
                 }
             });
+
+            counts[ithr] = count;
         });
         break;
     }
@@ -170,7 +170,7 @@ void NonZero::executeSpecified() {
         dst[0] = 0;
         break;
     case 1: {
-        size_t& outputIndex = destIndices[0];
+        size_t outputIndex = 0;
         for (int i = 0; i < srcDims[0]; ++i) {
             if (src[i] != zero) {
                 dst[outputIndex] = i;
@@ -180,9 +180,7 @@ void NonZero::executeSpecified() {
         break;
     }
     case 2: {
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
-            constexpr auto blockSize = get_cache_line_size() * 2;
-            constexpr auto elementsStride = blockSize / sizeof(int);
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
             constexpr auto elementsCount = elementsStride * 2;  // elementsStride * inRank
             int cache[elementsCount];
             int counter = 0;
@@ -215,9 +213,7 @@ void NonZero::executeSpecified() {
     case 3: {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
-            constexpr auto blockSize = get_cache_line_size() * 2;
-            constexpr auto elementsStride = blockSize / sizeof(int);
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
             constexpr auto elementsCount = elementsStride * 3;  // elementsStride * inRank
             int cache[elementsCount];
             int counter = 0;
@@ -260,9 +256,7 @@ void NonZero::executeSpecified() {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
-            constexpr auto blockSize = get_cache_line_size() * 2;
-            constexpr auto elementsStride = blockSize / sizeof(int);
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
             constexpr auto elementsCount = elementsStride * 4;  // elementsStride * inRank
             int cache[elementsCount];
             int counter = 0;
@@ -311,9 +305,7 @@ void NonZero::executeSpecified() {
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
         size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
-            constexpr auto blockSize = get_cache_line_size() * 2;
-            constexpr auto elementsStride = blockSize / sizeof(int);
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
             constexpr auto elementsCount = elementsStride * 5;  // elementsStride * inRank
             int cache[elementsCount];
             int counter = 0;
@@ -364,7 +356,7 @@ void NonZero::executeSpecified() {
         size_t inSize = inShape.getElementsCount();
         auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        parallel_nt(threadsCount, [&](size_t ithr, size_t nthr) {
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
             size_t& colIndex = destIndices[ithr];
             for_1d(ithr, nthr, inSize, [&](size_t, size_t i) {
                 if (src[i] != zero) {
