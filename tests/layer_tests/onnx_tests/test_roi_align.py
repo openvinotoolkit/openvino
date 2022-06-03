@@ -13,7 +13,11 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             if input == 'indices':
-                inputs_dict[input] = np.random.choice(range(inputs_dict['input'][0]), inputs_dict[input])
+                if isinstance(inputs_dict['input'], list):
+                    batch = inputs_dict['input'][0]
+                else:
+                    batch = inputs_dict['input'].shape[0]
+                inputs_dict[input] = np.random.choice(range(batch), inputs_dict[input])
             elif input == 'input':
                 inputs_dict[input] = np.ones(inputs_dict[input]).astype(np.float32)
             else:
@@ -132,6 +136,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir, api_2):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
-                ir_version,
-                temp_dir=temp_dir, api_2=api_2)
+        if ie_device != "GPU":
+            self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                    ir_version,
+                    temp_dir=temp_dir, api_2=api_2)
