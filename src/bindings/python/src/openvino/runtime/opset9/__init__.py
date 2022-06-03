@@ -59,6 +59,7 @@ from openvino.runtime.opset6.ops import gather_elements
 from openvino.runtime.opset8.ops import gather_nd
 from openvino.runtime.opset1.ops import gather_tree
 from openvino.runtime.opset7.ops import gelu
+from openvino.runtime.opset9.ops import generate_proposals
 from openvino.runtime.opset1.ops import greater
 from openvino.runtime.opset1.ops import greater_equal
 from openvino.runtime.opset9.ops import grid_sample
