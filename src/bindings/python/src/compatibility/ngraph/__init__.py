@@ -75,6 +75,7 @@ from ngraph.opset9 import gather_elements
 from ngraph.opset9 import gather_nd
 from ngraph.opset9 import gather_tree
 from ngraph.opset9 import gelu
+from ngraph.opset9 import generate_proposals
 from ngraph.opset9 import greater
 from ngraph.opset9 import greater_equal
 from ngraph.opset9 import grn
