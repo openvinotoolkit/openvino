@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
@@ -6,25 +7,25 @@ from utils.utils import MyModelPass, PatternReplacement, expect_exception
 
 
 def test_registration_and_pass_name():
-    m = Manager()
+    manager = Manager()
 
-    a = m.register_pass(PatternReplacement())
-    a.set_name("PatterReplacement")
+    pass_a = manager.register_pass(PatternReplacement())
+    pass_a.set_name("PatterReplacement")
 
-    b = m.register_pass(MyModelPass())
-    b.set_name("ModelPass")
+    pass_b = manager.register_pass(MyModelPass())
+    pass_b.set_name("ModelPass")
 
-    c = m.register_pass(GraphRewrite())
-    c.set_name("Anchor")
+    pass_c = manager.register_pass(GraphRewrite())
+    pass_c.set_name("Anchor")
 
-    d = c.add_matcher(PatternReplacement())
-    d.set_name("PatterReplacement")
+    pass_d = pass_c.add_matcher(PatternReplacement())
+    pass_d.set_name("PatterReplacement")
 
-    e = m.register_pass(BackwardGraphRewrite())
-    e.set_name("BackAnchor")
+    pass_e = manager.register_pass(BackwardGraphRewrite())
+    pass_e.set_name("BackAnchor")
 
-    f = e.add_matcher(PatternReplacement())
-    f.set_name("PatterReplacement")
+    pass_f = pass_e.add_matcher(PatternReplacement())
+    pass_f.set_name("PatterReplacement")
 
     PatternReplacement().set_name("PatternReplacement")
     MyModelPass().set_name("MyModelPass")
@@ -33,12 +34,12 @@ def test_registration_and_pass_name():
 
     # Preserve legacy behaviour when registered pass doesn't exist
     # and in this case we shouldn't throw an exception.
-    m.register_pass("NotExistingPass")
+    manager.register_pass("NotExistingPass")
 
 
 def test_negative_pass_registration():
-    m = Manager()
-    expect_exception(lambda: m.register_pass(PatternReplacement))
-    expect_exception(lambda: m.register_pass("PatternReplacement", PatternReplacement()))
-    expect_exception(lambda: m.register_pass("Serialize", Serialize("out.xml", "out.bin")))
-    expect_exception(lambda: m.register_pass("Serialize", "out.xml", "out.bin", "out.wrong"))
+    manager = Manager()
+    expect_exception(lambda: manager.register_pass(PatternReplacement))
+    expect_exception(lambda: manager.register_pass("PatternReplacement", PatternReplacement()))
+    expect_exception(lambda: manager.register_pass("Serialize", Serialize("out.xml", "out.bin")))
+    expect_exception(lambda: manager.register_pass("Serialize", "out.xml", "out.bin", "out.wrong"))

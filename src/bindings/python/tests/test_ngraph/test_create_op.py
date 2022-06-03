@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -94,25 +95,27 @@ def test_ctc_greedy_decoder(dtype):
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-@pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index",
-                         [
-                             (np.float32, np.int32, "i32", "i32", True, True),
-                             (np.float32, np.int32, "i64", "i32", True, True),
-                             (np.float32, np.int32, "i32", "i64", True, True),
-                             (np.float32, np.int32, "i64", "i64", True, True),
-                             (np.float64, np.int64, "i32", "i32", False, True),
-                             (np.float64, np.int64, "i64", "i32", False, True),
-                             (np.float64, np.int64, "i32", "i64", False, True),
-                             (np.float64, np.int64, "i64", "i64", False, True),
-                             (np.float32, np.int32, "i32", "i32", True, False),
-                             (np.float32, np.int32, "i64", "i32", True, False),
-                             (np.float32, np.int32, "i32", "i64", True, False),
-                             (np.float32, np.int32, "i64", "i64", True, False),
-                             (np.float64, np.int64, "i32", "i32", False, False),
-                             (np.float64, np.int64, "i64", "i32", False, False),
-                             (np.float64, np.int64, "i32", "i64", False, False),
-                             (np.float64, np.int64, "i64", "i64", False, False)
-                         ], )
+@pytest.mark.parametrize(
+    ("fp_dtype", "int_dtype", "int_ci", "int_sl", "merge_repeated", "blank_index"),
+    [
+        (np.float32, np.int32, "i32", "i32", True, True),
+        (np.float32, np.int32, "i64", "i32", True, True),
+        (np.float32, np.int32, "i32", "i64", True, True),
+        (np.float32, np.int32, "i64", "i64", True, True),
+        (np.float64, np.int64, "i32", "i32", False, True),
+        (np.float64, np.int64, "i64", "i32", False, True),
+        (np.float64, np.int64, "i32", "i64", False, True),
+        (np.float64, np.int64, "i64", "i64", False, True),
+        (np.float32, np.int32, "i32", "i32", True, False),
+        (np.float32, np.int32, "i64", "i32", True, False),
+        (np.float32, np.int32, "i32", "i64", True, False),
+        (np.float32, np.int32, "i64", "i64", True, False),
+        (np.float64, np.int64, "i32", "i32", False, False),
+        (np.float64, np.int64, "i64", "i32", False, False),
+        (np.float64, np.int64, "i32", "i64", False, False),
+        (np.float64, np.int64, "i64", "i64", False, False),
+    ],
+)
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
     input0_shape = [8, 20, 128]
     input1_shape = [8]
@@ -126,7 +129,7 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
         parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=int_dtype)
 
     node = ov.ctc_greedy_decoder_seq_len(
-        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
+        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl,
     )
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
@@ -204,7 +207,7 @@ def test_deformable_convolution_mask(dtype):
 
     node = ov.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides,
-        pads_begin, pads_end, dilations, parameter_input3
+        pads_begin, pads_end, dilations, parameter_input3,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -293,24 +296,24 @@ def test_lstm_cell_operator(dtype):
     input_size = 16
     hidden_size = 128
 
-    X_shape = [batch_size, input_size]
-    H_t_shape = [batch_size, hidden_size]
-    C_t_shape = [batch_size, hidden_size]
-    W_shape = [4 * hidden_size, input_size]
-    R_shape = [4 * hidden_size, hidden_size]
-    B_shape = [4 * hidden_size]
+    x_shape = [batch_size, input_size]
+    h_t_shape = [batch_size, hidden_size]
+    c_t_shape = [batch_size, hidden_size]
+    w_shape = [4 * hidden_size, input_size]
+    r_shape = [4 * hidden_size, hidden_size]
+    b_shape = [4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     expected_shape = [1, 128]
 
     node_default = ov.lstm_cell(
-        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
+        parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -324,12 +327,12 @@ def test_lstm_cell_operator(dtype):
     clip = 0.5
 
     node_param = ov.lstm_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         activations,
         activation_alpha,
@@ -349,24 +352,24 @@ def test_lstm_cell_operator_opset1(dtype):
     input_size = 16
     hidden_size = 128
 
-    X_shape = [batch_size, input_size]
-    H_t_shape = [batch_size, hidden_size]
-    C_t_shape = [batch_size, hidden_size]
-    W_shape = [4 * hidden_size, input_size]
-    R_shape = [4 * hidden_size, hidden_size]
-    B_shape = [4 * hidden_size]
+    x_shape = [batch_size, input_size]
+    h_t_shape = [batch_size, hidden_size]
+    c_t_shape = [batch_size, hidden_size]
+    w_shape = [4 * hidden_size, input_size]
+    r_shape = [4 * hidden_size, hidden_size]
+    b_shape = [4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     expected_shape = [1, 128]
 
     node_default = ov_opset1.lstm_cell(
-        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
+        parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -380,12 +383,12 @@ def test_lstm_cell_operator_opset1(dtype):
     clip = 0.5
 
     node_param = ov_opset1.lstm_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         activations,
         activation_alpha,
@@ -407,31 +410,31 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
     node = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -445,13 +448,13 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     clip = 1.22
 
     node_param = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -472,32 +475,32 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
     node_default = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -511,13 +514,13 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     clip = 1.22
 
     node_param = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -538,32 +541,32 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
     node_default = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -577,13 +580,13 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     clip = 0.5
 
     node = ov_opset1.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -601,21 +604,21 @@ def test_gru_cell_operator():
     input_size = 16
     hidden_size = 128
 
-    X_shape = [batch_size, input_size]
-    H_t_shape = [batch_size, hidden_size]
-    W_shape = [3 * hidden_size, input_size]
-    R_shape = [3 * hidden_size, hidden_size]
-    B_shape = [3 * hidden_size]
+    x_shape = [batch_size, input_size]
+    h_t_shape = [batch_size, hidden_size]
+    w_shape = [3 * hidden_size, input_size]
+    r_shape = [3 * hidden_size, hidden_size]
+    b_shape = [3 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=np.float32)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=np.float32)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=np.float32)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     expected_shape = [1, 128]
 
-    node_default = ov.gru_cell(parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size)
+    node_default = ov.gru_cell(parameter_x, parameter_h_t, parameter_w, parameter_r, parameter_b, hidden_size)
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
@@ -628,15 +631,15 @@ def test_gru_cell_operator():
     linear_before_reset = True
 
     # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
-    B_shape = [4 * hidden_size]
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    b_shape = [4 * hidden_size]
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     node_param = ov.gru_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_x,
+        parameter_h_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         activations,
         activations_alpha,
@@ -659,28 +662,28 @@ def test_gru_sequence():
     num_directions = 1
     direction = "FORWARD"
 
-    X_shape = [batch_size, seq_len, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    W_shape = [num_directions, 3 * hidden_size, input_size]
-    R_shape = [num_directions, 3 * hidden_size, hidden_size]
-    B_shape = [num_directions, 3 * hidden_size]
+    x_shape = [batch_size, seq_len, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    w_shape = [num_directions, 3 * hidden_size, input_size]
+    r_shape = [num_directions, 3 * hidden_size, hidden_size]
+    b_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=np.float32)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=np.float32)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=np.float32)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
     expected_shape_h = [batch_size, num_directions, hidden_size]
 
     node_default = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         seq_lengths,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -697,16 +700,16 @@ def test_gru_sequence():
     linear_before_reset = True
 
     # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    b_shape = [num_directions, 4 * hidden_size]
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     node_param = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         seq_lengths,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -731,28 +734,28 @@ def test_rnn_sequence():
     num_directions = 1
     direction = "FORWARD"
 
-    X_shape = [batch_size, seq_len, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    W_shape = [num_directions, hidden_size, input_size]
-    R_shape = [num_directions, hidden_size, hidden_size]
-    B_shape = [num_directions, hidden_size]
+    x_shape = [batch_size, seq_len, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    w_shape = [num_directions, hidden_size, input_size]
+    r_shape = [num_directions, hidden_size, hidden_size]
+    b_shape = [num_directions, hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=np.float32)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=np.float32)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=np.float32)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
     expected_shape_h = [batch_size, num_directions, hidden_size]
 
     node_default = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         seq_lengths,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -768,12 +771,12 @@ def test_rnn_sequence():
     clip = 0.5
 
     node_param = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         seq_lengths,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -972,7 +975,7 @@ def test_embedding_segments_sum_all_inputs():
     per_sample_weights = ov.parameter([4], name="per_sample_weights", dtype=np.float32)
 
     node = ov.embedding_segments_sum(
-        emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights
+        emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights,
     )
 
     assert node.get_type_name() == "EmbeddingSegmentsSum"
@@ -1031,7 +1034,7 @@ def test_interpolate(dtype):
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.int8, np.float32),
         (np.int16, np.float32),
@@ -1051,7 +1054,7 @@ def test_prior_box(int_dtype, fp_dtype):
         "offset": fp_dtype(0),
         "min_size": np.array([2, 3], dtype=fp_dtype),
         "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
-        "scale_all_sizes": False
+        "scale_all_sizes": False,
     }
 
     layer_shape = ov.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -1064,7 +1067,7 @@ def test_prior_box(int_dtype, fp_dtype):
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.int8, np.float32),
         (np.int16, np.float32),
@@ -1096,7 +1099,7 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.uint8, np.float32),
         (np.uint16, np.float32),
@@ -1238,31 +1241,31 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
     node = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1276,13 +1279,13 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     clip = 1.22
 
     node_param = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1303,32 +1306,32 @@ def test_lstm_sequence_operator_reverse(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
     node_default = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1342,13 +1345,13 @@ def test_lstm_sequence_operator_reverse(dtype):
     clip = 1.22
 
     node_param = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1369,32 +1372,32 @@ def test_lstm_sequence_operator_forward(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
-    C_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
+    c_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 4 * hidden_size, input_size]
-    R_shape = [num_directions, 4 * hidden_size, hidden_size]
-    B_shape = [num_directions, 4 * hidden_size]
+    w_shape = [num_directions, 4 * hidden_size, input_size]
+    r_shape = [num_directions, 4 * hidden_size, hidden_size]
+    b_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
+    parameter_c_t = ov.parameter(c_t_shape, name="C_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
     node_default = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1408,13 +1411,13 @@ def test_lstm_sequence_operator_forward(dtype):
     clip = 0.5
 
     node = ov.lstm_sequence(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1435,28 +1438,28 @@ def test_gru_sequence_operator_bidirectional(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 3 * hidden_size, input_size]
-    R_shape = [num_directions, 3 * hidden_size, hidden_size]
-    B_shape = [num_directions, 3 * hidden_size]
+    w_shape = [num_directions, 3 * hidden_size, input_size]
+    r_shape = [num_directions, 3 * hidden_size, hidden_size]
+    b_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
     node = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1469,23 +1472,23 @@ def test_gru_sequence_operator_bidirectional(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
     linear_before_reset = True
-    B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    b_shape = [num_directions, 4 * hidden_size]
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     node_param = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node_param.get_type_name() == "GRUSequence"
@@ -1500,29 +1503,29 @@ def test_gru_sequence_operator_reverse(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 3 * hidden_size, input_size]
-    R_shape = [num_directions, 3 * hidden_size, hidden_size]
-    B_shape = [num_directions, 3 * hidden_size]
+    w_shape = [num_directions, 3 * hidden_size, input_size]
+    r_shape = [num_directions, 3 * hidden_size, hidden_size]
+    b_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
     node_default = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1535,23 +1538,23 @@ def test_gru_sequence_operator_reverse(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
     linear_before_reset = True
-    B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    b_shape = [num_directions, 4 * hidden_size]
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     node_param = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node_param.get_type_name() == "GRUSequence"
@@ -1566,29 +1569,29 @@ def test_gru_sequence_operator_forward(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, 3 * hidden_size, input_size]
-    R_shape = [num_directions, 3 * hidden_size, hidden_size]
-    B_shape = [num_directions, 3 * hidden_size]
+    w_shape = [num_directions, 3 * hidden_size, input_size]
+    r_shape = [num_directions, 3 * hidden_size, hidden_size]
+    b_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
     node_default = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1601,23 +1604,23 @@ def test_gru_sequence_operator_forward(dtype):
     activation_beta = [1.0]
     clip = 0.5
     linear_before_reset = True
-    B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    b_shape = [num_directions, 4 * hidden_size]
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     node = ov.gru_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node.get_type_name() == "GRUSequence"
@@ -1632,28 +1635,27 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, hidden_size, input_size]
-    R_shape = [num_directions, hidden_size, hidden_size]
-    B_shape = [num_directions, hidden_size]
-
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    w_shape = [num_directions, hidden_size, input_size]
+    r_shape = [num_directions, hidden_size, hidden_size]
+    b_shape = [num_directions, hidden_size]
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
     node = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1667,12 +1669,12 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     clip = 1.22
 
     node_param = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1693,29 +1695,29 @@ def test_rnn_sequence_operator_reverse(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, hidden_size, input_size]
-    R_shape = [num_directions, hidden_size, hidden_size]
-    B_shape = [num_directions, hidden_size]
+    w_shape = [num_directions, hidden_size, input_size]
+    r_shape = [num_directions, hidden_size, hidden_size]
+    b_shape = [num_directions, hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
     node_default = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1729,12 +1731,12 @@ def test_rnn_sequence_operator_reverse(dtype):
     clip = 1.22
 
     node_param = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1755,29 +1757,29 @@ def test_rnn_sequence_operator_forward(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [batch_size, seq_length, input_size]
-    H_t_shape = [batch_size, num_directions, hidden_size]
+    x_shape = [batch_size, seq_length, input_size]
+    h_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
-    W_shape = [num_directions, hidden_size, input_size]
-    R_shape = [num_directions, hidden_size, hidden_size]
-    B_shape = [num_directions, hidden_size]
+    w_shape = [num_directions, hidden_size, input_size]
+    r_shape = [num_directions, hidden_size, hidden_size]
+    b_shape = [num_directions, hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=dtype)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=dtype)
     parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=dtype)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=dtype)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
     node_default = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
     )
@@ -1791,12 +1793,12 @@ def test_rnn_sequence_operator_forward(dtype):
     clip = 0.5
 
     node = ov.rnn_sequence(
-        parameter_X,
-        parameter_H_t,
+        parameter_x,
+        parameter_h_t,
         parameter_seq_len,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         direction,
         activations,
@@ -1828,7 +1830,7 @@ def test_multiclass_nms():
     assert nms_node.get_output_size() == 3
     assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
     assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
@@ -1854,7 +1856,7 @@ def test_multiclass_nms():
     assert nms_node.get_output_size() == 3
     assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
     assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
@@ -1879,7 +1881,7 @@ def test_matrix_nms():
     assert nms_node.get_output_size() == 3
     assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
     assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32

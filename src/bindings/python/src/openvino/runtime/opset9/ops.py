@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -206,7 +207,7 @@ def multiclass_nms(
         keep_top_k: Optional[int] = -1,
         background_class: Optional[int] = -1,
         nms_eta: Optional[float] = 1.0,
-        normalized: Optional[bool] = True
+        normalized: Optional[bool] = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -248,7 +249,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
