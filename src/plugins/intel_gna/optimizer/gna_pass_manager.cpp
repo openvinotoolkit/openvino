@@ -57,6 +57,16 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
     return sharedMgr;
 }
 
+static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::string& name = {}) {
+    auto blob = Blob::CreateFromData(std::make_shared<Data>(name, readOnlyBlob->getTensorDesc()));
+    blob->allocate();
+    const auto ret = ie_memcpy(blob->buffer().as<uint8_t*>(),
+        blob->size() * blob->getTensorDesc().getPrecision().size(),
+        readOnlyBlob->buffer().as<uint8_t*>(),
+        readOnlyBlob->size() * readOnlyBlob->getTensorDesc().getPrecision().size());
+    IE_ASSERT(ret == 0);
+    return blob;
+}
 
 static bool fp32eq(float p1, float p2) {
     return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
@@ -2315,7 +2325,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
                     transpInfoMatchWeightsSize(transpositionInfo, weightsColumns, l->name);
 
-                    ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
+                    weightable->_weights = convertToRWBlob(weightable->_weights);
+
+                    ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->buffer().as<uint8_t*>(),
                                                 true, transpositionInfo);
                     gnalog() << l->name << " weights rows transposition info:\n";
                     printTranspositionInfo(transpositionInfo);
@@ -2336,6 +2348,8 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                     }
 
                     transpInfoMatchWeightsSize(transpositionInfo, weightsRows, l->name);
+
+                    weightable->_weights = convertToRWBlob(weightable->_weights);
 
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 false, transpositionInfo);
@@ -2401,7 +2415,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             for (auto && input : constInputs) {
                 auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
                 auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
-                auto blob = input->blobs["custom"];
+
+                auto blob = convertToRWBlob(input->blobs["custom"]);
+                input->blobs["custom"] = blob;
+
                 // A constant should have the same number of channels since concatenation will be in height/weight dimension
                 TranspositionInfo concatTranspositionInfo{true, rows, columns};
                 ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
