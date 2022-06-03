@@ -12,6 +12,9 @@
 #include <intel_gpu/primitives/scatter_nd_update.hpp>
 
 #include <cmath>
+#include <stdlib.h>
+#include <time.h>
+#include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -81,16 +84,16 @@ public:
     std::vector<T> generate_unique_indices(scatter_nd_update_test_params& p) {
         std::set<std::vector<T>> unique_indices;
         std::vector<T> result;
-        auto indices_shape = p.indices_shape.sizes(get_default_format(p.indices_rank));
-        auto data_shape = p.input_shape.sizes(p.input_format);
+        auto indices_shape = p.indices_size.sizes(get_default_format(p.indices_rank));
+        auto data_shape = p.input_size.sizes(p.input_format);
         auto last_indices_dim = indices_shape.at(p.indices_rank - 1);
 
-        auto count = p.indices_shape.count();
+        auto count = p.indices_size.count() / last_indices_dim;
 
         while (unique_indices.size() != count) {
             std::vector<T> indices;
             for (size_t i = 0; i < last_indices_dim; i++) {
-                indices.push_back(generate_random_val<T>(0, data_shape[i] - 1));
+                indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
             }
 
             unique_indices.insert(indices);
