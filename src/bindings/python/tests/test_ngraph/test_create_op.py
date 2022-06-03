@@ -2105,3 +2105,36 @@ def test_irdft():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 2, 4]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_generate_proposals():
+    im_info_shape = [1, 3]
+    anchors_shape = [4, 4, 3, 4]
+    deltas_shape = [1, 12, 4, 4]
+    scores_shape = [1, 3, 4, 4]
+
+    im_info_param = ov.parameter(im_info_shape, name="im_info")
+    anchors_param = ov.parameter(anchors_shape, name="anchors")
+    deltas_param = ov.parameter(deltas_shape, name="deltas")
+    scores_param = ov.parameter(scores_shape, name="scores")
+
+    node = ov.generate_proposals(im_info_param,
+                                 anchors_param,
+                                 deltas_param,
+                                 scores_param,
+                                 min_size=1.0,
+                                 nms_threshold=0.5,
+                                 pre_nms_count=200,
+                                 post_nms_count=100,
+                                 normalized=False,
+                                 nms_eta=1.0,
+                                 roi_num_type="i32")
+
+    assert node.get_type_name() == "GenerateProposals"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0).same_scheme(PartialShape([-1, 4]))
+    assert node.get_output_partial_shape(1).same_scheme(PartialShape([-1]))
+    assert node.get_output_partial_shape(2).same_scheme(PartialShape([1]))
+    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.f32
+    assert node.get_output_element_type(2) == Type.i32
