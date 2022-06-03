@@ -117,7 +117,7 @@ public:
         return dev <= Gna2DeviceVersion2_0 && isGnaHw(dev);
     }
     bool enforceLegacyCnnNeeded() const;
-    static void checkGna2Status(Gna2Status status, const std::string& from);
+    static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
     GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 

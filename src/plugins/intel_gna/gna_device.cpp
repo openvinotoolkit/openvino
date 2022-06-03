@@ -76,11 +76,15 @@ void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::r
 void GNADeviceHelper::free(void* ptr) {
     Gna2Status status;
     bool removeSuccess;
+    std::string message;
     {
         std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
         status = Gna2MemoryFree(ptr);
-        checkGna2Status(status, "Gna2MemoryFree");
+        message = checkGna2Status(status, "Gna2MemoryFree", true);
         removeSuccess = allAllocations.Remove(ptr);
+    }
+    if (!message.empty()) {
+        gnawarn() << message;
     }
     if (!removeSuccess) {
         gnawarn() << "Allocation not found when freeing memory\n";
@@ -314,7 +318,9 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
     }
 }
 
-void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from) {
+std::string GNADeviceHelper::checkGna2Status(Gna2Status status,
+                                             const std::string& from,
+                                             bool returnInsteadThrow) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
         const auto prefix = "Unsuccessful " + from + " call, Gna2Status: (";
@@ -327,9 +333,15 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const std::string& from
             status == Gna2StatusDeviceOutgoingCommunicationError) {
             suffix = ", consider updating the GNA driver";
         }
-        THROW_GNA_EXCEPTION << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
+        std::ostringstream message;
+        message << prefix << status << ") " << gna2StatusBuffer.data() << suffix <<
             decoratedGnaLibVersion();
+        if (returnInsteadThrow) {
+            return message.str();
+        }
+        THROW_GNA_EXCEPTION << message.str();
     }
+    return {};
 }
 
 const std::map <Gna2ItemType, const std::string> GNADeviceHelper::errorTypes = {
@@ -519,10 +531,9 @@ void GNADeviceHelper::close() {
     }
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
-    try {
-        checkGna2Status(status, "Gna2DeviceClose");
-    } catch (...) {
-        gnawarn() << "GNA Device was not successfully closed with status " << status << std::endl;
+    const auto message = checkGna2Status(status, "Gna2DeviceClose", true);
+    if (!message.empty()) {
+        gnawarn() << "GNA Device was not successfully closed: " << message << std::endl;
     }
     deviceOpened = false;
 }
