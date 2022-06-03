@@ -12,6 +12,7 @@
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 #include "pooling_inst.h"
+#include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif // ENABLE_ONEDNN_FOR_GPU
 
@@ -888,7 +889,12 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
-                post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
+                if (alg == dnnl::algorithm::eltwise_pow)
+                    post_ops.append_eltwise(1.0f, alg, 1.0f, fused_desc->additional_params.a);
+                else
+                    post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (node->is_type<eltwise>()) {
@@ -914,7 +920,7 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>()) {
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
