@@ -9,6 +9,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 
@@ -53,15 +54,18 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         }
     }
 
-    auto concat_axes =
-        std::make_shared<opset9::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
+    std::shared_ptr<Node> axes =std::make_shared<opset9::Concat>(OutputVector{top_reduce->input_value(1),
+                                                      bottom_reduce->input_value(1)},
                                          int64_t(0));
-    concat_axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
+    if (auto constant = ov::get_constant_from_source(axes)) {
+        axes = constant;
+    }
+    axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
     auto new_reduce =
-        bottom_reduce->copy_with_new_inputs({top_reduce->input_value(0), concat_axes->get_default_output()});
+        bottom_reduce->copy_with_new_inputs({top_reduce->input_value(0), axes->get_default_output()});
     new_reduce->set_friendly_name(bottom_reduce->get_friendly_name());
 
-    copy_runtime_info({top_reduce, bottom_reduce}, {concat_axes, new_reduce});
+    copy_runtime_info({top_reduce, bottom_reduce}, {axes, new_reduce});
     ngraph::replace_node(bottom_reduce, new_reduce);
     return true;
 }
