@@ -772,7 +772,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwis
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_2, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_3, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_4, 2, 7 },
-    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 7 },
+    //deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_6, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_7, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_8, 2, 7 },
