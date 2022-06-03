@@ -295,7 +295,7 @@ def generate_proposals(
         "post_nms_count": post_nms_count,
         "normalized": normalized,
         "nms_eta": nms_eta,
-        "roi_num_type": roi_num_type
+        "roi_num_type": roi_num_type,
     }
 
     return _get_node_factory_opset9().create("GenerateProposals", inputs, attributes)
