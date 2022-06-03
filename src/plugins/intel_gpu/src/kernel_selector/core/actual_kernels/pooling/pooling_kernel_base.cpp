@@ -144,7 +144,8 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
     if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
         output.GetLayout() == DataLayout::byxf ||
         output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
+        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         // Determine global work sizes.
         dispatchData.gws[0] = Align(output.X().v, 32);                // X
         dispatchData.gws[1] = output.Y().v * output.Z().v;            // Y, Z
