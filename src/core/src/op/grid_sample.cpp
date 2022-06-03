@@ -45,6 +45,10 @@ std::ostream& operator<<(std::ostream& s, const op::v9::GridSample::Interpolatio
     return s << as_string(mode);
 }
 
+std::ostream& operator<<(std::ostream& s, const op::v9::GridSample::PaddingMode& padding_mode) {
+    return s << as_string(padding_mode);
+}
+
 template <>
 NGRAPH_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::GridSample::InterpolationMode>::get() {
     static auto enum_names =
@@ -64,7 +68,7 @@ NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSam
                                                     {"reflection", op::v9::GridSample::PaddingMode::REFLECTION}});
     return enum_names;
 }
-}  // namespace ov
+
 namespace {
 
 template <element::Type_t DATA_ET, element::Type_t GRID_ET>
@@ -89,15 +93,13 @@ bool evaluate_exec(const HostTensorPtr& output,
         rc = evaluate_exec<DATA_ET, element::Type_t::a>(__VA_ARGS__); \
     } break
 
-template <ov::element::Type_t DATA_ET>
+template <element::Type_t DATA_ET>
 bool evaluate(const HostTensorPtr& output,
               const HostTensorPtr& data,
               const HostTensorPtr& grid,
               const op::v9::GridSample::Attributes& attributes) {
     auto rc = true;
     switch (grid->get_element_type()) {
-        GRID_SAMPLE_TYPE_CASE(f16, output, data, grid, attributes);
-        GRID_SAMPLE_TYPE_CASE(bf16, output, data, grid, attributes);
         GRID_SAMPLE_TYPE_CASE(f32, output, data, grid, attributes);
     default:
         rc = false;
@@ -112,14 +114,7 @@ bool evaluate_grid_sample(const HostTensorPtr& output,
                           const op::v9::GridSample::Attributes& attributes) {
     auto rc = true;
     switch (output->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, i8, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, u8, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, f16, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, bf16, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, i32, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, u32, output, data, grid, attributes);
         NGRAPH_TYPE_CASE(evaluate_grid_sample, f32, output, data, grid, attributes);
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, i64, output, data, grid, attributes);
     default:
         rc = false;
         break;
@@ -128,7 +123,7 @@ bool evaluate_grid_sample(const HostTensorPtr& output,
 }
 }  // namespace
 
-bool ov::op::v9::GridSample::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
+bool op::v9::GridSample::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v9_GridSample_evaluate);
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid GridSample input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid GridSample output TensorVector.");
@@ -136,6 +131,7 @@ bool ov::op::v9::GridSample::evaluate(const ov::HostTensorVector& outputs, const
     return evaluate_grid_sample(outputs[0], inputs[0], inputs[1], m_attributes);
 }
 
-bool ov::op::v9::GridSample::has_evaluate() const {
-    return true;
+bool op::v9::GridSample::has_evaluate() const {
+    return get_input_element_type(0) == element::f32 && get_input_element_type(1) == element::f32;
 }
+}  // namespace ov

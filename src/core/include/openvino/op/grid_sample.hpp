@@ -30,6 +30,9 @@ public:
         InterpolationMode mode = InterpolationMode::BILINEAR;
         // Specifies how the out-of-bounds coordinates should be handled: `zeros`, `border`, `reflection`
         PaddingMode padding_mode = PaddingMode::ZEROS;
+
+        Attributes() = default;
+        Attributes(bool a, InterpolationMode m, PaddingMode p) : align_corners{a}, mode{m}, padding_mode{p} {}
     };
 
     GridSample() = default;
