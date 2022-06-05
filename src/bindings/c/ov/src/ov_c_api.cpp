@@ -15,6 +15,7 @@
 #include <memory>
 #include <streambuf>
 #include <fstream>
+#include <regex>
 
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
@@ -610,20 +611,14 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
     return model->object->is_dynamic();
 }
 
-std::vector<char*> split(std::string s, std::vector<std::string> delimiter) {
-    size_t s_start = 0, s_end;
-    std::string tmp_s;
+std::vector<char*> split(std::string s) {
     std::vector<char*> result;
-    for (int i = 0; i < s.size(); ++i) {
-        for (auto delim : delimiter) {
-            if ((s_end = s.find(delim, s_start)) != std::string::npos) {
-                tmp_s = s.substr(s_start, s_end - s_start);
-                s_start = s_end + delim.size();
-                result.push_back(str_to_char_array(tmp_s));
-            }
-        }
+    std::regex sep("[ ,]");
+    std::sregex_token_iterator tokens(s.cbegin(), s.cend(), sep, -1);
+    std::sregex_token_iterator end;
+    for (; tokens != end; ++tokens) {
+        result.push_back(str_to_char_array(*tokens));
     }
-    result.push_back(str_to_char_array(s.substr(s_start)));
     return result;
 }
 
@@ -633,8 +628,7 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char*
     }
     try {
         std::string s = str;
-        std::vector<std::string> delimiter = {",", ":", "+", ";"};
-        std::vector<char*> result = split(s, delimiter);
+        std::vector<char*> result = split(s);
         partial_shape->ranks = result.size();
         std::copy_n(result.begin(), result.size(), partial_shape->dims);
     } CATCH_OV_EXCEPTIONS
