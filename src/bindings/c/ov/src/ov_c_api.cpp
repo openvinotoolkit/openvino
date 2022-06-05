@@ -613,8 +613,8 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
 
 std::vector<char*> split(std::string s) {
     std::vector<char*> result;
-    std::regex sep("[ ,]");
-    std::sregex_token_iterator tokens(s.cbegin(), s.cend(), sep, -1);
+    std::regex delimiter("[ ,]");
+    std::sregex_token_iterator tokens(s.cbegin(), s.cend(), delimiter, -1);
     std::sregex_token_iterator end;
     for (; tokens != end; ++tokens) {
         result.push_back(str_to_char_array(*tokens));
@@ -628,6 +628,11 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char*
     }
     try {
         std::string s = str;
+        std::regex reg("[^ ,0-9.?][^\\-1]");
+        bool res = std::regex_search(s, reg);
+        if (res) {
+            return ov_status_e::PARAMETER_MISMATCH;
+        }
         std::vector<char*> result = split(s);
         partial_shape->ranks = result.size();
         std::copy_n(result.begin(), result.size(), partial_shape->dims);
@@ -657,19 +662,20 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
     }
     try {
         std::vector<size_t> tmp_shape;
-        for (int i = 0; i < partial_shape->ranks; ++i) {
-            std::string dim = partial_shape->dims[i];
-            if (dim == "?" || dim == "-1" || dim.find("..") != std::string::npos) {
-                return ov_status_e::GENERAL_ERROR;
-            } else {
-                tmp_shape.push_back(std::stoi(dim));
-            }
+        std::regex reg("[^0-9,]");
+        std::string dim(ov_partial_shape_parse(partial_shape));
+        bool res = std::regex_search(dim, reg);
+        if (res) {
+            return ov_status_e::PARAMETER_MISMATCH;
         }
-        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        for (int i = 0; i < partial_shape->ranks; ++i) {
+            shape->dims[i] = std::stoi(partial_shape->dims[i]);
+        }
         shape->ranks = partial_shape->ranks;
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
+
 
 ov_status_e ov_model_reshape(const ov_model_t* model,
                         const char* tensor_name,
@@ -679,7 +685,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     }
     try {
         std::vector<ngraph::Dimension> shape;
-        for (int i = 0; i < MAX_DIMENSION; i++) {
+        for (int i = 0; i < partial_shape.ranks; i++) {
             if (partial_shape.dims[i] == nullptr)
                 break;
             std::string dim = partial_shape.dims[i];
@@ -741,10 +747,6 @@ void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
         }
         partial_shape->ranks = 0;
     }
-}
-
-void ov_shape_free(ov_shape_t* shape) {
-    delete shape;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,

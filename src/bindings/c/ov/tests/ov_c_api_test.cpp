@@ -1607,8 +1607,13 @@ TEST(ov_model, ov_model_reshape) {
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_get_tensor_name(&input_node_list1, 0, &tensor_name));
 
-    ov_partial_shape_t partial_shape = {4, {"1","3","896","896"}};
-    OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
+    const char* str = "1,3,896,896";
+    ov_partial_shape_t* partial_shape;
+    partial_shape = new ov_partial_shape_t;
+    partial_shape->ranks = 0;
+
+    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+    OV_ASSERT_OK(ov_model_reshape(model, tensor_name, *partial_shape));
 
     ov_output_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;
@@ -1656,6 +1661,18 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse) {
     ov_partial_shape_free(partial_shape);
 }
 
+TEST(ov_partial_shape, ov_partial_shape_init_and_parse_invalid) {
+    const char* str = "1,2+3;4..5";
+
+    ov_partial_shape_t* partial_shape;
+    partial_shape = new ov_partial_shape_t;
+    partial_shape->ranks = 0;
+
+    OV_EXPECT_NOT_OK(ov_partial_shape_init(partial_shape,str));
+
+    ov_partial_shape_free(partial_shape);
+}
+
 TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     const char* str = "1,2,3,4,5";
 
@@ -1670,6 +1687,42 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     shape->ranks = 0;
     OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, shape));
 
-    ov_shape_free(shape);
+    delete shape;
+    ov_partial_shape_free(partial_shape);
+}
+
+TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_num) {
+    const char* str = "-1,2,3,4,5";
+
+    ov_partial_shape_t* partial_shape;
+    partial_shape = new ov_partial_shape_t;
+    partial_shape->ranks = 0;
+
+    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+
+    ov_shape_t* shape;
+    shape = new ov_shape_t;
+    shape->ranks = 0;
+    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, shape));
+
+    delete shape;
+    ov_partial_shape_free(partial_shape);
+}
+
+TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_sign) {
+    const char* str = "1,2,3,4..5";
+
+    ov_partial_shape_t* partial_shape;
+    partial_shape = new ov_partial_shape_t;
+    partial_shape->ranks = 0;
+
+    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+
+    ov_shape_t* shape;
+    shape = new ov_shape_t;
+    shape->ranks = 0;
+    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, shape));
+
+    delete shape;
     ov_partial_shape_free(partial_shape);
 }
