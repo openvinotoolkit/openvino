@@ -110,9 +110,9 @@ void op::v8::Slice::validate_and_infer_types() {
                           data_rank.is_dynamic() || data_rank.get_length() > 0,
                           "Slice `data` input can't be a scalar.");
 
-    const auto start_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-    const auto stop_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-    const auto step_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(3).get_node_shared_ptr());
+    const auto start_const = get_constant_from_source(input_value(1));
+    const auto stop_const = get_constant_from_source(input_value(2));
+    const auto step_const = get_constant_from_source(input_value(3));
 
     const auto& start_input = start_const ? start_const : input_value(1);
     const auto& stop_input = stop_const ? stop_const : input_value(2);
