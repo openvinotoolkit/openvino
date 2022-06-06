@@ -24,6 +24,7 @@ enum class KernelType {
     RANGE,
     ROI_POOLING,
     ROI_ALIGN,
+    ROLL,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
