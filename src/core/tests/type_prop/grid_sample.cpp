@@ -69,7 +69,10 @@ TEST(type_prop, grid_sample_all_dimensions_dynamic_in_grid) {
     const auto grid = make_shared<opset9::Parameter>(
         element::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
-    EXPECT_THROW(opset9::GridSample(data, grid, opset9::GridSample::Attributes{}), ov::NodeValidationFailure);
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, 3, Dimension::dynamic(), Dimension::dynamic()}))
+        << "The output shape of GridSample is incorrect";
 }
 
 TEST(type_prop, grid_sample_all_dimensions_dynamic_in_data) {
@@ -80,5 +83,22 @@ TEST(type_prop, grid_sample_all_dimensions_dynamic_in_data) {
     const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
     EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 5}))
+        << "The output shape of GridSample is incorrect";
+}
+
+TEST(type_prop, grid_sample_dynamic_input_rank) {
+    const auto data = make_shared<opset9::Parameter>(element::f16, PartialShape::dynamic());
+    const auto grid = make_shared<opset9::Parameter>(element::f32, PartialShape{1, 5, 5, 2});
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 5, 5}))
+        << "The output shape of GridSample is incorrect";
+}
+
+TEST(type_prop, grid_sample_dynamic_rank_of_data_and_grid) {
+    const auto data = make_shared<opset9::Parameter>(element::f16, PartialShape::dynamic());
+    const auto grid = make_shared<opset9::Parameter>(element::f32, PartialShape::dynamic());
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}))
         << "The output shape of GridSample is incorrect";
 }

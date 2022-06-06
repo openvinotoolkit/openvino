@@ -12,6 +12,5 @@ namespace op {
 namespace v9 {
 using ov::op::v9::GridSample;
 }  // namespace v9
-using v9::GridSample;
 }  // namespace op
 }  // namespace ngraph

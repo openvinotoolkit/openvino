@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/grid_sample.hpp"
+#include "openvino/op/grid_sample.hpp"
 
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
 
 using namespace ov;
-
-BWDCMP_RTTI_DEFINITION(op::v9::GridSample);
 
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
     : op::Op{{data, grid}},
@@ -30,21 +28,6 @@ void op::v9::GridSample::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_real(),
                           "The element type of the grid input tensor must be a floating point type.");
-
-    const auto& data_shape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this,
-                          data_shape.rank().same_scheme(4),
-                          "The supported shape of the input data tensor is 4D.");
-    const auto& grid_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this, grid_shape.rank().same_scheme(4), "The supported shape of the grid tensor is 4D.");
-    NODE_VALIDATION_CHECK(this,
-                          grid_shape[3].same_scheme(2),
-                          "The last dimension of grid tensor's shape has to be equal to 2.");
-
-    NODE_VALIDATION_CHECK(this,
-                          data_shape[0].same_scheme(grid_shape[0]),
-                          "The batch dimension in the input data tensor's shape doesn't match the batch dimension in "
-                          "the grid tensor's shape.");
 
     std::vector<PartialShape> out_shapes(1);
     shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
