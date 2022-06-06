@@ -467,10 +467,23 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
 
     def test_reverse_input_channels_dynamic_layout(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
-                         layout_values={'input1a': { 'source_layout': 'nchw' },
-                                        'input2a': { 'source_layout': 'nhwc' }
+                         layout_values={'input1a': {'source_layout': 'nchw'},
+                                        'input2a': {'source_layout': 'nhwc'}
                                         })
         function = create_function2(shape1=[1, -1, 5, 5], shape2=[-1, -1, -1, -1])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
+
+    def test_reverse_input_channels_layout_change(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values={'input1a': {'source_layout': 'nchw', 'target_layout': 'nhwc'},
+                                        'input2a': {'source_layout': 'nhwc', 'target_layout': 'nchw'}
+                                        })
+        function = create_function2(shape1=[1, 3, 5, 5], shape2=[1, 5, 5, 3])
         process_function(ov_function=function, argv=argv)
         # Verify that reverse_channels are applied.
         op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
