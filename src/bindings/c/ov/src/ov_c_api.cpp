@@ -635,6 +635,9 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char*
         }
         std::vector<char*> result = split(s);
         partial_shape->ranks = result.size();
+        if (partial_shape->ranks > MAX_DIMENSION) {
+            return ov_status_e::GENERAL_ERROR;
+        }
         std::copy_n(result.begin(), result.size(), partial_shape->dims);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
