@@ -471,6 +471,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
     }
 }
 
+// Currently, usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
 dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
@@ -485,6 +486,8 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
         case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
         case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
+        case cldnn::activation_func::pow: return dnnl::algorithm::eltwise_pow;
+        case cldnn::activation_func::sqrt: return dnnl::algorithm::eltwise_sqrt;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
