@@ -7,8 +7,7 @@
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace ov;
-
+namespace ov {
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
     : op::Op{{data, grid}},
       m_attributes{attributes} {
@@ -40,11 +39,10 @@ std::shared_ptr<Node> op::v9::GridSample::clone_with_new_inputs(const OutputVect
     return std::make_shared<op::v9::GridSample>(new_args.at(0), new_args.at(1), this->get_attributes());
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v9::GridSample::InterpolationMode& mode) {
+std::ostream& operator<<(std::ostream& s, const op::v9::GridSample::InterpolationMode& mode) {
     return s << as_string(mode);
 }
 
-namespace ov {
 template <>
 NGRAPH_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::GridSample::InterpolationMode>::get() {
     static auto enum_names =
