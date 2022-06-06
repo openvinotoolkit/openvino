@@ -1327,7 +1327,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t *profiling_infos) {
 }
 
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t **tensor) {
-    if (!tensor || !shape.dims || element_type_map.find(type) == element_type_map.end()) {
+    if (!tensor || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -1342,7 +1342,7 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
 
 ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const ov_shape_t shape, void *host_ptr,
                                       ov_tensor_t **tensor) {
-    if (!tensor || !host_ptr || !shape.dims || element_type_map.find(type) == element_type_map.end()) {
+    if (!tensor || !host_ptr || element_type_map.find(type) == element_type_map.end()) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -1356,7 +1356,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const o
 }
 
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
-    if (!tensor || !shape.dims) {
+    if (!tensor) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -1368,7 +1368,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
 }
 
 ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
-    if (!tensor || !shape->dims) {
+    if (!tensor) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
