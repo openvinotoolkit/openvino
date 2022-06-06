@@ -16,7 +16,6 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace {
-
 using index_4D_t = std::array<size_t, 4>;
 
 template <typename T>
@@ -120,6 +119,55 @@ DATA_ET reflection_data_with_align(const size_t n,
     return get_v(data, data_shape, index_4D_t{n, c, y, x});
 }
 
+// TODO use more robust stuff .. it's for POC
+template <typename T>
+struct square {
+    T v00, v01, v10, v11;
+};
+
+// TODO use more robust stuff .. it's for POC
+template <typename DATA_ET>
+square<DATA_ET> get_square(const size_t n,
+                           const size_t c,
+                           const DATA_ET* data,
+                           const Shape& data_shape,
+                           long y_d,
+                           long x_d,
+                           const padding_function_t<DATA_ET>& padding_func) {
+    square<DATA_ET> s;
+    s.v00 = padding_func(n, c, data, data_shape, y_d, x_d);
+    s.v01 = padding_func(n, c, data, data_shape, y_d, x_d + 1);
+    s.v10 = padding_func(n, c, data, data_shape, y_d + 1, x_d);
+    s.v11 = padding_func(n, c, data, data_shape, y_d + 1, x_d + 1);
+    return s;
+}
+
+// TODO rename me .. sth like bili..._2D
+template <typename DATA_ET>
+DATA_ET calc_bilinear(const square<DATA_ET>& s, DATA_ET dy, DATA_ET dx) {
+    const auto q0 = (1 - dx) * s.v00 + dx * s.v01;
+    const auto q1 = (1 - dx) * s.v10 + dx * s.v11;
+    return dy * q1 + (1 - dy) * q0;
+}
+
+template <typename DATA_ET, typename GRID_ET>
+DATA_ET bilinear(const size_t n,
+                 const size_t c,
+                 const DATA_ET* data,
+                 const Shape& data_shape,
+                 GRID_ET y_n,
+                 GRID_ET x_n,
+                 bool align,
+                 const padding_function_t<DATA_ET>& padding_func) {
+    const auto vec_yx = denormalize_2D(data_shape, y_n, x_n, align);
+    const auto y_topleft = std::floor(vec_yx[0]);
+    const auto x_topleft = std::floor(vec_yx[1]);
+    const auto dy = vec_yx[0] - y_topleft;
+    const auto dx = vec_yx[1] - x_topleft;
+    const auto s = get_square(n, c, data, data_shape, y_topleft, x_topleft, padding_func);
+    return calc_bilinear(s, dy, dx);
+}
+
 template <typename DATA_ET, typename GRID_ET>
 DATA_ET nearest(const size_t n,
                 const size_t c,
@@ -134,7 +182,6 @@ DATA_ET nearest(const size_t n,
     const auto x_nearest = std::lrint(vec_yx[1]);
     return padding_func(n, c, data, data_shape, y_nearest, x_nearest);
 }
-
 }  // namespace
 
 template <typename DATA_ET, typename GRID_ET>
@@ -186,7 +233,7 @@ void grid_sample(DATA_ET* output,
 
                     switch (interpolation_mode) {
                     case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
-                        out = 77;
+                        out = bilinear<DATA_ET, GRID_ET>(n, c, data, data_shape, y_n, x_n, align_corners, padding_func);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::NEAREST:
                         out = nearest<DATA_ET, GRID_ET>(n, c, data, data_shape, y_n, x_n, align_corners, padding_func);
