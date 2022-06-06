@@ -13,6 +13,7 @@ from ngraph.utils.types import (
     NodeInput,
     as_nodes,
     as_node,
+    make_constant_node,
 )
 
 
@@ -97,6 +98,49 @@ def roi_align(
 
 
 @nameable_op
+def non_max_suppression(
+    boxes: NodeInput,
+    scores: NodeInput,
+    max_output_boxes_per_class: Optional[NodeInput] = None,
+    iou_threshold: Optional[NodeInput] = None,
+    score_threshold: Optional[NodeInput] = None,
+    soft_nms_sigma: Optional[NodeInput] = None,
+    box_encoding: str = "corner",
+    sort_result_descending: bool = True,
+    output_type: str = "i64",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NonMaxSuppression.
+
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+                                        to be selected per class.
+    :param iou_threshold: Tensor specifying intersection over union threshold
+    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
+    :param soft_nms_sigma: Tensor specifying the sigma parameter for Soft-NMS.
+    :param box_encoding: Format of boxes data encoding.
+    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
+                                   boxes across batches or not.
+    :param output_type: Output element type.
+    :return: The new node which performs NonMaxSuppression
+    """
+    max_output_boxes_per_class = max_output_boxes_per_class if max_output_boxes_per_class is not None else make_constant_node(0, np.int64)
+    iou_threshold = iou_threshold if iou_threshold is not None else make_constant_node(0, np.float32)
+    score_threshold = score_threshold if score_threshold is not None else make_constant_node(0, np.float32)
+    soft_nms_sigma = soft_nms_sigma if soft_nms_sigma is not None else make_constant_node(0, np.float32)
+
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma)
+
+    attributes = {
+        "box_encoding": box_encoding,
+        "sort_result_descending": sort_result_descending,
+        "output_type": output_type,
+    }
+
+    return _get_node_factory_opset9().create("NonMaxSuppression", inputs, attributes)
+
+
 def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply SoftSign operation on the input node element-wise.
 
@@ -147,3 +191,65 @@ def irdft(
         inputs = as_nodes(data, axes, signal_size)
 
     return _get_node_factory_opset9().create("IRDFT", inputs)
+
+
+@nameable_op
+def multiclass_nms(
+        boxes: NodeInput,
+        scores: NodeInput,
+        roisnum: Optional[NodeInput] = None,
+        sort_result_type: Optional[str] = "none",
+        sort_result_across_batch: Optional[bool] = False,
+        output_type: Optional[str] = "i64",
+        iou_threshold: Optional[float] = 0.0,
+        score_threshold: Optional[float] = 0.0,
+        nms_top_k: Optional[int] = -1,
+        keep_top_k: Optional[int] = -1,
+        background_class: Optional[int] = -1,
+        nms_eta: Optional[float] = 1.0,
+        normalized: Optional[bool] = True
+) -> Node:
+    """Return a node which performs MulticlassNms.
+
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param roisnum: Tensor with roisnum. Specifies the number of rois in each image. Required when
+                    'scores' is a 2-dimensional tensor.
+    :param sort_result_type: Specifies order of output elements, possible values:
+                             'class': sort selected boxes by class id (ascending)
+                             'score': sort selected boxes by score (descending)
+                             'none': do not guarantee the order.
+    :param sort_result_across_batch: Specifies whenever it is necessary to sort selected boxes
+                                     across batches or not
+    :param output_type: Specifies the output tensor type, possible values:
+                        'i64', 'i32'
+    :param iou_threshold: Specifies intersection over union threshold
+    :param score_threshold: Specifies minimum score to consider box for the processing
+    :param nms_top_k: Specifies maximum number of boxes to be selected per class, -1 meaning
+                      to keep all boxes
+    :param keep_top_k: Specifies maximum number of boxes to be selected per batch element, -1
+                       meaning to keep all boxes
+    :param background_class: Specifies the background class id, -1 meaning to keep all classes
+    :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
+    :param normalized: Specifies whether boxes are normalized or not
+    :return: The new node which performs MuticlassNms
+    """
+    if roisnum is None:
+        inputs = as_nodes(boxes, scores)
+    else:
+        inputs = as_nodes(boxes, scores, roisnum)
+
+    attributes = {
+        "sort_result_type": sort_result_type,
+        "sort_result_across_batch": sort_result_across_batch,
+        "output_type": output_type,
+        "iou_threshold": iou_threshold,
+        "score_threshold": score_threshold,
+        "nms_top_k": nms_top_k,
+        "keep_top_k": keep_top_k,
+        "background_class": background_class,
+        "nms_eta": nms_eta,
+        "normalized": normalized
+    }
+
+    return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
