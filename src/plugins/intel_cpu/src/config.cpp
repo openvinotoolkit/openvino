@@ -255,6 +255,11 @@ void Config::readDebugCapsProperties() {
     if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
         blobDumpFilters[BY_NAME] = envVarValue;
 
+    if (envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
+        collectPerfCounters = true;
+        summaryPerf = envVarValue;
+    }
+
     // always enable perf counters for verbose mode
     if (!verbose.empty())
         collectPerfCounters = true;

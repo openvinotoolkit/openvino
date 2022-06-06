@@ -174,6 +174,7 @@ enum class Algorithm {
     FQCommon,
     FQQuantization,
     FQBinarization,
+    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,

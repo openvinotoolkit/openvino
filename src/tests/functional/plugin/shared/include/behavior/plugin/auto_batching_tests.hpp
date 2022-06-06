@@ -72,8 +72,10 @@ protected:
             std::map<std::string, std::string> config;
             if (device_name.find("GPU") != std::string::npos)
                 config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-            if (device_name.find("CPU") != std::string::npos)
+            if (device_name.find("CPU") != std::string::npos) {
                 config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+                config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);
+            }
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +

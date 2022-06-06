@@ -218,11 +218,22 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     dst_blocked = std::make_shared<Memory>(engine);
     dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
+    auto src_desc = src_blocked->GetPrimitive().get_desc();
+    if (!src_permutation.empty()) {
+        // reorder requires exact matching of logical dimensions between src & dst
+        // sometime we have to permute source's logical dimensions to satisfy
+        // this requirement, this dosn't affect plugin's node input memory desc.
+        /// for (i = 0; i < ndims(); i++)
+        ///     new_desc.dims()[permutation[i]] = dims()[i];
+        src_desc = src_desc.permute_axes(src_permutation);
+    }
+
     impl_desc_type impl_type = selectedPD->getImplementationType();
-    ReorderKey key = {src_blocked->GetPrimitive().get_desc(), dst_blocked->GetPrimitive().get_desc()};
+    ReorderKey key = {src_desc, dst_blocked->GetPrimitive().get_desc()};
 
     auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
         dnnl::primitive_attr attr;
+        DEBUG_LOG(key.src, "->", key.dest);
         reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
 
         if (!pd)
@@ -347,8 +358,12 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(dnnl::stream strm) {
-    if (isOptimized)
+    if (isOptimized) {
+        DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
+                   " input @", getParentEdgeAt(0)->getMemory().GetData(),
+                   " output @", getChildEdgeAt(0)->getMemory().GetData());
         return;
+    }
 
     if (canUseNspc2Ncsp) {
         optimizedNspc2Ncsp();

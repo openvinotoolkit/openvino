@@ -47,8 +47,8 @@ void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else {
         IE_THROW() << "Load emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
@@ -526,8 +526,8 @@ void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std:
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else {
         IE_THROW() << "Store emitter in " << name << " is performed on unsupported isa(at least x64::sse41).";
@@ -543,7 +543,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
         }
         if ((src_prc == Precision::FP32) || (src_prc == Precision::I32)) {
             if ((isa == cpu::x64::sse41 && store_num > 4) || (isa == cpu::x64::avx2 && store_num > 8) ||
-                (isa == cpu::x64::avx512_common && store_num > 16) || store_num < 0) {
+                (isa == cpu::x64::avx512_core && store_num > 16) || store_num < 0) {
                 IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store.";
             }
         }

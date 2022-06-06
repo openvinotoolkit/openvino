@@ -80,9 +80,9 @@ public:
         return getDesc().hasDefinedMaxSize();
     }
 
-private:
     std::string name() const;
 
+private:
     std::weak_ptr<Node> parent;
     std::weak_ptr<Node> child;
     int parent_port;

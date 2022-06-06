@@ -38,7 +38,7 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp) :
     if (isa == x64::avx2) {
         permMask8bitUni = permMask8bitA2;
         permMask16bitUni = permMask16bitA2;
-    } else if (isa == x64::avx512_common) {
+    } else if (isa == x64::avx512_core) {
         permMask8bitUni = permMask8bitA5;
         permMask16bitUni = permMask16bitA5;
     }
@@ -268,7 +268,7 @@ void jitUniGatherKernel<isa>::generate() {
                 mov(regAux1, reinterpret_cast<uintptr_t>(incVec));
                 uni_vpaddd(vmmAfterAxisPermMask, vmmAfterAxisPermMask, ptr[regAux1]);
                 for (int i = 0; i < 6; i++) {
-                    if (isa == x64::avx512_common) {
+                    if (isa == x64::avx512_core) {
                         Xbyak::Opmask kMask2 = Xbyak::Opmask(vAux2.getIdx());
                         vpcmpgtd(kMask2, vAux0, vmmAfterAxisPermMask);
                         uni_vpsubd(vmmAfterAxisPermMask | kMask2, vmmAfterAxisPermMask, vAux1);
@@ -293,7 +293,7 @@ void jitUniGatherKernel<x64::avx2>::uniVpGatherDd(Vmm& vDst, const Xbyak::Addres
     vpgatherdd(vDst, srcAddr, kMask);
 }
 template <>
-void jitUniGatherKernel<x64::avx512_common>::uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& kMask) {
+void jitUniGatherKernel<x64::avx512_core>::uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& kMask) {
     vpgatherdd(vDst | kMask, srcAddr);
 }
 
@@ -315,7 +315,7 @@ void jitUniGatherKernel<x64::avx2>::normalizeRawIndices(Vmm& vRawIndices, Vmask&
 }
 
 template <>
-void jitUniGatherKernel<x64::avx512_common>::normalizeRawIndices(Vmm& vRawIndices, Vmask& kDstMask, Vmask& kAuxMask) {
+void jitUniGatherKernel<x64::avx512_core>::normalizeRawIndices(Vmm& vRawIndices, Vmask& kDstMask, Vmask& kAuxMask) {
     // Compensate negative indices.
     if (jcp.reverseIndexing) {
         vpcmpgtd(kAuxMask, vmmZeros, vRawIndices);
@@ -337,7 +337,7 @@ void jitUniGatherKernel<x64::avx2>::normWithUpperBound(Vmm& vTarget, Vmm& vMax, 
 }
 
 template <>
-void jitUniGatherKernel<x64::avx512_common>::normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask) {
+void jitUniGatherKernel<x64::avx512_core>::normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask) {
     vpcmpd(kAuxMask, vMax, vTarget, 2); // 2 -> LE
     uni_vpsubd(vTarget | kAuxMask, vTarget, vMax);
 }
@@ -436,7 +436,7 @@ void jitUniGatherKernel<x64::avx2>::calcSrcShiftLong(Vmm* vAuxPool, bool shiftFi
 // Requires vAuxPool length 4.
 // Returns calculated shifts in vAuxPool[0] and mask in vAuxPool[1].
 template <>
-void jitUniGatherKernel<x64::avx512_common>::calcSrcShiftLong(Vmm* vAuxPool, bool shiftFirst) {
+void jitUniGatherKernel<x64::avx512_core>::calcSrcShiftLong(Vmm* vAuxPool, bool shiftFirst) {
     auto& vDstShifts = vAuxPool[0];
     auto& kDstMask = masksContainer[vAuxPool[1].getIdx()];
     auto& vAux0 = vAuxPool[2];
@@ -613,7 +613,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                         uni_vpaddd(vAux0, vAux0, vmmAfterAxisIdxB);
                         Xbyak::Xmm& xAux0 = xmmAuxContainer[vAux0.getIdx()];
                         uni_vpbroadcastd(vAux1, xAux0);
-                        if (isa == x64::avx512_common) {
+                        if (isa == x64::avx512_core) {
                             Xbyak::Opmask kMask0 = Xbyak::Opmask(kAuxMask0.getIdx());
                             vpcmpgtd(kMask0, vAux1, vAux0);
                             uni_vmovups(vAux1, vmmSrcBeforeAxisSumB);
@@ -637,7 +637,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
             uni_vmovups(vAux1, vmmSrcBeforeAxisSumB);
             if (specIdxAndAfterAxisSize > idxElPerVec) {
                 // Broadcast the last element.
-                if (isa == x64::avx512_common) {
+                if (isa == x64::avx512_core) {
                     vshuff64x2(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, 0xFF);
                 } else {
                     vpermq(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, 0xFF);
@@ -732,7 +732,7 @@ void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
     Xbyak::Label lDstIdxLoop1, lTail;
 
     Vmm vShufMask, vPermMask, vBuff0;
-    if (isa == x64::avx512_common) {
+    if (isa == x64::avx512_core) {
         vPermMask = vmmAuxContainer[7];
         vShufMask = vmmAuxContainer[8];
         vBuff0    = vmmAuxContainer[9];
@@ -790,7 +790,7 @@ void jitUniGatherKernel<isa>::process8b(bool isShortIdx, bool blocked) {
     Xbyak::Label lDstIdxLoop1, lTail;
 
     Vmm vShufMask, vPermMask, vBuff0, vBuff1;
-    if (isa == x64::avx512_common) {
+    if (isa == x64::avx512_core) {
         vPermMask = vmmAuxContainer[7];
         vShufMask = vmmAuxContainer[8];
         vBuff0    = vmmAuxContainer[9];
@@ -923,7 +923,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
         fillRestWorkMask(kAuxMask1, vAux0, regWorkAmount, regAux1, rdx);
 
         // Combining masks.
-        if (isa == x64::avx512_common) {
+        if (isa == x64::avx512_core) {
             auto kMask1 = Xbyak::Opmask(kAuxMask1.getIdx());
             auto kMaskG = Xbyak::Opmask(kGatherMask.getIdx());
             kandd(kMaskG, kMaskG, kMask1);
@@ -945,7 +945,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
 }
 
 template <>
-void jitUniGatherKernel<x64::avx512_common>::fillRestWorkMask(Vmask& kDstMask, Vmm& vmmAux, const Xbyak::Reg64& rWorkRest,
+void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask, Vmm& vmmAux, const Xbyak::Reg64& rWorkRest,
         const Xbyak::Reg64& rAux0, const Xbyak::Reg64& rAux1) {
     Xbyak::Label lKmov;
     Xbyak::Reg32 rOnes(rAux1.getIdx());
@@ -990,7 +990,7 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst, const Xb
     for (int j = 0; j < vlen / vlenXmm; j++) {
         if (isa == x64::avx2)
             vextracti128(xAux, vmmSrc, j);
-        else if (isa == x64::avx512_common)
+        else if (isa == x64::avx512_core)
             vextracti64x2(xAux, vmmSrc, j);
 
         for (int k = 0; k < 4; k++) {
@@ -1012,7 +1012,7 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst, const Xb
 }
 
 template <>
-void jitUniGatherKernel<x64::avx512_common>::fillVlenVector() {
+void jitUniGatherKernel<x64::avx512_core>::fillVlenVector() {
     mov(reg32Aux1, vlen);
     vpbroadcastd(vmmVecLenB, reg32Aux1);
 }
@@ -1039,7 +1039,7 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
 }
 
 template struct jitUniGatherKernel<x64::avx2>;
-template struct jitUniGatherKernel<x64::avx512_common>;
+template struct jitUniGatherKernel<x64::avx512_core>;
 
 }   // namespace intel_cpu
 }   // namespace ov

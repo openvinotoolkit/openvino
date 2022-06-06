@@ -71,7 +71,7 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 
         // could use rcx(reg_table) and rdi(reg_temp) now as abi parse finished
         mov(reg_table, l_table_constant);
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             kmovw(k_mask_one, word[reg_table + vlen]);
         }
         uni_vbroadcastss(vmm_iou_threshold, ptr[reg_iou_threshold]);
@@ -377,7 +377,7 @@ private:
     }
 
     inline void suppressed_by_iou(bool is_scalar) {
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             vcmpps(k_mask, vmm_temp3, vmm_iou_threshold, 0x0D); // _CMP_GE_OS. vcmpps w/ kmask only on V5
             if (is_scalar)
                 kandw(k_mask, k_mask, k_mask_one);
@@ -410,7 +410,7 @@ private:
     }
 
     inline void suppressed_by_score() {
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             vcmpps(k_mask, vmm_temp3, vmm_score_threshold, 0x02); // vcmpps w/ kmask only on V5, w/o kmask version N/A on V5
             kandw(k_mask, k_mask, k_mask_one);
             kortestw(k_mask, k_mask);    // bitwise check if all zero
@@ -657,7 +657,7 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -701,8 +701,8 @@ void NonMaxSuppression::createJitKernel() {
     jcp.box_encode_type = boxEncodingType;
     jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
