@@ -177,8 +177,8 @@ endif()
 if(ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.2")
-    set(OPENCV_BUILD "076")
+    set(OPENCV_VERSION "4.5.5")
+    set(OPENCV_BUILD "099")
     set(OPENCV_BUILD_YOCTO "772")
 
     if(AARCH64)
@@ -210,7 +210,7 @@ if(ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "a14f872e6b63b6ac12c7ff47fa49e578d14c14433b57f5d85ab5dd48a079938c")
+                    SHA256 "f871e3dc3f3850ce2121fccef1a056bf47de8ec692b8e70e4711382dadae7752")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
