@@ -1,7 +1,7 @@
 # Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
 This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
-Models with only 1 input and output are supported. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd/hello_reshape_ssd.py).
+Models with only 1 input and output are supported. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd).
 
 The following Python API is used in the application:
 
