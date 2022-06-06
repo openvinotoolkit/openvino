@@ -804,7 +804,9 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
-            context->_performanceHint = kvp.second;
+            if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
+                context->_performanceHint = kvp.second;
+            }
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
