@@ -69,7 +69,6 @@ public:
         : EnumAttributeAdapterBase<op::v9::GridSample::InterpolationMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::GridSample::InterpolationMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v9::GridSample::PaddingMode>
@@ -79,6 +78,5 @@ public:
         : EnumAttributeAdapterBase<op::v9::GridSample::PaddingMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v9::GridSample::PaddingMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov
