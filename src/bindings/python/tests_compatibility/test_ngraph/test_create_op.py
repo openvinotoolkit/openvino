@@ -8,6 +8,7 @@ from _pyngraph import PartialShape, Dimension
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
 import ngraph.opset5 as ng_opset5
+from ngraph.utils.types import make_constant_node
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Type
 
@@ -246,6 +247,38 @@ def test_deformable_psroi_pooling(dtype):
 
     assert node.get_type_name() == "DeformablePSROIPooling"
     assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
+    [
+        ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
+        ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "half_pixel_for_nn", [7, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, "avg", "half_pixel", [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, np.float(1), "avg", "half_pixel", [3, 3, 3, 4]),
+    ],
+)
+def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
+    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    rois_parameter = ng.parameter(rois, name="Rois", dtype=np.float32)
+    batch_indices_parameter = ng.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+
+    node = ng.roi_align(
+        data_parameter,
+        rois_parameter,
+        batch_indices_parameter,
+        pooled_h,
+        pooled_w,
+        sampling_ratio,
+        np.float32(spatial_scale),
+        mode,
+        aligned_mode,
+    )
+
+    assert node.get_type_name() == "ROIAlign"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
     assert list(node.get_output_shape(0)) == expected_shape
 
 
@@ -1891,6 +1924,51 @@ def test_matrix_nms():
     assert nms_node.get_output_element_type(2) == Type.i32
 
 
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
+    [
+        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expected_shape):
+    boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64))
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
+
+
+@pytest.mark.parametrize(
+    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "soft_nms_sigma", "expected_shape"),
+    [
+        ([1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
+        ([1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
+        ([1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+    ],
+)
+def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, expected_shape):
+    boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
+    scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
+
+    max_output_boxes = make_constant_node(max_output_boxes, np.int64)
+    iou_threshold = make_constant_node(iou_threshold, np.float32)
+    score_threshold = make_constant_node(score_threshold, np.float32)
+    soft_nms_sigma = make_constant_node(soft_nms_sigma, np.float32)
+
+    node = ng.non_max_suppression(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma)
+    assert node.get_type_name() == "NonMaxSuppression"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0) == expected_shape[0]
+    assert node.get_output_partial_shape(1) == expected_shape[1]
+    assert list(node.get_output_shape(2)) == [1]
+
+
 def test_slice():
     data_shape = [10, 7, 2, 13]
     data = ng.parameter(data_shape, name="input", dtype=np.float32)
@@ -2028,3 +2106,39 @@ def test_nv12_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_softsign():
+    input_shape = [2, 4, 8, 16]
+
+    param = ng.parameter(input_shape, name="input")
+    node = ng.softsign(param, input_shape)
+
+    assert node.get_type_name() == "SoftSign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_rdft():
+    param = ng.parameter([5, 3, 4], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.rdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "RDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4, 2]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_irdft():
+    param = ng.parameter([5, 3, 4, 2], name="input")
+    axes = ng.constant(np.array([0, 1]))
+    signal_size = ng.constant(np.array([1, 2]))
+    node = ng.irdft(param, axes, signal_size)
+
+    assert node.get_type_name() == "IRDFT"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 2, 4]
+    assert node.get_output_element_type(0) == Type.f32
