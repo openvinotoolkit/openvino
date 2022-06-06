@@ -277,6 +277,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
             MATCHER_SCOPE(NAME);                                                           \
             auto match_node = ngraph::pattern::wrap_type<OP>();                            \
             ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {    \
+                MATCHER_SCOPE_ENABLE(NAME);                                                \
                 return FUNC(m.get_match_root());                                           \
             };                                                                             \
             auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
@@ -316,7 +317,7 @@ pass::EliminatePad::EliminatePad() {
             })) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(EliminatePad);
         return replace_output_update_name(pad->output(0), pad->input_value(0));
     };
 
@@ -334,6 +335,7 @@ pass::EliminateConvert::EliminateConvert() {
             return false;
         }
         if (convert->get_input_element_type(0) == convert->get_element_type()) {
+            MATCHER_SCOPE_ENABLE(EliminateConvert);
             return replace_output_update_name(convert->output(0), convert->input_value(0));
         }
         return false;
@@ -355,6 +357,7 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
         convert->output(0).replace(convert->input_value(0));
         // to make this elimination recursive we register NonZero as a node which will be used to repeat matching
         register_new_node(m.get_match_root());
+        MATCHER_SCOPE_ENABLE(EliminateConvertNonZero);
         return true;
     };
 
@@ -369,6 +372,7 @@ pass::EliminateConcat::EliminateConcat() {
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         if (concat->inputs().size() == 1) {
+            MATCHER_SCOPE_ENABLE(EliminateConcat);
             return replace_output_update_name(concat->output(0), concat->input_value(0));
         }
         return false;
@@ -387,6 +391,7 @@ pass::EliminateSplit::EliminateSplit() {
         if (!split || split->get_num_splits() != 1) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(EliminateConcat);
         return replace_output_update_name(split->output(0), split->input_value(0));
     };
 
@@ -399,6 +404,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     auto squeeze_pattern = pattern::wrap_type<opset8::Squeeze>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(EliminateSqueeze);
         const auto node = m.get_match_root();
         auto out_shape = node->get_output_partial_shape(0);
         // try to replace all unsqueeze/squeeze with reshape
@@ -497,6 +503,7 @@ pass::EliminateTranspose::EliminateTranspose() {
         }
 
         auto transpose = m.get_match_root();
+        MATCHER_SCOPE_ENABLE(EliminateTranspose);
         return replace_output_update_name(transpose->output(0), transpose->input_value(0));
     };
 
@@ -520,7 +527,7 @@ pass::EliminateEltwise::EliminateEltwise() {
         if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(EliminateEltwise);
         return replace_output_update_name(eltwise->output(0), non_const_input);
     };
 

@@ -44,7 +44,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(MaxPoolTransformation);
         return transform(*context, m);
     };
 
