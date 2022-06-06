@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 def model_path(is_myriad=False):
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
+    base_path = os.path.dirname(__file__)
     if is_myriad:
         test_xml = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.xml")
         test_bin = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.bin")
@@ -23,13 +23,13 @@ def model_path(is_myriad=False):
 
 
 def model_onnx_path():
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
+    base_path = os.path.dirname(__file__)
     test_onnx = os.path.join(base_path, "test_utils", "utils", "test_model.onnx")
     return test_onnx
 
 
 def plugins_path():
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
+    base_path = os.path.dirname(__file__)
     plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
     plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
     plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_apple.xml")
@@ -40,24 +40,24 @@ def _get_default_model_zoo_dir():
     return Path(os.getenv("ONNX_HOME", Path.home() / ".onnx/model_zoo"))
 
 
-#def pytest_addoption(parser):
-#    parser.addoption(
-#        "--backend",
-#        default="CPU",
-#        choices=["CPU", "GPU", "HDDL", "MYRIAD", "HETERO", "TEMPLATE"],
-#        help="Select target device",
-#    )
-#    parser.addoption(
-#        "--model_zoo_dir",
-#        default=_get_default_model_zoo_dir(),
-#        type=str,
-#        help="location of the model zoo",
-#    )
-#    parser.addoption(
-#        "--model_zoo_xfail",
-#        action="store_true",
-#        help="treat model zoo known issues as xfails instead of failures",
-#    )
+def pytest_addoption(parser):
+    parser.addoption(
+        "--backend",
+        default="CPU",
+        choices=["CPU", "GPU", "HDDL", "MYRIAD", "HETERO", "TEMPLATE"],
+        help="Select target device",
+    )
+    parser.addoption(
+        "--model_zoo_dir",
+        default=_get_default_model_zoo_dir(),
+        type=str,
+        help="location of the model zoo",
+    )
+    parser.addoption(
+        "--model_zoo_xfail",
+        action="store_true",
+        help="treat model zoo known issues as xfails instead of failures",
+    )
 
 
 def pytest_configure(config):
