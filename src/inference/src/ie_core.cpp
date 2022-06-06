@@ -121,15 +121,17 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    if (device == "AUTO" || device == "MULTI") {
-        // keep the secondary priorities.
+    if (device == "AUTO" || device == "MULTI" || device =="HETERO") {
+        // just pass the secondary priorities to virtual device.
         return result;
     }
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
         if (item->second.is<ov::AnyMap>()) {
             if (device.find(parsed._deviceName) != std::string::npos) {
-                if (device.find("AUTO:") != std::string::npos) {
+                if (device.find("AUTO:") != std::string::npos || device.find("MULTI:") != std::string::npos ||
+                    device.find("HETERO:") != std::string::npos) {
+                    // keep the secondary priorities for the device appearing in virtual device name
                     item++;
                     continue;
                 }
