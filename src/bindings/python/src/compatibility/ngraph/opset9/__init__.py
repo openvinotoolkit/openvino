@@ -59,6 +59,7 @@ from ngraph.opset6.ops import gather_elements
 from ngraph.opset8.ops import gather_nd
 from ngraph.opset1.ops import gather_tree
 from ngraph.opset7.ops import gelu
+from ngraph.opset9.ops import generate_proposals
 from ngraph.opset1.ops import greater
 from ngraph.opset1.ops import greater_equal
 from ngraph.opset1.ops import grn
@@ -94,11 +95,11 @@ from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
-from ngraph.opset8.ops import multiclass_nms
+from ngraph.opset9.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative
-from ngraph.opset5.ops import non_max_suppression
+from ngraph.opset9.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
 from ngraph.opset1.ops import normalize_l2
 from ngraph.opset1.ops import not_equal

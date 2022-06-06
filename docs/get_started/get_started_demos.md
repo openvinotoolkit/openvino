@@ -1,9 +1,10 @@
 # Get Started with Sample and Demo Applications {#openvino_docs_get_started_get_started_demos}
 
-## Introduction
+This guide will walk you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
 
-This section guides you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
-You will perform the following steps:
+This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
+
+After that, you will perform the following steps:
 
 1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
@@ -11,32 +12,38 @@ You will perform the following steps:
 4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
-This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit, follow the, suitable for you, installation guide:
+## <a name="prerequisites"></a>Prerequisites
+
+### Install OpenVINO Runtime
+
+If you have not yet installed and configured the toolkit, see the following guides:
 
 @sphinxdirective
 .. tab:: Linux
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux <openvino_docs_install_guides_installing_openvino_linux>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux <openvino_docs_install_guides_installing_openvino_linux>`
 
 .. tab:: Windows
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows <openvino_docs_install_guides_installing_openvino_windows>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Windows <openvino_docs_install_guides_installing_openvino_windows>`
 
 .. tab:: macOS
 
-   :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS <openvino_docs_install_guides_installing_openvino_macos>`
+   See :doc:`Install Intel® Distribution of OpenVINO™ toolkit for macOS <openvino_docs_install_guides_installing_openvino_macos>`
   
 @endsphinxdirective
 
-## Installing OpenVINO Development Tools
+### Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools for use with Caffe models, run the following command: 
+To install OpenVINO Development Tools for working with Caffe models, use the following command: 
 
 ``` sh
    pip install openvino-dev[caffe]
 ```
 
-## Building Samples and Demos
+For more detailed steps, see [Install OpenVINO™ Development Tools](../install_guides/installing-model-dev-tools.md)
+
+### Build Samples and Demos
 
 If you have already built the demos and samples, you can skip this section.
 
@@ -45,31 +52,33 @@ To build OpenVINO samples:
 @sphinxdirective
 .. tab:: Linux
 
-   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Linux" section.
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux" section.
 
 .. tab:: Windows
 
-   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on Microsoft Windows* OS" section.
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
-   Open the :doc:`OpenVINO Samples page <openvino_docs_IE_DG_Samples_Overview>` and follow the "Build the Sample Applications on macOS" section. 
+   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS" section. 
 
 @endsphinxdirective
 
 To build OpenVINO demos:
+
 @sphinxdirective
+
 .. tab:: Linux
 
-   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux" section.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux" section.
 
 .. tab:: Windows
 
-   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Microsoft Windows OS" section.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
-   Open the :doc:`Open Model Zoo Demos page <omz_demos>` and follow the "Build the Demo Applications on Linux" section. Use the requirements from "To build OpenVINO samples" above and adapt the Linux building steps for macOS.
+   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS.
 
 @endsphinxdirective
 
@@ -122,6 +131,7 @@ Run one of the commands below to find a model to use:
 
 @endsphinxdirective
 
+To download the GoogleNet v1 Caffe model to the `models` folder:
 
 @sphinxdirective
 
@@ -217,6 +227,7 @@ The googlenet-v1 model is downloaded in the Caffe format. Use the Model Optimize
 Create an `<ir_dir>` directory to contain the model's OpenVINO IR:
 
 @sphinxdirective
+
 .. tab:: Linux
 
    .. code-block:: sh
@@ -248,6 +259,7 @@ Generic Model Optimizer script:
 The command with most placeholders filled in and FP16 precision:
 
 @sphinxdirective
+
 .. tab:: Linux
 
    .. code-block:: sh

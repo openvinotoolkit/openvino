@@ -1,10 +1,10 @@
 # Configurations for IEI Mustang-V100-MX8-R10 card {#openvino_docs_install_guides_movidius_setup_guide}
 
-> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-config-ivad-vpu.md).      
+> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](configurations-for-ivad-vpu.md).      
 
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-This guide is applicable only if you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
+This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and Intel® Distribution of OpenVINO™ toolkit.
 
 Instructions in this guide for configuring your accelerator include:
 1.	Installing the required IEI BSL reset software
