@@ -1,7 +1,7 @@
 # Image Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
 This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
-Models with only 1 input and output are supported.
+Models with only 1 input and output are supported. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/python/classification_sample_async).
 
 The following Python API is used in the application:
 
