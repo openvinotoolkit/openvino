@@ -107,7 +107,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 .. dropdown:: OpenCV
 
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>\extras\scripts\download_opencv.ps1``.
 
    .. note::
       No prerequisites are needed.
@@ -127,11 +127,11 @@ The environment variables are set. Next, you can download some additional tools.
    
    .. code-block:: sh
    
-      .\<INSTALL_DIR>\scripts\download_opencv.ps1 
+      .\<INSTALL_DIR>\extras\scripts\download_opencv.ps1
       
 
    If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
-   The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <openvino>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
+   The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
 
 @endsphinxdirective
 
