@@ -10,7 +10,7 @@
 // ------------------------------MultiSchedule----------------------------
 namespace MultiDevicePlugin {
 
-thread_local SoInfer BinderMultiSchedule::_sharedRequest = {};
+thread_local IE::IInferRequestInternal* BinderMultiSchedule::_sharedRequest = nullptr;
 
 void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
      MultiSchedule::init(sContext);
@@ -50,7 +50,7 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                     }
                 }
                 _thisWorkerInferRequest = *workerInferRequest;
-                _sharedRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest();
+                _sharedRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest()._ptr.get();
             }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
         // then sets the device-agnostic blobs to the actual (device-specific) request
@@ -99,8 +99,7 @@ bool BinderMultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTas
     }
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(
-                inferPipelineTask));
+        _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     } else {
         _inferPipelineTasks.push(std::move(inferPipelineTask));
     }
@@ -121,7 +120,7 @@ bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
             flag = true;
         }
         IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
-        if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
+        if (_sharedRequest == workerRequestPtr->_inferRequest._ptr.get()) {
             _thisWorkerInferRequest = workerRequestPtr;
             {
                 auto capturedTask = std::move(inferPipelineTask);
