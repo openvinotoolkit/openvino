@@ -1650,79 +1650,69 @@ TEST(ov_model, ov_model_get_friendly_name) {
 TEST(ov_partial_shape, ov_partial_shape_init_and_parse) {
     const char* str = "1,2,3,4..5";
 
-    ov_partial_shape_t* partial_shape;
-    partial_shape = new ov_partial_shape_t;
-    partial_shape->ranks = 0;
+    ov_partial_shape_t partial_shape;
+    partial_shape.ranks = 0;
 
-    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
-    EXPECT_EQ(*tmp, *str);
+    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape,str));
+    auto tmp = ov_partial_shape_parse(&partial_shape);
+    EXPECT_STREQ(tmp, str);
 
-    ov_partial_shape_free(partial_shape);
+    delete tmp;
+    ov_partial_shape_free(&partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_init_and_parse_invalid) {
     const char* str = "1,2+3;4..5";
 
-    ov_partial_shape_t* partial_shape;
-    partial_shape = new ov_partial_shape_t;
-    partial_shape->ranks = 0;
+    ov_partial_shape_t partial_shape;
+    partial_shape.ranks = 0;
 
-    OV_EXPECT_NOT_OK(ov_partial_shape_init(partial_shape,str));
+    OV_EXPECT_NOT_OK(ov_partial_shape_init(&partial_shape,str));
 
-    ov_partial_shape_free(partial_shape);
+    ov_partial_shape_free(&partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     const char* str = "1,2,3,4,5";
 
-    ov_partial_shape_t* partial_shape;
-    partial_shape = new ov_partial_shape_t;
-    partial_shape->ranks = 0;
+    ov_partial_shape_t partial_shape;
+    partial_shape.ranks = 0;
 
-    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape,str));
 
-    ov_shape_t* shape;
-    shape = new ov_shape_t;
-    shape->ranks = 0;
-    OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, shape));
+    ov_shape_t shape;
+    shape.ranks = 0;
+    OV_ASSERT_OK(ov_partial_shape_to_shape(&partial_shape, &shape));
 
-    delete shape;
-    ov_partial_shape_free(partial_shape);
+    ov_partial_shape_free(&partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_num) {
     const char* str = "-1,2,3,4,5";
 
-    ov_partial_shape_t* partial_shape;
-    partial_shape = new ov_partial_shape_t;
-    partial_shape->ranks = 0;
+    ov_partial_shape_t partial_shape;
+    partial_shape.ranks = 0;
 
-    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape,str));
 
-    ov_shape_t* shape;
-    shape = new ov_shape_t;
-    shape->ranks = 0;
-    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, shape));
+    ov_shape_t shape;
+    shape.ranks = 0;
+    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(&partial_shape, &shape));
 
-    delete shape;
-    ov_partial_shape_free(partial_shape);
+    ov_partial_shape_free(&partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_sign) {
     const char* str = "1,2,3,4..5";
 
-    ov_partial_shape_t* partial_shape;
-    partial_shape = new ov_partial_shape_t;
-    partial_shape->ranks = 0;
+    ov_partial_shape_t partial_shape;
+    partial_shape.ranks = 0;
 
-    OV_ASSERT_OK(ov_partial_shape_init(partial_shape,str));
+    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape,str));
 
-    ov_shape_t* shape;
-    shape = new ov_shape_t;
-    shape->ranks = 0;
-    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, shape));
+    ov_shape_t shape;
+    shape.ranks = 0;
+    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(&partial_shape, &shape));
 
-    delete shape;
-    ov_partial_shape_free(partial_shape);
+    ov_partial_shape_free(&partial_shape);
 }
