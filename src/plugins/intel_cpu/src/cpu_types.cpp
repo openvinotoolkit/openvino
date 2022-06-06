@@ -189,6 +189,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
         { "MatrixNms", Type::MatrixNms},
         { "MulticlassNms", Type::MulticlassNms},
+        { "MulticlassNmsIEInternal", Type::MulticlassNms},
         { "Reference", Type::Reference},
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
@@ -441,6 +442,7 @@ std::string algToString(const Algorithm alg) {
     CASE(FQCommon);
     CASE(FQQuantization);
     CASE(FQBinarization);
+    CASE(FQRequantization);
     CASE(ROIPoolingMax);
     CASE(ROIPoolingBilinear);
     CASE(ROIAlignMax);
