@@ -21,7 +21,8 @@ using index_4D_t = std::array<size_t, 4>;
 
 template <typename T>
 T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
-    assert(shape.size() == index.size());
+    // In this context below assertion is guaranteed by grid_sample(..) function.
+    // assert(shape.size() == index.size());
     size_t s = 1;
     auto offset = index.back();
     for (auto i = index.size() - 2; i; --i) {
@@ -92,10 +93,12 @@ DATA_ET reflection_data_no_align(const size_t n,
                                  long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
     const auto W = static_cast<long>(data_shape[3]);
-    y_d %= 2 * H;
-    x_d %= 2 * W;
-    const auto y = static_cast<size_t>(y_d > H ? 2 * H - 1 - y_d : y_d);
-    const auto x = static_cast<size_t>(x_d > W ? 2 * W - 1 - x_d : x_d);
+    const auto H_2 = static_cast<long>(data_shape[2]) * 2l;
+    const auto W_2 = static_cast<long>(data_shape[3]) * 2l;
+    y_d = (y_d % H_2 + H_2) % H_2;
+    x_d = (x_d % W_2 + W_2) % W_2;
+    const auto y = static_cast<size_t>(y_d >= H ? H_2 - 1 - y_d : y_d);
+    const auto x = static_cast<size_t>(x_d >= W ? W_2 - 1 - x_d : x_d);
     return get_v(data, data_shape, index_4D_t{n, c, y, x});
 }
 
@@ -112,8 +115,8 @@ DATA_ET reflection_data_with_align(const size_t n,
     const auto W_2_2 = 2 * (W - 1);
     y_d = std::abs(y_d) % H_2_2;
     x_d = std::abs(x_d) % W_2_2;
-    const auto y = static_cast<size_t>(y_d > H_2_2 ? H_2_2 - y_d : y_d);
-    const auto x = static_cast<size_t>(x_d > W_2_2 ? W_2_2 - x_d : x_d);
+    const auto y = static_cast<size_t>(y_d >= H ? H_2_2 - y_d : y_d);
+    const auto x = static_cast<size_t>(x_d >= W ? W_2_2 - x_d : x_d);
     return get_v(data, data_shape, index_4D_t{n, c, y, x});
 }
 
@@ -126,9 +129,9 @@ DATA_ET nearest(const size_t n,
                 GRID_ET x_n,
                 bool align,
                 const padding_function_t<DATA_ET>& padding_func) {
-    const auto p_d = denormalize_2D(data_shape, y_n, x_n, align);
-    const auto y_nearest = std::lrint(p_d[0]);
-    const auto x_nearest = std::lrint(p_d[1]);
+    const auto vec_yx = denormalize_2D(data_shape, y_n, x_n, align);
+    const auto y_nearest = std::lrint(vec_yx[0]);
+    const auto x_nearest = std::lrint(vec_yx[1]);
     return padding_func(n, c, data, data_shape, y_nearest, x_nearest);
 }
 
@@ -143,8 +146,8 @@ void grid_sample(DATA_ET* output,
                  const bool align_corners,
                  const ov::op::v9::GridSample::InterpolationMode interpolation_mode,
                  const ov::op::v9::GridSample::PaddingMode padding_mode) {
-    // assert(len(data.shape) == 4 and len(grid.shape) == 4)
-    // assert(data.shape[0] == grid.shape[0] and grid.shape[3] == 2)
+    assert(data_shape.size() == 4 && grid_shape.size() == 4);
+    assert(data_shape[0] == grid_shape[0] and grid_shape[3] == 2);
 
     const auto N = data_shape[0];
     const auto C = data_shape[1];
@@ -176,12 +179,10 @@ void grid_sample(DATA_ET* output,
         for (size_t c = 0; c < C; ++c) {
             for (size_t y = 0; y < H_out; ++y) {
                 for (size_t x = 0; x < W_out; ++x) {
-                    // const auto i = n * C + c * H_out + y * W_out + x;
                     const auto y_n = get_v(grid, grid_shape, index_4D_t{n, y, x, 1});
                     const auto x_n = get_v(grid, grid_shape, index_4D_t{n, y, x, 0});
 
-                    const index_4D_t idx{n, c, y, x};
-                    auto& out = get_v(output, output_shape, idx);
+                    auto& out = get_v(output, output_shape, index_4D_t{n, c, y, x});
 
                     switch (interpolation_mode) {
                     case ov::op::v9::GridSample::InterpolationMode::BILINEAR:

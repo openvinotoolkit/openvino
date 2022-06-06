@@ -60,37 +60,133 @@ std::array<op::v9::GridSample::PaddingMode, 3> padding_modes{op::v9::GridSample:
                                                              op::v9::GridSample::PaddingMode::REFLECTION};
 std::array<bool, 2> align_modes{false, true};
 
-std::vector<GridSampleParams> generateGridSampleNearestParams() {
-    std::vector<GridSampleParams> nearest_params;
-    {
-        reference_tests::Tensor data{{1, 1, 3, 5},
-                                     element::f32,
-                                     std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}};
-        reference_tests::Tensor grid{{1, 3, 4, 2}, element::f32, std::vector<float>{-0.1, -0.1, -0.1, 0.1,  0.1,  -0.1,
-                                                                                    0.1,  0.1,  -0.5, -0.5, -0.5, 0.5,
-                                                                                    0.5,  -0.5, 0.5,  0.5,  -1.,  -1.,
-                                                                                    -1.,  1.,   1.,   -1.,  1.,   1.}};
-        reference_tests::Tensor output{{1, 1, 3, 4},
-                                       element::f32,
-                                       std::vector<float>{8, 8, 8, 8, 2, 12, 4, 14, 1, 11, 5, 15}};
-        for (const auto& padding : padding_modes) {
-            for (const auto align : align_modes) {
-                std::stringstream name;
-                name << std::boolalpha << "nearest_" << padding << "_" << align << "_odd_dims";
-                nearest_params.emplace_back(
-                    data,
-                    grid,
-                    op::v9::GridSample::Attributes{align, op::v9::GridSample::InterpolationMode::NEAREST, padding},
-                    output,
-                    name.str());
-            }
+std::vector<GridSampleParams> generateNearestParamsOddDimensions() {
+    std::vector<GridSampleParams> params;
+
+    reference_tests::Tensor data_odd_dims{{1, 1, 3, 5},
+                                          element::f32,
+                                          std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}};
+    reference_tests::Tensor grid_inner{
+        {1, 3, 4, 2},
+        element::f32,
+        std::vector<float>{-0.1, -0.1, -0.1, 0.1, 0.1, -0.1, 0.1, 0.1, -0.5, -0.5, -0.5, 0.5,
+                           0.5,  -0.5, 0.5,  0.5, -1., -1.,  -1., 1.,  1.,   -1.,  1.,   1.}};
+    reference_tests::Tensor output{{1, 1, 3, 4},
+                                   element::f32,
+                                   std::vector<float>{8, 8, 8, 8, 2, 12, 4, 14, 1, 11, 5, 15}};
+    for (const auto& padding : padding_modes) {
+        for (const auto align : align_modes) {
+            std::stringstream name;
+            name << "nearest_" << padding << (align ? "_align" : "_noalign") << "_odd_dims_inner";
+            params.emplace_back(
+                data_odd_dims,
+                grid_inner,
+                op::v9::GridSample::Attributes{align, op::v9::GridSample::InterpolationMode::NEAREST, padding},
+                output,
+                name.str());
         }
     }
-    return nearest_params;
+
+    reference_tests::Tensor grid_outer{
+        {1, 1, 7, 2},
+        element::f32,
+        std::vector<float>{-10.1, -9.7, -7.55, 0.37, -77., 11.56, 0.5, 2.55, 1.7, 1.1, 3., -0.17, 1.301, -1.001}};
+    params.emplace_back(data_odd_dims,
+                        grid_outer,
+                        op::v9::GridSample::Attributes{false,
+                                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                                       op::v9::GridSample::PaddingMode::ZEROS},
+                        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0}},
+                        "nearest_zeros_false_odd_dims_outer");
+    params.emplace_back(data_odd_dims,
+                        grid_outer,
+                        op::v9::GridSample::Attributes{true,
+                                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                                       op::v9::GridSample::PaddingMode::ZEROS},
+                        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0}},
+                        "nearest_zeros_true_odd_dims_outer");
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{false,
+                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                       op::v9::GridSample::PaddingMode::BORDER},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{1, 11, 11, 14, 15, 10, 5}},
+        "nearest_border_noalign_odd_dims_outer");
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{true,
+                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                       op::v9::GridSample::PaddingMode::BORDER},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{1, 6, 11, 14, 15, 10, 5}},
+        "nearest_border_align_odd_dims_outer");
+    params.emplace_back(data_odd_dims,
+                        grid_outer,
+                        op::v9::GridSample::Attributes{false,
+                                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                                       op::v9::GridSample::PaddingMode::REFLECTION},
+                        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{8, 14, 1, 4, 14, 6, 5}},
+                        "nearest_reflection_noalign_odd_dims_outer");
+    params.emplace_back(data_odd_dims,
+                        grid_outer,
+                        op::v9::GridSample::Attributes{true,
+                                                       op::v9::GridSample::InterpolationMode::NEAREST,
+                                                       op::v9::GridSample::PaddingMode::REFLECTION},
+                        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{8, 9, 6, 4, 14, 6, 4}},
+                        "nearest_reflection_align_odd_dims_outer");
+
+    return params;
+}
+
+std::vector<GridSampleParams> generateNearestParamsEvenDimensions() {
+    std::vector<GridSampleParams> params;
+    reference_tests::Tensor data_even_dims{
+        {1, 1, 4, 6},
+        element::f32,
+        std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}};
+    reference_tests::Tensor grid_half{
+        {1, 1, 8, 2},
+        element::f32,
+        std::vector<float>{-0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -1, 1, 1, -1, -0.1, -0.1, 0.1, 0.1}};
+    reference_tests::Tensor output_align{{1, 1, 1, 8}, element::f32, std::vector<float>{8, 14, 11, 17, 19, 6, 9, 16}};
+    reference_tests::Tensor output_noalign{{1, 1, 1, 8}, element::f32, std::vector<float>{2, 14, 5, 17, 19, 6, 9, 16}};
+    reference_tests::Tensor output_zeros_noalign{{1, 1, 1, 8},
+                                                 element::f32,
+                                                 std::vector<float>{2, 14, 5, 17, 0, 0, 9, 16}};
+
+    for (const auto& padding : padding_modes) {
+        std::stringstream name1, name2;
+        name1 << "nearest_" << padding << "_noalign"
+              << "_even_dims_half";
+        params.emplace_back(
+            data_even_dims,
+            grid_half,
+            op::v9::GridSample::Attributes{false, op::v9::GridSample::InterpolationMode::NEAREST, padding},
+            padding == op::v9::GridSample::PaddingMode::ZEROS ? output_zeros_noalign : output_noalign,
+            name1.str());
+
+        name2 << "nearest_" << padding << "_align"
+              << "_even_dims_half";
+        params.emplace_back(
+            data_even_dims,
+            grid_half,
+            op::v9::GridSample::Attributes{true, op::v9::GridSample::InterpolationMode::NEAREST, padding},
+            output_align,
+            name2.str());
+    }
+
+    return params;
+}
+
+std::vector<GridSampleParams> generateBilinearParams() {
+    std::vector<GridSampleParams> params;
+    return params;
 }
 
 std::vector<GridSampleParams> generateGridSampleParams() {
-    std::vector<std::vector<GridSampleParams>> all_params{generateGridSampleNearestParams()};
+    std::vector<std::vector<GridSampleParams>> all_params{generateNearestParamsOddDimensions(),
+                                                          generateNearestParamsEvenDimensions()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : all_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
