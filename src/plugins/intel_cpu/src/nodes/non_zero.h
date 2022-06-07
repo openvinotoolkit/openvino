@@ -32,9 +32,6 @@ public:
     bool isExecutable() const override { return true; }
 
 private:
-    static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
-    static constexpr int elementsStride = blockSize / sizeof(int);
-
     int threadsCount = 1;
     std::string errorPrefix;
     template <typename inputType>

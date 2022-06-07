@@ -16,6 +16,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
+static constexpr int elementsStride = blockSize / sizeof(int);
+
 bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
