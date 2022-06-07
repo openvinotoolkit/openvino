@@ -13,10 +13,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
-    return os << float(x);
-}
-
 template <class T>
 int get_not_one_dim(const T& a) {
     int ret = a.size();

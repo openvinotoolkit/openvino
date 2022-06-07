@@ -38,10 +38,6 @@ static int mult(T arr) {
     });
 }
 
-std::ostream& operator<<(std::ostream& os, FLOAT16 x) {
-    return os << float(x);
-}
-
 #define PAD_MODES \
     border_type::constant, border_type::edge, border_type::mirror, border_type::mirror_101  //,border_type::zero
 #define FORMATS                                                                                                   \
