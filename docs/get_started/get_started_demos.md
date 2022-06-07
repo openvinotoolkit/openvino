@@ -375,7 +375,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-Command below runs the Image Classification Code Sample using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in OpenVINO IR format from the `ir` directory, and on different hardware devices:
+The command below runs on different hardware devices the Image Classification Code Sample, using the [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file as an input image, the model in OpenVINO IR format from the `ir` directory:
 
    **CPU:**  
 @sphinxdirective
