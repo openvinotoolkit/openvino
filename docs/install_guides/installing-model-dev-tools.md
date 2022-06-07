@@ -95,7 +95,7 @@ You will see the help message for Model Optimizer if installation finished succe
 
 ## For C++ Developers
 
-Note the following things:
+Keep in mind the following things:
 
 * To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. OpenVINO Runtime can be installed through an installer ([Linux](installing-openvino-linux.md), [Windows](installing-openvino-windows.md), or [macOS](installing-openvino-macos.md)), [APT for Linux](installing-openvino-apt.md) or [YUM for Linux](installing-openvino-yum.md). 
 * Ensure that the version of OpenVINO Development Tools you are installing matches that of OpenVINO Runtime. 
