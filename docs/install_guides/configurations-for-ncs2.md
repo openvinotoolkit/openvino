@@ -32,7 +32,7 @@
    3. Reboot of your machine may be required for this to take effect.
 
    This completes all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-   Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+   Proceed to the [Get Started Guide](@ref get_started) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 .. tab:: Raspbian OS
 
