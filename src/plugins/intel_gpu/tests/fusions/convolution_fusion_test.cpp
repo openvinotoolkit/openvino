@@ -220,7 +220,7 @@ class WeightsPrimitiveFusingTestOneDNN : public BaseFusingTest<convolution_test_
 public:
     void execute(convolution_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));

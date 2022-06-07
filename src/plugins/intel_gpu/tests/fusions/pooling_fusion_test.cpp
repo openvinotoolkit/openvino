@@ -518,7 +518,7 @@ class PoolingOneDNNFusingTest : public ::BaseFusingTest<pooling_test_params> {
 public:
     void execute(pooling_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = get_mem(get_input_layout(p));

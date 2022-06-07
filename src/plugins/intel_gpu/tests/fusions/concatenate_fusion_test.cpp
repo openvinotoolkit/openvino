@@ -32,7 +32,7 @@ class ConcatOneDNNFusingTest : public ::BaseFusingTest<concat_test_params> {
 public:
     void execute(concat_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input0_prim = get_mem(get_input_layout(p));
