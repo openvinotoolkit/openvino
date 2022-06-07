@@ -152,7 +152,7 @@ bool callback_func(pattern::Matcher& m, pass::MatcherPass* impl) {
 
     nms_5->set_friendly_name(root->get_friendly_name());
     ngraph::copy_runtime_info(root, nms_5);
-    ngraph::replace_node(root, nms_5);
+    root->output(0).replace(nms_5->output(0));
     return true;
 }
 }  // namespace
