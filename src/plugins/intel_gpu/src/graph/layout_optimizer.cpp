@@ -1664,7 +1664,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         };
         if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
-            expected = format::bfyx;
+            if (node.get_output_layout().format.dimension() == 6) {
+                expected = format::bfwzyx;
+            } else if (node.get_output_layout().format.dimension() == 5) {
+                expected = format::bfzyx;
+            } else if (node.get_output_layout().format.dimension() == 4) {
+                expected = format::bfyx;
+            }
         } else if (use_onednn_impls  && needs_all_usr_onednn_small_ic_to_blocked(node)) {
             // All user nodes are convolutions which satisfy options for onednn first conv
             if (layout.data_type == data_types::f16) {
