@@ -98,7 +98,7 @@ A suitable model for the OpenVINO toolkit can be acquired by:
   
 Run one of the commands below to find a model to use:
 
-* List the models available in the downloader:
+* List the models available in Model Downloader:
 
 ``` sh
    omz_info_dumper --print_all
