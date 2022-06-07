@@ -17,7 +17,7 @@ Below is information regarding an installation flow of OpenVINO™ Development T
 ## For Python Developers
 
 
-If you are a Python developer, you may use the instructions below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
+If you are a Python developer, use the instructions below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
 
 Installation of OpenVINO Development Tools includes OpenVINO Runtime as a dependency, so there is no need to install OpenVINO Runtime separately.
 
