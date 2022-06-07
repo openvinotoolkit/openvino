@@ -13,7 +13,7 @@
 @endsphinxdirective
 
 
-Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO](../get_started.md).
+Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO Runtime](../install_guides/installing-openvino-runtime.md).
 
 ![ie_api_use_cpp]
 
