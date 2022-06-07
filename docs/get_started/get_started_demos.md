@@ -291,7 +291,7 @@ After the conversion, the OpenVINO IR files (produced by the script) are written
 Video media can be downloaded to use as the code samples and demo applications from many available sources, such as [Pexels](https://pexels.com) and [Google Images](https://images.google.com).
 
 
-Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that can be used for running code samples and demo applications:
+Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several sample [images](https://storage.openvinotoolkit.org/data/test_data/) and [videos](https://github.com/intel-iot-devkit/sample-videos) that can be used for running code samples and demo applications:
 
    - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
    - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
