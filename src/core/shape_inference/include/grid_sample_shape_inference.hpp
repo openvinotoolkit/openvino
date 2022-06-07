@@ -12,8 +12,8 @@ namespace ov {
 namespace op {
 namespace v9 {
 
-template <class T>
-void shape_infer(const GridSample* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+template <class shape_t>
+void shape_infer(const GridSample* op, const std::vector<shape_t>& input_shapes, std::vector<shape_t>& output_shapes) {
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == 2 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes in GridSample's shape inference function");
@@ -22,10 +22,13 @@ void shape_infer(const GridSample* op, const std::vector<T>& input_shapes, std::
     const auto& grid_shape = input_shapes[1];
     NODE_VALIDATION_CHECK(op, grid_shape.rank().compatible(4), "The supported shape of the grid tensor is 4D.");
 
-    Dimension batch_dim = Dimension::dynamic();
-    Dimension channel_dim = Dimension::dynamic();
-    Dimension H_out_dim = Dimension::dynamic();
-    Dimension W_out_dim = Dimension::dynamic();
+    shape_t output_shape;
+    output_shape.resize(4);
+
+    auto& batch_dim = output_shape[0];
+    auto& channel_dim = output_shape[1];
+    auto& H_out_dim = output_shape[2];
+    auto& W_out_dim = output_shape[3];
 
     if (grid_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
@@ -54,7 +57,7 @@ void shape_infer(const GridSample* op, const std::vector<T>& input_shapes, std::
         channel_dim = data_shape[1];
     }
 
-    output_shapes[0] = PartialShape{batch_dim, channel_dim, H_out_dim, W_out_dim};
+    output_shapes[0] = std::move(output_shape);
 }
 
 }  // namespace v9
