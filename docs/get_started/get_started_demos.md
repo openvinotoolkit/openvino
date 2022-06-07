@@ -322,7 +322,7 @@ To run the **Image Classification** code sample with an input image using the IR
 
 @endsphinxdirective
 
-2. Open the directory of the code samples release created when you built the samples earlier:
+2. Go to the release directory of the code samples, which was created when you built the samples earlier:
 @sphinxdirective
 .. tab:: Linux
 
