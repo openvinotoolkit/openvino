@@ -11,7 +11,6 @@ using namespace ov;
 using namespace reference_tests;
 
 namespace {
-
 struct GridSampleParams {
     GridSampleParams(const reference_tests::Tensor& data,
                      const reference_tests::Tensor& grid,
@@ -97,11 +96,9 @@ std::vector<GridSampleParams> generateNearestParamsOddDimensionsInnerGrids() {
 
 std::vector<GridSampleParams> generateNearestParamsOddDimensionsOuterGrids() {
     std::vector<GridSampleParams> params;
-
     reference_tests::Tensor data_odd_dims{{1, 1, 3, 5},
                                           element::f32,
                                           std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}};
-
     reference_tests::Tensor grid_outer{
         {1, 1, 7, 2},
         element::f32,
@@ -112,6 +109,7 @@ std::vector<GridSampleParams> generateNearestParamsOddDimensionsOuterGrids() {
                         op::v9::GridSample::Attributes{false, GS_NEAREST, GS_ZEROS},
                         reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0}},
                         "nearest_zeros_noalign_odd_dims_outer");
+
     params.emplace_back(data_odd_dims,
                         grid_outer,
                         op::v9::GridSample::Attributes{true, GS_NEAREST, GS_ZEROS},
@@ -155,10 +153,11 @@ std::vector<GridSampleParams> generateNearestParamsEvenDimensions() {
         {1, 1, 4, 6},
         element::f32,
         std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}};
-    reference_tests::Tensor grid_half{
+    reference_tests::Tensor grid_inner{
         {1, 1, 8, 2},
         element::f32,
         std::vector<float>{-0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -1, 1, 1, -1, -0.1, -0.1, 0.1, 0.1}};
+
     reference_tests::Tensor output_align{{1, 1, 1, 8}, element::f32, std::vector<float>{8, 14, 11, 17, 19, 6, 9, 16}};
     reference_tests::Tensor output_noalign{{1, 1, 1, 8}, element::f32, std::vector<float>{2, 14, 5, 17, 19, 6, 9, 16}};
     reference_tests::Tensor output_zeros_noalign{{1, 1, 1, 8},
@@ -168,22 +167,20 @@ std::vector<GridSampleParams> generateNearestParamsEvenDimensions() {
     for (const auto& padding : padding_modes) {
         std::stringstream name1, name2;
         name1 << "nearest_" << padding << "_noalign"
-              << "_even_dims_half";
-        params.emplace_back(
-            data_even_dims,
-            grid_half,
-            op::v9::GridSample::Attributes{false, GS_NEAREST, padding},
-            padding == GS_ZEROS ? output_zeros_noalign : output_noalign,
-            name1.str());
+              << "_even_dims_inner";
+        params.emplace_back(data_even_dims,
+                            grid_inner,
+                            op::v9::GridSample::Attributes{false, GS_NEAREST, padding},
+                            padding == GS_ZEROS ? output_zeros_noalign : output_noalign,
+                            name1.str());
 
         name2 << "nearest_" << padding << "_align"
-              << "_even_dims_half";
-        params.emplace_back(
-            data_even_dims,
-            grid_half,
-            op::v9::GridSample::Attributes{true, GS_NEAREST, padding},
-            output_align,
-            name2.str());
+              << "_even_dims_inner";
+        params.emplace_back(data_even_dims,
+                            grid_inner,
+                            op::v9::GridSample::Attributes{true, GS_NEAREST, padding},
+                            output_align,
+                            name2.str());
     }
 
     return params;
@@ -191,7 +188,6 @@ std::vector<GridSampleParams> generateNearestParamsEvenDimensions() {
 
 std::vector<GridSampleParams> generateBilinearParamsOddDimensionsInnerGrids() {
     std::vector<GridSampleParams> params;
-
     reference_tests::Tensor data_odd_dims{{1, 1, 3, 5},
                                           element::f32,
                                           std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}};
@@ -200,6 +196,7 @@ std::vector<GridSampleParams> generateBilinearParamsOddDimensionsInnerGrids() {
         element::f32,
         std::vector<float>{-0.1, -0.1, -0.1, 0.1, 0.1, -0.1, 0.1, 0.1, -0.5, -0.5, -0.5, 0.5,
                            0.5,  -0.5, 0.5,  0.5, -1., -1.,  -1., 1.,  1.,   -1.,  1.,   1.}};
+
     reference_tests::Tensor output_align{{1, 1, 3, 4},
                                          element::f32,
                                          std::vector<float>{7.3, 8.3, 7.7, 8.7, 4.5, 9.5, 6.5, 11.5, 1, 11, 5, 15}};
@@ -211,12 +208,11 @@ std::vector<GridSampleParams> generateBilinearParamsOddDimensionsInnerGrids() {
         element::f32,
         std::vector<float>{7, 8.5, 7.5, 9, 3, 10.5, 5.5, 13, 0.25, 2.75, 1.25, 3.75}};
 
-    params.emplace_back(
-        data_odd_dims,
-        grid_inner,
-        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
-        output_zeros_noalign,
-        "bilinear_zeros_noalign_odd_dims_inner");
+    params.emplace_back(data_odd_dims,
+                        grid_inner,
+                        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
+                        output_zeros_noalign,
+                        "bilinear_zeros_noalign_odd_dims_inner");
 
     params.emplace_back(data_odd_dims,
                         grid_inner,
@@ -255,17 +251,137 @@ std::vector<GridSampleParams> generateBilinearParamsOddDimensionsInnerGrids() {
     return params;
 }
 
+std::vector<GridSampleParams> generateBilinearParamsOddDimensionsOuterGrids() {
+    std::vector<GridSampleParams> params;
+
+    reference_tests::Tensor data_odd_dims{{1, 1, 3, 5},
+                                          element::f32,
+                                          std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}};
+
+    reference_tests::Tensor grid_outer{
+        {1, 1, 7, 2},
+        element::f32,
+        std::vector<float>{-10.1, -9.7, -7.55, 0.37, -77., 11.56, 0.5, 2.55, 1.7, 1.1, 3., -0.17, 1.301, -1.001}};
+
+    params.emplace_back(data_odd_dims,
+                        grid_outer,
+                        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
+                        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0}},
+                        "bilinear_zeros_noalign_odd_dims_outer");
+
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_ZEROS},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 1.9880099}},
+        "bilinear_zeros_align_odd_dims_outer");
+
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_BORDER},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{1, 8.775, 11, 14.25, 15, 8.725, 5}},
+        "bilinear_border_noalign_odd_dims_outer");
+
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_BORDER},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{1, 7.85, 11, 14, 15, 9.15, 5}},
+        "bilinear_border_align_odd_dims_outer");
+
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_REFLECTION},
+        reference_tests::Tensor{{1, 1, 1, 7},
+                                element::f32,
+                                std::vector<float>{5.9999995, 11.9, 2.7000031, 5.1250005, 13.75, 4.725, 4.7475}},
+        "bilinear_reflection_noalign_odd_dims_outer");
+
+    params.emplace_back(
+        data_odd_dims,
+        grid_outer,
+        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_REFLECTION},
+        reference_tests::Tensor{{1, 1, 1, 7},
+                                element::f32,
+                                std::vector<float>{6.7, 10.75, 3.800002, 6.25, 13.099999, 5.15, 4.4030004}},
+        "bilinear_reflection_align_odd_dims_outer");
+
+    return params;
+}
+
+std::vector<GridSampleParams> generateBilinearParamsEvenDimensions() {
+    std::vector<GridSampleParams> params;
+    reference_tests::Tensor data_even_dims{
+        {1, 1, 4, 6},
+        element::f32,
+        std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}};
+    reference_tests::Tensor grid_inner{
+        {1, 1, 8, 2},
+        element::f32,
+        std::vector<float>{-0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -1, 1, 1, -1, -0.1, -0.1, 0.1, 0.1}};
+
+    params.emplace_back(
+        data_even_dims,
+        grid_inner,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{5, 17, 8, 20, 4.75, 1.5, 11, 14}},
+        "bilinear_zeros_noalign_even_dims_inner");
+
+    params.emplace_back(data_even_dims,
+                        grid_inner,
+                        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_ZEROS},
+                        reference_tests::Tensor{{1, 1, 1, 7},
+                                                element::f32,
+                                                std::vector<float>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+                        "bilinear_zeros_align_even_dims_inner");
+
+    params.emplace_back(
+        data_even_dims,
+        grid_inner,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_BORDER},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{5, 17, 8, 20, 19, 6, 11, 14}},
+        "bilinear_border_noalign_even_dims_inner");
+
+    params.emplace_back(data_even_dims,
+                        grid_inner,
+                        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_BORDER},
+                        reference_tests::Tensor{{1, 1, 1, 7},
+                                                element::f32,
+                                                std::vector<float>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+                        "bilinear_border_align_even_dims_inner");
+
+    params.emplace_back(
+        data_even_dims,
+        grid_inner,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_REFLECTION},
+        reference_tests::Tensor{{1, 1, 1, 7}, element::f32, std::vector<float>{5, 17, 8, 20, 19, 6, 11, 14}},
+        "bilinear_reflection_noalign_even_dims_inner");
+
+    params.emplace_back(data_even_dims,
+                        grid_inner,
+                        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_REFLECTION},
+                        reference_tests::Tensor{{1, 1, 1, 7},
+                                                element::f32,
+                                                std::vector<float>{6.75, 15.75, 9.25, 18.25, 19, 6, 11.35, 13.65}},
+                        "bilinear_reflection_align_even_dims_inner");
+
+    return params;
+}
+
 std::vector<GridSampleParams> generateGridSampleParams() {
     std::vector<std::vector<GridSampleParams>> all_params{generateNearestParamsOddDimensionsInnerGrids(),
                                                           generateNearestParamsOddDimensionsOuterGrids(),
                                                           generateNearestParamsEvenDimensions(),
-                                                          generateBilinearParamsOddDimensionsInnerGrids()};
+                                                          generateBilinearParamsOddDimensionsInnerGrids(),
+                                                          generateBilinearParamsOddDimensionsOuterGrids(),
+                                                          generateBilinearParamsEvenDimensions()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : all_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
     return test_params;
 }
-
 }  // namespace
 
 TEST_P(ReferenceGridSample, LayerTest) {
