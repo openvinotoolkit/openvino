@@ -79,7 +79,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```
    If installation was successful, there will not be any error messages (no console output) present.
 
-5. Now, you may start developing your application.
+5. Application development can now begin.
 
 ## What's Next?
 
