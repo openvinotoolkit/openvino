@@ -6,6 +6,7 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -1330,6 +1331,22 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     return true;
 }
 
+impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->forced_impl_type.empty()) {
+        if (node.is_type<fully_connected>()) {
+            if (debug_config->forced_impl_type == "fc:ocl")
+                return impl_types::ocl;
+            else if (debug_config->forced_impl_type == "fc:onednn")
+                return impl_types::onednn;
+        }
+    }
+#endif
+
+    return impl_types::any;
+}
+
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
@@ -1508,6 +1525,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
+        auto forced_impl = get_forced_impl_type_by_config(node);
+        if (forced_impl != impl_types::any)
+            return forced_impl;
+
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
@@ -1643,7 +1664,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         };
         if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
-            expected = format::bfyx;
+            if (node.get_output_layout().format.dimension() == 6) {
+                expected = format::bfwzyx;
+            } else if (node.get_output_layout().format.dimension() == 5) {
+                expected = format::bfzyx;
+            } else if (node.get_output_layout().format.dimension() == 4) {
+                expected = format::bfyx;
+            }
         } else if (use_onednn_impls  && needs_all_usr_onednn_small_ic_to_blocked(node)) {
             // All user nodes are convolutions which satisfy options for onednn first conv
             if (layout.data_type == data_types::f16) {
