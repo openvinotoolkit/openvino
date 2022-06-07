@@ -875,8 +875,9 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::jit_avx512_amx_dw,
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
-            impl_desc_type::brgconv_avx512_1x1,
-            impl_desc_type::brgconv_avx512,
+            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+            // impl_desc_type::brgconv_avx512_1x1,
+            // impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
