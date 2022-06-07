@@ -178,7 +178,7 @@ Here you may find solutions to some common issues.
 
    *Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"*
 
-   To resolve this issue, you need to install [Build Tools for Visual Studio 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and then retry the installation steps.
+   To resolve this issue, install [Build Tools for Visual Studio 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and then retry the installation steps.
 
 
 @endsphinxdirective
