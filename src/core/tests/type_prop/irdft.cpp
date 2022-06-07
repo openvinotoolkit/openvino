@@ -307,3 +307,96 @@ INSTANTIATE_TEST_SUITE_P(
                           {Dimension(8, 129), Dimension::dynamic(), 130, Dimension(0, 500)},
                           {3, 0, 1}}),
     PrintToDummyParamName());
+
+TEST(type_prop, irdft_invalid_input) {
+    auto axes = op::Constant::create(element::i64, Shape{2}, {0, 1});
+
+    try {
+        auto data = std::make_shared<op::Parameter>(element::f32, Shape{2});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid input.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater or equal to 2.");
+    }
+
+    try {
+        auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid input.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The last dimension of input data must be 2.");
+    }
+
+    try {
+        auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 2});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid input.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of IRDFT op axes.");
+    }
+}
+
+TEST(type_prop, irdft_invalid_axes) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
+
+    try {
+        auto axes = op::Constant::create(element::i64, Shape{1}, {3});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid axes.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be less than input rank.");
+    }
+
+    try {
+        auto axes = op::Constant::create(element::i64, Shape{1}, {-3});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid axes.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be positive or equal to zero.");
+    }
+
+    try {
+        auto axes = op::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid axes.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axes must be unique.");
+    }
+
+    try {
+        auto axes = op::Constant::create(element::i64, Shape{1}, {2});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid axes.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "IRDFT op axes cannot contain the last axis.");
+    }
+
+    try {
+        auto axes = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
+        FAIL() << "IRDFT node was created with invalid axes.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axes input must be 1D tensor.");
+    }
+}
+
+TEST(type_prop, irdft_invalid_signal_size) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
+    auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+
+    try {
+        auto signal_size = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes, signal_size);
+        FAIL() << "IRDFT node was created with invalid signal size.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op signal size input must be 1D tensor.");
+    }
+
+    try {
+        auto signal_size = op::Constant::create(element::i64, Shape{2}, {0, 1});
+        auto irdft = std::make_shared<op::v9::IRDFT>(data, axes, signal_size);
+        FAIL() << "IRDFT node was created with invalid signal size.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' of (I)RDFT op must be equal.");
+    }
+}
