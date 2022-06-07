@@ -1,6 +1,6 @@
-# Simplified OpenVINO workflow {#openvino_docs_get_started_get_started_demos}
+# Basic OpenVINO workflow {#openvino_docs_get_started_get_started_demos}
 
-This guide will walk you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
+This guide will walk you through a basic workflow for the Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
 
 This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
 

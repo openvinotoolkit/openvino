@@ -21,7 +21,7 @@
    :hidden:
    :caption: Get Started Guides
    
-   Python Tutorials - Jupyter Notebooks <tutorials>
+   Interactive Tutorials (Python) <tutorials>
    Samples <openvino_docs_OV_UG_Samples_Overview>
 
 
