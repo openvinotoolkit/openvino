@@ -67,7 +67,7 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 0) {
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 size_t desc_size = desc.get_size();
                 std::vector<int32_t> debug_buf(desc_size);
                 auto dnnl_mem = a_zp->get_onednn_memory(desc);
@@ -86,7 +86,7 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 0) {
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 size_t desc_size = desc.get_size();
                 std::vector<int32_t> debug_buf(desc_size);
                 auto dnnl_mem = w_zp->get_onednn_memory(desc);
