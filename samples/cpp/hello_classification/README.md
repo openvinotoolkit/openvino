@@ -1,7 +1,7 @@
 # Hello Classification C++ Sample {#openvino_inference_engine_samples_hello_classification_README}
 
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
-Models with only one input and output are supported.
+Models with only one input and output are supported. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp/hello_classification).
 
 The following C++ API is used in the application:
 
