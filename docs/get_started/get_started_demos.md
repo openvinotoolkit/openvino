@@ -286,7 +286,7 @@ After the conversion, the OpenVINO IR files (produced by the script) are written
 **REQUIRED:** `model_name.xml`, `model_name.bin`
 **OPTIONAL:** `model_name.json`, `model_name.mapping`, etc.
 
-## <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
+## <a name="download-media"></a> Step 3: Download a Video or a Still Photo as Media
 
 Video media can be download to use as the code samples and demo applications from many available sources, like:
 
