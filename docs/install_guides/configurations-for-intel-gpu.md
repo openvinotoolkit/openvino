@@ -47,7 +47,7 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
    Ignore this suggestion and continue.<br>
 
-   You may also find the most recent version of the driver, installation procedure and other information on the `Intel® software for general purpose GPU capabilities`_ site.
+ The most recent version of the driver, installation procedure and other information can also be found on the `Intel® software for general purpose GPU capabilities`_ site.
 
    .. _Intel® software for general purpose GPU capabilities: https://dgpu-docs.intel.com/index.html
 
