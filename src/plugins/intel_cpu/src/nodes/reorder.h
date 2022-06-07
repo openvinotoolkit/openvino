@@ -46,6 +46,10 @@ public:
         outputShapes.push_back(this->output->getShape());
     }
 
+    void setSrcPermutation(const std::vector<int> & src_perm) {
+        this->src_permutation = src_perm;
+    }
+
     void setOptimized(bool isOptimized) {
         this->isOptimized = isOptimized;
     }
@@ -66,6 +70,8 @@ public:
 private:
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
+
+    std::vector<int> src_permutation;
 
     MemoryPtr dst_blocked;
     MemoryPtr src_blocked;

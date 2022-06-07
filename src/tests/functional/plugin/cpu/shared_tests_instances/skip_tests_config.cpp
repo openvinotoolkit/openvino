@@ -55,6 +55,8 @@ std::vector<std::string> disabledTestPatterns() {
         // sporadic failures: 84153
         R"(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerChannel\/ConvolutionLayerCPUTest\.CompareWithRefs\/IS=\{\?\.67\.\?\.1\.\.200\.\?\}_TS=\(\(1\.67\.7\.7\.7\)_\(1\.67\.9\.9\.9\)_\)_K\(3\.3\.3\)_S\(1\.1\.1\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=63_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx2_Fused=Multiply\(PerChannel\)\.Add\(PerChannel\)\.FakeQuantize\(PerChannel\))",
         R"(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerChannel\/ConvolutionLayerCPUTest\.CompareWithRefs\/IS=\{\?\.67\.\?\.1\.\.200\.\?\}_TS=\(\(1\.67\.7\.7\.7\)_\(1\.67\.9\.9\.9\)_\)_K\(1\.1\.1\)_S\(2\.2\.2\)_PB\(0\.0\.0\)_PE\(0\.0\.0\)_D=\(1\.1\.1\)_O=64_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx2_Fused=Multiply\(PerChannel\)\.Add\(PerChannel\)\.FakeQuantize\(PerChannel\))",
+        // sporadic failures: 85875
+        R"(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerChannel\/ConvolutionLayerCPUTest\.CompareWithRefs\/IS=*_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx2_Fused=Multiply\(PerChannel\)\.Add\(PerChannel\)\.FakeQuantize\(PerChannel\))",
 
         // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
         R"(.*NormalizeL2_1D.*)",
