@@ -80,9 +80,21 @@ void validate_axes(const ov::op::util::FFTBase* op,
     const int64_t axis_correction = (rfft_kind == RFFTKind::Forward) ? input_rank : (input_rank - 1);
     ov::AxisSet axes_set;
     for (int64_t& axis : axes) {
+        NODE_VALIDATION_CHECK(op,
+                              axis < static_cast<int64_t>(input_rank),
+                              "(I)RDFT op axis must be less than input rank. Got "
+                              "input rank: ",
+                              input_rank,
+                              ", axis: ",
+                              axis);
         if (axis < 0) {
             axis += axis_correction;
         }
+        NODE_VALIDATION_CHECK(op,
+                              axis >= 0,
+                              "(I)RDFT op axis must be positive or equal to zero. Got "
+                              "axis: ",
+                              axis);
         axes_set.insert(static_cast<size_t>(axis));
     }
 

@@ -53,14 +53,23 @@ void shape_infer(const ov::op::util::FFTBase* op,
         // [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
         // [n_0, ..., n_{r - 1}].
         if (axes_shape.rank().is_static() && axes_are_known) {
+            ov::AxisSet axes_set;
             for (int64_t& axis : axes) {
+                NODE_VALIDATION_CHECK(op,
+                                      axis < static_cast<int64_t>(input_rank),
+                                      "FFT op axis must be less than input rank. Got "
+                                      "input rank: ",
+                                      input_rank,
+                                      ", axis: ",
+                                      axis);
                 if (axis < 0) {
                     axis += input_rank - 1;
                 }
-            }
-
-            ov::AxisSet axes_set;
-            for (const auto& axis : axes) {
+                NODE_VALIDATION_CHECK(op,
+                                      axis >= 0,
+                                      "FFT op axis must be positive or equal to zero. Got "
+                                      "axis: ",
+                                      axis);
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
