@@ -558,6 +558,11 @@ void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
             input.tensor_names.insert(readString(is));
         }
+
+        // To support importing of <= 2.7 format where tensor_names were not present
+        if (model_header_.version.major == 2 && model_header_.version.minor <= 7 && ep.tensor_names_count == 0) {
+            input.tensor_names.insert(input.name);
+        }
     }
 }
 
@@ -583,6 +588,11 @@ void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS:
         // read tensor names
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
             output.tensor_names.insert(readString(is));
+        }
+
+        // To support importing of <= 2.7 format where tensor_names were not present
+        if (model_header_.version.major == 2 && model_header_.version.minor <= 7 && ep.tensor_names_count == 0) {
+            output.tensor_names.insert(output.name);
         }
     }
 }
