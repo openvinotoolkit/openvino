@@ -16,10 +16,17 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace {
+
 using index_4D_t = std::array<size_t, 4>;
 
-template <typename T>
-T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
+template <typename GRID_ET>
+using denormalize_fn_t = std::function<GRID_ET(GRID_ET, size_t)>;
+
+template <typename DATA_ET>
+using get_padded_fn_t = std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
+
+template <typename T, size_t N>
+T& get_v(T* buffer, const Shape& shape, const std::array<size_t, N>& index) {
     // In this context below assertion is guaranteed by grid_sample(..) function.
     // assert(shape.size() == index.size());
     size_t s = 1;
@@ -32,30 +39,20 @@ T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
 }
 
 template <typename GRID_ET>
-GRID_ET denormalize(GRID_ET v, GRID_ET L, bool align) {
-    if (align)
-        return (v + 1) * (L - 1) / 2;
-    else
-        return ((v + 1) * L - 1) / 2;
+GRID_ET denormalize_align(GRID_ET v, size_t L) {
+    return (v + 1) * (static_cast<GRID_ET>(L) - 1) / 2;
 }
 
 template <typename GRID_ET>
-std::array<GRID_ET, 2> denormalize_2D(const Shape& data_shape, GRID_ET y_n, GRID_ET x_n, bool align) {
-    const auto H = static_cast<GRID_ET>(data_shape[2]);
-    const auto W = static_cast<GRID_ET>(data_shape[3]);
-    const auto y_d = denormalize(y_n, H, align);
-    const auto x_d = denormalize(x_n, W, align);
-    return {y_d, x_d};
+GRID_ET denormalize_noalign(GRID_ET v, size_t L) {
+    return ((v + 1) * static_cast<GRID_ET>(L) - 1) / 2;
 }
 
 template <typename DATA_ET>
-using padding_function_t = std::function<DATA_ET(size_t, size_t, const DATA_ET*, const Shape&, long, long)>;
-
-template <typename DATA_ET>
-DATA_ET zeros_padding(const size_t n,
-                      const size_t c,
-                      const DATA_ET* data,
+DATA_ET zeros_padding(const DATA_ET* data,
                       const Shape& data_shape,
+                      const size_t n,
+                      const size_t c,
                       const long y_d,
                       const long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
@@ -70,10 +67,10 @@ DATA_ET zeros_padding(const size_t n,
 }
 
 template <typename DATA_ET>
-DATA_ET border_padding(const size_t n,
-                       const size_t c,
-                       const DATA_ET* data,
+DATA_ET border_padding(const DATA_ET* data,
                        const Shape& data_shape,
+                       const size_t n,
+                       const size_t c,
                        const long y_d,
                        const long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
@@ -84,10 +81,10 @@ DATA_ET border_padding(const size_t n,
 }
 
 template <typename DATA_ET>
-DATA_ET reflection_data_no_align(const size_t n,
-                                 const size_t c,
-                                 const DATA_ET* data,
+DATA_ET reflection_data_no_align(const DATA_ET* data,
                                  const Shape& data_shape,
+                                 const size_t n,
+                                 const size_t c,
                                  long y_d,
                                  long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
@@ -102,10 +99,10 @@ DATA_ET reflection_data_no_align(const size_t n,
 }
 
 template <typename DATA_ET>
-DATA_ET reflection_data_with_align(const size_t n,
-                                   const size_t c,
-                                   const DATA_ET* data,
+DATA_ET reflection_data_with_align(const DATA_ET* data,
                                    const Shape& data_shape,
+                                   const size_t n,
+                                   const size_t c,
                                    long y_d,
                                    long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
@@ -119,68 +116,42 @@ DATA_ET reflection_data_with_align(const size_t n,
     return get_v(data, data_shape, index_4D_t{n, c, y, x});
 }
 
-// TODO use more robust stuff .. it's for POC
-template <typename T>
-struct square {
-    T v00, v01, v10, v11;
-};
-
-// TODO use more robust stuff .. it's for POC
-template <typename DATA_ET>
-square<DATA_ET> get_square(const size_t n,
-                           const size_t c,
-                           const DATA_ET* data,
-                           const Shape& data_shape,
-                           long y_d,
-                           long x_d,
-                           const padding_function_t<DATA_ET>& padding_func) {
-    square<DATA_ET> s;
-    s.v00 = padding_func(n, c, data, data_shape, y_d, x_d);
-    s.v01 = padding_func(n, c, data, data_shape, y_d, x_d + 1);
-    s.v10 = padding_func(n, c, data, data_shape, y_d + 1, x_d);
-    s.v11 = padding_func(n, c, data, data_shape, y_d + 1, x_d + 1);
-    return s;
-}
-
-// TODO rename me .. sth like bili..._2D
-template <typename DATA_ET>
-DATA_ET calc_bilinear(const square<DATA_ET>& s, DATA_ET dy, DATA_ET dx) {
-    const auto q0 = (1 - dx) * s.v00 + dx * s.v01;
-    const auto q1 = (1 - dx) * s.v10 + dx * s.v11;
+template <typename DATA_ET, typename GRID_ET>
+DATA_ET bilinear(const DATA_ET* data,
+                 const Shape& data_shape,
+                 const size_t n,
+                 const size_t c,
+                 const GRID_ET y_n,
+                 const GRID_ET x_n,
+                 const get_padded_fn_t<DATA_ET>& get_padded,
+                 const denormalize_fn_t<GRID_ET>& denormalize) {
+    const auto y_d = denormalize(y_n, data_shape[2]);
+    const auto x_d = denormalize(x_n, data_shape[3]);
+    const auto y_topleft = std::floor(y_d);
+    const auto x_topleft = std::floor(x_d);
+    const auto dy = y_d - y_topleft;
+    const auto dx = x_d - x_topleft;
+    const auto v00 = get_padded(data, data_shape, n, c, y_topleft, x_topleft);
+    const auto v01 = get_padded(data, data_shape, n, c, y_topleft, x_topleft + 1);
+    const auto v10 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft);
+    const auto v11 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft + 1);
+    const auto q0 = (1 - dx) * v00 + dx * v01;
+    const auto q1 = (1 - dx) * v10 + dx * v11;
     return dy * q1 + (1 - dy) * q0;
 }
 
 template <typename DATA_ET, typename GRID_ET>
-DATA_ET bilinear(const size_t n,
-                 const size_t c,
-                 const DATA_ET* data,
-                 const Shape& data_shape,
-                 GRID_ET y_n,
-                 GRID_ET x_n,
-                 bool align,
-                 const padding_function_t<DATA_ET>& padding_func) {
-    const auto vec_yx = denormalize_2D(data_shape, y_n, x_n, align);
-    const auto y_topleft = std::floor(vec_yx[0]);
-    const auto x_topleft = std::floor(vec_yx[1]);
-    const auto dy = vec_yx[0] - y_topleft;
-    const auto dx = vec_yx[1] - x_topleft;
-    const auto s = get_square(n, c, data, data_shape, y_topleft, x_topleft, padding_func);
-    return calc_bilinear(s, dy, dx);
-}
-
-template <typename DATA_ET, typename GRID_ET>
-DATA_ET nearest(const size_t n,
-                const size_t c,
-                const DATA_ET* data,
+DATA_ET nearest(const DATA_ET* data,
                 const Shape& data_shape,
-                GRID_ET y_n,
-                GRID_ET x_n,
-                bool align,
-                const padding_function_t<DATA_ET>& padding_func) {
-    const auto vec_yx = denormalize_2D(data_shape, y_n, x_n, align);
-    const auto y_nearest = std::lrint(vec_yx[0]);
-    const auto x_nearest = std::lrint(vec_yx[1]);
-    return padding_func(n, c, data, data_shape, y_nearest, x_nearest);
+                const size_t n,
+                const size_t c,
+                const GRID_ET y_n,
+                const GRID_ET x_n,
+                const get_padded_fn_t<DATA_ET>& get_padded,
+                const denormalize_fn_t<GRID_ET>& denormalize) {
+    const auto y_nearest = std::lrint(denormalize(y_n, data_shape[2]));
+    const auto x_nearest = std::lrint(denormalize(x_n, data_shape[3]));
+    return get_padded(data, data_shape, n, c, y_nearest, x_nearest);
 }
 }  // namespace
 
@@ -205,22 +176,28 @@ void grid_sample(DATA_ET* output,
     const auto prev_rounding_mode = std::fegetround();
     std::fesetround(FE_TONEAREST);
 
-    padding_function_t<DATA_ET> padding_func;
+    get_padded_fn_t<DATA_ET> get_padded_fn;
     switch (padding_mode) {
     default:
     case ov::op::v9::GridSample::PaddingMode::ZEROS:
-        padding_func = zeros_padding<DATA_ET>;
+        get_padded_fn = zeros_padding<DATA_ET>;
         break;
     case ov::op::v9::GridSample::PaddingMode::BORDER:
-        padding_func = border_padding<DATA_ET>;
+        get_padded_fn = border_padding<DATA_ET>;
         break;
     case ov::op::v9::GridSample::PaddingMode::REFLECTION:
         if (align_corners)
-            padding_func = reflection_data_with_align<DATA_ET>;
+            get_padded_fn = reflection_data_with_align<DATA_ET>;
         else
-            padding_func = reflection_data_no_align<DATA_ET>;
+            get_padded_fn = reflection_data_no_align<DATA_ET>;
         break;
     }
+
+    denormalize_fn_t<GRID_ET> denormalize_fn;
+    if (align_corners)
+        denormalize_fn = denormalize_align<GRID_ET>;
+    else
+        denormalize_fn = denormalize_noalign<GRID_ET>;
 
     for (size_t n = 0; n < N; ++n) {
         for (size_t c = 0; c < C; ++c) {
@@ -233,10 +210,12 @@ void grid_sample(DATA_ET* output,
 
                     switch (interpolation_mode) {
                     case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
-                        out = bilinear<DATA_ET, GRID_ET>(n, c, data, data_shape, y_n, x_n, align_corners, padding_func);
+                        out =
+                            bilinear<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::NEAREST:
-                        out = nearest<DATA_ET, GRID_ET>(n, c, data, data_shape, y_n, x_n, align_corners, padding_func);
+                        out =
+                            nearest<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
                         out = 77;
