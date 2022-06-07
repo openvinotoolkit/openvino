@@ -299,7 +299,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         // Fake quantize
         filters = InsertFQLayer(graph_data.fq_filters, filters);
 
-        // 1D Convolution && fake quantize
+        // 1D Convolution & fake quantize
         auto conv = std::make_shared<ngraph::opset7::Convolution>(nchw_input, filters,
             ngraph::Strides{1, conv_data.filter_stride_width}, ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0},
             ngraph::Strides{1, 1}, ngraph::op::PadType::VALID);
@@ -565,8 +565,8 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
         ngraph::pattern::consumers_count(1));
     auto fq_conv = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({conv, const_input, const_input, const_input, const_input},
         ngraph::pattern::consumers_count(1));
-    auto transpose_input =
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, fq_af1, fq_af2, fq_conv});
+    auto transpose_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias,
+        af1, af2, af3, af4, fq_af1, fq_af2, fq_conv});
     auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input},
         consumers_and_rank(1, 4));
 
@@ -606,8 +606,8 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
 
         return Convert(gnaCompileTarget, gnaPrecision,
             pattern_map.at(leading_transpose).get_node_shared_ptr(), fq_filters_node, pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), fq_conv_node, bias_node, bias_const_node, fq_bias_node, max_pool_node, af_node, fq_af_node,
-            pattern_map.at(trailing_transpose).get_node_shared_ptr());
+            pattern_map.at(trailing_transpose).get_node_shared_ptr(), fq_conv_node, bias_node, bias_const_node, fq_bias_node,
+            max_pool_node, af_node, fq_af_node, pattern_map.at(trailing_transpose).get_node_shared_ptr());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
