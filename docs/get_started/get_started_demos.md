@@ -88,7 +88,7 @@ For inference task you need to have a specific model. Below are presented model 
 
 - Classification (AlexNet, GoogleNet, SqueezeNet, etc.) - detects one type of an element in an image.
 - Object Detection (SSD, YOLO) - draws bounding boxes around multiple types of objects in an image.
-- Custom - Often based on SSD.
+- Custom - often based on SSD.
 
 Suitable model for the OpenVINO™ toolkit can be find by:
 
