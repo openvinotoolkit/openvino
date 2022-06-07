@@ -83,7 +83,6 @@ This guide provides installation instructions for Intel® Distribution of OpenVI
 
 ## What's Next?
 
-Now, you may continue with the following tasks:
 
 * To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 * See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
