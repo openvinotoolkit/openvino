@@ -12,7 +12,10 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 # Installation Flow
 
+Below is information regarding an installation flow of OpenVINO™ Development Tools for both Python and C++ Developers.
+
 ## For Python Developers
+
 
 If you are a Python developer, you may use the instructions below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
 
