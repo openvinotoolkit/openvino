@@ -187,7 +187,7 @@ Here you may find solutions to some common issues.
 
 OpenVINO Development Tools include Model Optimizer, Benchmark Tool, Accuracy Checker, Post-Training Optimization Tool and Open Model Zoo tools including Model Downloader. If you want to install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
 
-See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
+For detailed steps, see the [Install OpenVINO™ Development Tools](installing-model-dev-tools.md).
 
 ## What's Next?
 
