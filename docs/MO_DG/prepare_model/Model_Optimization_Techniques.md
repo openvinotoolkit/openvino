@@ -52,7 +52,7 @@ Grouped convolution fusing is a specific optimization that applies for TensorFlo
 
 * * *
 
-## Disable Fusing
+## Disabling Fusing
 
 Model Optimizer allows to disable optimizations for specified nodes via `--finegrain_fusing <node_name1>,<node_name2>,...` (regex is also supported). Using this key, you mark nodes that will noy be touched by any optimizations.
 
