@@ -18,7 +18,7 @@ Below are all the supported operating systems and required Python versions.
 |Ubuntu 20.04 long-term support (LTS)              | 3.6, 3.7, 3.8                                                                  |
 |Windows 10                                        | 3.6, 3.7, 3.8                                                                  |
 
-For system requirements and troubleshooting, see <https://pypi.org/project/openvino/>.
+For system requirements and troubleshooting, see the [OpenVINO™ Runtime](https://pypi.org/project/openvino/).
 
 ### Step 1. Set Up Python Virtual Environment
 
