@@ -222,7 +222,7 @@ Use Model Optimizer to convert trained models to OpenVINO IR (Intermediate Repre
 
 This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classification Sample. See the <a href="#download-models">Download Models</a> section of this article to learn how to download this model.
 
-The googlenet-v1 model is downloaded in the Caffe format. Use the Model Optimizer to convert it to OpenVINO IR.
+The downloaded googlenet-v1 model is in the Caffe format. Use Model Optimizer to convert it to OpenVINO IR.
 
 Create an `<ir_dir>` directory to contain the model's OpenVINO IR:
 
