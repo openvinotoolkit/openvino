@@ -94,4 +94,4 @@ This guide provides installation instructions for Intel® Distribution of OpenVI
 
 - Intel® Distribution of OpenVINO™ toolkit [home page](https://software.intel.com/en-us/openvino-toolkit).
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
-- Intel® Distribution of OpenVINO™ toolkit Anaconda home page: [https://anaconda.org/intel/openvino-ie4py](https://anaconda.org/intel/openvino-ie4py)
+- Intel® Distribution of OpenVINO™ toolkit Anaconda [home page](https://anaconda.org/intel/openvino-ie4py)
