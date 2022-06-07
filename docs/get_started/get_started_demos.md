@@ -93,7 +93,7 @@ For inference task you need to have a specific model. Below are presented model 
 A suitable model for the OpenVINO toolkit can be acquired by:
 
 - Downloading public or Intel pre-trained models from [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo), using [Model Downloader](@ref omz_tools_downloader).
-- Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
+- Downloading from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
 - Train your own model with machine learning tools.
   
 Run one of the commands below to find a model to use:
