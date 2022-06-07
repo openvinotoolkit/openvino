@@ -216,6 +216,7 @@ REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
 REGISTER_FACTORY(v7, IDFT);
+REGISTER_FACTORY(v7, Roll);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);

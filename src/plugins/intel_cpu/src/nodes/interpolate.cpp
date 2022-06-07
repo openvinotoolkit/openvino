@@ -1268,7 +1268,7 @@ private:
     inline void gather_i32_indices(Vmm vmm_src, const Xbyak::Reg64 &base, int offset, Vmm vmm_indices, int scale,
                                 Precision src_prc, bool is_scalar) {
         Xbyak::Address table_idx = ptr[base + offset + vmm_indices * scale];
-        if ((isa == cpu::x64::avx512_common) && !is_scalar) {
+        if ((isa == cpu::x64::avx512_core) && !is_scalar) {
             // [0-15] bit of int to mask
             kmovw(k_mask, cubic_planar_table_val(3));
             if (src_prc == Precision::FP32) {
@@ -1749,7 +1749,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-            if (mayiuse(cpu::x64::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_core)) {
                 pushDesc(LayoutType::nspc, jit_avx512);
                 if (isBlkApplied)
                     pushDesc(LayoutType::nCsp16c, jit_avx512);
@@ -2032,7 +2032,7 @@ void Interpolate::execute(dnnl::stream strm) {
             });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::block) {
-            size_t blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+            size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
@@ -2095,7 +2095,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, ui
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+            int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
             int CB = div_up(C, blk_size);
             const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -2198,7 +2198,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_
 
     bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
-    int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int workAmount = isByChannel ? C : CB;
@@ -2256,7 +2256,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_,
     int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = div_up(C, blkSize);
     int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
@@ -3111,8 +3111,8 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.spatial_dim_size = getSpatialDimsNum(srcDims.size());
     jcp.layout = interpAttrs.layout;
     if (jcp.layout != InterpolateLayoutType::planar) {
-        if (mayiuse(cpu::x64::avx512_common)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        if (mayiuse(cpu::x64::avx512_core)) {
+            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
