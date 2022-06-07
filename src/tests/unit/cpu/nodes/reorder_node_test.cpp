@@ -108,7 +108,7 @@ class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
-        const mkldnn::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
+        const dnnl::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
         ov::intel_cpu::WeightsSharing::Ptr weightsCache;
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
@@ -149,11 +149,11 @@ public:
             n->initSupportedPrimitiveDescriptors();
             n->selectPrimitiveDescriptorByIndex(0);
         }
-        stream = mkldnn::stream{cpuEngine};
+        stream = dnnl::stream{cpuEngine};
     }
 
 protected:
-    mkldnn::stream stream;
+    dnnl::stream stream;
     std::shared_ptr<ov::intel_cpu::node::Input> inputNode;
     std::shared_ptr<ov::intel_cpu::node::Reorder> reorderNode;
     std::shared_ptr<ov::intel_cpu::node::Input> outputNode;

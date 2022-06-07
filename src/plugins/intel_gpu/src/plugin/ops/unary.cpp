@@ -85,7 +85,7 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
         if (!ngraph::op::util::get_single_value(slope_node, slope))
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
-    } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
+    } else if (out_shape.size() >= 2) {
         auto inputs = p.GetInputPrimitiveIDs(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName,

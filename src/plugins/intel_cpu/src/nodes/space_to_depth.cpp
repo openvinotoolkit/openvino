@@ -18,8 +18,8 @@
 #define THROW_ERROR IE_THROW() << "SpaceToDepth layer with name '" << getName() << "' "
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
+using namespace dnnl;
+using namespace dnnl::impl;
 
 namespace ov {
 namespace intel_cpu {
@@ -73,7 +73,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node
 }
 
 SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op,
-                                               const mkldnn::engine& eng,
+                                               const dnnl::engine& eng,
                                                WeightsSharing::Ptr& cache)
     : Node(op, eng, cache) {
     std::string errorMessage;
@@ -121,7 +121,7 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    if (cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
+    if (cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -312,7 +312,7 @@ void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* d
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void SpaceToDepth::execute(mkldnn::stream strm) {
+void SpaceToDepth::execute(dnnl::stream strm) {
     if (!execPtr) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
@@ -322,7 +322,7 @@ void SpaceToDepth::execute(mkldnn::stream strm) {
     execPtr->exec(srcData, dstData, MB);
 }
 
-void SpaceToDepth::executeDynamicImpl(mkldnn::stream strm) {
+void SpaceToDepth::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

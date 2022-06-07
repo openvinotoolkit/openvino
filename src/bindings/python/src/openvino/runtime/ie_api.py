@@ -1,8 +1,10 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from functools import singledispatch
+from typing import Any, Union, Dict
+
 import numpy as np
-from typing import Any, Union
 
 from openvino.pyopenvino import Model
 from openvino.pyopenvino import Core as CoreBase
@@ -11,8 +13,8 @@ from openvino.pyopenvino import InferRequest as InferRequestBase
 from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import Tensor
-
-from openvino.runtime.utils.types import get_dtype
+from openvino.pyopenvino import Type
+from openvino.pyopenvino import Shape
 
 
 def tensor_from_file(path: str) -> Tensor:
@@ -20,70 +22,107 @@ def tensor_from_file(path: str) -> Tensor:
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
-def convert_dict_items(inputs: dict, py_types: dict) -> dict:
-    """Helper function converting dictionary items to Tensors."""
+def set_scalar_tensor(
+    request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None
+) -> None:
+    if key is None:
+        request.set_input_tensor(tensor)
+    elif isinstance(key, int):
+        request.set_input_tensor(key, tensor)
+    elif isinstance(key, (str, ConstOutput)):
+        request.set_tensor(key, tensor)
+    else:
+        raise TypeError(
+            "Unsupported key type: {} for Tensor under key: {}".format(type(key), key)
+        )
+
+
+@singledispatch
+def update_tensor(
+    inputs: Union[np.ndarray, np.number, int, float],
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
+) -> None:
+    raise TypeError(
+        "Incompatible input data of type {} under {} key!".format(type(inputs), key)
+    )
+
+
+@update_tensor.register(np.ndarray)
+def _(
+    inputs: np.ndarray,
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
+) -> None:
+    # If shape is "empty", assume this is a scalar value
+    if not inputs.shape:
+        set_scalar_tensor(request, Tensor(inputs), key)
+    else:
+        if key is None:
+            tensor = request.get_input_tensor()
+        elif isinstance(key, int):
+            tensor = request.get_input_tensor(key)
+        elif isinstance(key, (str, ConstOutput)):
+            tensor = request.get_tensor(key)
+        else:
+            raise TypeError(
+                "Unsupported key type: {} for Tensor under key: {}".format(
+                    type(key), key
+                )
+            )
+        # Update shape if there is a mismatch
+        if tensor.shape != inputs.shape:
+            tensor.shape = inputs.shape
+        # When copying, type should be up/down-casted automatically.
+        tensor.data[:] = inputs[:]
+
+
+@update_tensor.register(np.number)
+@update_tensor.register(float)
+@update_tensor.register(int)
+def _(
+    inputs: Union[np.number, float, int],
+    request: InferRequestBase,
+    key: Union[str, int, ConstOutput] = None,
+) -> None:
+    set_scalar_tensor(
+        request, Tensor(np.ndarray([], type(inputs), np.array(inputs))), key
+    )
+
+
+def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
+    """Helper function to prepare inputs for inference.
+
+    It creates copy of Tensors or copy data to already allocated Tensors on device
+    if the item is of type `np.ndarray`, `np.number`, `int`, `float`.
+    """
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs = {}
+    new_inputs: Dict[Union[str, int, ConstOutput], Tensor] = {}
     for k, val in inputs.items():
         if not isinstance(k, (str, int, ConstOutput)):
-            raise TypeError("Incompatible key type for tensor: {}".format(k))
-        try:
-            ov_type = py_types[k]
-        except KeyError:
-            raise KeyError("Port for tensor {} was not found!".format(k))
-        # Convert numpy arrays or copy Tensors
-        new_inputs[k] = (
-            val
-            if isinstance(val, Tensor)
-            else Tensor(np.array(val, get_dtype(ov_type), copy=False))
-        )
-    return new_inputs
-
-
-def normalize_inputs(inputs: Union[dict, list], py_types: dict) -> dict:
-    """Normalize a dictionary of inputs to Tensors."""
-    if isinstance(inputs, dict):
-        return convert_dict_items(inputs, py_types)
-    elif isinstance(inputs, list):
-        # Lists are required to be represented as dictionaries with int keys
-        return convert_dict_items(
-            {index: input for index, input in enumerate(inputs)}, py_types
-        )
-    else:
-        raise TypeError(
-            "Inputs should be either list or dict! Current type: {}".format(
-                type(inputs)
+            raise TypeError("Incompatible key type for input: {}".format(k))
+        # Copy numpy arrays to already allocated Tensors.
+        if isinstance(val, (np.ndarray, np.number, int, float)):
+            update_tensor(val, request, k)
+        # If value is of Tensor type, put it into temporary dictionary.
+        elif isinstance(val, Tensor):
+            new_inputs[k] = val
+        # Throw error otherwise.
+        else:
+            raise TypeError(
+                "Incompatible input data of type {} under {} key!".format(type(val), k)
             )
-        )
-
-
-def get_input_types(obj: Union[InferRequestBase, CompiledModelBase]) -> dict:
-    """Map all tensor names of all inputs to the data types of those tensors."""
-
-    def get_inputs(obj: Union[InferRequestBase, CompiledModelBase]) -> list:
-        return obj.model_inputs if isinstance(obj, InferRequestBase) else obj.inputs
-
-    def map_tensor_names_to_types(input: ConstOutput) -> dict:
-        return {n: input.get_element_type() for n in input.get_names()}
-
-    input_types: dict = {}
-    for idx, input in enumerate(get_inputs(obj)):
-        # Add all possible "accessing aliases" to dictionary
-        # Key as a ConstOutput port
-        input_types[input] = input.get_element_type()
-        # Key as an integer
-        input_types[idx] = input.get_element_type()
-        # Multiple possible keys as Tensor names
-        input_types.update(map_tensor_names_to_types(input))
-    return input_types
+    return new_inputs
 
 
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Union[dict, list] = None) -> dict:
+    def infer(
+        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None
+    ) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -100,17 +139,45 @@ class InferRequest(InferRequestBase):
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
 
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-        return super().infer(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        )
+        # If inputs are empty, pass empty dictionary.
+        if inputs is None:
+            return super().infer({})
+        # If inputs are dict, normalize dictionary and call infer method.
+        elif isinstance(inputs, dict):
+            return super().infer(normalize_inputs(self, inputs))
+        # If inputs are list or tuple, enumarate inputs and save them as dictionary.
+        # It is an extension of above branch with dict inputs.
+        elif isinstance(inputs, (list, tuple)):
+            return super().infer(
+                normalize_inputs(
+                    self, {index: input for index, input in enumerate(inputs)}
+                )
+            )
+        # If inputs are Tensor, call infer method directly.
+        elif isinstance(inputs, Tensor):
+            return super().infer(inputs)
+        # If inputs are single numpy array or scalars, use helper function to copy them
+        # directly to Tensor or create temporary Tensor to pass into the InferRequest.
+        # Pass empty dictionary to infer method, inputs are already set by helper function.
+        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
+            update_tensor(inputs, self)
+            return super().infer({})
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self,
+        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        userdata: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -129,15 +196,33 @@ class InferRequest(InferRequestBase):
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
 
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
         """
-        super().start_async(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self)),
-            userdata,
-        )
+        if inputs is None:
+            super().start_async({}, userdata)
+        elif isinstance(inputs, dict):
+            super().start_async(normalize_inputs(self, inputs), userdata)
+        elif isinstance(inputs, (list, tuple)):
+            super().start_async(
+                normalize_inputs(
+                    self, {index: input for index, input in enumerate(inputs)}
+                ),
+                userdata,
+            )
+        elif isinstance(inputs, Tensor):
+            super().start_async(inputs, userdata)
+        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
+            update_tensor(inputs, self)
+            return super().start_async({}, userdata)
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
 
 class CompiledModel(CompiledModelBase):
@@ -157,7 +242,9 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list] = None) -> dict:
+    def infer_new_request(
+        self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None
+    ) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -177,14 +264,18 @@ class CompiledModel(CompiledModelBase):
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
 
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
-        return super().infer_new_request(
-            {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
-        )
+        # It returns wrapped python InferReqeust and then call upon
+        # overloaded functions of InferRequest class
+        return self.create_infer_request().infer(inputs)
 
     def __call__(self, inputs: Union[dict, list] = None) -> dict:
         """Callable infer wrapper for CompiledModel.
@@ -213,7 +304,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
         return InferRequest(super().__getitem__(i))
 
     def start_async(
-        self, inputs: Union[dict, list] = None, userdata: Any = None
+        self,
+        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        userdata: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -228,19 +321,37 @@ class AsyncInferQueue(AsyncInferQueueBase):
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
 
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
         :param inputs: Data to be set on input tensors of the next available InferRequest.
-        :type inputs: Union[Dict[keys, values], List[values]], optional
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
-        super().start_async(
-            {}
-            if inputs is None
-            else normalize_inputs(
-                inputs, get_input_types(self[self.get_idle_request_id()])
-            ),
-            userdata,
-        )
+        if inputs is None:
+            super().start_async({}, userdata)
+        elif isinstance(inputs, dict):
+            super().start_async(
+                normalize_inputs(self[self.get_idle_request_id()], inputs), userdata
+            )
+        elif isinstance(inputs, (list, tuple)):
+            super().start_async
+            (
+                normalize_inputs(
+                    self[self.get_idle_request_id()],
+                    {index: input for index, input in enumerate(inputs)},
+                ),
+                userdata,
+            )
+        elif isinstance(inputs, Tensor):
+            super().start_async(inputs, userdata)
+        elif isinstance(inputs, (np.ndarray, np.number, int, float)):
+            update_tensor(inputs, self[self.get_idle_request_id()])
+            super().start_async({}, userdata)
+        else:
+            raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
 
 class Core(CoreBase):
@@ -272,7 +383,7 @@ class Core(CoreBase):
         :type device_name: str
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
-        :type config: dict
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
@@ -296,9 +407,9 @@ class Core(CoreBase):
                             Note: if device_name is not used to compile the original model,
                             an exception is thrown.
         :type device_name: str
-        :param properties: Optional map of pairs: (property name,
-                           property value) relevant only for this load operation.
-        :type properties: dict, optional
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
 

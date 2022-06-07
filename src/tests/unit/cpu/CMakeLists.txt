@@ -26,7 +26,7 @@ addIeTargetTest(
             gtest
             gtest_main
             gmock
-            mkldnn
+            dnnl
             inference_engine_transformations
             inference_engine_lp_transformations
             ov_shape_inference
@@ -40,7 +40,7 @@ addIeTargetTest(
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 if (WIN32)
     # Prevents defining min/max as macros
@@ -52,6 +52,6 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:mkldnn,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)

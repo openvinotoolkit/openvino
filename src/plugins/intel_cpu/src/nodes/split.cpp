@@ -6,7 +6,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <vector>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
@@ -15,7 +15,7 @@
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -46,7 +46,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -266,11 +266,7 @@ void Split::prepareParams() {
             continue;
         }
 
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outMemPtr->GetPtr())) {
-            dstMemPtrs.emplace_back(port, dstData);
-        } else {
-            THROW_ERROR << "can't get child edge indx " << port << "data.";
-        }
+        dstMemPtrs.emplace_back(port, outMemPtr);
 
         if (!canUseOptimizedNspc2Ncsp) {
             outDescs.push_back(outMemPtr->GetDescWithType<BlockedMemoryDesc>());
@@ -287,7 +283,7 @@ bool Split::isExecutable() const {
     return !isInputTensorAtPortEmpty(0) && !isOptimized();
 }
 
-void Split::execute(mkldnn::stream strm) {
+void Split::execute(dnnl::stream strm) {
     if (isOptimized()) {
         return;
     }
@@ -306,7 +302,7 @@ void Split::execute(mkldnn::stream strm) {
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, dstMemPtrs, batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
 }
 
 bool Split::created() const {
@@ -506,7 +502,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = dstMemPtrs[i].second;
+        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
 
         size_t innerSize = 1;
         auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
@@ -531,6 +527,17 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
 
         sIdx += innerSize;
     }
+}
+
+std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
+    std::vector<uint8_t*> result(dstMemPtrs.size());
+    for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
+        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
+        if (!result[i]) {
+            THROW_ERROR << "can't get child edge indx " << dstMemPtrs[i].first << " data.";
+        }
+    }
+    return result;
 }
 
 Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs,
@@ -576,14 +583,14 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                                                    const Dim origBatch, const Dim perInferBatch) {
     size_t execCountStrides = countStrides;
     if (origBatch != perInferBatch)
         execCountStrides = execCountStrides / origBatch * perInferBatch;
 
-    parallel_for2d(dstMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = dstMemPtrs[i].second;
+    parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = dstRawMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]],
                    &srcData[srcDataOffsets[i] + j * srcDataStride],

@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -587,5 +588,8 @@ std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &axes,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);
+
+std::shared_ptr<ngraph::Node> makeEinsum(const OutputVector& inputs,
+                                         const std::string& equation);
 }  // namespace builder
 }  // namespace ngraph

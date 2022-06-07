@@ -6,18 +6,17 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 namespace ov {
@@ -119,7 +118,7 @@ private:
     Xbyak::Label l_table;
 
     inline void checkZeroWei(const Xbyak::Xmm &x1, Label &nullifyLabel) {
-        uni_vtestps(x1, x1);
+        ptest(x1, x1);
         jz(nullifyLabel);
     }
 
@@ -549,7 +548,7 @@ private:
             }
         }
 
-        if (isa == avx512_common && oc_step != jcp_.oc_block) {
+        if (isa == avx512_core && oc_step != jcp_.oc_block) {
             int mask = (1 << oc_step) - 1;
             mov(reg_tmp_32, mask);
             kmovw(ktail_mask, reg_tmp_32);
@@ -563,7 +562,7 @@ private:
                     Vmm vmm_dst = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
                     Xmm xmm_dst = get_xmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
 
-                    if (isa == avx512_common) {
+                    if (isa == avx512_core) {
                         size_t out_off = (size_t) ow * jcp_.oc;
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                     } else {
@@ -683,7 +682,7 @@ bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngr
 }
 
 DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
-        const mkldnn::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+        const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -762,7 +761,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type;
-    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
@@ -775,7 +774,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;
-    } else if (mayiuse(cpu::x64::avx512_common)) {
+    } else if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -789,7 +788,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         // optimized implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
-        auto weiFormat = mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
+        auto weiFormat = mayiuse(avx512_core) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
         config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
                                                                                    memory::data_type::f32, dataFormat));
         config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
@@ -1004,7 +1003,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     jcp.with_bias = false;
     jcp.with_bi_pad = defConvAttr.with_bilinear_pad;
     jcp.with_modulation = withModulation;
-    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     jcp.ic_block = simd_w;
     jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
 
@@ -1018,7 +1017,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     jcp.typesize_sampled_offsets = sizeof(int);
     jcp.typesize_out = sizeof(float);
 
-    jcp.ur_w = mayiuse(cpu::x64::avx512_common) ? 6 : 3;
+    jcp.ur_w = mayiuse(cpu::x64::avx512_core) ? 6 : 3;
     jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
     jcp.nthr = dnnl_get_max_threads();
@@ -1027,8 +1026,8 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
                             const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
                 DefConvExecutor(defConvAttr, descVector) {
-    if (mayiuse(cpu::x64::avx512_common)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
@@ -1199,7 +1198,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
     });
 }
 
-void DeformableConvolution::execute(mkldnn::stream strm) {
+void DeformableConvolution::execute(dnnl::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();

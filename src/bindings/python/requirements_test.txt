@@ -32,4 +32,5 @@ radon
 retrying
 tox
 types-pkg_resources
-wheel
+wheel>=0.36.2
+protobuf>=3.18,<4.0.0
