@@ -156,7 +156,7 @@ Run the command below:
 python -c "from openvino.runtime import Core"
 ```
 
-If installation was successful, you will not see any error messages (no console output).
+If installation was successful, there will not be any error messages (no console output).
 
 ### Troubleshooting
 
