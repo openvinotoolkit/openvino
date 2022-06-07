@@ -290,7 +290,6 @@ After the conversion, the OpenVINO IR files (produced by the script) are written
 
 Video media can be downloaded to use as the code samples and demo applications from many available sources, such as [Pexels](https://pexels.com) and [Google Images](https://images.google.com).
 
-- [Google Images](https://images.google.com)
 
 Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that can be used for running code samples and demo applications:
 
