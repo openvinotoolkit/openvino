@@ -40,17 +40,16 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
+
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
+
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -62,8 +61,17 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
     if (data_tensor.LogicalSize() != 1) {
         // Count the number of "one size" dimensions starting with X to Batch
         size_t one_size_dims = 0;
-        for (auto& i : data_tensor.GetDims()) {
-            if (i.v == 1)
+        auto shape_raw = data_tensor.LogicalDims();
+        auto shape = shape_raw;
+        int shape_idx = 0;
+        for (int i = 0; i < static_cast<int>(Tensor::DataChannelName::COUNT); i++) {
+            int shape_raw_idx =
+                data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
+            if (shape_raw_idx >= 0)
+                shape[shape_idx++] = shape_raw[shape_raw_idx];
+        }
+        for (auto& i : shape) {
+            if (i == 1)
                 one_size_dims++;
             else
                 break;
@@ -82,10 +90,24 @@ static int64_t GetGatherBatchDim(const gather_params& params) {
 }
 
 static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
-    return std::to_string(params.inputs[0].GetDims().at(params.inputs[0].GetDims().size() - GetGatherChannelIndex(params) - 1).v);
+    switch (params.axis) {
+    case GatherAxis::BATCH:
+        return std::to_string(params.inputs[0].Batch().v);
+    case GatherAxis::FEATURE:
+        return std::to_string(params.inputs[0].Feature().v);
+    case GatherAxis::W:
+        return std::to_string(params.inputs[0].W().v);
+    case GatherAxis::Z:
+        return std::to_string(params.inputs[0].Z().v);
+    case GatherAxis::Y:
+        return std::to_string(params.inputs[0].Y().v);
+    case GatherAxis::X:
+        return std::to_string(params.inputs[0].X().v);
+    }
+    throw "Error";
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
+static inline std::string GetOrderString(const std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
         order_str += ", " + order[i];
@@ -102,15 +124,13 @@ static inline std::vector<std::string> GetOrder(size_t size) {
     } else if (size == 6) {
         idx_order = {"b", "f", "w", "z", "y", "x"};
     }
-
     return idx_order;
 }
 
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
-    std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
-
-    const std::string input_axis_index_macro = "INPUT_AXIS_INDEX";
-    const std::string zeroVal = "0";
+    auto idx_order = GetOrder(params.outputs[0].GetDims().size());
+    auto input_axis_index_macro = "INPUT_AXIS_INDEX";
+    auto zero_val = "0";
 
     size_t dictionary_dims_num = GetNonEmptyDimsNumber(params.inputs[0]);
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.outputs[0]) - dictionary_dims_num + 1;
@@ -120,7 +140,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
         idx_order[i] = idx_order[i + indices_dims_num - 1];
 
     for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
-        idx_order[i] = zeroVal;
+        idx_order[i] = zero_val;
 
     // Fix size to inputs[0] dims size
     for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
@@ -131,10 +151,9 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
     return GetOrderString(idx_order);
 }
 
-static std::string GetIndecesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
+static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, int64_t batch_dim) {
     std::vector<std::string> idx_order = GetOrder(params.outputs[0].GetDims().size());
-
-    const std::string zero_val = "0";
+    auto zero_val = "0";
 
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
@@ -159,24 +178,30 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    if (out_layout == DataLayout::bfyx) {
+    int rank = params.outputs[0].Dimentions();
+    if (rank == 4) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else if (out_layout == DataLayout::bfzyx) {
+    } else if (rank == 5) {
         dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else {
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+    } else if (rank == 6) {
+        dispatchData.gws = {output.X().v * output.Y().v,
+                            output.Z().v * output.W().v,
+                            output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else {
+        IE_THROW() << "Unknown rank: rank=" << rank;
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -185,7 +210,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
+    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
     if (params.support_neg_ind)
         jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
