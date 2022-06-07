@@ -59,6 +59,7 @@ from ngraph.opset6.ops import gather_elements
 from ngraph.opset8.ops import gather_nd
 from ngraph.opset1.ops import gather_tree
 from ngraph.opset7.ops import gelu
+from ngraph.opset9.ops import generate_proposals
 from ngraph.opset1.ops import greater
 from ngraph.opset1.ops import greater_equal
 from ngraph.opset1.ops import grn
@@ -72,6 +73,7 @@ from ngraph.opset4.ops import hswish
 from ngraph.opset7.ops import idft
 from ngraph.opset8.ops import if_op
 from ngraph.opset1.ops import interpolate
+from ngraph.opset9.ops import irdft
 from ngraph.opset8.ops import i420_to_bgr
 from ngraph.opset8.ops import i420_to_rgb
 from ngraph.opset1.ops import less
@@ -93,11 +95,11 @@ from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
-from ngraph.opset8.ops import multiclass_nms
+from ngraph.opset9.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative
-from ngraph.opset5.ops import non_max_suppression
+from ngraph.opset9.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
 from ngraph.opset1.ops import normalize_l2
 from ngraph.opset1.ops import not_equal
@@ -114,6 +116,7 @@ from ngraph.opset1.ops import psroi_pooling
 from ngraph.opset4.ops import proposal
 from ngraph.opset8.ops import random_uniform
 from ngraph.opset1.ops import range
+from ngraph.opset9.ops import rdft
 from ngraph.opset3.ops import read_value
 from ngraph.opset4.ops import reduce_l1
 from ngraph.opset4.ops import reduce_l2

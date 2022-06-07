@@ -17,12 +17,14 @@ enum class KernelType {
     AVERAGE_UNPOOLING,
     CONVOLUTION,
     DECONVOLUTION,
+    DFT,
     LRN,
     NORMALIZE,
     POOLING,
     RANGE,
     ROI_POOLING,
     ROI_ALIGN,
+    ROLL,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
@@ -77,6 +79,7 @@ enum class KernelType {
     NON_MAX_SUPPRESSION,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE,
+    EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR,
     EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR,
     EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
@@ -323,6 +326,7 @@ enum class SoftmaxDim {
     Y,
     Z,
     FEATURE,
+    BATCH,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -104,9 +104,9 @@ private:
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
         const int64_t harness_num_dims = jcp.output_dims.size() - 1;
 
-        Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
-        Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
-        Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param1};
+        Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param_regs[0] };
+        Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param_regs[1] };
+        Xbyak::Reg64 reg_tmp_64 { dnnl::impl::cpu::x64::abi_not_param_reg };
 
         h->preamble();
 
@@ -334,8 +334,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -384,8 +384,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -455,8 +455,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -492,8 +492,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -529,8 +529,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -571,8 +571,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
@@ -609,8 +609,8 @@ private:
             emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
             emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_common) {
-            emit_isa<dnnl::impl::cpu::x64::avx512_common>(in, out);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
         } else {
             IE_THROW() << host_isa_;
             assert(!"unsupported isa");
