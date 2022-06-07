@@ -6,6 +6,7 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -16,6 +17,7 @@
 #include "gemm_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
+#include "reduce_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "gemm_inst.h"
@@ -759,6 +761,43 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     return false;
 }
 
+static bool is_node_for_onednn(reduce_node const& node) {
+    auto reduce_prim = node.get_primitive();
+    // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
+    switch (reduce_prim->mode) {
+        case reduce_mode::mean:
+        case reduce_mode::max:
+        case reduce_mode::min:
+        case reduce_mode::sum:
+        case reduce_mode::prod:
+        case reduce_mode::sum_square:
+        case reduce_mode::l1:
+        case reduce_mode::l2:
+            break;
+        default:
+            return false;
+    }
+
+    auto& input = node.input();
+    auto input_layout = input.get_output_layout();
+    auto reduce_axes = reduce_prim->axes;
+    // redundant reduce is not acceptable on oneDNN reduction
+    if (node.get_output_layout() == input_layout) {
+        return false;
+    }
+    // tensor size mismatch of unreduced axis is not supported
+    for (size_t idx = 0 ; idx < input_layout.get_dims().size() ; idx++) {
+        bool reduced_axis = std::find(reduce_axes.begin(), reduce_axes.end(), idx) != reduce_axes.end();
+        if (!reduced_axis && (input_layout.get_dim(idx) != node.get_output_layout().get_dim(idx)))
+            return false;
+    }
+    if (input_layout.get_dims().size() > 4) {
+        return false;
+    }
+
+    return true;
+}
+
 static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_dependency(0).get_output_layout();
@@ -1292,6 +1331,22 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     return true;
 }
 
+impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->forced_impl_type.empty()) {
+        if (node.is_type<fully_connected>()) {
+            if (debug_config->forced_impl_type == "fc:ocl")
+                return impl_types::ocl;
+            else if (debug_config->forced_impl_type == "fc:onednn")
+                return impl_types::onednn;
+        }
+    }
+#endif
+
+    return impl_types::any;
+}
+
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
@@ -1376,6 +1431,14 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             preferred_impl = impl_types::ocl;
         if (output_fmt == format::bfyx && output_dt == data_types::f32)
             preferred_impl = impl_types::ocl;
+    } else if (node.is_type<reduce>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        if (is_node_for_onednn(node.as<reduce>()))
+            return impl_types::onednn;
+        else
+            return impl_types::ocl;
     } else if (node.is_type<pooling>() || node.is_type<convolution>() || node.is_type<deconvolution>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
@@ -1462,6 +1525,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>()/* || node.is_type<gemm>()*/) {
+        auto forced_impl = get_forced_impl_type_by_config(node);
+        if (forced_impl != impl_types::any)
+            return forced_impl;
+
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 

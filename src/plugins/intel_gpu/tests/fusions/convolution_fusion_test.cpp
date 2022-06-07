@@ -112,6 +112,10 @@ public:
     layout get_per_channel_layout(convolution_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
+
+    layout get_prelu_slope_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
 };
 
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
@@ -563,6 +567,24 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
     auto p = GetParam();
     create_topologies(
@@ -570,6 +592,24 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(get_per_channel_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
@@ -600,6 +640,25 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
+    auto p = GetParam();
+    tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, eltw_shape })),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
@@ -618,6 +677,26 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
     tolerance = 1e-5f;
     execute(p);
 }
+
+TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
+    auto p = GetParam();
+    tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, eltw_shape })),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 
 TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     auto p = GetParam();
@@ -640,6 +719,27 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     auto p = GetParam();
     auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
@@ -648,6 +748,28 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(layout{ slope_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } })),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
+    auto p = GetParam();
+    auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(layout{ slope_type, p.input_format, tensor{ 1, p.out_shape.feature[0], p.out_shape.spatial[0], 1 } })),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
@@ -1599,6 +1721,24 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
     execute(p);
 }
 
+TEST_P(conv_int8_prelu_eltwise, basic_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_int8_prelu_eltwise, fsv16) {
     auto p = GetParam();
     create_topologies(
@@ -1606,6 +1746,32 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(get_per_channel_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
