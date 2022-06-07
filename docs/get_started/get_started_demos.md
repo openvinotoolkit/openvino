@@ -418,7 +418,7 @@ Command below runs the Image Classification Code Sample using the [dog.bmp](http
 @endsphinxdirective
 
    **MYRIAD:**
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier in this article.
+   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described above.
 
 @sphinxdirective
 .. tab:: Linux
