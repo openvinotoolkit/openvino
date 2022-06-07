@@ -293,7 +293,6 @@ Video media can be downloaded to use as the code samples and demo applications f
 
 Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several sample [images](https://storage.openvinotoolkit.org/data/test_data/) and [videos](https://github.com/intel-iot-devkit/sample-videos) that can be used for running code samples and demo applications:
 
-   - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
