@@ -89,7 +89,7 @@ If installation was successful, you will not see any error messages (no console 
 @sphinxdirective
 
 .. note::
-   While installing Python, make sure to add it to system PATH.
+   While installing Python, make sure to add it to system `PATH`.
 
 @endsphinxdirective
 
