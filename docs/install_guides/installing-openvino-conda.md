@@ -73,7 +73,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 @endsphinxdirective
 
-4. Verify the package is installed:
+4. Verify if the package is successfully installed:
    ```sh
    python -c "from openvino.runtime import Core"
    ```
