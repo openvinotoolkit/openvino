@@ -443,7 +443,7 @@ Command below runs the Image Classification Code Sample using the [dog.bmp](http
 
 @endsphinxdirective
 
-Once the sample application is complete, the label and confidence for the top 10 categories on the display will prompt. Present below is a sample output with inference results on CPU:
+Once the sample application has been complete, the label and confidence for the top 10 categories will appear on the display. Below is a sample output with inference results on CPU:
 
 @sphinxdirective
 
