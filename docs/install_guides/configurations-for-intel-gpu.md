@@ -67,7 +67,7 @@ This page introduces additional configurations for Intel® Processor Graphics (G
    
    .. _Download and install the recommended version: https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers
 
-   To check if you have this driver installed:
+   To check if this driver has been installed:
 
    1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 
