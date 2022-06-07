@@ -135,7 +135,7 @@ Use the [available Dockerfiles on GitHub](https://github.com/openvinotoolkit/doc
 
    2. Installing Microsoft Visual Studio Build Tools
 
-   You may add Microsoft Visual Studio Build Tools to a Windows OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
+   Add Microsoft Visual Studio Build Tools to a Windows OS Docker image by using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
 
    Microsoft Visual Studio Build Tools are licensed as a supplement your existing Microsoft Visual Studio license. Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio and Windows licenses.
 
