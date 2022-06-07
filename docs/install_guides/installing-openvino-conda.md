@@ -77,7 +77,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    python -c "from openvino.runtime import Core"
    ```
-   If installation was successful, you will not see any error messages (no console output).
+   If installation was successful, there will not be any error messages (no console output) present.
 
 5. Now, you may start developing your application.
 
