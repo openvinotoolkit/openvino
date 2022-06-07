@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+
 import pytest
+
 from _pyngraph import PartialShape, Dimension
 
 import ngraph as ng
@@ -1885,7 +1887,33 @@ def test_multiclass_nms():
     scores_data = scores_data.reshape([1, 2, 6])
     score = ng.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
+    nms_node = ng.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
+                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
+                                 nms_eta=1.0)
+
+    assert nms_node.get_type_name() == "MulticlassNms"
+    assert nms_node.get_output_size() == 3
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
+    assert nms_node.get_output_element_type(0) == Type.f32
+    assert nms_node.get_output_element_type(1) == Type.i32
+    assert nms_node.get_output_element_type(2) == Type.i32
+
+    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
+                            [7.25, 0.47, 12.28, 17.77]],
+                           [[4.06, 5.15, 16.11, 18.40],
+                            [9.66, 3.36, 18.57, 13.26]],
+                           [[6.50, 7.00, 13.33, 17.63],
+                            [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
+    box = ng.constant(boxes_data, dtype=np.float)
+    scores_data = np.array([[0.34, 0.66],
+                            [0.45, 0.61],
+                            [0.39, 0.59]]).astype("float32")
+    score = ng.constant(scores_data, dtype=np.float)
+    rois_num_data = np.array([3]).astype("int32")
+    roisnum = ng.constant(rois_num_data, dtype=np.int)
+    nms_node = ng.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
 
@@ -2142,3 +2170,36 @@ def test_irdft():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 2, 4]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_generate_proposals():
+    im_info_shape = [1, 3]
+    anchors_shape = [4, 4, 3, 4]
+    deltas_shape = [1, 12, 4, 4]
+    scores_shape = [1, 3, 4, 4]
+
+    im_info_param = ng.parameter(im_info_shape, name="im_info")
+    anchors_param = ng.parameter(anchors_shape, name="anchors")
+    deltas_param = ng.parameter(deltas_shape, name="deltas")
+    scores_param = ng.parameter(scores_shape, name="scores")
+
+    node = ng.generate_proposals(im_info_param,
+                                 anchors_param,
+                                 deltas_param,
+                                 scores_param,
+                                 min_size=1.0,
+                                 nms_threshold=0.5,
+                                 pre_nms_count=200,
+                                 post_nms_count=100,
+                                 normalized=False,
+                                 nms_eta=1.0,
+                                 roi_num_type="i32")
+
+    assert node.get_type_name() == "GenerateProposals"
+    assert node.get_output_size() == 3
+    assert node.get_output_partial_shape(0).same_scheme(PartialShape([-1, 4]))
+    assert node.get_output_partial_shape(1).same_scheme(PartialShape([-1]))
+    assert node.get_output_partial_shape(2).same_scheme(PartialShape([1]))
+    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.f32
+    assert node.get_output_element_type(2) == Type.i32

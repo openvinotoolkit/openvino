@@ -105,7 +105,8 @@ bool Edge::enforceReorder() {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
-            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN))
+            if (p_edge_peer->getChild()->getType() != Type::Reorder &&
+                p_edge_peer->inPlace(LOOK_DOWN))
                 canBeInPlaceConflicts = true;
         }
     }
@@ -248,6 +249,8 @@ void Edge::reuse(MemoryPtr ptr) {
         return;
     memoryPtr = ptr;
     status = Status::Allocated;
+
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
 }
 
 int Edge::getInputNum() const {
@@ -258,7 +261,7 @@ int Edge::getOutputNum() const {
     return child_port;
 }
 
-void Edge::allocate(const void* mem_ptr) {
+void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -273,8 +276,29 @@ void Edge::allocate(const void* mem_ptr) {
     auto parentPtr = getParent();
     memoryPtr.reset(new Memory(parentPtr->getEngine()));
 
-    memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    allocate(memoryPtr, inputDesc);
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
+}
+
+void Edge::allocate(const void* mem_ptr) {
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    };
+
+    allocateCommon(allocateFunc);
+}
+
+void Edge::allocate(DnnlMemoryMngrPtr memMngr) {
+    if (!memMngr) {
+        IE_THROW(Unexpected) << "Memory manager ptr is NULL";
+    }
+
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, memMngr);
+    };
+
+    allocateCommon(allocateFunc);
 }
 
 std::string Edge::name() const {
@@ -289,34 +313,10 @@ std::string Edge::name() const {
 }
 
 void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
-    auto isInPlace = [](const NodePtr node, int port) -> bool {
-        const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-
-        const auto& config = selected_pd->getConfig();
-
-        for (const auto& in : config.inConfs) {
-            if (in.inPlace() == port) {
-                return true;
-            }
-        }
-        for (const auto& out : config.outConfs) {
-            if (out.inPlace() == port) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
     if (status != Status::NeedAllocation)
         return;
 
-    bool isTheOnlyChildEdgeAtPort = getParent()->getChildEdgesAtPort(getInputNum()).size() == 1;
-    bool isConcurrentUpdatePossible = isInPlace(getParent(), getInputNum()) || isInPlace(getChild(), getOutputNum()) || !isTheOnlyChildEdgeAtPort;
-
-    if (weightsCache && !isConcurrentUpdatePossible) {
+    if (weightsCache) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
@@ -324,6 +324,7 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
         auto ptr = weightsCache->findOrCreate(name(), alloc, false);
         memoryPtr = *ptr;
+        DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
         status = Status::Allocated;
     } else {
@@ -432,8 +433,10 @@ MemoryPtr &Edge::getMemoryPtr() {
         auto sharedEdgeParent = sharedEdge->getParent();
         if (sharedEdgeParent->isConstant()) {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->GetData());
+            DEBUG_LOG(*this, " const sharedEdge with ", *sharedEdge);
         } else {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->getDnnlMemoryMngr());
+            DEBUG_LOG(*this, " sharedEdge with ", *sharedEdge);
         }
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
@@ -444,6 +447,7 @@ MemoryPtr &Edge::getMemoryPtr() {
 
 void Edge::sharedMemFrom(const EdgePtr &edge) {
     memoryFromEdge = edge;
+    DEBUG_LOG(*this, " sharedMemFrom ", *edge);
     status = Status::NotAllocated;
 }
 
@@ -475,12 +479,15 @@ EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
 void Edge::init() {
     if (status != Status::NeedAllocation && status != Status::Uninitialized)
         return;
+    DEBUG_LOG(*this);
     EdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
+        DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
     } else {
         if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
+            DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
             return;
         }
         sharedMemFrom(edgePtr);
@@ -516,8 +523,21 @@ EdgePtr Edge::getBaseEdge(int look) {
     int outputNum = getOutputNum();
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
-        inputNum = getInputNum();
-        return getParent()->getChildEdgeAt(inputNum);
+        // in case of parentConfig requiring upstream-inplace and childConfig supports downstream-inplace
+        // must further check whether childConfig also supports upstream inplace,
+        // if so, we can safely inplace as upstream
+        auto down_stream_inplace = childConfig.inConfs[outputNum].inPlace();
+        int up_stream_inplace = -1;
+        if (down_stream_inplace >= 0)
+            up_stream_inplace = childConfig.outConfs[down_stream_inplace].inPlace();
+
+        if ((up_stream_inplace >= 0) && (look & LOOK_UP)) {
+            look = LOOK_UP;
+        } else {
+            DEBUG_LOG(*this, " Danger: Inplace assumption will be broken!");
+            inputNum = getInputNum();
+            return getParent()->getChildEdgeAt(inputNum);
+        }
     }
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {

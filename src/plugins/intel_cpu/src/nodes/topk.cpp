@@ -56,7 +56,7 @@ namespace node {
 #define xmm_idx_p Xmm(7)
 
 #define JMP_TO_LABEL(label)                  \
-    if (isa == cpu::x64::avx512_common) {    \
+    if (isa == cpu::x64::avx512_core) {    \
         kmovw(reg_tmp_32, k_mask);           \
     } else {                                 \
         uni_vmovmskps(reg_tmp_32, xmm_mask); \
@@ -111,7 +111,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
             heap_cmp_flg = _cmp_lt_os;  // max heap is used for min topk, if a < b, set mask 1, swap
         }
 
-        if (isa == cpu::x64::avx512_common)
+        if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
@@ -215,8 +215,8 @@ private:
     Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;  // blocked layout on channel
     // ========================================================================================================================
 
-    Vmm vmm_zero =
-        Vmm(0);  // vmm_zero represents Vmm(0) when isa is avx512_common, otherwise vmm_mask represents Vmm(0)
+
+    Vmm vmm_zero = Vmm(0); // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
     const int step = vlen / sizeof(float);
@@ -843,7 +843,7 @@ private:
     }
 
     inline void heap_cmp_node(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
-        if (isa == cpu::x64::avx512_common) {
+        if (isa == cpu::x64::avx512_core) {
             if (cmp_val)
                 vcmpps(k_mask, xmm_val_a, xmm_val_b, heap_cmp_flg);
             else
@@ -1761,7 +1761,7 @@ private:
     }
 
     inline void swap_vector(Vmm vmm_val_a, Vmm vmm_idx_a, Vmm vmm_val_b, Vmm vmm_idx_b, bool cmp_val = true) {
-        if (isa == cpu::x64::avx512_common) {
+        if (isa == cpu::x64::avx512_core) {
             if (cmp_val)
                 vcmpps(k_mask, vmm_val_a, vmm_val_b, cmp_flg);
             else
@@ -1845,7 +1845,7 @@ private:
     }
 
     inline void bubble_swap_xmm(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
-        if (isa == cpu::x64::avx512_common) {
+        if (isa == cpu::x64::avx512_core) {
             if (cmp_val)
                 vcmpps(k_mask, xmm_val_a, xmm_val_b, cmp_flg);
             else
@@ -2041,7 +2041,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
         return;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -2117,7 +2117,7 @@ void TopK::preset_params() {
                       axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                      ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else if (mayiuse(cpu::x64::sse41)) {
         blk_size = 8;
@@ -2169,20 +2169,16 @@ void TopK::prepareParams() {
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
         //           alg_cost_bubble = K * (K - 1) / 2 + (N - K) * K
         //           where, N = axis_dim, K = topk_k
-        //           the above two alg_costs are not the exact implementation costs, yet it's proper to use them to
-        //           decide which algorithm should be used for specific N and K.
-        const size_t count_xmm = 16;  // only 16 vector registers are valid in sse instructions even for avx512_common
-        if (top_k <= count_xmm / 2 - 2) {
-            algorithm = TopKAlgorithm::topk_bubble_sort;
-            bubble_inplace = topk_innermost && top_k == 1 ? false : true;
-        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
-            algorithm = TopKAlgorithm::topk_heap_sort;
-        } else {
-            auto log_axis_dim = log2(axis_dim);
-            size_t alg_cost_bitonic = static_cast<size_t>((axis_dim / 4.0f) * log_axis_dim * (log_axis_dim + 1));
-            size_t alg_cost_bubble = top_k * (top_k - 1) / 2 + (axis_dim - top_k) * top_k;
-            if (alg_cost_bitonic < alg_cost_bubble) {
-                algorithm = TopKAlgorithm::topk_bitonic_sort;
+
+        //           the above two alg_costs are not the exact implementation costs, yet it's proper to use them to decide
+        //           which algorithm should be used for specific N and K.
+        if (!isDynamicNode()) {
+            const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_core
+            if (top_k <= count_xmm / 2 - 2) {
+                algorithm = TopKAlgorithm::topk_bubble_sort;
+                bubble_inplace = topk_innermost && top_k == 1 ? false : true;
+            } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
+                algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = false;
@@ -2259,8 +2255,8 @@ void TopK::prepare_JitKernel() {
     if (m_jcp != jcp) {
         m_jcp = jcp;
 
-        if (mayiuse(cpu::x64::avx512_common)) {
-            topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_common>(jcp));
+        if (mayiuse(cpu::x64::avx512_core)) {
+            topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_core>(jcp));
         } else if (mayiuse(cpu::x64::avx2)) {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx2>(jcp));
         } else if (mayiuse(cpu::x64::sse41)) {

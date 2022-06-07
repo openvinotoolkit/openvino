@@ -33,7 +33,19 @@
 #include "primitive.h"
 #include "selective_build.h"
 #include "utils/ngraph_utils.hpp"
-#include "weights_cache.hpp"
+
+#include <ngraph/ops.hpp>
+#include <ngraph/node.hpp>
+#include <ie_precision.hpp>
+#include <nodes/common/blocked_desc_creator.h>
+#include "cpu_types.h"
+#include "cpu_shape.h"
+#include "nodes/node_config.h"
+#include "cache/multi_cache.h"
+
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {

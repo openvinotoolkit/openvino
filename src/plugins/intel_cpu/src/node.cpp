@@ -56,6 +56,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -275,6 +276,9 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
+                            DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                                      " is compatible with parent ", parentPtr->getName(),
+                                      " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                         }
                     }
                 }
@@ -527,6 +531,8 @@ void Node::executeDynamic(dnnl::stream strm) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
                 " since the input shapes are not defined.";
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
         executeDynamicImpl(strm);
@@ -876,32 +882,9 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::jit_avx512_amx_dw,
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
-            impl_desc_type::gemm_avx512_amx,
-            impl_desc_type::brgemm_avx512_amx,
-
-            impl_desc_type::brgconv_avx512_vnni_1x1,
-            impl_desc_type::brgconv_avx512_vnni,
-            impl_desc_type::jit_avx512_vnni_dw,
-            impl_desc_type::jit_avx512_vnni_1x1,
-            impl_desc_type::jit_avx512_vnni,
-            impl_desc_type::gemm_avx512_vnni,
-            impl_desc_type::brgemm_avx512_vnni,
-
-            impl_desc_type::brgconv_avx512_core_1x1,
-            impl_desc_type::brgconv_avx512_core,
-            impl_desc_type::jit_avx512_core_dw,
-            impl_desc_type::jit_avx512_core_1x1,
-            impl_desc_type::jit_avx512_core,
-            impl_desc_type::gemm_avx512_core,
-            impl_desc_type::brgemm_avx512_core,
 
             impl_desc_type::brgconv_avx512_1x1,
             impl_desc_type::brgconv_avx512,
-
-
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-//            impl_desc_type::brgconv_avx512_1x1,
-//            impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,

@@ -4,14 +4,15 @@
 
 #pragma once
 
+#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
-#include "openvino/op/util/nms_base.hpp"
+#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
 
 namespace ngraph {
 namespace op {
 namespace util {
-using ov::op::util::NmsBase;
+using ov::op::util::MulticlassNmsBase;
 }  // namespace util
 }  // namespace op
-using ov::operator<<;
 }  // namespace ngraph

@@ -51,6 +51,7 @@ public:
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
+    void allocate(DnnlMemoryMngrPtr memMngr);
     void externalAllocate(WeightsSharing::Ptr weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
@@ -79,9 +80,9 @@ public:
         return getDesc().hasDefinedMaxSize();
     }
 
-private:
     std::string name() const;
 
+private:
     std::weak_ptr<Node> parent;
     std::weak_ptr<Node> child;
     int parent_port;
@@ -104,6 +105,8 @@ private:
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
     bool inPlace(LOOK look = LOOK_BOTH);
+    void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
+
     friend class Graph;
 };
 
