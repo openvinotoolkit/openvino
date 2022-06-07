@@ -1,6 +1,6 @@
 # Hello NV12 Input Classification C++ Sample {#openvino_inference_engine_samples_hello_nv12_input_classification_README}
 
-This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API.
+This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp/hello_nv12_input_classification).
 
 The following C++ API is used in the application:
 
