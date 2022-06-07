@@ -10,31 +10,18 @@ ParamsKey BorderKernelRef::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
 
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
