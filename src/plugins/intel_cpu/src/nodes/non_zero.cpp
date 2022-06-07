@@ -184,9 +184,13 @@ void NonZero::executeSpecified() {
     }
     case 2: {
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT  64
             constexpr auto elementsCount = elementsStride * 2;  // elementsStride * inRank
-            int cache[elementsCount];
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
             int counter = 0;
+#undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
 
@@ -217,9 +221,13 @@ void NonZero::executeSpecified() {
         size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 96
             constexpr auto elementsCount = elementsStride * 3;  // elementsStride * inRank
-            int cache[elementsCount];
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
             int counter = 0;
+#undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
             for_3d(ithr,
@@ -260,9 +268,13 @@ void NonZero::executeSpecified() {
         size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 128
             constexpr auto elementsCount = elementsStride * 4;  // elementsStride * inRank
-            int cache[elementsCount];
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
             int counter = 0;
+#undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
             for_4d(
@@ -309,9 +321,13 @@ void NonZero::executeSpecified() {
         size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 160
             constexpr auto elementsCount = elementsStride * 5;  // elementsStride * inRank
-            int cache[elementsCount];
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
             int counter = 0;
+#undef ELEMENTS_COUNT
 
             size_t& outputIndex = destIndices[ithr];
             for_5d(ithr,
