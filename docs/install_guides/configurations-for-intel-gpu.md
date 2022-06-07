@@ -51,7 +51,7 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
    .. _Intel® software for general purpose GPU capabilities: https://dgpu-docs.intel.com/index.html
 
-   3. **Optional:** Install header files to allow compilation of new code. You may find the header files at `Khronos OpenCL™ API Headers`_ .
+   3. **Optional:** Install header files to allow compilation of new code. The header files can be found at `Khronos OpenCL™ API Headers`_.
    
    .. _Khronos OpenCL™ API Headers: https://github.com/KhronosGroup/OpenCL-Headers.git
 
