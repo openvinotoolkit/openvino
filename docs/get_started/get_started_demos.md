@@ -155,7 +155,7 @@ To download the GoogleNet v1 Caffe model to the `models` folder:
 
 @endsphinxdirective
 
-After download your screen will look similar to the one below and show the paths of downloaded files:
+After the download, your screen will look similar to the one below and show the paths of downloaded files:
 
 @sphinxdirective
 .. tab:: Linux
