@@ -10,7 +10,7 @@ std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
 // When compiling the model on MULTI, configure GPU and HDDL 
 // (devices, priorities, and device configurations):
-ov::CompiledModel compiled_model = core.compile_model(model, "MULTI",
+ov::CompiledModel compileModel = core.compile_model(model, "MULTI",
     ov::device::priorities("HDDL", "GPU"),
     ov::device::properties("GPU", gpu_config),
     ov::device::properties("HDDL", myriad_config));
