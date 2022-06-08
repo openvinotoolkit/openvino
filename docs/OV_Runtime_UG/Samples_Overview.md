@@ -161,7 +161,7 @@ directory.
 
 ### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
 
-The officially supported macOS* build environment:
+The supported macOS build environment includes:
 
 * macOS 10.15 64-bit or higher,
 * Clang compiler from Xcode 10.1 or higher,
