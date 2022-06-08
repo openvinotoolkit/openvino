@@ -19,8 +19,7 @@ which does not bind to a specific type of hardware, but rather selects the proce
 It detects available devices, picks the one best-suited for the task, and configures its optimization settings. 
 This way, you can write the application once and deploy it anywhere.
 
-The selection also depends on your performance requirements, defined by the “hints” configuration API, as well as 
-device priority list limitations, if you choose to exclude some hardware from the process.
+The selection also depends on your performance requirements, defined by the “hints” configuration API, as well as device priority list limitations, if you choose to exclude some hardware from the process.
 
 The logic behind the choice is as follows: 
 1. Check what supported devices are available. 
@@ -47,17 +46,17 @@ The logic behind the choice is as follows:
 +----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
 
-To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
-What is important, **AUTO always starts inference with the CPU**, as it provides very low latency and can start inference with no additional delays. 
-While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
+<a name="initial-compile"></a>To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
+What is important, **AUTO always starts inference with CPU**, as it provides very low latency and can start inference with no additional delays. 
+While CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
-For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than GPU itself.
+For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than using GPU itself.
 
-Note that if you choose to exclude the CPU from the priority list, it will also be unable to support the initial model compilation stage.
+Note that if you choose to exclude CPU from the priority list, it will be unable to support the initial model compilation stage.
      
 ![autoplugin_accelerate]
 
-This mechanism can be easily observed in our Benchmark Application sample ([see here](#Benchmark App Info)), showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
+This mechanism can be easily observed in our <a href="#benchmark-app-info">Benchmark Application sample</a>, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
 ```sh
 benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
@@ -162,9 +161,9 @@ To check what devices are present in the system, you can use Device API, as list
 
 @endsphinxdirective
 
-#### Excluding a Device from AUTO
+#### Excluding CPU from AUTO
 
-You can also exclude devices from AUTO to reserve them for other purposes. AUTO will not use those devices for inference then. To do that, add a minus sign (-) before the name of the reserved device in `AUTO: <device names>`. For example:
+You can also exclude CPU from AUTO to reserve it for other jobs. AUTO will not use it for inference then. To do that, add a minus sign (-) before CPU in `AUTO: <device names>`, as in the following code:
 
 @sphinxdirective
 
@@ -184,6 +183,8 @@ You can also exclude devices from AUTO to reserve them for other purposes. AUTO 
 
 AUTO will then query all available devices and remove CPU from the candidate list. 
 
+Note that if you choose to exclude CPU from device candidate list, CPU will be unable to support the <a href="#initial-compile">initial model compilation stage</a>.
+
 ### Performance Hints for AUTO
 The `ov::hint::performance_mode` property enables you to specify a performance mode for AUTO to be more efficient for particular use cases.
 
@@ -196,13 +197,13 @@ This mode prioritizes high throughput, balancing between latency and power. It i
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
 #### CUMULATIVE_THROUGHPUT Mode
-While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput.
+While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. CUMULATIVE_THROUGHPUT loads the network to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
 
-CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device Plugin](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to list all availble devices, while with the Multi-Device Plugin, you need to specify the devices for inference first. 
+CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device Plugin](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with the Multi-Device Plugin, you need to specify the devices before inference. 
 
 In the CUMULATIVE_THROUGHPUT mode:
 - If `AUTO` without any device names is specified, and the system has more than one GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
-- If device priority is specified, AUTO will load the network to all available devices and offload inference requests to devices based on the priority. In the following example, AUTO offloads the first inference request to GPU and the next one to CPU:
+- If device priority is specified, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
    ```sh
    ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
    ```
@@ -267,7 +268,7 @@ Although the methods described above are currently the preferred way to execute 
 
 @endsphinxdirective
 
-## <a name="Benchmark App Info"></a>Using AUTO with OpenVINO Samples and Benchmark app
+## <a name="benchmark-app-info"></a>Using AUTO with OpenVINO Samples and Benchmark app
 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
