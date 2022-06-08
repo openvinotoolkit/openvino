@@ -35,7 +35,7 @@ If you install OpenVINO™ Runtime, sample applications for С, C++, and Python 
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
 
-The source code for the samples are also available in the [OpenVINO™ samples repository on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples). If you installed OpenVINO™ Runtime using PyPI, samples are not installed locally and must be accessed through GitHub.
+Source code for the samples is also available in the [OpenVINO™ samples repository on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples). If you installed OpenVINO™ Runtime using PyPI, samples are not installed locally and must be accessed through GitHub.
 
 The applications include:
 
