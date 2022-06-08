@@ -68,13 +68,14 @@ protected:
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                size_t desc_size = desc.get_size();
-                std::vector<int32_t> debug_buf(desc_size);
                 auto dnnl_mem = a_zp->get_onednn_memory(desc);
                 void *mapped_ptr = dnnl_mem.map_data();
                 if (mapped_ptr) {
-                    std::memcpy(debug_buf.data(), mapped_ptr, desc_size);
-                    GPU_DEBUG_COUT << instance.get_node().id() << " activations_zero_points: " << debug_buf[0] << std::endl;
+                    GPU_DEBUG_COUT << instance.get_node().id() << " activations_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    std::cout << std::endl;
                     dnnl_mem.unmap_data(mapped_ptr);
                 }
             }
@@ -87,13 +88,14 @@ protected:
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                size_t desc_size = desc.get_size();
-                std::vector<int32_t> debug_buf(desc_size);
                 auto dnnl_mem = w_zp->get_onednn_memory(desc);
                 void *mapped_ptr = dnnl_mem.map_data();
                 if (mapped_ptr) {
-                    std::memcpy(debug_buf.data(), mapped_ptr, desc_size);
-                    GPU_DEBUG_COUT << instance.get_node().id() << " weights_zero_points: " << debug_buf[0] << std::endl;
+                    GPU_DEBUG_COUT << instance.get_node().id() << " weights_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    std::cout << std::endl;
                     dnnl_mem.unmap_data(mapped_ptr);
                 }
             }
