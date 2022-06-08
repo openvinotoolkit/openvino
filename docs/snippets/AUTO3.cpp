@@ -17,7 +17,7 @@ ov::CompiledModel compiled_model = core.compile_model(model, "AUTO",
 ov::CompiledModel compiled_mode2 = core.compile_model(model, "AUTO",
     ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 // To use the “CUMULATIVE_THROUGHPUT” mode:
-ov::CompiledModel compiled_mode2 = core.compile_model(model, "AUTO",
+ov::CompiledModel compiled_mode3 = core.compile_model(model, "AUTO",
     ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));    
 //! [part3]
 }
