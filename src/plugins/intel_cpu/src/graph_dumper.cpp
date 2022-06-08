@@ -13,7 +13,7 @@
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
-
+#include "nodes/subgraph.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -41,6 +41,8 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     } else {
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
     }
+
+    serialization_info["isConstant"] = node->isConstant() ? "True" : "False";
 
     // Original layers
     serialization_info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
@@ -112,6 +114,65 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     return serialization_info;
 }
 
+std::string toString(const MemoryDesc* p) {
+    std::stringstream ss;
+    ss << p->getShape().toString() << " ";
+    ss << p->getPrecision().name() << " ";
+
+    auto pdesc = dynamic_cast<const BlockedMemoryDesc*>(p);
+    if (!pdesc)
+        return ss.str();
+    auto& xShape = pdesc->getShape();
+    auto& xBlockDims = pdesc->getBlockDims();
+    auto& xOffsetPaddingToData = pdesc->getOffsetPaddingToData();
+    auto& xStrides = pdesc->getStrides();
+
+    ss << pdesc->serializeFormat() << " ";
+
+    if (Shape(xBlockDims) != xShape)
+        ss << "BlockDims=" << MemoryDescUtils::dims2str(xBlockDims) << " ";
+
+    if (xStrides.size() != xBlockDims.size()) {
+        ss << "Strides=" << MemoryDescUtils::dims2str(pdesc->getStrides()) << " ";
+    } else {
+        size_t expected = 1;
+        for (int i = xStrides.size() - 1; i >= 0; i--) {
+            if (xStrides[i] != expected) {
+                ss << "Strides=" << MemoryDescUtils::dims2str(pdesc->getStrides()) << " ";
+                break;
+            }
+            expected *= xBlockDims[i];
+        }
+    }
+
+    if (!std::all_of(xOffsetPaddingToData.begin(), xOffsetPaddingToData.end(), [](size_t s) {
+            return s == 0;
+        }))
+        ss << "OffsetPaddingToData=" << MemoryDescUtils::dims2str(xOffsetPaddingToData) << " ";
+
+    if (pdesc->getOffsetPadding())
+        ss << "OffsetPadding=" << MemoryDescUtils::dim2str(pdesc->getOffsetPadding()) << " ";
+
+    return ss.str();
+}
+
+std::string toString(const PortConfig* p) {
+    std::stringstream ss;
+    ss << toString(p->getMemDesc().get()) << " constant=" << p->constant() << " inPlace=" << p->inPlace();
+    return ss.str();
+}
+
+std::string toString(const NodeConfig* p) {
+    std::stringstream ss;
+    ss << "  inConfs:" << std::endl;
+    for (auto c : p->inConfs)
+        ss << "    " << toString(&c) << std::endl;
+    ss << "  outConfs:" << std::endl;
+    for (auto c : p->outConfs)
+        ss << "    " << toString(&c) << std::endl;
+    return ss.str();
+}
+
 }  // namespace
 
 std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph) {
@@ -172,6 +233,13 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         } else if (is_output) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
             return_node = results.back();
+        } else if (node->getType() == intel_cpu::Type::Input && node->isConstant()) {
+            auto & pmem = node->getChildEdgeAt(0)->getMemoryPtr();
+            void * data = pmem->GetData();
+            auto shape = pmem->getDesc().getShape().getDims();
+            auto type = details::convertPrecision(pmem->getDesc().getPrecision());
+            auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
+            return_node = std::make_shared<ngraph::op::Constant>(tensor);
         } else {
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
@@ -179,6 +247,51 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
                 return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            }
+            //if (node->getType() == intel_cpu::Type::Subgraph) {
+            //    auto subgraph = std::dynamic_pointer_cast<node::Snippet>(node);
+            //    return_node->get_rt_info()["body"] = subgraph->getSnippet()->get_body();
+            //}
+        }
+
+        auto& node_rt_info = return_node->get_rt_info();
+        node_rt_info["SPD"] = toString(&node->getSelectedPrimitiveDescriptor()->getConfig());
+        {
+            std::stringstream ss;
+            ss << node->getTypeStr();
+            for (auto & n : node->getFusedWith()) {
+                ss << "," << n->getTypeStr();
+            }
+            node_rt_info["fusedTypes"] = ss.str();
+        }
+
+        for (size_t port = 0; port < return_node->get_output_size(); ++port) {
+            if (node->getChildEdges().size() == 0) continue;
+            auto& mem = node->getChildEdgeAt(port)->getMemory();
+            auto& desc = mem.getDesc();
+            // rt_info in each output descriptor encodes edditional
+            // edge/memory informations besides precision and shape
+            auto& rt_info = return_node->output(port).get_rt_info();
+            rt_info["Format"] = desc.serializeFormat();
+            rt_info["Precision"] = desc.getPrecision().name();
+            rt_info["Data"] = (int64_t)((uintptr_t) mem.GetData());
+            rt_info["Ptr"] = (int64_t)((uintptr_t) mem.GetPtr());
+            rt_info["MaxMemSize"] = (int64_t)desc.getMaxMemSize();
+
+            auto vecint = [](const VectorDims & vd) {
+                std::vector<int> ret;
+                for (auto& v : vd)
+                    ret.push_back(v);
+                return ret;
+            };
+
+            auto * pblkdesc = dynamic_cast<const BlockedMemoryDesc *>(&desc);
+            if (pblkdesc) {
+                rt_info["Strides"] = vecint(pblkdesc->getStrides());
+                rt_info["BlockDims"] = vecint(pblkdesc->getBlockDims());
+                rt_info["Order"] = vecint(pblkdesc->getOrder());
+                rt_info["OffsetPadding"] = (int64_t)pblkdesc->getOffsetPadding();
+                rt_info["OffsetPaddingToData"] = vecint(pblkdesc->getOffsetPaddingToData());
             }
         }
 
