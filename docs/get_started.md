@@ -5,7 +5,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Installation & Configuration
+   :caption: Install & Config
    
    Installing OpenVINO <openvino_docs_install_guides_overview>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
