@@ -3570,7 +3570,7 @@ public:
     void execute(gemm_params& p) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         auto& engine = get_onednn_test_engine();
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 #else
         auto& engine = get_test_engine();
