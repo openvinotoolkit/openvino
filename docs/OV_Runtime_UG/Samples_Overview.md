@@ -149,7 +149,7 @@ To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\s
 build_samples_msvc.bat
 ```
 
-By default, the script automatically detects the newest Microsoft Visual Studio version installed on the machine and uses it to build a solution for a sample code
+By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to build a solution for a sample code.
 
 Once the build has been completed, sample binaries can be found in the following folders:
 * C samples -- `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`,
