@@ -75,7 +75,7 @@ The applications include:
 
 ## Media Files Available for Samples
 
-To run the sample applications, use images and videos from [the media files collection.](https://storage.openvinotoolkit.org/data/test_data)
+To run the sample applications, use images and videos available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 ## Samples that Support Pre-Trained Models
 
