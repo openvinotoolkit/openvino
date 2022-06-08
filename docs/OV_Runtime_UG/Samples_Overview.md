@@ -106,7 +106,7 @@ Sample applications can also be built manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode (`sudo -i`) before you continue.
 
-1. Navigate to a directory to which you have write access and create a samples build directory. This example uses a directory named `build`:
+1. Navigate to a directory with write access and create a folder for samples (for example, `build`):
 ```sh
 mkdir build
 ```
