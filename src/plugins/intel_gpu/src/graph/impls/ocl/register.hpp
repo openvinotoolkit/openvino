@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/bucketize.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -20,6 +21,7 @@
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -50,6 +52,7 @@
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/roll.hpp"
 #include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
@@ -84,12 +87,14 @@ namespace detail {
     }
 
 REGISTER_OCL(activation);
+REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
 REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
+REGISTER_OCL(bucketize);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);
@@ -100,6 +105,9 @@ REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
+REGISTER_OCL(dft);
+REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
+REGISTER_OCL(experimental_detectron_prior_grid_generator);
 REGISTER_OCL(experimental_detectron_roi_feature_extractor);
 REGISTER_OCL(experimental_detectron_topk_rois);
 REGISTER_OCL(eltwise);
@@ -129,9 +137,11 @@ REGISTER_OCL(region_yolo);
 REGISTER_OCL(reorder);
 REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
+REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
+REGISTER_OCL(roll);
 REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);

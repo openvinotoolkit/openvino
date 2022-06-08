@@ -12,7 +12,10 @@ namespace {
     #if (defined(__APPLE__) || defined(_WIN32))
     auto defaultBindThreadParameter = InferenceEngine::Parameter{[] {
         auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-        if (numaNodes.size() > 1) {
+        auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+        if (coreTypes.size() > 1) {
+                return std::string{CONFIG_VALUE(HYBRID_AWARE)};
+        } else if (numaNodes.size() > 1) {
             return std::string{CONFIG_VALUE(NUMA)};
         } else {
             return std::string{CONFIG_VALUE(NO)};
@@ -105,6 +108,13 @@ namespace {
                 {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW}}
     };
 
+    const std::vector<std::map<std::string, std::string>> ExcluAsyncReqConfigs = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
+                {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO}}
+    };
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -121,6 +131,12 @@ namespace {
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(AutoConfigs)),
+            CorrectConfigTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExclusiveAsyncReqTests,
+            ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(ExcluAsyncReqConfigs)),
             CorrectConfigTests::getTestCaseName);
 
     const std::vector<std::map<std::string, std::string>> inconfigs = {

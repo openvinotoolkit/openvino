@@ -56,6 +56,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -275,6 +276,9 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
+                            DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                                      " is compatible with parent ", parentPtr->getName(),
+                                      " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                         }
                     }
                 }
@@ -521,6 +525,8 @@ void Node::executeDynamic(dnnl::stream strm) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
                 " since the input shapes are not defined.";
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
         executeDynamicImpl(strm);
@@ -878,9 +884,8 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::jit_avx512_amx_dw,
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-//            impl_desc_type::brgconv_avx512_1x1,
-//            impl_desc_type::brgconv_avx512,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
@@ -1139,11 +1144,11 @@ InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGro
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
@@ -1276,7 +1281,7 @@ bool Node::canBePerformedAsScaleShift(const Node *parentNode) const {
     IE_ASSERT(parentNode);
 
     size_t fusingPort = 0;
-    const size_t channelAxis = parentNode->getFusingAxis();
+    const auto channelAxis = parentNode->getFusingAxis();
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         Node *node = getParentEdgesAtPort(i)[0]->getParent().get();

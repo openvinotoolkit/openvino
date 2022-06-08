@@ -397,7 +397,9 @@ const std::vector<DeconvInputData> Planar_3D_inputs_smoke = {
 
 const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
     DeconvInputData{
-        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
+        // -1 will result deconv use 64 to infer output shape, for 3d output shape is too big for gemm bwd kernel
+        //  to buffer the intermedia results
+        InputShape{{-1, 12, {5, 9}, {4, 7}, {7, 9}}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {}
     },
@@ -478,6 +480,19 @@ const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
     }
 };
 
+const auto convParams_ExplicitPadding_Blocked_2D_nightly = ::testing::Combine(
+    ::testing::ValuesIn(kernels2d),
+    // Use 7x7 with stride 1 is too small to generate 15x15 output. It needs a big negative pad which will result
+    //  avx512 kernel not to be selected.
+    ::testing::ValuesIn({strides2d[1]}),
+    ::testing::ValuesIn(padBegins2d),
+    ::testing::ValuesIn(padEnds2d),
+    ::testing::ValuesIn(dilations2d),
+    ::testing::ValuesIn(numOutChannels_Blocked),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
+);
+
 const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}, { 2, 67, 7, 7}}},
@@ -529,7 +544,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
-        convParams_ExplicitPadding_Blocked_2D,
+        convParams_ExplicitPadding_Blocked_2D_nightly,
         ::testing::ValuesIn(Blocked_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
@@ -539,7 +554,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTe
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
-        convParams_ExplicitPadding_Blocked_2D,
+        convParams_ExplicitPadding_Blocked_2D_nightly,
         ::testing::ValuesIn(Blocked_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
@@ -560,6 +575,17 @@ const std::vector<DeconvInputData> Blocked_3D_inputs_smoke = {
         {{7, 7, 7}, {7, 9, 7}}
     }
 };
+
+const auto convParams_ExplicitPadding_Blocked_3D_nightly = ::testing::Combine(
+    ::testing::ValuesIn(kernels3d),
+    ::testing::ValuesIn({strides3d[0]}),
+    ::testing::ValuesIn(padBegins3d),
+    ::testing::ValuesIn(padEnds3d),
+    ::testing::ValuesIn(dilations3d),
+    ::testing::Values(32),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT),
+    ::testing::ValuesIn(emptyOutputPadding)
+);
 
 const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
     DeconvInputData{
@@ -612,7 +638,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
-        convParams_ExplicitPadding_Blocked_3D,
+        convParams_ExplicitPadding_Blocked_3D_nightly,
         ::testing::ValuesIn(Blocked_3D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
@@ -622,7 +648,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTe
 
 INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
-        convParams_ExplicitPadding_Blocked_3D,
+        convParams_ExplicitPadding_Blocked_3D_nightly,
         ::testing::ValuesIn(Blocked_3D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),

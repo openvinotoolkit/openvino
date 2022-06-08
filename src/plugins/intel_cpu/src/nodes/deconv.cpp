@@ -254,7 +254,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
 
     if (!withGroups && stride.back() > 3)
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
             return false;
@@ -275,11 +275,11 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) ? 16
+    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
             : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) ? 8 : 4;
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0))
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) && stride.back() > 3)
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && stride.back() > 3)
         return false;
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
@@ -342,6 +342,25 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
         paddingR = shapeInference->get_pads_end();
     }
     return {inShape.getStaticDims(), outShape.getStaticDims()};
+}
+
+std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape &dims) const {
+    if (dims.getRank() == 0)
+        return {memory::format_tag::x};
+    else if (dims.getRank() == 1)
+        return {memory::format_tag::x};
+    else if (dims.getRank() == 2)
+        return {memory::format_tag::nc};
+    else if (dims.getRank() == 3)
+        return {memory::format_tag::tnc, memory::format_tag::ntc,
+                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
+    else if (dims.getRank() == 4)
+        return {memory::format_tag::nchw, memory::format_tag::nChw8c,
+                memory::format_tag::nChw16c, memory::format_tag::nhwc };
+    else if (dims.getRank() == 5)
+        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
+                memory::format_tag::nCdhw16c, dnnl::memory::format_tag::ndhwc };
+    return {memory::format_tag::any};
 }
 
 void Deconvolution::getSupportedDescriptors() {

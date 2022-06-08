@@ -41,6 +41,7 @@ void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>&
                             variance_encoded_in_target;
                         attrs_v1.share_location = attrs_v8.share_location = share_location;
                         attrs_v1.normalized = attrs_v8.normalized = normalized;
+                        attrs_v1.nms_threshold = attrs_v8.nms_threshold = 0.5f;
                         attrs_v1_vector.push_back(attrs_v1);
                         attrs_v8_vector.push_back(attrs_v8);
                     }

@@ -85,7 +85,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
 
-            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do no match.")
+            print("[ WARNING ] Model Optimizer and OpenVINO runtime versions do not match.")
             print("[ WARNING ] Consider building the OpenVINO Python API from sources or reinstall OpenVINO "
                   "(TM) toolkit using", end=" ")
             if mo_is_custom:
