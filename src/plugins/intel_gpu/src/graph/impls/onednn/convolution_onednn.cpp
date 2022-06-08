@@ -12,6 +12,8 @@
 
 #include "utils.hpp"
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
@@ -63,12 +65,40 @@ protected:
             auto a_zp = instance.activations_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
+
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 3) {
+                auto dnnl_mem = a_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_COUT << instance.get_node().id() << " activations_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    std::cout << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);
+                }
+            }
         }
 
         if (has_zero_points(DNNL_ARG_WEIGHTS, attrs)) {
             auto w_zp = instance.weights_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
+
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 3) {
+                auto dnnl_mem = w_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_COUT << instance.get_node().id() << " weights_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    std::cout << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);
+                }
+            }
         }
 
         return args;
