@@ -68,7 +68,7 @@ The applications include:
    ```sh
    `benchmark_app -m <model> -i <input> -d <device>`
    ```
-   
+
    For more information, see the [Benchmark Python Tool](../../tools/benchmark_tool/README.md) documentation.
 
 > **NOTE**: All C++ samples support input paths contain only ASCII characters, except for the Hello Classification Sampl (it supports Unicode).
@@ -188,7 +188,7 @@ cd <INSTALL_DIR>/
 source setupvars.sh
 ```
 
-1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
+1. Navigate to a directory with write access and create a folder for samples (for example, `build`):
 ```sh
 mkdir build
 ```
