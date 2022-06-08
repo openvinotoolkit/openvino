@@ -272,7 +272,6 @@ where `<INSTALL_DIR>` is the directory in which the OpenVINO toolkit is installe
 
 Sample applications is now ready to be start. To learn about how to run a particular
 sample, read the sample documentation by clicking the sample name in the samples
-list above.
 
 ## Additional Resources
 * [OpenVINO™ Runtime User Guide](openvino_intro.md)
