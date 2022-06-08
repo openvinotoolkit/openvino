@@ -192,7 +192,7 @@ source setupvars.sh
 ```sh
 mkdir build
 ```
-> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory -- `~/inference_engine_cpp_samples_build/`.
+> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples `build` directory was already created in your home directory -- `~/inference_engine_cpp_samples_build/`.
 
 2. Go to the newly created directory:
 ```sh
