@@ -229,7 +229,7 @@ source <INSTALL_DIR>/setupvars.sh
 ```
 
 **Optional**: The OpenVINO environment variables are removed when you close the
-shell. You can permanently set the environment variables as follows:
+shell.  Optionally, you can permanently set the environment variables as follows:
 
 1. Open the `.bashrc` file in `<user_home_directory>`:
 ```sh
