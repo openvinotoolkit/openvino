@@ -85,7 +85,7 @@ To run the sample, use [public](@ref omz_models_group_public) or [Intel's](@ref 
 
 ### <a name="build_samples_linux"></a>Build the Sample Applications on Linux
 
-The officially supported Linux build environment is the following:
+The supported Linux build environment includes:
 
 * Ubuntu 18.04 LTS 64-bit or Ubuntu 20.04 LTS 64-bit,
 * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04),
@@ -137,7 +137,7 @@ The sample application binaries can be found in:
 
 ### <a name="build_samples_windows"></a>Build the Sample Applications on Microsoft Windows
 
-The recommended Windows build environment is the following:
+The recommended Windows build environment includes:
 * Microsoft Windows 10,
 * Microsoft Visual Studio 2019,
 * CMake version 3.10 or higher.
@@ -161,7 +161,7 @@ directory.
 
 ### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
 
-The officially supported macOS* build environment:
+The supported macOS build environment includes:
 
 * macOS 10.15 64-bit or higher,
 * Clang compiler from Xcode 10.1 or higher,
@@ -169,16 +169,16 @@ The officially supported macOS* build environment:
 
 > **NOTE**: To learn how to build samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for macOS, go to `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
 
-Once the build is completed, you can find sample binaries in the following folders:
+Once the build has been completed, sample binaries can be found in the following folders:
 * C samples -- `~/inference_engine_c_samples_build/intel64/Release`,
 * C++ samples -- `~/inference_engine_cpp_samples_build/intel64/Release`.
 
-The sample applications can also be build manually:
+The sample applications can also be built manually:
 
 > **NOTE**: If the product has been installed as a root user, switch to root mode (`sudo -i`) before you continue. 
 
