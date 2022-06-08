@@ -112,7 +112,7 @@ mkdir build
 ```
 > **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory -- `~/inference_engine_cpp_samples_build/`.
 
-2. Go to the created directory:
+2. Go to the newly created directory:
 ```sh
 cd build
 ```
