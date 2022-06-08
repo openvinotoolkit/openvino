@@ -321,7 +321,28 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
     bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-
+    // flatten the secondary properties
+    auto flattenSecondaryProperties = [workModeAuto](const std::string& properties,
+                                                     std::map<std::string, std::string>& deviceConfig,
+                                                     const std::string& deviceName = "") {
+        std::string::size_type i = 0;
+        std::string key = "";
+        std::string::size_type idelimeter;
+        while ((idelimeter = properties.find(' ', i)) != std::string::npos) {
+            if (key == "") {
+                key = properties.substr(i, idelimeter - i);
+            } else {
+                auto value = properties.substr(i, idelimeter - i);
+                deviceConfig[key] = value;
+                if (workModeAuto)
+                    LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", deviceName.c_str(), key.c_str(), value.c_str());
+                key = "";
+            }
+            i = idelimeter + 1;
+        }
+        // last value in the string (which has no comma after that)
+        deviceConfig[key] = properties.substr(i, properties.length() - i);
+    };
     // if workMode is AUTO
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
@@ -387,25 +408,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                                      return (config.first == iter->deviceName);
                                                  });
              if (secPropertyIter != fullConfig.end()) {
-                 std::string::size_type i = 0;
-                 std::string key = "";
-                 std::string::size_type idelimeter;
-                 while ((idelimeter = secPropertyIter->second.find(' ', i)) != std::string::npos) {
-                     if (key == "") {
-                         key = secPropertyIter->second.substr(i, idelimeter - i);
-                     } else {
-                         auto value = secPropertyIter->second.substr(i, idelimeter - i);
-                         deviceConfig[key] = value;
-                         LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s",
-                                  iter->deviceName.c_str(),
-                                  key.c_str(),
-                                  value.c_str());
-                         key = "";
-                     }
-                     i = idelimeter + 1;
-                 }
-                 // last value in the string (which has no comma after that)
-                 deviceConfig[key] = secPropertyIter->second.substr(i, secPropertyIter->second.length() - i);
+                 flattenSecondaryProperties(secPropertyIter->second, deviceConfig, iter->deviceName);
              }
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
@@ -447,21 +450,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                                     return (config.first == p.deviceName);
                                                 });
             if (secPropertyIter != fullConfig.end()) {
-                std::string::size_type i = 0;
-                std::string key = "";
-                std::string::size_type idelimeter;
-                while ((idelimeter = secPropertyIter->second.find(' ', i)) != std::string::npos) {
-                    if (key == "") {
-                        key = secPropertyIter->second.substr(i, idelimeter - i);
-                    } else {
-                        auto value = secPropertyIter->second.substr(i, idelimeter - i);
-                        p.config[key] = value;
-                        key = "";
-                    }
-                    i = idelimeter + 1;
-                }
-                // last value in the string (which has no comma after that)
-                p.config[key] = secPropertyIter->second.substr(i, secPropertyIter->second.length() - i);
+                flattenSecondaryProperties(secPropertyIter->second, p.config);
             }
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;

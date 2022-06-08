@@ -121,7 +121,7 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    // keep the secondary priorities for the virtual device
+    // keep the secondary priorities for AUTO
     if (device == "AUTO") {
         return result;
     }
