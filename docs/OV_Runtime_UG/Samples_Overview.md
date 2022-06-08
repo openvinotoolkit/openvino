@@ -30,7 +30,7 @@
 
 The OpenVINO samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist in executing specific tasks, such as loading a model, running inference, querying specific device capabilities, etc.
 
-If you install OpenVINO™ Runtime, sample applications for С, C++ and Python are created in the following directories:
+During installation of OpenVINO™ Runtime, sample applications for С, C++ and Python are created in the following directories:
 * `<INSTALL_DIR>/samples/c`
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
