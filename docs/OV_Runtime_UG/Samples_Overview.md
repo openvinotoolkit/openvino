@@ -236,7 +236,7 @@ shell. You can permanently set the environment variables as follows:
 vi <user_home_directory>/.bashrc
 ```
 
-2. Add following line to the end of the file:
+2. Append the file with the following command-line:
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
 ```
