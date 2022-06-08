@@ -40,7 +40,7 @@ The applications include:
 - **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors:
    - [Automatic Speech Recognition C++ Sample](../../samples/cpp/speech_sample/README.md)
    - [Automatic Speech Recognition Python Sample](../../samples/python/speech_sample/README.md)
-- **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths):
+- **Hello Classification Sample** – Inference of image classification networks, such as AlexNet and GoogLeNet, using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths):
    - [Hello Classification C++ Sample](../../samples/cpp/hello_classification/README.md)
    - [Hello Classification C Sample](../../samples/c/hello_classification/README.md)
    - [Hello Classification Python Sample](../../samples/python/hello_classification/README.md)
