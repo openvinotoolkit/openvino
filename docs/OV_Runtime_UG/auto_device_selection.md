@@ -74,7 +74,7 @@ benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
    The longer the process runs, the closer realtime performance will be to that of the best-suited device.
 @endsphinxdirective
 
-## Using the Auto-Device Mode 
+## Using AUTO 
 
 Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of “AUTO”. It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
@@ -86,25 +86,24 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | | <device candidate list>                             | | Lists the devices available for selection.                                                        |
 | | **Values**:                                         | | The device sequence will be taken as priority from high to low.                                   |
 | | empty, or                                           | | If not specified, `AUTO` will be used as default, and all devices will be "viewed" as candidates. |
-| | `AUTO`, or                                          | |                                                                                                   |
-| | `AUTO: <device names>` (comma-separated, no spaces) | |                                                                                                   |
+| | `AUTO`, or                                          |                                                                                                     |
+| | `AUTO: <device names>` (comma-separated, no spaces) |                                                                                                     |
 +-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
 | | `ov::device:priorities`                             | | Specifies the devices for Auto-Device plugin to select.                                           |
 | | **Value**:                                          | | The device sequence will be taken as priority from high to low.                                   |
 | | `<device names>` (comma-separated, no spaces)       | | This configuration is optional.                                                                   |
-| |                                                     | |                                                                                                   |
 +-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
 | | `ov::hint::performance_mode`                        | | Specifies the performance mode preferred by the application.                                      |
-| | **Values**:                                         | |                                                                                                   |
-| | `ov::hint::PerformanceMode::LATENCY`                | |                                                                                                   |
-| | `ov::hint::PerformanceMode::THROUGHPUT`             | |                                                                                                   |
-| | `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`  | |                                                                                                   |
+| | **Values**:                                         |                                                                                                     |
+| | `ov::hint::PerformanceMode::LATENCY`                |                                                                                                     |
+| | `ov::hint::PerformanceMode::THROUGHPUT`             |                                                                                                     |
+| | `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`  |                                                                                                     |
 +-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
 | | `ov::hint::model_priority`                          | | Indicates the priority for a model.                                                               |
 | | **Values**:                                         | | IMPORTANT:                                                                                        |
 | | `ov::hint::Priority::HIGH`                          | | This property is not fully supported yet.                                                         |
-| | `ov::hint::Priority::MEDIUM`                        | |                                                                                                   |
-| | `ov::hint::Priority::LOW`                           | |                                                                                                   |
+| | `ov::hint::Priority::MEDIUM`                        |                                                                                                     |
+| | `ov::hint::Priority::LOW`                           |                                                                                                     |
 +-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
 
 @endsphinxdirective
@@ -146,13 +145,17 @@ To check what devices are present in the system, you can use Device API, as list
 @sphinxdirective
 
 .. tab:: C++   
+
    .. code-block:: sh
+
       ov::runtime::Core::get_available_devices() 
 
    See the Hello Query Device C++ Sample for reference.
 
 .. tab:: Python
+
    .. code-block:: sh
+
       openvino.runtime.Core.available_devices
 
    See the Hello Query Device Python Sample for reference.
@@ -168,11 +171,13 @@ You can also exclude devices from AUTO to reserve them for other purposes. AUTO 
 .. tab:: C++
 
    .. code-block:: sh
+
       ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU"); 
 
 .. tab:: Python
 
    .. code-block:: sh
+
       compiled_model = core.compile_model(model=model, device_name="AUTO:-CPU")
 
 @endsphinxdirective
@@ -221,7 +226,7 @@ To enable performance hints for your application, use the following code:
 
 @endsphinxdirective
 
-### Model Priority
+### Configuring Model Priority
 
 The `ov::hint::model_priority` property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
 
@@ -262,8 +267,8 @@ Although the methods described above are currently the preferred way to execute 
 
 @endsphinxdirective
 
-<a name="Benchmark App Info"></a>
-## Using AUTO with OpenVINO™ Samples and the Benchmark App
+## <a name="Benchmark App Info"></a>Using AUTO with OpenVINO Samples and Benchmark app
+
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
 For unlimited device choice:
