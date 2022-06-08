@@ -137,7 +137,7 @@ The sample application binaries can be found in:
 
 ### <a name="build_samples_windows"></a>Build the Sample Applications on Microsoft Windows
 
-The recommended Windows build environment is the following:
+The recommended Windows build environment includes:
 * Microsoft Windows 10,
 * Microsoft Visual Studio 2019,
 * CMake version 3.10 or higher.
