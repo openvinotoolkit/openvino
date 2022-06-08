@@ -178,7 +178,7 @@ Once the build is completed, you can find sample binaries in the following folde
 * C samples -- `~/inference_engine_c_samples_build/intel64/Release`,
 * C++ samples -- `~/inference_engine_cpp_samples_build/intel64/Release`.
 
-The sample applications can also be build manually:
+The sample applications can also be built manually:
 
 > **NOTE**: If the product has been installed as a root user, switch to root mode (`sudo -i`) before you continue. 
 
