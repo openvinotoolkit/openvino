@@ -33,6 +33,7 @@
 
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {

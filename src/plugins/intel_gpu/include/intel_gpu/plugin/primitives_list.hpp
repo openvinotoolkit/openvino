@@ -133,6 +133,7 @@ REGISTER_FACTORY(v1, ReduceMin);
 REGISTER_FACTORY(v1, ReduceProd);
 REGISTER_FACTORY(v1, ReduceSum);
 REGISTER_FACTORY(v1, Reshape);
+REGISTER_FACTORY(v1, Reverse);
 REGISTER_FACTORY(v1, Subtract);
 REGISTER_FACTORY(v1, SpaceToBatch);
 REGISTER_FACTORY(v1, Softmax);
@@ -143,9 +144,6 @@ REGISTER_FACTORY(v1, Transpose);
 REGISTER_FACTORY(v1, TopK);
 REGISTER_FACTORY(v1, VariadicSplit);
 REGISTER_FACTORY(v1, Mod);
-
-// ----------------------------- Unsupported v1 ops ----------------------------- //
-// REGISTER_FACTORY(v1, Reverse);
 
 // ------------------------------ Supported v3 ops ------------------------------ //
 REGISTER_FACTORY(v3, Asinh);
@@ -216,6 +214,7 @@ REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
 REGISTER_FACTORY(v7, IDFT);
+REGISTER_FACTORY(v7, Roll);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);
