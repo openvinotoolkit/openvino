@@ -67,7 +67,7 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_IF(debug_config->verbose >= 3) {
                 auto dnnl_mem = a_zp->get_onednn_memory(desc);
                 void *mapped_ptr = dnnl_mem.map_data();
                 if (mapped_ptr) {
@@ -87,7 +87,7 @@ protected:
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_IF(debug_config->verbose >= 3) {
                 auto dnnl_mem = w_zp->get_onednn_memory(desc);
                 void *mapped_ptr = dnnl_mem.map_data();
                 if (mapped_ptr) {
