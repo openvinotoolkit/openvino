@@ -169,7 +169,7 @@ The officially supported macOS* build environment:
 
 > **NOTE**: To learn how to build samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-To build the C or C++ sample applications for macOS, go to `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+To build C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
 build_samples.sh
 ```
