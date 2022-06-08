@@ -1701,8 +1701,6 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
 }
 
 TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(AVAILABLE_DEVICES), _))
-            .Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
             .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());

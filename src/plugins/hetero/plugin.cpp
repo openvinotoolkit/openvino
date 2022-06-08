@@ -84,39 +84,14 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
         Configs tconfig = mergeConfigs(_config, localConfig);
-        Configs deviceConfig;
-        auto strDevList = GetCore()->GetAvailableDevices();
-        for (auto it = tconfig.begin(); it != tconfig.end(); it++) {
-            if (std::find(strDevList.begin(), strDevList.end(), it->first) != strDevList.end()) {
-                if (it->first == deviceName) {
-                    std::string::size_type i = 0;
-                    std::string key = "";
-                    std::string::size_type idelimeter;
-                    while ((idelimeter = it->second.find(' ', i)) != std::string::npos) {
-                        if (key == "") {
-                            key = it->second.substr(i, idelimeter - i);
-                        } else {
-                            auto value = it->second.substr(i, idelimeter - i);
-                            deviceConfig[key] = value;
-                            key = "";
-                        }
-                        i = idelimeter + 1;
-                    }
-                    // last value in the string (which has no comma after that)
-                    deviceConfig[key] = it->second.substr(i, it->second.length() - i);
-                }
-            } else {
-                deviceConfig[it->first] = it->second;
-            }
-        }
 
         // set device ID if any
         std::string deviceIDLocal = deviceParser.getDeviceID();
         if (!deviceIDLocal.empty()) {
-            deviceConfig[KEY_DEVICE_ID] = deviceIDLocal;
+            tconfig[KEY_DEVICE_ID] = deviceIDLocal;
         }
 
-        return GetCore()->GetSupportedConfig(deviceName, deviceConfig);
+        return GetCore()->GetSupportedConfig(deviceName, tconfig);
     };
 
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
