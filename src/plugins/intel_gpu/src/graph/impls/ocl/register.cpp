@@ -60,6 +60,7 @@ void register_implementations() {
     REGISTER_OCL(reorder);
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
+    REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
