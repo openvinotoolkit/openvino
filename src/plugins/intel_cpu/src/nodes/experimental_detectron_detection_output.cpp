@@ -118,9 +118,8 @@ static void refine_boxes(const float* boxes,
     }
 }
 
-template <typename T>
-static bool SortScorePairDescend(const std::pair<float, T>& pair1, const std::pair<float, T>& pair2) {
-    return pair1.first > pair2.first;
+static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pair1, const std::pair<float, std::pair<int, int>>& pair2) {
+    return pair1.first > pair2.first || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
 }
 
 struct ConfidenceComparator {
@@ -362,7 +361,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,
                           conf_index_class_map.end(),
-                          SortScorePairDescend<std::pair<int, int>>);
+                          SortScorePairDescend);
         conf_index_class_map.resize(max_detections_per_image_);
         total_detections_num = max_detections_per_image_;
     }
