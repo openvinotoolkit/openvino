@@ -1,7 +1,7 @@
 #include <openvino/openvino.hpp>
 
 int main() {
-ov::AnyMap hddl_config, gpu_config;
+ov::AnyMap myriad_config, gpu_config;
 //! [part4]
 ov::Core core;
 
