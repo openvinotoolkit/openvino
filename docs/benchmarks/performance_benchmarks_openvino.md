@@ -14,7 +14,7 @@
 
 This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside.
 
-The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md).
+The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). To learn how to benchmark your own model in OpenVINO, visit the [benchmark application documentation](../../samples/cpp/benchmark_app/README.md).
 
 Measuring inference performance involves many variables and is extremely use-case and application dependent. We use the below four parameters for measurements, which are key elements to consider for a successful deep learning inference application:
 
