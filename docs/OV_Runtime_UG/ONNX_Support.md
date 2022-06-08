@@ -1,7 +1,7 @@
 # ONNX Format Support {#ONNX_Format_Support}
 
 
-Since the 2020.4 release, OpenVINO™ has supported native usage of ONNX models. The `core.read_model()` method provides a uniform way to read OpenVINO IR and ONNX formats alike, which is the recommended approach to reading models. Example:
+Since the 2020.4 release, OpenVINO™ has supported native usage of ONNX models. The `core.read_model()` method, which is the recommended approach to reading models, provides a uniform way to work with OpenVINO IR and ONNX formats alike. Example:
 
 @sphinxdirective
 .. tab:: C++
