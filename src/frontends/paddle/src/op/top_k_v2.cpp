@@ -13,7 +13,8 @@ NamedOutputs top_k_v2(const NodeContext& node) {
     Output<Node> k_expected_node;
     if (node.has_input("K")) {
         auto k_variable = node.get_input("K");
-        k_expected_node = std::make_shared<default_opset::Convert>(k_variable, element::i32);
+        auto k_var_node = std::make_shared<default_opset::Convert>(k_variable, element::i32);
+        k_expected_node = std::make_shared<default_opset::Squeeze>(k_var_node);
     } else {
         const auto k_expected = node.get_attribute<int>("k", 1);
         k_expected_node = default_opset::Constant::create(element::i32, {}, {k_expected});

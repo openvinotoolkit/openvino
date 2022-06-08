@@ -378,6 +378,7 @@ static const std::vector<std::string> models{
     std::string("top_k_v2_test_3"),
     std::string("top_k_v2_test_4"),
     std::string("top_k_v2_test_5"),
+    std::string("top_k_v2_test_6"),
     std::string("trilinear_downsample_false_0"),
     std::string("trilinear_downsample_false_1"),
     std::string("trilinear_downsample_true_0"),
