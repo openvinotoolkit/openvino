@@ -144,7 +144,7 @@ The recommended Windows build environment includes:
 
 > **NOTE**: To use Microsoft Visual Studio 2019, it is required to install CMake 3.14 or higher.
 
-To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
+To build C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
 build_samples_msvc.bat
 ```
