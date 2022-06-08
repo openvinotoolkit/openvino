@@ -5,6 +5,8 @@
 
 This page gives instructions on how to convert a model from ONNX format to OpenVINO IR format using Model Optimizer. To use Model Optimizer, install OpenVINO Development Tools by following the [installation instructions here](https://docs.openvino.ai/latest/openvino_docs_install_guides_install_dev_tools.html).
 
+ONNX models are directly compatible with OpenVINO Runtime and can be loaded in their native `.onnx` format using `net = ie.read_model("model.onnx")`. The benefit of converting ONNX models to the OpenVINO IR format is that it allows them to be easily optimized for target hardware with advanced OpenVINO tools such as [NNCF](../../../optimization_guide/nncf_introduction.md).
+
 ## Convert an ONNX* Model <a name="Convert_From_ONNX"></a>
 The Model Optimizer process assumes you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
 
