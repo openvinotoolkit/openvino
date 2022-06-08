@@ -522,7 +522,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
@@ -871,7 +871,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();

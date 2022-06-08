@@ -10,7 +10,7 @@
 // ------------------------------MultiSchedule----------------------------
 namespace MultiDevicePlugin {
 
-thread_local SoInfer BinderMultiSchedule::_sharedRequest = {};
+thread_local IE::IInferRequestInternal* BinderMultiSchedule::_sharedRequest = nullptr;
 
 void BinderMultiSchedule::init(const ScheduleContext::Ptr& sContext) {
      MultiSchedule::init(sContext);
@@ -50,7 +50,7 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
                     }
                 }
                 _thisWorkerInferRequest = *workerInferRequest;
-                _sharedRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest();
+                _sharedRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest()._ptr.get();
             }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
         // then sets the device-agnostic blobs to the actual (device-specific) request
@@ -83,33 +83,52 @@ Pipeline BinderMultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, Wor
     return pipeline;
 }
 
+bool BinderMultiSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, DeviceName preferred_device) {
+    std::vector<DeviceInformation> devices;
+    devices = [&] {
+        std::lock_guard<std::mutex> lock(_multiSContext->_mutex);
+        return _multiSContext->_devicePriorities;
+    }();
+    for (auto&& device : devices) {
+        if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
+            continue;
+        }
+        if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
+            return true;
+        }
+    }
+    // no vacant requests this time, storing the task to the respective queue
+    if (!preferred_device.empty()) {
+        _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
+    } else {
+        _inferPipelineTasks.push(std::move(inferPipelineTask));
+    }
+    return false;
+}
+
 bool BinderMultiSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     NotBusyWorkerRequests& idleWorkerRequests,
     const DeviceName& preferred_device) {
     WorkerInferRequest* workerRequestPtr = nullptr;
     WorkerInferRequest* headWorker = nullptr;
     bool flag = false;
-    if (_sharedRequest) {
-        while (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            if (flag && workerRequestPtr == headWorker)
-                break;
-            if (!flag) {
-                headWorker = workerRequestPtr;
-                flag = true;
-            }
-            IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
-            if (_sharedRequest._ptr.get() == workerRequestPtr->_inferRequest._ptr.get()) {
-                _thisWorkerInferRequest = workerRequestPtr;
-                {
-                    auto capturedTask = std::move(inferPipelineTask);
-                    capturedTask();
-                }
-                idleGuard.Release();
-                return true;
-            }
+    while (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        if (flag && workerRequestPtr == headWorker)
+            break;
+        if (!flag) {
+            headWorker = workerRequestPtr;
+            flag = true;
         }
-    } else {
-        //TBD
+        IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
+        if (_sharedRequest == workerRequestPtr->_inferRequest._ptr.get()) {
+            _thisWorkerInferRequest = workerRequestPtr;
+            {
+                auto capturedTask = std::move(inferPipelineTask);
+                capturedTask();
+            }
+            idleGuard.Release();
+            return true;
+        }
     }
     return false;
 }
@@ -142,6 +161,11 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(
         }
         sum += dev_requests.size();
     }
+    if (!request_to_share_blobs_with) {
+        IE_THROW() <<
+                    "binder mode does not allow oversubsciption of infer requests"
+                    " please use optimal infer request";
+    }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     return syncImpl;
 }
@@ -160,6 +184,11 @@ IInferPtr BinderMultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkI
             break;
         }
         sum += dev_requests.size();
+    }
+    if (!request_to_share_blobs_with) {
+        IE_THROW() <<
+                    "binder mode does not allow oversubsciption of infer requests"
+                    " please use optimal infer request";
     }
     auto syncImpl = std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     return syncImpl;
