@@ -24,6 +24,7 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
 #include "gna_plugin.hpp"
+#include "common/gna_target.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "layers/gna_layer_type.hpp"
 #include "preprocessing.hpp"
@@ -38,6 +39,7 @@
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
@@ -339,7 +341,7 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
     }
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
+    return common::kGnaTarget3_0;
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -371,8 +373,7 @@ void GNAPlugin::InitGNADevice() {
                     config.gnaCompileTarget,
                     config.swExactMode,
                     gnaFlags->performance_counting,
-                    !config.dumpXNNPath.empty(),
-                    GetDeviceVersionFromString(config.gnaCompileTarget));
+                    !config.dumpXNNPath.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
         if (gnaFlags->log_level == ov::log::Level::DEBUG) {
@@ -1206,13 +1207,6 @@ std::shared_ptr<request::ModelWrapper> GNAPluginNS::GNAPlugin::createModelWrappe
     return request::ModelWrapperFactory::createWithNumberOfEmptyOperations(numberOfOperations);
 }
 
-int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    if (deviceString.empty() || deviceString == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
-        return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
-    }
-    return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
-}
-
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
     // gna looks automatically set layer 0 as output and adjust it's pointer / precision/ size respectively
@@ -1236,7 +1230,7 @@ void GNAPlugin::DumpXNNToFile() const {
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
-    if (InferenceEngine::GNAConfigParams::GNA_TARGET_2_0 == gnadevice->getEffectiveGnaCompileTarget()) {
+    if (common::kGnaTarget2_0 == gnadevice->GetCompileTarget()) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
@@ -1244,16 +1238,9 @@ void GNAPlugin::DumpXNNToFile() const {
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
-        uint32_t input_size = 0;
-        uint32_t output_size = 0;
-        for (auto i : inputsDesc)
-            input_size += i.get_allocated_size();
-        for (auto o : outputsDesc)
-            output_size += o.get_required_size();
-        auto inSF = inputsDesc.begin()->scale_factor;
-        auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
-            input_size, output_size, inSF, outSF);
+        const auto inputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(inputsDesc);
+        const auto outputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(outputsDesc);
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, inputsForTlv, outputsForTlv);
     }
     gnadevice->releaseModel(modelId);
 }
