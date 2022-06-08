@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include <openvino/runtime/properties.hpp>
+#include <openvino/runtime/intel_auto/properties.hpp>
 
 using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;
@@ -27,6 +27,8 @@ const std::vector<ov::AnyMap> auto_multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("YES")},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
