@@ -85,7 +85,7 @@ To run the sample, use [public](@ref omz_models_group_public) or [Intel's](@ref 
 
 ### <a name="build_samples_linux"></a>Build the Sample Applications on Linux
 
-The officially supported Linux build environment is the following:
+The supported Linux build environment includes:
 
 * Ubuntu 18.04 LTS 64-bit or Ubuntu 20.04 LTS 64-bit,
 * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04),
