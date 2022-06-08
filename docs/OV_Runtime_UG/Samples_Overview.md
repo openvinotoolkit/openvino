@@ -262,7 +262,7 @@ and **Release** configurations. Set correct paths to the OpenCV libraries, and
 debug and release versions of the OpenVINO Runtime libraries.
 
 For example, for the **Debug** configuration, go to the project's
-**Configuration Properties** to the **Debugging** category and set the `PATH`
+**Configuration Properties** of the project, then select the **Debugging** category and set the `PATH`
 variable in the **Environment** field to the following:
 
 ```sh
