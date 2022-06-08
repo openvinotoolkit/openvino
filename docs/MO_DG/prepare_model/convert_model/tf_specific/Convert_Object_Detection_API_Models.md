@@ -64,7 +64,11 @@ Speech Recognition, Natural Language Processing and others. Refer to the links b
 
 
 * [OpenVINO Samples](../../../../OV_Runtime_UG/Samples_Overview.md)
+    * [Hello Reshape SSD - Python](../../../../../samples/python/hello_reshape_ssd/README.md)
+    * [Hello Reshape SSD - C++](../../../../../samples/cpp/hello_reshape_ssd/README.md)
 * [Open Model Zoo Demos](@ref omz_demos)
+    * [Object Detection Python Demo](https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/object_detection_demo/python)
+    * [Object Detection C++ Demo](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp)
 
 ## Important Notes About Feeding Input Images to the Samples
 
