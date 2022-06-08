@@ -20,39 +20,8 @@ ParamsKey BorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
