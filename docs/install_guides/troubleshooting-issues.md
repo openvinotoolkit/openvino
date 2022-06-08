@@ -147,7 +147,7 @@ sudo modprobe myd_ion
 ```
 
 ---
-###Cannot reset VPU device and cannot find any 0x20-0x27 (Raw data card with HW version Fab-B and before) I2C addresses on SMBUS (using i2c-tools)
+### Cannot reset VPU device and cannot find any 0x20-0x27 (Raw data card with HW version Fab-B and before) I2C addresses on SMBUS (using i2c-tools)
 
 Please contact your motherboard vendor to verify SMBUS pins are connected to the PCIe slot.
 
