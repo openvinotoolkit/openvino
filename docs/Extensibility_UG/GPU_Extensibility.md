@@ -1,6 +1,6 @@
 # How to Implement Custom GPU Operations {#openvino_docs_Extensibility_UG_GPU}
 
-To enable operations not supported by OpenVINO™ out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This page describes custom kernel support for the GPU device.
+To enable operations not supported by OpenVINO™ out of the box, you may need an extension for OpenVINO operation set, and a custom kernel for the device you will target. This article describes custom kernel support for the GPU device.
 
 The GPU codepath abstracts many details about OpenCL. You need to provide the kernel code in OpenCL C and an XML configuration file that connects the kernel and its parameters to the parameters of the operation.
 
