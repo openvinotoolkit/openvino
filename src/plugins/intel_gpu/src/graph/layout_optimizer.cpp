@@ -1008,7 +1008,7 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
     return format::b_fs_yx_fsv4;
 }
 
-bool layout_optimizer::is_mixed_layout(program_node const& prev, program_node const& next, bool check_data_type,
+bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, bool check_data_type,
                                        std::vector<std::pair<format, format>> custom_list) const {
     auto prev_layout = prev.get_output_layout();
     auto prev_fmt = prev_layout.format;
