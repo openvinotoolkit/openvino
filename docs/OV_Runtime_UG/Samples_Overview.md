@@ -71,7 +71,7 @@ The applications include:
 
    For more information, see the [Benchmark Python Tool](../../tools/benchmark_tool/README.md) documentation.
 
-> **NOTE**: All C++ samples support input paths contain only ASCII characters, except for the Hello Classification Sampl (it supports Unicode).
+> **NOTE**: All C++ samples support input paths that contain only ASCII characters, except for the Hello Classification Sample (it supports Unicode).
 
 ## Media Files Available for Samples
 
