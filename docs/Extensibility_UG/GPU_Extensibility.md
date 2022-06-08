@@ -181,7 +181,7 @@ For an example, see [Example Kernel](#example-kernel).
 | `<TENSOR>_FORMAT_<TENSOR_FORMAT>` | The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is concatenated to the defined name. The tensor format may be used to define codepaths in your code with `#&zwj;ifdef/#&zwj;endif`. |
 | `<TENSOR>_LOWER_PADDING` | An array of padding elements used for the tensor dimensions before they start. Always ordered as `BFYX`. |
 | `<TENSOR>_LOWER_PADDING_SIZE` | The size of the `<TENSOR>_LOWER_PADDING` array  |
-| `<TENSOR>_UPPER_PADDING`   | An array of padding elements used for the tensor dimensions after they end. Always ordered as BFYX. |
+| `<TENSOR>_UPPER_PADDING`   | An array of padding elements used for the tensor dimensions after they end. Always ordered as `BFYX`. |
 | `<TENSOR>_UPPER_PADDING_SIZE`  | The size of the `<TENSOR>_UPPER_PADDING` array |
 | `<TENSOR>_PITCHES` | The offset (in elements) between adjacent elements in each dimension. Always ordered as BFYX.|
 | `<TENSOR>_PITCHES_SIZE`| The size of the `<TENSOR>_PITCHES` array   |
