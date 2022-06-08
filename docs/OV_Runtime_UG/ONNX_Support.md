@@ -21,6 +21,7 @@ Since the 2020.4 release, OpenVINO™ has supported native usage of ONNX models.
 @endsphinxdirective
 
 While ONNX models are directly supported by OpenVINO™, it can be useful to convert them to IR format to take advantage of advanced OpenVINO optimization tools and features. For information on how to convert an ONNX model to the OpenVINO IR format, see the [Converting an ONNX Model](https://github.com/openvinotoolkit/openvino/pull/MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md) page.
+
 ### Reshape Feature
 OpenVINO™ does not provide a mechanism to specify pre-processing for the ONNX format, like mean value subtraction or reverse input channels. If an ONNX model contains dynamic shapes for input, please see the [Changing input shapes](ShapeInference.md) documentation.
 
