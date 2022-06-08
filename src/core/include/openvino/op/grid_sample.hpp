@@ -32,7 +32,7 @@ public:
         PaddingMode padding_mode = PaddingMode::ZEROS;
 
         Attributes() = default;
-        Attributes(bool a, InterpolationMode m, PaddingMode p) : align_corners{a}, mode{m}, padding_mode{p} {}
+        Attributes(InterpolationMode m, PaddingMode p, bool a) : align_corners{a}, mode{m}, padding_mode{p} {}
     };
 
     GridSample() = default;
