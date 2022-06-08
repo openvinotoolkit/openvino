@@ -1,6 +1,6 @@
 # Model Creation C++ Sample {#openvino_inference_engine_samples_model_creation_sample_README}
 
-This sample demonstrates how to execute an synchronous inference using [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly which uses weights from LeNet classification model, which is known to work well on digit classification tasks. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp/model_creation_sample).
+This sample demonstrates how to execute synchronous inference using [a model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. Source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp/model_creation_sample).
 
 You do not need an XML file to create a model. The API of ov::Model allows creating a model on the fly from the source code.
 
