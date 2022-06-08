@@ -60,6 +60,8 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     }
 };
 
+//Comment out the tests because of the transformation is disabled by another WR
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
@@ -67,6 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(params)),
     MultiplyToGroupConvolutionTransformation::getTestCaseName);
+*/
 }  // namespace shape4d
 
 namespace shape5d {
@@ -112,6 +115,8 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     }
 };
 
+//Comment out the tests because of the transformation is disabled by another WR
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(precisions),
@@ -119,5 +124,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
          ::testing::Values(CommonTestUtils::DEVICE_CPU),
          ::testing::ValuesIn(params)),
      MultiplyToGroupConvolutionTransformation::getTestCaseName);
+*/
 }  // namespace shape5d
 }  // namespace
