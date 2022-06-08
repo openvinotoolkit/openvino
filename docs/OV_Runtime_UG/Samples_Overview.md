@@ -98,7 +98,7 @@ To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/sa
 build_samples.sh
 ```
 
-Once the build is completed, binaries samples can be find in the following folders:
+Once the build has been completed, sample binaries can be found in the following folders:
 * C samples -- `~/inference_engine_c_samples_build/intel64/Release`,
 * C++ samples -- `~/inference_engine_cpp_samples_build/intel64/Release`.
 
