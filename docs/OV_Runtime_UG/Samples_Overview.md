@@ -182,7 +182,7 @@ The sample applications can also be built manually:
 
 > **NOTE**: If the product has been installed as a root user, switch to root mode (`sudo -i`) before you continue. 
 
-> **NOTE**: Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by
+> **NOTE**: Before proceeding, make sure that you have OpenVINO environment set correctly. This can be done manually by
 ```sh
 cd <INSTALL_DIR>/
 source setupvars.sh
