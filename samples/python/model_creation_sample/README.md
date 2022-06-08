@@ -1,6 +1,6 @@
 # Model Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
 
-This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
+This sample demonstrates how to run inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/python/model_creation_sample).
 
 The following OpenVINO Python API is used in the application:
 

@@ -1,6 +1,6 @@
 # Hello NV12 Input Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README}
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
+This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API. Source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/c/hello_nv12_input_classification).
 
 Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
 
