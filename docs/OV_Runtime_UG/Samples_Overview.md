@@ -53,7 +53,7 @@ The applications include:
 - **Hello Reshape SSD Sample** – Inference of SSD networks resized by ShapeInfer API according to an input size:
    - [Hello Reshape SSD C++ Sample**](../../samples/cpp/hello_reshape_ssd/README.md)
    - [Hello Reshape SSD Python Sample**](../../samples/python/hello_reshape_ssd/README.md)
-- **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs):
+- **Image Classification Sample Async** – Inference of image classification networks, such as AlexNet and GoogLeNet, using Asynchronous Inference Request API (the sample supports only images as inputs):
    - [Image Classification Async C++ Sample](../../samples/cpp/classification_sample_async/README.md)
    - [Image Classification Async Python Sample](../../samples/python/classification_sample_async/README.md)
 - **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample:
