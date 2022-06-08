@@ -155,7 +155,7 @@ Once the build is completed, you can find sample binaries in the following folde
 * C samples -- `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`,
 * C++ samples -- `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`.
 
-Generated solution can also be build manually. For example, if you want to build C++ sample binaries in Debug configuration, run the suitable version of the
+Generated solution can also be built manually. For example, to build C++ sample binaries in Debug configuration, run the suitable version of the
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
 
