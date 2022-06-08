@@ -246,7 +246,6 @@ source /opt/intel/openvino_2022/setupvars.sh
  
 Sample applications is now ready to start. To learn about how to run a particular
 sample, read the sample documentation by clicking the sample name in the samples
-list above.
 
 ### Get Ready for Running the Sample Applications on Windows*
 
