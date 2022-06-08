@@ -135,6 +135,7 @@ DATA_ET bilinear(const DATA_ET* data,
     const auto v01 = get_padded(data, data_shape, n, c, y_topleft, x_topleft + 1);
     const auto v10 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft);
     const auto v11 = get_padded(data, data_shape, n, c, y_topleft + 1, x_topleft + 1);
+
     const auto q0 = (1 - dx) * v00 + dx * v01;
     const auto q1 = (1 - dx) * v10 + dx * v11;
     return dy * q1 + (1 - dy) * q0;
@@ -152,6 +153,69 @@ DATA_ET nearest(const DATA_ET* data,
     const auto y_nearest = std::lrint(denormalize(y_n, data_shape[2]));
     const auto x_nearest = std::lrint(denormalize(x_n, data_shape[3]));
     return get_padded(data, data_shape, n, c, y_nearest, x_nearest);
+}
+
+template <typename T>
+using vec4_t = std::array<T, 4>;
+template <typename T>
+using mtx4_t = std::array<vec4_t<T>, 4>;
+
+template <typename T>
+vec4_t<T> cubic_coeffs(const T r, const T A = -0.75) {
+    vec4_t<T> v;
+    v[0] = ((A * (r + 1) - 5 * A) * (r + 1) + 8 * A) * (r + 1) - 4 * A;
+    v[1] = ((A + 2) * r - (A + 3)) * r * r + 1;
+    v[2] = ((A + 2) * (1 - r) - (A + 3)) * (1 - r) * (1 - r) + 1;
+    v[3] = ((A * ((1 - r) + 1) - 5 * A) * ((1 - r) + 1) + 8 * A) * ((1 - r) + 1) - 4 * A;
+    return v;
+}
+
+template <typename T, size_t N>
+T the_dot(std::array<T, N> a, std::array<T, N> b) {
+    T c = 0;
+    for (int i = 0; i < N; ++i)
+        c += a[i] * b[i];
+    return c;
+}
+
+template <typename DATA_ET>
+mtx4_t<DATA_ET> get_square_4x4(const DATA_ET* data,
+                               const Shape& data_shape,
+                               const size_t n,
+                               const size_t c,
+                               const long y_topleft,
+                               const long x_topleft,
+                               const get_padded_fn_t<DATA_ET>& get_padded) {
+    mtx4_t<DATA_ET> s;
+    for (int j = 0; j < 4; ++j)
+        for (int i = 0; i < 4; ++i)
+            s[j][i] = get_padded(data, data_shape, n, c, y_topleft + j, x_topleft + i);
+    return s;
+}
+
+template <typename DATA_ET, typename GRID_ET>
+DATA_ET bicubic(const DATA_ET* data,
+                const Shape& data_shape,
+                const size_t n,
+                const size_t c,
+                const GRID_ET y_n,
+                const GRID_ET x_n,
+                const get_padded_fn_t<DATA_ET>& get_padded,
+                const denormalize_fn_t<GRID_ET>& denormalize) {
+    const auto y_d = denormalize(y_n, data_shape[2]);
+    const auto x_d = denormalize(x_n, data_shape[3]);
+    const auto y_topleft = std::floor(y_d);
+    const auto x_topleft = std::floor(x_d);
+    const auto dy = y_d - y_topleft;
+    const auto dx = x_d - x_topleft;
+    const auto s = get_square_4x4(data, data_shape, n, c, y_topleft - 1, x_topleft - 1, get_padded);
+
+    const auto cy = cubic_coeffs(dy);
+    const auto cx = cubic_coeffs(dx);
+    vec4_t<DATA_ET> p;
+    for (int i = 0; i < 4; ++i)
+        p[i] = the_dot(cx, s[i]);
+    return the_dot(cy, p);
 }
 }  // namespace
 
@@ -218,7 +282,8 @@ void grid_sample(DATA_ET* output,
                             nearest<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
-                        out = 77;
+                        out =
+                            bicubic<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     }
                 }

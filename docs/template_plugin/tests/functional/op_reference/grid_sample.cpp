@@ -370,13 +370,38 @@ std::vector<GridSampleParams> generateBilinearParamsEvenDimensions() {
     return params;
 }
 
+std::vector<GridSampleParams> generateBicubicParams() {
+    std::vector<GridSampleParams> params;
+
+    reference_tests::Tensor data_even_dims{
+        {1, 1, 4, 6},
+        element::f32,
+        std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}};
+    reference_tests::Tensor grid_inner{
+        {1, 1, 8, 2},
+        element::f32,
+        std::vector<float>{-0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -1, 1, 1, -1, -0.1, -0.1, 0.1, 0.1}};
+
+    params.emplace_back(
+        data_even_dims,
+        grid_inner,
+        op::v9::GridSample::Attributes{false, GS_BICUBIC, GS_ZEROS},
+        reference_tests::Tensor{{1, 1, 1, 7},
+                                element::f32,
+                                std::vector<float>{4.625, 19.4375, 7.90625, 22.71875, 4.984375, 1.265625, 11.3, 13.7}},
+        "bicubic_zeros_noalign_even_dims_inner");
+
+    return params;
+}
+
 std::vector<GridSampleParams> generateGridSampleParams() {
     std::vector<std::vector<GridSampleParams>> all_params{generateNearestParamsOddDimensionsInnerGrids(),
                                                           generateNearestParamsOddDimensionsOuterGrids(),
                                                           generateNearestParamsEvenDimensions(),
                                                           generateBilinearParamsOddDimensionsInnerGrids(),
                                                           generateBilinearParamsOddDimensionsOuterGrids(),
-                                                          generateBilinearParamsEvenDimensions()};
+                                                          generateBilinearParamsEvenDimensions(),
+                                                          generateBicubicParams()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : all_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
