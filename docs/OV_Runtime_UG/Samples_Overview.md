@@ -268,7 +268,7 @@ variable in the **Environment** field to the following:
 ```sh
 PATH=<INSTALL_DIR>\runtime\bin;%PATH%
 ```
-where `<INSTALL_DIR>` is the directory in which the OpenVINO toolkit is installed.
+where `<INSTALL_DIR>` is the installation directory of OpenVINO toolkit.
 
 Now, sample applications are ready to run. To learn how to run a particular
 sample, read the sample documentation by clicking the sample name in the samples
