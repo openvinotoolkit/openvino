@@ -229,3 +229,10 @@ The model was trained with input values in the range `[0,1]`. OpenVINO&trade; to
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
+
+
+<a name="yolo-examples"></a>
+## YOLO Sample Application
+OpenVINO™ [Open Model Zoo Demos](@ref omz_demos) provide a sample application showing how to run inferencing on a video input with object detection models. The sample is compatible with YOLOv1, YOLOv2, YOLOv3, and YOLOv4 full-size and tiny-size models:
+* [Object Detection Python Demo](https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/object_detection_demo/python)
+* [Object Detection C++ Demo](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp)

@@ -67,8 +67,15 @@ The attribute names are self-explanatory or match the name in the `hparams_confi
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
-OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to
-[Open Model Zoo Demos](@ref omz_demos) and
+## OpenVINO™ Toolkit Samples and Open Model Zoo Demos
+OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet models. For more information, refer to the following pages:
+* [OpenVINO Samples](../../../../OV_Runtime_UG/Samples_Overview.md)
+    * [Hello Reshape SSD - Python](../../../../../samples/python/hello_reshape_ssd/README.md)
+    * [Hello Reshape SSD - C++](../../../../../samples/cpp/hello_reshape_ssd/README.md)
+* [Open Model Zoo Demos](@ref omz_demos)
+    * [Object Detection Python Demo](https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/object_detection_demo/python)
+    * [Object Detection C++ Demo](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp)
+* [Hello Object Detection Jupyter notebook](https://docs.openvino.ai/latest/notebooks/004-hello-detection-with-output.html)
 
 ## <a name="efficientdet-ir-results-interpretation"></a>Interpreting Results of the TensorFlow Model and the IR
 
