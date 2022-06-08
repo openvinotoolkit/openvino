@@ -66,7 +66,7 @@ The applications include:
    
    Keep in mind that the Python version of the benchmark tool is currently available only through the [OpenVINO Development Tools installation](../install_guides/installing-model-dev-tools.md). It is not created in the samples directory but can be launched with the following command:
    ```sh
-   `benchmark_app -m <model> -i <input> -d <device>`
+   benchmark_app -m <model> -i <input> -d <device>
    ```
 
    For more information, see the [Benchmark Python Tool](../../tools/benchmark_tool/README.md) documentation.
