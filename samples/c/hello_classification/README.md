@@ -1,6 +1,6 @@
 # Hello Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_classification_README}
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature. The source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/c/hello_classification).
+This sample demonstrates how to execute inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and the input auto-resize feature. Source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/c/hello_classification).
 
 Hello Classification C sample application demonstrates how to use the following Inference Engine C API in applications:
 
