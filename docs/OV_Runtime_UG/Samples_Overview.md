@@ -244,7 +244,7 @@ source /opt/intel/openvino_2022/setupvars.sh
 3. Press the **Esc** key, type `:wq` and press the **Enter** key to save and close the file.
 4. To test change, open a new terminal. You will see `[setupvars.sh] OpenVINO environment initialized`.
  
-Sample applications is now ready to start. To learn about how to run a particular
+Sample applications are ready to start. To learn how to run a particular
 sample, go to the documentation by clicking the name of a chosen sample from the list above.
 
 ### Get Ready for Running the Sample Applications on Windows*
