@@ -261,7 +261,7 @@ have properly configured **Debugging** environment settings for the **Debug**
 and **Release** configurations. Set correct paths to the OpenCV libraries, and
 debug and release versions of the OpenVINO Runtime libraries.
 
-For example, for the **Debug** configuration, go to the project's
+For example, for the **Debug** configuration, go to 
 **Configuration Properties** of the project, then select the **Debugging** category and set the `PATH`
 variable in the **Environment** field to the following:
 
