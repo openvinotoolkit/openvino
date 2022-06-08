@@ -321,28 +321,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
     bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    // flatten the secondary properties
-    auto flattenSecondaryProperties = [workModeAuto](const std::string& properties,
-                                                     std::map<std::string, std::string>& deviceConfig,
-                                                     const std::string& deviceName = "") {
-        std::string::size_type i = 0;
-        std::string key = "";
-        std::string::size_type idelimeter;
-        while ((idelimeter = properties.find(' ', i)) != std::string::npos) {
-            if (key == "") {
-                key = properties.substr(i, idelimeter - i);
-            } else {
-                auto value = properties.substr(i, idelimeter - i);
-                deviceConfig[key] = value;
-                if (workModeAuto)
-                    LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", deviceName.c_str(), key.c_str(), value.c_str());
-                key = "";
-            }
-            i = idelimeter + 1;
-        }
-        // last value in the string (which has no comma after that)
-        deviceConfig[key] = properties.substr(i, properties.length() - i);
-    };
     // if workMode is AUTO
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
@@ -401,15 +379,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                             });
              if (tmpiter != fullConfig.end())
                  deviceConfig.insert({tmpiter->first, tmpiter->second});
-             // promote secondary property to first level and pass them to target device
-             auto secPropertyIter = std::find_if(fullConfig.begin(),
-                                                 fullConfig.end(),
-                                                 [&](const std::pair<std::string, std::string>& config) {
-                                                     return (config.first == iter->deviceName);
-                                                 });
-             if (secPropertyIter != fullConfig.end()) {
-                 flattenSecondaryProperties(secPropertyIter->second, deviceConfig, iter->deviceName);
-             }
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -442,16 +411,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (tmpiter != fullConfig.end())
                 p.config.insert({tmpiter->first, tmpiter->second});
-
-            // promote secondary property to first level and pass them to target device
-            auto secPropertyIter = std::find_if(fullConfig.begin(),
-                                                fullConfig.end(),
-                                                [&](const std::pair<std::string, std::string>& config) {
-                                                    return (config.first == p.deviceName);
-                                                });
-            if (secPropertyIter != fullConfig.end()) {
-                flattenSecondaryProperties(secPropertyIter->second, p.config);
-            }
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
