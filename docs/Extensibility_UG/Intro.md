@@ -16,7 +16,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of supported operations is different for
-each of the supported frameworks. To see the operations supported by your framework, refer to
+each of the supported frameworks. To see the operations supported by your framework, refer to the
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
@@ -25,7 +25,7 @@ Custom operations, which are not included in the list, are not recognized by Ope
 
 2. A new user operation that was created for some specific model topology by the author of the model, using framework extension capabilities.
 
-Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations, that allow plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
+Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations. This allows plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
 
 Defining a new custom operation basically consists of two parts:
 
@@ -33,7 +33,7 @@ Defining a new custom operation basically consists of two parts:
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 
-The first part is required for inference, the second part is required for successful import of a model containing such operations from the original framework model format. There are several options to implement each part. The following sections will describe them in detail.
+The first part is required for inference. The second part is required for successful import of a model containing such operations from the original framework model format. There are several options to implement each part. The following sections will describe them in detail.
 
 ## Definition of Operation Semantics
 
@@ -67,7 +67,7 @@ Remaining part of this guide describes application of Frontend Extension API for
 
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
-> **NOTE**: This documentation is derived from the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates the details of extension development. It is based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You may review the complete, fully compilable code to see how it works.
+> **NOTE**: This documentation is derived from the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new), which demonstrates the details of extension development. It is based on minimalistic `Identity` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
 Use the `ov::Core::add_extension` method to load the extensions to the `ov::Core` object. This method allows loading library with extensions or extensions from the code.
 
@@ -109,14 +109,14 @@ The `Identity` is a custom operation class defined in [Custom Operation Guide](a
 
 @endsphinxdirective
  
-When Python API is used, there is no way to implement a custom OpenVINO operation. Also, even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
+When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
 
-You may still use Python to map and decompose operations when only operations from the standard OpenVINO operation set are used.
+Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
 
 ### Create a Library with Extensions
 
 An extension library should be created in the following cases:
- - Conversion of a model with custom operations in Model Optimizer
+ - Conversion of a model with custom operations in Model Optimizer.
  - Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
  - Loading models with custom operations in tools that support loading extensions from a library, for example the `benchmark_app`.
 
