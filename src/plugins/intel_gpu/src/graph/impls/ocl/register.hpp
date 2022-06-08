@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/bucketize.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -93,6 +94,7 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
+REGISTER_OCL(bucketize);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);

@@ -45,6 +45,7 @@ enum class KernelType {
     TILE,
     SELECT,
     BROADCAST,
+    BUCKETIZE,
     GEMM,
     PYRAMID_ROI_ALIGN,
     CONTRACT,

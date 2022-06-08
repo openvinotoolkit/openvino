@@ -150,6 +150,7 @@ REGISTER_FACTORY(v3, Asinh);
 REGISTER_FACTORY(v3, Acosh);
 REGISTER_FACTORY(v3, Atanh);
 REGISTER_FACTORY(v3, Broadcast);
+REGISTER_FACTORY(v3, Bucketize);
 REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
@@ -163,7 +164,6 @@ REGISTER_FACTORY(v3, ShapeOf);
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
 // REGISTER_FACTORY(v3, Assign);
-// REGISTER_FACTORY(v3, Bucketize);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
 // REGISTER_FACTORY(v3, ReadValue);
