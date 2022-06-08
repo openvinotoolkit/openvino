@@ -79,7 +79,7 @@ To run the sample applications, use images and videos from [the media files coll
 
 ## Samples that Support Pre-Trained Models
 
-To run the sample, use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the sample, use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded using [Model Downloader](@ref omz_tools_downloader).
 
 ## Build the Sample Applications
 
