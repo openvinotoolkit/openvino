@@ -44,7 +44,7 @@ The applications include:
    - [Hello Classification C++ Sample](../../samples/cpp/hello_classification/README.md)
    - [Hello Classification C Sample](../../samples/c/hello_classification/README.md)
    - [Hello Classification Python Sample](../../samples/python/hello_classification/README.md)
-- **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs:
+- **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the `NV12` color format and pre-process it automatically during inference. The sample supports only images as inputs:
    - [Hello NV12 Input Classification C++ Sample](../../samples/cpp/hello_nv12_input_classification/README.md)
    - [Hello NV12 Input Classification C Sample](../../samples/c/hello_nv12_input_classification/README.md)
 - **Hello Query Device Sample** – Query of available OpenVINO devices and their metrics, configuration values:
