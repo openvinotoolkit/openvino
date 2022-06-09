@@ -299,3 +299,34 @@ def generate_proposals(
     }
 
     return _get_node_factory_opset9().create("GenerateProposals", inputs, attributes)
+
+
+def grid_sample(
+        data: NodeInput,
+        grid: NodeInput,
+        attributes: dict,
+        name: Optional[str] = None
+) -> Node:
+    """Return a node which performs GridSample operation.
+
+    :param data: The input image.
+    :param grid: Grid values (normalized input coordinates).
+    :param attributes: A dictionary containing GridSample's attributes.
+    :param name: Optional name of the node.
+    Available attributes:
+    * align_corners A flag which specifies whether to align the grid extrema values
+                    with the borders or center points of the input tensor's border pixels.
+                    Range of values: true, false
+                    Default value: false
+                    Required: no
+    * mode          Specifies the type of interpolation.
+                    Range of values: bilinear, bicubic, nearest
+                    Default value: bilinear
+                    Required: no
+    * padding_mode  Specifies how the out-of-bounds coordinates should be handled.
+                    Range of values: zeros, border, reflection
+                    Default value: zeros
+                    Required: no
+    :return: A new GridSample node.
+    """
+    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)

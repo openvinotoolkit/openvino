@@ -63,6 +63,7 @@ from openvino.runtime.opset7.ops import gelu
 from openvino.runtime.opset9.ops import generate_proposals
 from openvino.runtime.opset1.ops import greater
 from openvino.runtime.opset1.ops import greater_equal
+from openvino.runtime.opset9.ops import grid_sample
 from openvino.runtime.opset1.ops import grn
 from openvino.runtime.opset1.ops import group_convolution
 from openvino.runtime.opset1.ops import group_convolution_backprop_data
