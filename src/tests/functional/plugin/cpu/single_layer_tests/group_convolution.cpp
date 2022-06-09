@@ -617,7 +617,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_FP32, GroupConvolutionLayerCPUTest,
 std::vector<InputShape> inputShapes2d_dynBatch = {
     {
         //dynamic shapes
-        { {1, 10}, 64, 7, 7},
+        { {1, 10}, 64, {7, 9}, {7, 9}},
         { //target static shapes
             { 2, 64, 7, 7 },
             { 1, 64, 9, 9 },
