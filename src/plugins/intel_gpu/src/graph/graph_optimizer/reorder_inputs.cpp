@@ -706,6 +706,15 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& weights = fc_node.weights();
         auto& input = fc_node.input();
         auto input_layout = input.get_output_layout();
+        // Change input data type of fully-connected node from i32 to f32
+        if (input_layout.data_type == data_types::i32) {
+            auto new_layout = input_layout;
+            new_layout.data_type = data_types::f32;
+            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            if (new_input.first) {
+               p.add_intermediate(new_input.first, fc_node, 0);
+            }
+        }
         // Change input data of fully-connected node from bx to bf
         if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
