@@ -44,6 +44,22 @@ void OVPropertiesTests::TearDown() {
     }
 }
 
+std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj) {
+    std::string device_name;
+    AnyMap properties;
+    AnyMap compileModelProperties;
+    std::tie(device_name, properties, compileModelProperties) = obj.param;
+    std::ostringstream result;
+    result << "device_name=" << device_name << "_setProperties_compileModelProperties_getProperties";
+    return result.str();
+}
+
+void OVSetPropComplieModleGetPropTests::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    std::tie(device_name, properties, compileModelProperties) = this->GetParam();
+    model = ngraph::builder::subgraph::makeConvPoolRelu();
+}
+
 TEST_P(OVEmptyPropertiesTests, SetEmptyProperties) {
     OV_ASSERT_NO_THROW(core->get_property(device_name, ov::supported_properties));
     OV_ASSERT_NO_THROW(core->set_property(device_name, AnyMap{}));
@@ -93,6 +109,26 @@ TEST_P(OVPropertiesDefaultTests, CheckDefaultValues) {
         Any property;
         OV_ASSERT_NO_THROW(property = core->get_property(device_name, default_property.first));
         ASSERT_EQ(default_property.second, property);
+    }
+}
+
+TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(device_name, properties));
+
+    ov::CompiledModel exeNetWork;
+    OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, device_name, compileModelProperties));
+
+    for (const auto& property_item : compileModelProperties) {
+        Any exeNetProperty;
+        OV_ASSERT_NO_THROW(exeNetProperty = exeNetWork.get_property(property_item.first));
+        ASSERT_EQ(property_item.second.as<std::string>(), exeNetProperty.as<std::string>());
+    }
+
+    //the value of get property should be the same as set property
+    for (const auto& property_item : properties) {
+        Any property;
+        OV_ASSERT_NO_THROW(property = core->get_property(device_name, property_item.first));
+        ASSERT_EQ(property_item.second.as<std::string>(), property.as<std::string>());
     }
 }
 
