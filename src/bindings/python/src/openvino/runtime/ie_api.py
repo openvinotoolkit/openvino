@@ -270,6 +270,15 @@ class AsyncInferQueue(AsyncInferQueueBase):
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
+    def __getitem__(self, i: int) -> InferRequest:
+        """Gets InferRequest from the pool with given i id.
+
+        :param i:  InferRequest id.
+        :type i: int
+        :return: InferRequests from the pool with given id.
+        :rtype: openvino.runtime.InferRequest
+        """
+        return InferRequest(super().__getitem__(i))
 
     def start_async(
         self,
@@ -320,16 +329,6 @@ class AsyncInferQueue(AsyncInferQueueBase):
             super().start_async({}, userdata)
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
-
-    def __getitem__(self, i: int) -> InferRequest:
-        """Gets InferRequest from the pool with given i id.
-
-        :param i:  InferRequest id.
-        :type i: int
-        :return: InferRequests from the pool with given id.
-        :rtype: openvino.runtime.InferRequest
-        """
-        return InferRequest(super().__getitem__(i))
 
 
 class Core(CoreBase):
