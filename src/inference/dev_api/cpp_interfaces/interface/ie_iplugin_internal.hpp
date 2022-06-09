@@ -335,6 +335,17 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const std::shared_ptr<const ov::Model>& function);
 
+    /**
+     * @brief Returns set of nodes which were removed after transformation.
+     * If originalFunction contains node1 and transformedFunction does not
+     * contains node1 in ops list, node1 will be returned.
+     * @param originalFunction Original network
+     * @param transformedFunction Transformed network
+     * @return Set of strings which contains removed node names
+     */
+    std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                                                    const std::shared_ptr<const ov::Model>& transformedFunction) const;
+
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
     std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface

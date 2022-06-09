@@ -89,13 +89,14 @@ const std::vector<InferenceEngine::Precision> preluNetPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
-        {Sigmoid, {}},
-        {Tanh,    {}},
-        {Relu,    {}},
-        {Exp,     {}},
-        {Log,     {}},
-        {Sign,    {}},
-        {Abs,     {}}
+        {Sigmoid,  {}},
+        {Tanh,     {}},
+        {Relu,     {}},
+        {Exp,      {}},
+        {Log,      {}},
+        {Sign,     {}},
+        {Abs,      {}},
+        {Clamp,    {{-5, 5}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> preluActivationTypes = {

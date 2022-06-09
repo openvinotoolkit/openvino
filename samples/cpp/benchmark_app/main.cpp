@@ -56,9 +56,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
-        FLAGS_hint != "none") {
+        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "`throughput`(tput), `latency' value or 'none'.");
+                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
@@ -119,6 +119,9 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "latency") {
                 slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
+                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
                 slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
@@ -209,10 +212,10 @@ int main(int argc, char* argv[]) {
 
         ov::Core core;
 
-        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU plugin extensions is loaded as a shared library
-            core.add_extension(FLAGS_l);
-            slog::info << "CPU plugin extensions is loaded " << FLAGS_l << slog::endl;
+        if (!FLAGS_extensions.empty()) {
+            // Extensions are loaded as a shared library
+            core.add_extension(FLAGS_extensions);
+            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -225,7 +228,7 @@ int main(int argc, char* argv[]) {
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
-            slog::info << "GPU extensions is loaded " << ext << slog::endl;
+            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
@@ -484,6 +487,12 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified

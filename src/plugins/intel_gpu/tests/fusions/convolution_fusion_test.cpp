@@ -16,6 +16,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 
 #include <cmath>
 
@@ -111,11 +112,15 @@ public:
     layout get_per_channel_layout(convolution_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
+
+    layout get_prelu_slope_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
 };
 
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p) {
+    void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -123,6 +128,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p, true);
+        check_fusions_correctness(network_fused, expected_fused_primitives_ids);
     }
 
     layout get_input_layout(convolution_test_params& p) {
@@ -214,7 +220,7 @@ class WeightsPrimitiveFusingTestOneDNN : public BaseFusingTest<convolution_test_
 public:
     void execute(convolution_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -350,10 +356,10 @@ public:
 #define CASE_CONV_ELTW_FP32_8 { 1, 32, 3, 5, 4 }, { 1, 16, 1, 3, 2 }, { 1, 1, 2, 1, 1 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 
 #define CASE_CONV_ELTW_i8_1 { 1, 16, 3, 5 }, { 1, 32, 1, 3 }, { 1, 32, 3, 1 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_i8_2 { 1, 16, 3, 5, 3 }, { 1, 32, 2, 4, 2 }, { 1, 1, 2, 4, 2 }, { 1, 1, 2, 2, 2 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
-#define CASE_CONV_ELTW_i8_3 { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_2 { 1, 16, 3, 5, 3 }, { 1, 32, 2, 4, 2 }, { 1, 1, 2, 4, 2 }, { 1, 1, 2, 2, 2 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_3 { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_CONV_ELTW_i8_4 { 1, 16, 1, 4 }, { 1, 16, 1, 2 }, { 1, 16, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_i8_5 { 1, 16, 1, 4, 1 }, { 1, 16, 1, 2, 1 }, { 1, 16, 2, 1, 1 }, { 1, 1, 1, 3, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_5 { 1, 16, 1, 4, 1 }, { 1, 16, 1, 2, 1 }, { 1, 16, 2, 1, 1 }, { 1, 1, 1, 3, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FP32 convolution cases ------------------------------------- */
@@ -561,6 +567,24 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
     auto p = GetParam();
     create_topologies(
@@ -568,6 +592,24 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(get_per_channel_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
@@ -598,6 +640,25 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
+    auto p = GetParam();
+    tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, eltw_shape })),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
@@ -616,6 +677,26 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
     tolerance = 1e-5f;
     execute(p);
 }
+
+TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
+    auto p = GetParam();
+    tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, eltw_shape })),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 
 TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     auto p = GetParam();
@@ -638,6 +719,27 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     execute(p);
 }
 
+TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     auto p = GetParam();
     auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
@@ -646,6 +748,28 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(layout{ slope_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } })),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
+    auto p = GetParam();
+    auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(layout{ slope_type, p.input_format, tensor{ 1, p.out_shape.feature[0], p.out_shape.spatial[0], 1 } })),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
@@ -1597,6 +1721,24 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
     execute(p);
 }
 
+TEST_P(conv_int8_prelu_eltwise, basic_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_int8_prelu_eltwise, fsv16) {
     auto p = GetParam();
     create_topologies(
@@ -1604,6 +1746,32 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("slope_data", get_mem(get_per_channel_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
@@ -2645,6 +2813,38 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        data("actv_params", get_mem(get_per_channel_layout(p), -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
+        activation("activation_quantize", "reorder_fsv32", "actv_params", activation_func::relu_negative_slope),
+        convolution("conv_prim2", "activation_quantize", { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_prim2", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
+    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 6 }
+}));
+
+// activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
+class conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation : public ConvReorderFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused_through_activation) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(2, 2));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    ov::Strides dw_stride = { 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
         reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", "reorder_fsv32", activation_func::relu),
@@ -2656,10 +2856,11 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
     bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
     bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
 
-    execute(p);
+    execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  5, 6 }
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
@@ -2929,7 +3130,7 @@ TEST_P(conv_int8_activation_eltwise_quantize_onednn, bsv32_fsv32) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -1, 1)),
         data("bias", get_mem(get_bias_layout(p))),
-        data("eltwise_data", get_mem(eltwise_layout, -0.5, 0.5)),
+        data("eltwise_data", get_mem(eltwise_layout, -1, 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
@@ -2954,7 +3155,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize_oned
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_4, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_7, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 5 },
+    //convolution_test_params{ CASE_CONV_U8S8_8, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_11, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_12, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_13, 2, 5 },
@@ -2965,7 +3166,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize_oned
     convolution_test_params{ CASE_CONV_S8S8_3, 2, 5 },
     convolution_test_params{ CASE_CONV_S8S8_4, 2, 5 },
     convolution_test_params{ CASE_CONV_S8S8_7, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 5 },
+    //convolution_test_params{ CASE_CONV_S8S8_8, 2, 5 },
     convolution_test_params{ CASE_CONV_S8S8_12, 2, 5 },
     convolution_test_params{ CASE_CONV_S8S8_13, 2, 5 },
     convolution_test_params{ CASE_CONV_S8S8_14, 2, 5 },
@@ -3535,6 +3736,109 @@ TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
 INSTANTIATE_TEST_SUITE_P(multiple_eltwise_sum_fusings_gpu, onednn_multiple_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 7 },
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 7 },
+}));
+
+struct implicit_crop_concat_convolution_test_params {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
+    uint32_t groups;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types output_data_type;
+    format output_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+class ImplicitCropConcatTestOneDNN: public BaseFusingTest<implicit_crop_concat_convolution_test_params> {
+public:
+    void execute(implicit_crop_concat_convolution_test_params& p) {
+        auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
+
+        bo_not_fused = bo_fused;
+        // implementation_desc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
+        bo_not_fused.set_option(build_option::force_implementations({
+            { "quantize1", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
+            { "quantize2", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
+            { "quantize3", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } } }));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(implicit_crop_concat_convolution_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[0]), static_cast<int>(pad[1]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(implicit_crop_concat_convolution_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+    }
+};
+
+class implicit_crop_concat_bfyx_input_tensor : public ImplicitCropConcatTestOneDNN {};
+
+TEST_P(implicit_crop_concat_bfyx_input_tensor, basic) {
+    auto p = GetParam();
+
+    tensor crop_output = get_input_layout(p).size;
+    crop_output.feature[0] = 1;
+    auto crop_offset1 = tensor(batch(0), feature(0), spatial(0, 0));
+    auto crop_offset2 = tensor(batch(0), feature(1), spatial(0, 0));
+    auto crop_offset3 = tensor(batch(0), feature(2), spatial(0, 0));
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+
+        data("in_lo1", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi1", get_mem(get_single_element_layout(p), 100)),
+        data("out_lo1", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi1", get_mem(get_single_element_layout(p), 127)),
+
+        data("in_lo2", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi2", get_mem(get_single_element_layout(p), 100)),
+        data("out_lo2", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi2", get_mem(get_single_element_layout(p), 127)),
+
+        data("in_lo3", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi3", get_mem(get_single_element_layout(p), 100)),
+        data("out_lo3", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi3", get_mem(get_single_element_layout(p), 127)),
+
+        crop("crop1", "input", crop_output, crop_offset1),
+        quantize("quantize1", "crop1", "in_lo1", "in_hi1", "out_lo1", "out_hi1", 255, data_types::i8),
+        crop("crop2", "input", crop_output, crop_offset2),
+        quantize("quantize2", "crop2", "in_lo2", "in_hi2", "out_lo2", "out_hi2", 255, data_types::i8),
+        crop("crop3", "input", crop_output, crop_offset3),
+        quantize("quantize3", "crop3", "in_lo3", "in_hi3", "out_lo3", "out_hi3", 255, data_types::i8),
+        concatenation("concat", {"quantize1", "quantize2", "quantize3"}, 1),
+        convolution("conv_prim", "concat", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, false),
+        reorder("reorder_bfyx", "conv_prim", p.default_format, p.default_type)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+// in_shape; out_shape; kernel; stride; pad; dilation; groups; input_data_type; input_format; weights_type; weights_format; output_data_type; output_format; default_type; default_format;
+#define CASE_CROP_FQ_CONCAT_1 { 1, 3, 10, 10 }, { 1, 16, 10, 10 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_concat_bfyx_input_tensor, ::testing::ValuesIn(std::vector<implicit_crop_concat_convolution_test_params>{
+    implicit_crop_concat_convolution_test_params{ CASE_CROP_FQ_CONCAT_1, 5, 9 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

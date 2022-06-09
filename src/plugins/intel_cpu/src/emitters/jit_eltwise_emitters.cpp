@@ -9,9 +9,9 @@
 #include <nodes/eltwise.h>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -32,14 +32,14 @@ void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -69,14 +69,14 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -131,14 +131,14 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_subtract_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -169,14 +169,14 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -207,14 +207,14 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -274,14 +274,14 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
@@ -305,14 +305,14 @@ void jit_ceiling_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
@@ -335,14 +335,14 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -387,14 +387,14 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -439,14 +439,14 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_maximum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -489,14 +489,14 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_minimum_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -540,14 +540,14 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_squared_difference_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -581,14 +581,14 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -609,7 +609,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 
     // caller obligation to save k-regs as callee may use them
     size_t n_k_regs_to_save = 8;
-    if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+    if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
             if (mayiuse(avx512_core))
@@ -658,7 +658,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
     h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
     // restore k registers
-    if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+    if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
         for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
             if (mayiuse(avx512_core))
                 h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
@@ -694,14 +694,14 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -755,14 +755,14 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_not_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -816,14 +816,14 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, cons
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_greater_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -877,14 +877,14 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -938,14 +938,14 @@ void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -999,14 +999,14 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1061,14 +1061,14 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_and_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1143,14 +1143,14 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, c
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1224,14 +1224,14 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_xor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1305,14 +1305,14 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1377,14 +1377,14 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs,
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1458,7 +1458,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
 
         // caller obligation to save k-regs as callee may use them
         size_t n_k_regs_to_save = 8;
-        if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+        if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
                 if (mayiuse(avx512_core))
@@ -1507,7 +1507,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
         // restore k registers
-        if (isa == cpu::x64::avx512_common || isa == cpu::x64::avx512_core) {
+        if (isa == cpu::x64::avx512_core || isa == cpu::x64::avx512_core) {
             for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
                 if (mayiuse(avx512_core))
                     h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
@@ -1553,14 +1553,14 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const 
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_prelu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1582,7 +1582,7 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
         h->vxorps(vmm_aux1, vmm_aux1, vmm_aux1);
         h->vcmpgtps(vmm_aux1, vmm_src0, vmm_aux1);
         h->vblendvps(vmm_dst, vmm_aux0, vmm_src0, vmm_aux1);
-    } else if (isa == cpu::x64::avx512_common) {
+    } else if (isa == cpu::x64::avx512_core) {
         h->vxorpd(vmm_aux0, vmm_aux0, vmm_aux0);
         if (vmm_src0.getIdx() != vmm_dst.getIdx())
             h->vmovups(vmm_dst, vmm_src0);
@@ -1610,14 +1610,14 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const s
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src0 = Vmm(in_vec_idxs[0]);
@@ -1639,14 +1639,14 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, con
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
 }
 
-template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
@@ -1678,8 +1678,8 @@ void jit_erf_emitter::emit_impl(
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
     } else {
         assert(!"unsupported isa");
     }
@@ -1700,7 +1700,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     auto compute_cmp_mask = [&](const Vmm &vmm_src,
         const Xbyak::Operand &compare_operand, int cmp_predicate) {
-        if (host_isa_ == cpu::x64::avx512_common) {
+        if (host_isa_ == cpu::x64::avx512_core) {
             h->vcmpps(k_mask, vmm_src, compare_operand, cmp_predicate);
         } else {
             h->uni_vcmpps(vmm_mask, vmm_src, compare_operand, cmp_predicate);
@@ -1708,7 +1708,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     };
 
     auto blend_with_mask = [&](const Vmm &vmm_dst, const Xbyak::Operand &src) {
-        if (host_isa_ == cpu::x64::avx512_common) {
+        if (host_isa_ == cpu::x64::avx512_core) {
             h->vblendmps(vmm_dst | k_mask, vmm_dst, src);
         } else {
             h->uni_vblendvps(vmm_dst, vmm_dst, src, vmm_mask);

@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class jit_emu_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_emu_vcvtneps2bf16(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_emu_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, exec_prc) {
         prepare_table();
     }
@@ -22,7 +22,7 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
         const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
         const emitter_context *emit_context) const override {
-        if (host_isa_ == mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common) {
+        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
             Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
             Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
             Xbyak::Zmm aux = Xbyak::Zmm(aux_vec_idxs[0]);

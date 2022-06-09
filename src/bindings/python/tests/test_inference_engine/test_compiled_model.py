@@ -5,7 +5,7 @@ import os
 import pytest
 import numpy as np
 
-from ..conftest import model_path, read_image
+from ..conftest import model_path, read_image, get_model_with_template_extension
 from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
@@ -282,9 +282,9 @@ def test_infer_new_request_wrong_port_name(device):
     img = read_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
-    with pytest.raises(KeyError) as e:
+    with pytest.raises(RuntimeError) as e:
         exec_net.infer_new_request({"_data_": tensor})
-    assert "Port for tensor _data_ was not found!" in str(e.value)
+    assert "Check" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
@@ -296,7 +296,7 @@ def test_infer_tensor_wrong_input_data(device):
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
-    assert "Incompatible key type for tensor: 0." in str(e.value)
+    assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
 def test_infer_numpy_model_from_buffer(device):
@@ -340,3 +340,12 @@ def test_direct_infer(device):
     assert np.argmax(res[comp_model.outputs[0]]) == 2
     ref = comp_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
+
+
+def test_compiled_model_after_core_destroyed(device):
+    core, model = get_model_with_template_extension()
+    compiled = core.compile_model(model, device)
+    del core
+    del model
+    # check compiled and infer request can work properly after core object is destroyed
+    compiled([np.random.normal(size=list(input.shape)) for input in compiled.inputs])

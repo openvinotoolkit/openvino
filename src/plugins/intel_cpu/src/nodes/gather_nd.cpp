@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "gather_nd.h"
 #include <ngraph/opsets/opset8.hpp>
@@ -34,7 +34,7 @@ bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -127,7 +127,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : 
     }
 }
 
-void GatherND::execute(mkldnn::stream strm) {
+void GatherND::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
@@ -222,7 +222,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, c
     });
 }
 
-void GatherND::executeDynamicImpl(mkldnn::stream strm) {
+void GatherND::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

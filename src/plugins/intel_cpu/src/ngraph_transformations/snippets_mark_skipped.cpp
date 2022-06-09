@@ -7,6 +7,8 @@
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
+#include "itt.hpp"
+
 using namespace ngraph;
 
 namespace ov {
@@ -66,7 +68,7 @@ bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Nod
             ov::is_type<ngraph::op::v5::Round>(node);
 }
 
-bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const size_t channelAxis) {
+bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const int channelAxis) {
     size_t fusingPort = 0;
     size_t numNonConstInputs = 0;
     ov::PartialShape dataShape;
@@ -108,7 +110,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const s
            isBroadcastableToDataInput();
 }
 
-bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const size_t channelAxis = 1) {
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const int channelAxis = 1) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
            ov::is_type<ngraph::op::Tanh>(node) ||
            ov::is_type<ngraph::op::v0::Gelu>(node) ||
@@ -133,7 +135,22 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node> &node) 
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
+int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
+    int channelAxis = 1;
+    if (!keep_dims) {
+        for (auto &axis : axes) {
+            if (axis == 1) {
+                // channel axis has been reduced and doesn't exist any more
+                channelAxis = -1;
+                break;
+            } else if (axis == 0) {
+                channelAxis = 0;
+            }
+        }
+    }
+    return channelAxis;
+}
+bool isSuitableMiscParent(const std::shared_ptr<const Node> &node, int &channelAxis) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v0::MVN>(node) ||
                                   ov::is_type<ngraph::op::v6::MVN>(node) ||
                                   ov::is_type<ngraph::op::v0::NormalizeL2>(node) ||
@@ -145,6 +162,11 @@ bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
                                   ov::is_type<ngraph::op::util::ArithmeticReductionKeepDims>(node) ||
                                   ov::is_type<ngraph::op::util::LogicalReductionKeepDims>(node) ||
                                   ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node);
+    if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(node)) {
+        channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
+    } else if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(node)) {
+        channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
+    }
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -165,7 +187,7 @@ bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, const size_t channelAxis = 1) {
+bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node, int channelAxis = 1) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node, channelAxis) && getNumNonConstInputs(node) == 1;
 }
@@ -203,7 +225,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    size_t fusingAxis;
+    int fusingAxis;
     if (can_be_converted_to_FC)
         fusingAxis = matmul_shape.size() == 3 ? 2 : 1;
     else
@@ -297,6 +319,8 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
+    int channelAxis = 1;
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
@@ -310,7 +334,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
         } else if (isSuitableBinaryConvolutionParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
             continue;
-        } else if (isSuitableMiscParent(node)) {
+        } else if (isSuitableMiscParent(node, channelAxis)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
             continue;
         } else if (isSuitableMatMulParent(node)) {
@@ -318,7 +342,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             continue;
         }
         for (const auto fusingChainType : getContinuableChains(node)) {
-            if (isSuitableChildForFusingSimple(node)) {
+            if (isSuitableChildForFusingSimple(node, channelAxis)) {
                 PropagateIfHasOnlyChild(node, fusingChainType);
             } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
                        fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {

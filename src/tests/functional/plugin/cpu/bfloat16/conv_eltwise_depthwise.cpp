@@ -36,7 +36,7 @@ public:
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;
-    std::string mkldnnPrimitive;
+    std::string dnnlPrimitive;
 
 protected:
     std::shared_ptr<Function> createGraph(InferenceEngine::Precision netPrecision) {
@@ -61,6 +61,7 @@ protected:
             const1 = opset1::Constant::create(ntype, Shape{ 1 }, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
+        mulNode->set_friendly_name("SS_1");
 
         // add
         std::shared_ptr<opset1::Constant> const2 = nullptr;
@@ -70,7 +71,6 @@ protected:
             const2 = opset1::Constant::create(ntype, Shape{ 1 }, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
         }
         auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
-        addNode->set_friendly_name("SS_1");
 
         // convolution
         std::shared_ptr<opset1::Constant> weightsNode = nullptr;
@@ -104,6 +104,7 @@ protected:
                     { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(3.0f)) });
         }
         auto mulNode2 = std::make_shared<opset1::Multiply>(reluNode, const3);
+        mulNode2->set_friendly_name("SS_2");
 
         // add
         std::shared_ptr<opset1::Constant> const4 = nullptr;
@@ -114,7 +115,6 @@ protected:
                     { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto addNode2 = std::make_shared<opset1::Add>(mulNode2, const4);
-        addNode2->set_friendly_name("SS_2");
 
         return std::make_shared<Function>(NodeVector{ addNode2 }, ParameterVector{ input1 });
     }
@@ -125,13 +125,13 @@ public:
         string targetDevice;
         size_t kernel;
         CoordinateDiff pads;
-        string mkldnnPrimitive;
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = obj.param;
+        string dnnlPrimitive;
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = obj.param;
 
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
-        result << "mkldnnPrimitive=" << mkldnnPrimitive << "_";
+        result << "dnnlPrimitive=" << dnnlPrimitive << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
@@ -142,7 +142,7 @@ public:
             // tests are useless on such platforms
             return;
         }
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = this->GetParam();
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = this->GetParam();
         InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
         for (const auto& inputItem : cnnNet.getInputsInfo()) {
@@ -198,23 +198,35 @@ public:
                                                          threshold, threshold);
 
         // Stage2: verification of performance counters
+        const auto& perf_counts = req1.GetPerformanceCounts();
         std::pair<string, string> wrongLayer =
-            BFloat16Helpers::matchPerfCountPrecisionVsExpected(req1.GetPerformanceCounts(), expectedPrecisions);
+            BFloat16Helpers::matchPerfCountPrecisionVsExpected(perf_counts, expectedPrecisions);
         if (wrongLayer.first != string("")) {
             string layerInPerfCounts = wrongLayer.first + " " + wrongLayer.second;
             string layerExpected = wrongLayer.first + " " + expectedPrecisions[wrongLayer.first];
             ASSERT_EQ(layerInPerfCounts, layerExpected);
+        }
+        // onednn enabled brgemm kernel, the kernel name changed to:
+        // brgconv_avx512_(1x1)_bf16  isa: AVX512
+        // brgconv/jit_avx512_amx_(1x1)_bf16 isa: AMX
+        // check the avx512 only
+        if (perf_counts.count("CONV")) {
+            const std::string exec_type = perf_counts.at("CONV").exec_type;
+            if (exec_type.find("avx512") == std::string::npos) {
+                EXPECT_TRUE(false) << "CONV expected select AVX512 but actual:" << exec_type;
+            }
+        } else {
+            EXPECT_TRUE(false) << "CONV NOT_FOUND_IN_PERF_COUNTS";
         }
         fnPtr.reset();
     }
 
     void SetUp() override {
         std::vector<size_t> inputShape;
-        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, mkldnnPrimitive) = this->GetParam();
+        std::tie(netPrecision, inputShapes, targetDevice, kernel, pads, dnnlPrimitive) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
         expectedPrecisions["SS_1"] = "FP32";
-        expectedPrecisions["CONV"] = mkldnnPrimitive;
         expectedPrecisions["RELU"] = "ndef";
         expectedPrecisions["SS_2"] = "ndef";
     }
@@ -229,7 +241,12 @@ TEST_P(ConvEltwiseDepthwise, CompareWithRefImpl) {
 INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
-        ::testing::Values(SizeVector({ 1, 5, 1, 1 })),
+        // If input is 1,5,1,1 it will be same with the postops shape(1,5,1,1)
+        // The new enabled binary postops will think the shapes are the same and sets the
+        //  broadcast strategy 'no broadcast'. The postops layout will be nchw, the conv
+        //  output layout will be nhwc or nChw16c, both are not same with the postops layout.
+        // Change the input size to be different with the postops'.
+        ::testing::Values(SizeVector({ 1, 5, 2, 1 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(size_t(1)),
         ::testing::Values(CoordinateDiff({ 0, 0 })),

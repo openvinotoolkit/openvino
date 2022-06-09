@@ -67,13 +67,11 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
 ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const Config &cfg,
                          const ExtensionManager::Ptr& extMgr,
-                         NumaNodesWeights &numaNodesWeights,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
     _network(network) {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();

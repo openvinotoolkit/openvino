@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "region_yolo.h"
 #include <nodes/common/blocked_desc_creator.h>
@@ -17,9 +17,9 @@
 #include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_logistic, field)
 
@@ -39,7 +39,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
@@ -247,7 +247,7 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -289,7 +289,7 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type;
-    if (mayiuse(x64::avx512_common)) {
+    if (mayiuse(x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -314,8 +314,8 @@ void RegionYolo::createPrimitive() {
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
     block_size = 1;
-    if (mayiuse(x64::avx512_common)) {
-        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_core)) {
+        logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_core>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
         logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));
@@ -378,7 +378,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(mkldnn::stream strm) {
+void RegionYolo::execute(dnnl::stream strm) {
     const auto &inShape = getParentEdgeAt(0)->getMemory().GetShape();
     const auto &inDims = inShape.getStaticDims();
     size_t B =  (inShape.getRank() > 0) ? inDims[0] : 1;

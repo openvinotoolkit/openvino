@@ -11,6 +11,8 @@
 #include "convolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
+#include "pooling_inst.h"
+#include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif // ENABLE_ONEDNN_FOR_GPU
 
@@ -32,7 +34,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         output_layout.data_padding = prim->output_padding;
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx] == &new_dep)
@@ -47,16 +49,18 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep) {
     if (it != dependencies[idx]->users.end()) {
         dependencies[idx]->users.erase(it);
     }
-    myprog.remove_if_dangling(*dependencies[idx]);
+
+    if (remove_if_dangling)
+        myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
     new_dep.users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep) {
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i] == &old_dep)
-            return replace_dependency(i, new_dep);
+            return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -104,10 +108,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     node_info->add("output layout", output_layout_info);
 
-    node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
+    node_info->add("optimized", bool_to_str(optimized));
 
     json_composite fused_nodes_info;
     size_t index = 0;
@@ -885,7 +889,12 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
-                post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
+                if (alg == dnnl::algorithm::eltwise_pow)
+                    post_ops.append_eltwise(1.0f, alg, 1.0f, fused_desc->additional_params.a);
+                else
+                    post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (node->is_type<eltwise>()) {
@@ -909,9 +918,9 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.size.spatial[0] > 1 || in.size.spatial[1] > 1 || in.size.batch[0] > 1)
+                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs)) {
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
@@ -1125,10 +1134,20 @@ void program_node::init_onednn_primitive_attributes() {
 
     for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
         auto activation_type = get_fused_activations_funcs()[i];
-        auto params = get_fused_activations_params()[i];
-        dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-        post_ops.append_eltwise(1.0f, alg, params.a, params.b);
-        update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        if (activation_type == cldnn::activation_func::hsigmoid) {
+            // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.f, 3.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.f, 6.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1/6.f, 0.f);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+        } else {
+            auto params = get_fused_activations_params()[i];
+            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
+            post_ops.append_eltwise(1.0f, alg, params.a, params.b);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        }
     }
 
     // Trying to optimize more than 1 post-ops
