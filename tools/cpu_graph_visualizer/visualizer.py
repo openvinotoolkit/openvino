@@ -151,10 +151,9 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
             r += s + ","
         return r.rstrip(",")
 
-    op2color = {"Parameter":"gold", "Result":"deeppink", "Constant":"gray", "Const":"gray"}
+    op2color = {"Parameter":"gold", "Result":"deeppink", "Constant":"gray85", "Const":"gray85"}
 
     inode2index = {input.node:k for k,input in enumerate(model.inputs)}
-
 
     def name_normalize(n):
         name = n.get_friendly_name()
@@ -263,6 +262,7 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
 
         # originalLayersNames gives mapping between runtime nodes and orginal nodes
         fsize = fontsize
+        color = op2color[type_name] if type_name in op2color else "cyan"
         if type_name == "Constant":
             vstr = get_value_strings(n)
             label = strings2label(vstr)
@@ -273,7 +273,9 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
             else:
                 label = "{" + type_name + "|" + rt_info['fusedTypes'].replace(",","|") +"}"
         else:
-            label = "{}\\n({}{})".format(type_name, friendly_name[:20], "..." if len(friendly_name)>20 else "")
+            label = "{}".format(type_name)
+            if color == "cyan":
+                color = "darkolivegreen1" # node color is different for ngraph
 
         allinfo = "{} / #{}".format(friendly_name, nindex)
 
@@ -287,7 +289,7 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
         #if type_name.startswith("Constant"):
         #    allinfo += "\n----values----\n{}".format(",".join(n.get_value_strings()[:32]))
 
-        color = op2color[type_name] if type_name in op2color else "cyan"
+        
         if type_name == "Subgraph":
             submodel = rt_info["body"]
             allinfo += "\n----model-----\n{}".format(generate_str(submodel))
