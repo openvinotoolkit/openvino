@@ -22,7 +22,6 @@ class TestROIAlign(OnnxRuntimeLayerTest):
                 inputs_dict[input] = np.ones(inputs_dict[input]).astype(np.float32)
             else:
                 inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
-                # inputs_dict[input] = np.array([1, 1, 2, 2]).reshape(1, 4).astype(np.float32)
         return inputs_dict
 
     def create_net(self, input_shape, rois_shape, indices_shape, output_shape,
@@ -136,7 +135,6 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir, api_2):
-        if ie_device != "GPU":
-            self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                     ir_version,
                     temp_dir=temp_dir, api_2=api_2)
