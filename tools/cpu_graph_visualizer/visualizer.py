@@ -15,9 +15,8 @@ import dot_to_html
 
 def get_value_strings(n, nlimit = 8):
     values = n.get_vector()
-    if len(values) <= nlimit:
-        return [str(v) for v in values]
-    return [str(v) for v in values[:nlimit]]
+    limit = min(len(values), nlimit)
+    return [str(v) for v in values[:limit]]
 
 # print Model in readable text
 def generate_str(model, show_rt_info = False):
@@ -26,8 +25,10 @@ def generate_str(model, show_rt_info = False):
     simpleconst_node2vstr = {}
     ilist = [i.get_node().get_name() for i in model.inputs]
     result = []
+
     def get_rt_info(n):
         return {k:str(v) for k,v in n.get_rt_info().items()}
+
     result.append("model({}):".format(",".join(ilist)))
 
     for k, v in model.get_rt_info().items():
@@ -221,7 +222,7 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
             rt_info = n.get_rt_info()
             if type_name == "ExecutionNode" and "layerType" in rt_info:
                 type_name = str(rt_info["layerType"])
-            percentage = 0 if execTimeMcs_total <=0 else t*100/execTimeMcs_total
+            percentage = 0 if execTimeMcs_total <= 0 else t*100/execTimeMcs_total
             acc_percentage += percentage
             sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
                                 f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
@@ -460,9 +461,8 @@ def visualize_model(model, fontsize=12, filename=None, detailed_label=False):
             output_src = dot_to_html.dot_to_html(svg)
         else:
             output_src = svg
-        htmlfile = open(filename,'w')
-        htmlfile.write(output_src)
-        htmlfile.close()
+        with open(filename,'w') as output_file:
+            output_file.write(output_src)
         return
     return graph_src, data_map
 
@@ -521,15 +521,21 @@ def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser("CPU graph visualizer")
-    parser.add_argument("model", type=str, help="Model file path")
-    parser.add_argument("-p","--perf", action="store_true", help="do profiling")
-    parser.add_argument("--raw", action="store_true", help="also dump raw ngraph model")
-    parser.add_argument("--bf16", action="store_true", help="enable inference precision with bf16")
-    parser.add_argument("--nthreads", type=int, default=4, help="set INFERENCE_NUM_THREADS for profiling")
-    parser.add_argument("-r","--reshape", type=str, default="()", help="reshape before visualize/profiling")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("model", type=str,
+                        help="Model file path")
+    parser.add_argument("-p","--perf", action="store_true",
+                        help="Enable profiling")
+    parser.add_argument("--raw", action="store_true",
+                        help="Dump raw model")
+    parser.add_argument("--bf16", action="store_true",
+                        help="Enable inference with bf16")
+    parser.add_argument("--nthreads", type=int, default=4,
+                        help="Set INFERENCE_NUM_THREADS for profiling")
+    parser.add_argument("-r","--reshape", type=str, default="()",
+                        help="Reshape raw model before visualization/profiling")
     parser.add_argument("-i","--input_shapes", type=str, default="()",
-                        help="python tuple/list of static shapes used for profiling, e.g. [[6,23,240],[5,10,2]]")
+                        help="Python tuple/list of static shapes used for profiling, e.g. [[6,23,240],[5,10,2]]")
     args = parser.parse_args()
 
     core = ov.Core()
@@ -541,8 +547,6 @@ if __name__ == "__main__":
 
     dev_prop = {"PERF_COUNT": "YES",
                 "AFFINITY": "CORE",
-                "PERFORMANCE_HINT_NUM_REQUESTS":0,
-                "PERFORMANCE_HINT":"",
                 "INFERENCE_PRECISION_HINT": "bf16" if args.bf16 else "f32",
                 "NUM_STREAMS" : 1,
                 "INFERENCE_NUM_THREADS" : args.nthreads}
@@ -561,20 +565,18 @@ if __name__ == "__main__":
         model.visualize(filename=dest_file)
         print("{} is saved!".format(dest_file))
 
-    #model.reshape(ov.PartialShape([2,512]))
-
-    print("compiling model on {} with properties: ".format(device))
+    print("Compiling model for {} device with properties: ".format(device))
     for k,v in dev_prop.items():
         print("\t{:>32} : {}".format(k, v))
     compiled_model = core.compile_model(model, device, dev_prop)
 
     input_shapes = eval(args.input_shapes)
-    print("inputs:")
+    print("Inputs of the model:")
     for port, _input in enumerate(compiled_model.inputs):
         print("\t[{}] {}".format(port, _input))
         if (port < len(input_shapes)):
             print("\t\t static input shape:{}".format(input_shapes[port]))
-    print("outputs:")
+    print("Outputs of the model:")
     for port, _output in enumerate(compiled_model.outputs):
         print("\t[{}] {}".format(port, _output))
 
@@ -583,6 +585,6 @@ if __name__ == "__main__":
         print(f"test_infer_queue FPS:{fps:.1f}")
 
     dest_file = "visual_{}_{}.html".format(model_fname, device)
-    print("saving runtime model to {} ...".format(dest_file))
+    print("Saving runtime model to: {}".format(dest_file))
     compiled_model.get_runtime_model().visualize(filename=dest_file)
-    print("{} is saved!".format(dest_file))
+    print("Model is successfully saved")
