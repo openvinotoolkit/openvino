@@ -1,6 +1,10 @@
-# Running on multiple devices simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
+# Running on Multiple Devices Simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
+To run inference on multiple devices, you can choose either of the following ways:
+- Use the [CUMULATIVE_THROUGHPUT mode](./auto_device_selection.md#cumulativethroughput-mode) of [Automatic Device Selection](./auto_device_selection.md). This way, you can use all available devices in the system without specifying them. 
+- Use the Multi-Device execution mode. This page will explain how it works and how to use it.
 
+## How MULTI Works
 
 The Multi-Device execution mode, or MULTI for short, acts as a "virtual" or a "proxy" device, which does not bind to a specific type of hardware. Instead, it assigns available computing devices to particular inference requests, which are then executed in parallel. 
 

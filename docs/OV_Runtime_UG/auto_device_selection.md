@@ -46,7 +46,7 @@ The logic behind the choice is as follows:
 +----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
 
-<a name="initial-compile"></a>To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
+To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds. 
 What is important, **AUTO always starts inference with CPU**, as it provides very low latency and can start inference with no additional delays. 
 While CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
@@ -183,7 +183,7 @@ You can also exclude CPU from AUTO to reserve it for other jobs. AUTO will not u
 
 AUTO will then query all available devices and remove CPU from the candidate list. 
 
-Note that if you choose to exclude CPU from device candidate list, CPU will be unable to support the <a href="#initial-compile">initial model compilation stage</a>.
+Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in [How AUTO Works](#how-auto-works).
 
 ### Performance Hints for AUTO
 The `ov::hint::performance_mode` property enables you to specify a performance mode for AUTO to be more efficient for particular use cases.
@@ -199,7 +199,7 @@ This mode prioritizes low latency, providing short response time for each infere
 #### CUMULATIVE_THROUGHPUT Mode
 While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. CUMULATIVE_THROUGHPUT loads the network to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
 
-CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device Plugin](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with the Multi-Device Plugin, you need to specify the devices before inference. 
+CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device execution mode (MULTI)](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference. 
 
 In the CUMULATIVE_THROUGHPUT mode:
 - If `AUTO` without any device names is specified, and the system has more than one GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
@@ -295,6 +295,11 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
 
    No demos are yet fully optimized for AUTO, by means of selecting the most suitable device, using the GPU streams/throttling, and so on.
 @endsphinxdirective
+
+## See Also
+[Debugging AUTO](AutoPlugin_Debugging.md)
+[Running on Multiple Devices Simultaneously](./multi_device.md)
+[Supported Devices](supported_plugins/Supported_Devices.md)
 
 
 [autoplugin_accelerate]: ../img/autoplugin_accelerate.png
