@@ -141,7 +141,7 @@ private:
     // custom_list
     // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
     // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
-    bool is_mixed_layout(program_node const& prev, program_node const& next,
+    bool is_mixed_layout(program_node& prev, program_node& next,
                          bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
 
     bool convolution_bfyx_opt(const layout& output_layout,

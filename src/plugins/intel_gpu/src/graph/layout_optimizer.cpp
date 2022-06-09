@@ -216,8 +216,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
-    // keep reorder(b_fs_zyx_fsv2) before first conv(shallow feature)
-    if (prev.is_type<eltwise>() && next.is_type<convolution>()) {
+    // keep reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
+    if (use_onednn_impls && next.is_type<convolution>()) {
         auto reorder_layout = next.get_dependency(0).get_output_layout();
         if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
             (reorder_layout.feature() <= 4)) {
@@ -396,7 +396,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
 
     // fusing reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
-    if (prev.is_type<eltwise>() && next->is_type<convolution>()) {
+    if (use_onednn_impls && next->is_type<convolution>()) {
         auto reorder_layout = next->get_dependency(0).get_output_layout();
         if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
             (reorder_layout.feature() <= 4)) {
@@ -1008,7 +1008,7 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
     return format::b_fs_yx_fsv4;
 }
 
-bool layout_optimizer::is_mixed_layout(program_node const& prev, program_node const& next, bool check_data_type,
+bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, bool check_data_type,
                                        std::vector<std::pair<format, format>> custom_list) const {
     auto prev_layout = prev.get_output_layout();
     auto prev_fmt = prev_layout.format;
