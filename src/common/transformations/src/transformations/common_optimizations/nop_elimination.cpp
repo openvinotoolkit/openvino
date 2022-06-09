@@ -383,7 +383,7 @@ pass::EliminateConcat::EliminateConcat() {
 }
 
 pass::EliminateSplit::EliminateSplit() {
-    MATCHER_SCOPE(EliminateConcat);
+    MATCHER_SCOPE(EliminateSplit);
     auto convert_pattern = pattern::wrap_type<opset8::Split>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -391,7 +391,7 @@ pass::EliminateSplit::EliminateSplit() {
         if (!split || split->get_num_splits() != 1) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(EliminateConcat);
+        MATCHER_SCOPE_ENABLE(EliminateSplit);
         return replace_output_update_name(split->output(0), split->input_value(0));
     };
 
