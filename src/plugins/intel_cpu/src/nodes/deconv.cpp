@@ -6,10 +6,8 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "input.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
 #include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
