@@ -68,9 +68,10 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
 
 #else // Second kernel
 
-    const uint blockND[] = {INPUT0_BLOCK_ND};
+    const uint dataND[] = {INPUT0_BLOCK_ND};
+    const uint updatesND[] = {INPUT2_BLOCK_ND};
     const uint indicesND[] = {INPUT1_BLOCK_ND};
-    const uint size_to_update = blockND[INDICES_LAST_DIM];
+    const uint size_to_update = dataND[INDICES_LAST_DIM];
     
     #if INPUT1_DIMS == 4
         const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
@@ -131,11 +132,14 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         for (int j = 0; j < INDICES_RANK - 1; ++j) {
             upd[j] = idx[j];
         }
-        uint rmd = i;
-        for (int j = indices_dim[INDICES_RANK - 1], k = INDICES_RANK - 1; j < INPUT0_DIMS; ++j, ++k) {
-            out[j] = rmd / blockND[j + 1];
-            upd[k] = out[j];
-            rmd %= blockND[j + 1];
+        uint data_rmd = i, updates_rmd = i;
+        for (int j = indices_dim[INDICES_RANK - 1]; j < INPUT0_DIMS; ++j) {
+            out[j] = data_rmd / dataND[j + 1];
+            data_rmd %= dataND[j + 1];
+        }
+        for (int k = INDICES_RANK - 1; k < INPUT2_DIMS; ++k) {
+            upd[k] = updates_rmd / updatesND[k + 1];
+            updates_rmd %= updatesND[k + 1];
         }
         // Get update index
         const uint upd_b = upd[0];

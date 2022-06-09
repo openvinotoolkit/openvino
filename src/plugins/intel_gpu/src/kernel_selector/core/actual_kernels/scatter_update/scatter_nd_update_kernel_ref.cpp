@@ -152,10 +152,12 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
 
         if (i == 1) {
             int input0_rank = static_cast<int>(newParams.inputs[0].LogicalDims().size());
+            int input2_rank = static_cast<int>(newParams.inputs[2].LogicalDims().size());
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, input0_rank)));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, newParams.indices_rank - 1)));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, input2_rank)));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
         }
         std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
