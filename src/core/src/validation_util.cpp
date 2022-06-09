@@ -1161,8 +1161,6 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
 
 bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
     bool status = true;
-    if (output.get_node() == nullptr)
-        return false;
 
     std::deque<Node*> nodes_to_calculate = {output.get_node()};
     order.push_back(output.get_node());
@@ -1205,12 +1203,8 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
             for (auto& in : output.get_target_inputs()) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
-                try {
-                    auto consumer = in.get_node()->shared_from_this();
-                    copy_runtime_info({curr_node, consumer}, consumer);
-                } catch (const std::bad_weak_ptr&) {
-                    continue;
-                }
+                auto consumer = in.get_node()->shared_from_this();
+                copy_runtime_info({curr_node, consumer}, consumer);
             }
         }
     }
@@ -1281,7 +1275,11 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool inv
                     if (should_invalidate && input.get_target_inputs().size() == 1)
                         tensor.invalidate_values();
                 }
-                propagate_rt_info(node, output);
+                try {
+                    propagate_rt_info(node, output);
+                } catch (const std::bad_weak_ptr&) {
+                    continue;
+                }
             } else {
                 break;
             }
