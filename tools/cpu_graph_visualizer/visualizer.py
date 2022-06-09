@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino.runtime as ov
+from openvino.runtime.passes import Manager
 from openvino.runtime.utils.types import get_dtype
 import numpy as np
 import sys, os
@@ -187,56 +188,56 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
         execTimeMcs_by_node[n] = execTimeMcs
         execTimeMcs_total += execTimeMcs
         if type_name in execTimeMcs_by_type:
-            execTimeMcs_by_type[type_name] += execTimeMcs
+            execTimeMcs_by_type[type_name][0] += execTimeMcs
+            execTimeMcs_by_type[type_name][1] += 1
         else:
-            execTimeMcs_by_type[type_name] = execTimeMcs
+            execTimeMcs_by_type[type_name] = [execTimeMcs, 0]
 
-    if execTimeMcs_total > 0:
-        num_limit = 10
-        sort_execTimeMcs_by_type = []
-        acc_percentage = 0
-        for (type_name, t) in sorted(execTimeMcs_by_type.items(), key=lambda x: x[1], reverse=True):
-            percentage = t*100/execTimeMcs_total
-            acc_percentage += percentage
-            sort_execTimeMcs_by_type.append("{:>6}%  {:>6}%  {}".format(
-                                    f"{acc_percentage:.1f}", f"+{percentage:.1f}", type_name))
-            if acc_percentage >= 90 and len(sort_execTimeMcs_by_type) >= num_limit:
-                break
-        
-        sort_execTimeMcs_by_name = []
-        acc_percentage = 0
-        for (n, t) in sorted(execTimeMcs_by_node.items(), key=lambda x: x[1], reverse=True):
-            friendly_name = name_normalize(n)
-            type_name = n.get_type_name()
-            rt_info = n.get_rt_info()
-            if type_name == "ExecutionNode" and "layerType" in rt_info:
-                type_name = str(rt_info["layerType"])
-            percentage = t*100/execTimeMcs_total
-            acc_percentage += percentage
-            sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
-                                f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
-            if acc_percentage >= 90 and len(sort_execTimeMcs_by_name) >= num_limit:
-                break
-        
-        kwargs = {"shape":'box',
-                "style":'filled',
-                "fillcolor":"gold",
-                "fontsize":str(fontsize + 2),
-                "margin":"0,0","width":"0","height":"0",
-                "tooltip":"\n".join(sort_execTimeMcs_by_type)}
-        g.node(name="ProfileSummary_ByType",
-                label="ProfileSummary\\nByType",
-                **kwargs)
+    num_limit = 10
+    sort_execTimeMcs_by_type = []
+    acc_percentage = 0
+    for (type_name, (t, cnt)) in sorted(execTimeMcs_by_type.items(), key=lambda x: x[1][0], reverse=True):
+        percentage = 0 if execTimeMcs_total <= 0 else t*100/execTimeMcs_total
+        acc_percentage += percentage
+        sort_execTimeMcs_by_type.append("{:>6}%  {:>6}%  {} x {}".format(
+                                f"{acc_percentage:.1f}", f"+{percentage:.1f}", cnt, type_name))
+        if acc_percentage >= 90 and len(sort_execTimeMcs_by_type) >= num_limit:
+            break
+    
+    sort_execTimeMcs_by_name = []
+    acc_percentage = 0
+    for (n, t) in sorted(execTimeMcs_by_node.items(), key=lambda x: x[1], reverse=True):
+        friendly_name = name_normalize(n)
+        type_name = n.get_type_name()
+        rt_info = n.get_rt_info()
+        if type_name == "ExecutionNode" and "layerType" in rt_info:
+            type_name = str(rt_info["layerType"])
+        percentage = 0 if execTimeMcs_total <=0 else t*100/execTimeMcs_total
+        acc_percentage += percentage
+        sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
+                            f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
+        if acc_percentage >= 90 and len(sort_execTimeMcs_by_name) >= num_limit:
+            break
+    
+    kwargs = {"shape":'box',
+            "style":'filled',
+            "fillcolor":"gold",
+            "fontsize":str(fontsize + 2),
+            "margin":"0,0","width":"0","height":"0",
+            "tooltip":"\n".join(sort_execTimeMcs_by_type)}
+    g.node(name="ProfileSummary_ByType",
+            label="ProfileSummary\\nByType",
+            **kwargs)
 
-        kwargs = {"shape":'box',
-                "style":'filled',
-                "fillcolor":"gold",
-                "fontsize":str(fontsize + 2),
-                "margin":"0,0","width":"0","height":"0",
-                "tooltip":"\n".join(sort_execTimeMcs_by_name)}
-        g.node(name="ProfileSummary_ByName",
-                label="ProfileSummary\\nByName",
-                **kwargs)
+    kwargs = {"shape":'box',
+            "style":'filled',
+            "fillcolor":"gold",
+            "fontsize":str(fontsize + 2),
+            "margin":"0,0","width":"0","height":"0",
+            "tooltip":"\n".join(sort_execTimeMcs_by_name)}
+    g.node(name="ProfileSummary_ByName",
+            label="ProfileSummary\\nByName",
+            **kwargs)
 
     for nindex, n in enumerate(model.get_ordered_ops()):
         friendly_name = name_normalize(n)
@@ -463,6 +464,14 @@ def visualize_model(model, fontsize=12, filename=None, detailed_label=False):
         return
     return graph_src, data_map
 
+def serialize_model(self, model_path):
+    weight_path = model_path[:model_path.find(".xml")] + ".bin"
+    pass_manager = Manager()
+    pass_manager.register_pass("Serialize", model_path, weight_path)
+    pass_manager.run_passes(self)
+    return model_path, weight_path
+
+ov.Model.serialize = serialize_model
 ov.Model.print = print_model
 ov.Model.visualize = visualize_model
 
@@ -516,13 +525,14 @@ if __name__ == "__main__":
     parser.add_argument("--raw", action="store_true", help="also dump raw ngraph model")
     parser.add_argument("--bf16", action="store_true", help="enable inference precision with bf16")
     parser.add_argument("--nthreads", type=int, default=4, help="set INFERENCE_NUM_THREADS for profiling")
+    parser.add_argument("-r","--reshape", type=str, default="()", help="reshape before visualize/profiling")
     parser.add_argument("-i","--input_shapes", type=str, default="()",
                         help="python tuple/list of static shapes used for profiling, e.g. [[6,23,240],[5,10,2]]")
     args = parser.parse_args()
 
     core = ov.Core()
     model_path = args.model
-    model_fname = os.path.split(model_path)[1]
+    model_fname = os.path.splitext(os.path.split(model_path)[1])[0]
     model = core.read_model(model_path)
 
     device = "CPU"
@@ -534,6 +544,14 @@ if __name__ == "__main__":
                 "INFERENCE_PRECISION_HINT": "bf16" if args.bf16 else "f32",
                 "NUM_STREAMS" : 1,
                 "INFERENCE_NUM_THREADS" : args.nthreads}
+
+    reshape_target = {i:s for i,s in enumerate(eval(args.reshape))}
+    if len(reshape_target) > 0:
+        model.reshape(reshape_target)
+        dest_file = "{}_reshaped.xml".format(model_fname)
+        print("reshape {} using {}".format(model_fname, reshape_target))
+        model.serialize(dest_file)
+        print("{} is saved!".format(dest_file))
 
     if args.raw:
         dest_file = "visual_{}_raw.html".format(model_fname)
