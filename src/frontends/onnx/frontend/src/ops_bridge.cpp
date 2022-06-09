@@ -69,6 +69,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/grid_sample.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
@@ -344,6 +345,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
