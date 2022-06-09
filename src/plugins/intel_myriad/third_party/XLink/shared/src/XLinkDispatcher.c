@@ -50,7 +50,6 @@ typedef enum {
     EVENT_BLOCKED,
     EVENT_READY,
     EVENT_SERVED,
-    EVENT_DROPPED,
 } xLinkEventState_t;
 
 typedef struct xLinkEventPriv_t {
@@ -447,7 +446,6 @@ char* TypeToStr(int type)
         case XLINK_CLOSE_STREAM_REQ: return "XLINK_CLOSE_STREAM_REQ";
         case XLINK_PING_REQ:         return "XLINK_PING_REQ";
         case XLINK_RESET_REQ:        return "XLINK_RESET_REQ";
-        case XLINK_DROP_REQ:         return "XLINK_DROP_REQ";
         case XLINK_REQUEST_LAST:     return "XLINK_REQUEST_LAST";
         case XLINK_WRITE_RESP:   return "XLINK_WRITE_RESP";
         case XLINK_READ_RESP:     return "XLINK_READ_RESP";
@@ -457,65 +455,11 @@ char* TypeToStr(int type)
         case XLINK_CLOSE_STREAM_RESP:  return "XLINK_CLOSE_STREAM_RESP";
         case XLINK_PING_RESP:  return "XLINK_PING_RESP";
         case XLINK_RESET_RESP: return "XLINK_RESET_RESP";
-        case XLINK_DROP_RESP:  return "XLINK_DROP_RESP";
         case XLINK_RESP_LAST:  return "XLINK_RESP_LAST";
         default:
             break;
     }
     return "";
-}
-
-int DispatcherServeOrDropEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void *xlinkFD)
-{
-    xLinkSchedulerState_t* curr = findCorrespondingScheduler(xlinkFD);
-    ASSERT_XLINK(curr != NULL);
-
-    xLinkEventPriv_t* event;
-    int blocked = 0;
-    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
-    for (event = curr->lQueue.q;
-         event < curr->lQueue.q + MAX_EVENTS;
-         event++)
-    {
-        if (((event->packet.header.id == id || id == -1)
-             && event->packet.header.type == type
-             && event->packet.header.streamId == stream))
-        {
-            blocked = event->isServed == EVENT_BLOCKED;
-            if (event->packet.header.type == XLINK_READ_REQ) {
-                mvLog(MVLOG_DEBUG,"served read request**************** %d %s\n",
-                    (int)event->packet.header.id,
-                    TypeToStr((int)event->packet.header.type));
-                event->isServed = EVENT_SERVED;
-                event->packet.header.dropped = 0;
-                event->packet.header.canBeServed = 1;
-                XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
-                return 0;
-            } else if (event->packet.header.type == XLINK_WRITE_REQ) {
-                if (blocked) {
-                    mvLog(MVLOG_DEBUG,"served write request**************** %d %s\n",
-                        (int)event->packet.header.id,
-                        TypeToStr((int)event->packet.header.type));
-                    event->isServed = EVENT_SERVED;
-                    event->packet.header.dropped = 0;
-                    event->packet.header.canBeServed = 1;
-                    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
-                    return 0;
-                } else {
-                    mvLog(MVLOG_DEBUG,"droped write request**************** %d %s\n",
-                    (int)event->packet.header.id,
-                    TypeToStr((int)event->packet.header.type));
-                    event->isServed = EVENT_DROPPED;
-                    event->packet.header.dropped = 1;
-                    event->packet.header.canBeServed = 1;
-                    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
-                    return 0;
-                }
-            }
-        }
-    }
-    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
-    return 0;
 }
 
 int DispatcherUnblockEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void *xlinkFD)
@@ -549,6 +493,33 @@ int DispatcherUnblockEvent(eventId_t id, xLinkEventType_t type, streamId_t strea
             mvLog(MVLOG_DEBUG,"%d %s\n",
                   (int)blockedEvent->packet.header.id,
                   TypeToStr((int)blockedEvent->packet.header.type));
+        }
+    }
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
+    return 0;
+}
+
+int DispatcherServeEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void *xlinkFD)
+{
+    xLinkSchedulerState_t* curr = findCorrespondingScheduler(xlinkFD);
+    ASSERT_XLINK(curr != NULL);
+
+    xLinkEventPriv_t* event;
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
+    for (event = curr->lQueue.q;
+         event < curr->lQueue.q + MAX_EVENTS;
+         event++)
+    {
+        if (((event->packet.header.id == id || id == -1)
+             && event->packet.header.type == type
+             && event->packet.header.streamId == stream))
+        {
+            mvLog(MVLOG_DEBUG,"served**************** %d %s\n",
+                  (int)event->packet.header.id,
+                  TypeToStr((int)event->packet.header.type));
+            event->isServed = EVENT_SERVED;
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
+            return 1;
         }
     }
     XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
@@ -674,19 +645,10 @@ static void* eventReader(void* ctx)
 
         DispatcherAddEvent(EVENT_REMOTE, &event);
 
-#ifdef __PC__
-        // Stop receiving events when receive confirmation that the device acknowledged the reset request
-        if (event.header.type == XLINK_RESET_RESP) {
-            mvLog(MVLOG_DEBUG,"Read XLINK_RESET_RESP, stopping eventReader thread.");
-            break;
-        }
-#else
-        // Stop receiving events from remote when receive a XLINK_RESET_REQ
         if (event.header.type == XLINK_RESET_REQ) {
+            curr->resetXLink = 1;
             mvLog(MVLOG_DEBUG,"Read XLINK_RESET_REQ, stopping eventReader thread.");
-            break;
         }
-#endif
     }
 
     return 0;
@@ -789,13 +751,13 @@ static int isEventTypeRequest(xLinkEventPriv_t* event)
 
 static void postAndMarkEventServed(xLinkEventPriv_t *event)
 {
-    if (event->retEv) {
+    if (event->retEv){
         // the xLinkEventPriv_t slot pointed by "event" will be
         // re-cycled as soon as we mark it as EVENT_SERVED,
         // so before that, we copy the result event into XLink API layer
         *(event->retEv) = event->packet;
     }
-    if (event->sem && event->isServed != EVENT_DROPPED) {
+    if(event->sem){
         if (XLink_sem_post(event->sem)) {
             mvLog(MVLOG_ERROR,"can't post semaphore\n");
         }
@@ -849,7 +811,7 @@ static int dispatcherRequestServe(xLinkEventPriv_t * event, xLinkSchedulerState_
     xLinkEventHeader_t *header = &event->packet.header;
     if (header->flags.bitField.block){ //block is requested
         event->isServed = EVENT_BLOCKED;
-    } else if (header->flags.bitField.localServe == 1 ||
+    } else if(header->flags.bitField.localServe == 1 ||
               (header->flags.bitField.ack == 0
                && header->flags.bitField.nack == 1)){ //this event is served locally, or it is failed
         postAndMarkEventServed(event);
@@ -858,7 +820,7 @@ static int dispatcherRequestServe(xLinkEventPriv_t * event, xLinkSchedulerState_
         event->isServed = EVENT_PENDING;
         mvLog(MVLOG_DEBUG,"------------------------UNserved %s\n",
               TypeToStr(event->packet.header.type));
-    } else {
+    }else{
         return 1;
     }
     return 0;
@@ -874,31 +836,16 @@ static int dispatcherResponseServe(xLinkEventPriv_t * event, xLinkSchedulerState
         xLinkEventHeader_t *header = &curr->lQueue.q[i].packet.header;
         xLinkEventHeader_t *evHeader = &event->packet.header;
 
-        if (header->id == evHeader->id &&
-            header->type == evHeader->type - XLINK_REQUEST_LAST - 1)
+        if (curr->lQueue.q[i].isServed == EVENT_PENDING &&
+            header->id == evHeader->id &&
+            header->type == evHeader->type - XLINK_REQUEST_LAST -1)
         {
-            if (curr->lQueue.q[i].packet.header.type == XLINK_WRITE_REQ ||
-                curr->lQueue.q[i].packet.header.type == XLINK_READ_REQ) {
-                while (!curr->lQueue.q[i].packet.header.canBeServed) continue;
-            }
-            if (curr->lQueue.q[i].isServed == EVENT_PENDING) {
-                mvLog(MVLOG_DEBUG,"----------------------ISserved %s\n",
-                      TypeToStr(header->type));
-                //propagate back flags
-                header->flags = evHeader->flags;
-                postAndMarkEventServed(&curr->lQueue.q[i]);
-                break;
-            } else if (curr->lQueue.q[i].isServed == EVENT_DROPPED) {
-                mvLog(MVLOG_DEBUG,"----------------------ISdropped %s\n",
-                      TypeToStr(header->type));
-                streamDesc_t* stream = getStreamById(event->packet.deviceHandle.xLinkFD,
-                                       event->packet.header.streamId);
-                if (stream->remoteFillLevel)
-                    stream->remoteFillLevel -= event->packet.header.size;
-                releaseStream(stream);
-                postAndMarkEventServed(&curr->lQueue.q[i]);
-                break;
-            }
+            mvLog(MVLOG_DEBUG,"----------------------ISserved %s\n",
+                  TypeToStr(header->type));
+            //propagate back flags
+            header->flags = evHeader->flags;
+            postAndMarkEventServed(&curr->lQueue.q[i]);
+            break;
         }
     }
     if (i == MAX_EVENTS) {
@@ -1202,13 +1149,6 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
                     XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
                     mvLog(MVLOG_ERROR, "Event sending failed");
                 }
-#ifndef __PC__
-                // Stop scheduler thread after XLINK_RESET_RESP was successfully sent to host
-                if (toSend->header.type == XLINK_RESET_RESP) {
-                    curr->resetXLink = 1;
-                    mvLog(MVLOG_DEBUG, "Stop scheduler thread.");
-                }
-#endif
             } else {
                 XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
             }
