@@ -19,10 +19,6 @@ namespace node {
 
 bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v1::GatherTree>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
@@ -42,19 +38,19 @@ GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const dnnl::engi
     }
 
     errorPrefix = std::string("Node GatherTree with name '") + op->get_friendly_name() + "'";
-    if (op->get_input_size() != 4)
+    if (inputShapes.size() != 4)
         IE_THROW() << errorPrefix << " has incorrect number of input edges.";
-    if (op->get_output_size() != 1)
+    if (outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of output edges.";
 
-    if (op->get_input_shape(GATHER_TREE_STEP_IDX).size() != 3)
+    if (getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() != 3)
         IE_THROW() << errorPrefix << " step_idx vector should be 3 dimension";
-    if (op->get_input_shape(GATHER_TREE_PARENT_IDX).size() != 3)
+    if (getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() != 3)
         IE_THROW() << errorPrefix << " parent_idx vector should be 3 dimension";
-    if (op->get_input_shape(GATHER_TREE_MAX_SEQ_LEN).size() != 1)
+    if (getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() != 1)
         IE_THROW() << errorPrefix << " max_seq_len vector should be 1 dimension";
-    if (op->get_input_shape(GATHER_TREE_END_TOKEN).size() != 0)
-        IE_THROW() << errorPrefix << " end_token should be 1 dimension";
+    if (!is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN)))
+        IE_THROW() << errorPrefix << " end_token should be scalar";
 }
 
 void GatherTree::initSupportedPrimitiveDescriptors() {
@@ -81,68 +77,105 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
 }
 
 void GatherTree::execute(dnnl::stream strm) {
+    if (!execPtr)
+        IE_THROW() << errorPrefix << " has not compiled executor.";
+
     if (precision == Precision::FP32)
-        return gatherTreeKernel<float>();
+        execPtr->exec<float>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
+                             getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr(),
+                             getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr(),
+                             getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr(),
+                             getChildEdgeAt(0)->getMemoryPtr());
     else
-        return gatherTreeKernel<int32_t>();
+        execPtr->exec<int32_t>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
+                               getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr(),
+                               getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr(),
+                               getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr(),
+                               getChildEdgeAt(0)->getMemoryPtr());
 }
 
-template<typename DATA_T>
-void GatherTree::gatherTreeKernel() {
-    const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
-    const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
-    const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetShape().getElementsCount()
-                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding();
-    const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
-    auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
-    auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+void GatherTree::prepareParams() {
+    const auto& stepIdxMemPtr = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr();
+    const auto& parentIdxMemPtr = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr();
+    const auto& maxSeqLenMemPtr = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr();
+    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    SizeVector step_idx_dims = getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemory().getStaticDims();
-    SizeVector parent_idx_dims = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().getStaticDims();
-    SizeVector max_seq_len_dims = getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemory().getStaticDims();
-    SizeVector final_idx_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    if (!stepIdxMemPtr || !stepIdxMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated input memory of 'step_ids'.";
+    if (!parentIdxMemPtr || !parentIdxMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated input memory of 'parent_ids'.";
+    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated input memory of 'max_seq_len'.";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated output memory.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << errorPrefix << " has unidentified preferable primitive descriptor.";
 
-    int32_t max_time = step_idx_dims[0];
-    const size_t batch_size = step_idx_dims[1];
-    const size_t beam_width = step_idx_dims[2];
-    const size_t bb_size = batch_size * beam_width;
+    const VectorDims& stepIdxDims = stepIdxMemPtr->getStaticDims();
+    const VectorDims& parentIdxDims = parentIdxMemPtr->getStaticDims();
+    const VectorDims& maxSeqLenDims = maxSeqLenMemPtr->getStaticDims();
+    const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
-    if (max_time != static_cast<int32_t>(parent_idx_dims[0]) || max_time != static_cast<int32_t>(final_idx_dims[0]) ||
-        batch_size != parent_idx_dims[1] || batch_size != final_idx_dims[1] || batch_size != max_seq_len_dims[0] ||
-        beam_width != parent_idx_dims[2] || beam_width != final_idx_dims[2]) {
+    execPtr = std::make_shared<GatherTreeExecutor>(stepIdxDims, parentIdxDims, maxSeqLenDims, dstDims);
+}
+
+void GatherTree::executeDynamicImpl(dnnl::stream strm) {
+    execute(strm);
+}
+
+GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims, const VectorDims& parentIdxDims,
+    const VectorDims& maxSeqLenDims, const VectorDims& dstDims)
+        : maxTime{static_cast<int32_t>(stepIdxDims[0])}
+        , batchSize{stepIdxDims[1]}
+        , beamWidth{stepIdxDims[2]}
+        , bbSize{batchSize * beamWidth}
+        , parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<size_t>())} {
+    if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
+        batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
+        beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
         std::string errorMsg = "Input/Output tensors dimensions mismatch";
         IE_THROW() << errorMsg;
     }
+}
 
-    bool incorrect_result = false;
-    parallel_for2d(batch_size, beam_width, [&](size_t batch, size_t beam) {
-        int32_t max_sequence_in_beam = std::min<int32_t>(max_time, static_cast<int32_t>(max_seq_len[batch]));
-        if (max_sequence_in_beam > 0) {
-            int32_t time, idx = (max_time - 1) * bb_size + batch * beam_width;
-            for (time = (max_time - 1); time >= max_sequence_in_beam; time--, idx -= bb_size)
-                final_idx[idx + beam] = end_token;
+template<typename DATA_T>
+void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
+    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, MemoryPtr& dstMemPtr) {
+    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->GetPtr());
+    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->GetPtr());
+    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->GetPtr());
+    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->GetPtr()))[0];
+    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->GetPtr());
 
-            for (int32_t parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bb_size) {
-                if (parent < 0 || parent >= static_cast<int32_t>(beam_width) || idx + parent >= parent_idx_size) {
-                    incorrect_result = true;
+    bool incorrectResult = false;
+    parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
+        int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
+        if (maxSequenceInBeam > 0) {
+            int32_t time, idx = (maxTime - 1) * bbSize + batch * beamWidth;
+            for (time = (maxTime - 1); time >= maxSequenceInBeam; time--, idx -= bbSize)
+                finalIdx[idx + beam] = endToken;
+
+            for (int32_t parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
+                if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) || idx + parent >= parentIdxSize) {
+                    incorrectResult = true;
                     break;
                 }
-                final_idx[idx + beam] = step_idx[idx + parent];
-                parent = static_cast<int32_t>(parent_idx[idx + parent]);
+                finalIdx[idx + beam] = stepIdx[idx + parent];
+                parent = static_cast<int32_t>(parentIdx[idx + parent]);
             }
 
             bool finished = false;
-            auto *final = &final_idx[batch * beam_width + beam];
-            for (time = 0; time < max_sequence_in_beam; time++, final += bb_size) {
+            auto *final = &finalIdx[batch * beamWidth + beam];
+            for (time = 0; time < maxSequenceInBeam; time++, final += bbSize) {
                 if (finished)
-                    (*final) = end_token;
-                else if ((*final) == end_token)
+                    (*final) = endToken;
+                else if ((*final) == endToken)
                     finished = true;
             }
         }
     });
 
-    if (incorrect_result) {
+    if (incorrectResult) {
         std::string errorMsg = "Wrong parent index, result is incorrect";
         IE_THROW() << errorMsg;
     }
