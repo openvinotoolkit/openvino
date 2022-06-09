@@ -40,14 +40,13 @@ CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params
                          params.outputs[0].Feature().v,
                          params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
 
-    //The reason why reverse input/output of GetOptimalLocalWorkGroupSizes():
-    //Large X*Y*Z lws size is better than large batch lws, but current GetOptimalLocalWorkGroupSizes not work like that.
+    // The reason why reverse input/output of GetOptimalLocalWorkGroupSizes():
+    // Large X*Y*Z lws size is better than large batch lws, but current GetOptimalLocalWorkGroupSizes not work like that.
     reverse(dims_by_gws.begin(), dims_by_gws.end());
     reverse(dispatchData.gws.begin(), dispatchData.gws.end());
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     reverse(dispatchData.lws.begin(), dispatchData.lws.end());
     reverse(dispatchData.gws.begin(), dispatchData.gws.end());
-    reverse(dims_by_gws.begin(), dims_by_gws.end());
 
     return dispatchData;
 }
