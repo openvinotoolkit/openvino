@@ -141,7 +141,7 @@ protected:
     const Xbyak::Reg64& rSpecIdxAndAfterAxIterB = regIdxIter;
     const Xbyak::Reg64& rSpecIdxAndAfterAxSizeB = regSpecIdxSizeB;
 
-    const Xbyak::Reg64& regParams = dnnl::impl::cpu::x64::abi_param1;
+    const Xbyak::Reg64 regParams = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
     // 32b registers.
     Xbyak::Reg32 reg32IdxIter = Xbyak::Reg32(regIdxIter.getIdx());
