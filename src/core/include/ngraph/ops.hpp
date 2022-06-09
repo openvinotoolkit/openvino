@@ -69,6 +69,7 @@
 #include "ngraph/op/generate_proposals.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/greater_eq.hpp"
+#include "ngraph/op/grid_sample.hpp"
 #include "ngraph/op/grn.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/gru_cell.hpp"

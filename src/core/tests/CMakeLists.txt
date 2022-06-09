@@ -148,6 +148,7 @@ set(SRC
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/gelu.cpp
+    type_prop/grid_sample.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -300,6 +301,7 @@ set(SRC
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/generate_proposals.cpp
+    visitors/op/grid_sample.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/eye.cpp

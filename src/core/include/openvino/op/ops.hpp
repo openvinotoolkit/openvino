@@ -68,6 +68,7 @@
 #include "openvino/op/generate_proposals.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/grid_sample.hpp"
 #include "openvino/op/grn.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/gru_cell.hpp"
