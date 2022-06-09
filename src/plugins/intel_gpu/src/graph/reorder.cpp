@@ -34,7 +34,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
 
     if (node.is_valid_output_layout() && input_layout.feature() <= 4) {
         auto users = node.get_users();
-        if (node.input().is_type<eltwise>() && users.size() > 1 && users.front()->is_type<convolution>()) {
+        if (users.size() > 0 && users.front()->is_type<convolution>()) {
             auto expected_fmt = node.get_output_layout().format;
             if (expected_fmt == format::b_fs_zyx_fsv2 || expected_fmt == format::bs_fs_zyx_bsv8_fsv2) {
                 ofmt = expected_fmt;
