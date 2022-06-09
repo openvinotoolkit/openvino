@@ -202,5 +202,4 @@ def dot_to_html(dot_source, htmlfilepath = None):
     if htmlfilepath:
         with open(htmlfilepath,'w') as f:
             f.write(output_src)
-            f.close()
     return output_src
