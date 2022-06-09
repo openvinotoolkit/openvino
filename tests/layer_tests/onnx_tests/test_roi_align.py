@@ -25,7 +25,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
         return inputs_dict
 
     def create_net(self, input_shape, rois_shape, indices_shape, output_shape,
-                   pooled_h, pooled_w, mode, sampling_ratio, spatial_scale, ir_version):
+                   pooled_h, pooled_w, mode, sampling_ratio, spatial_scale, ir_version, onnx_version):
         """
             ONNX net                    IR net
 
@@ -65,7 +65,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
 
         operatorsetid = OperatorSetIdProto()
         operatorsetid.domain = ""
-        operatorsetid.version = 10
+        operatorsetid.version = onnx_version
         # Create the model (ModelProto)
         onnx_net = helper.make_model(graph_def, producer_name='test_model', opset_imports=[operatorsetid])
 
@@ -134,7 +134,17 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_roi_align(self, params, ie_device, precision, ir_version, temp_dir, api_2):
-        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+    def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+        self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=10), ie_device, precision,
                     ir_version,
-                    temp_dir=temp_dir, api_2=api_2)
+                    temp_dir=temp_dir, api_2=api_2,
+                    use_legacy_frontend=True)
+
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+        self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=16), ie_device, precision,
+                    ir_version,
+                    temp_dir=temp_dir, api_2=api_2,
+                    use_legacy_fronted=True)

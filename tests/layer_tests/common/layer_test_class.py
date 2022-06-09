@@ -30,7 +30,7 @@ class CommonLayerTest:
                            " the specific framework")
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, api_2,
-              use_new_frontend=False, infer_timeout=60, enabled_transforms='',
+              use_new_frontend=True, infer_timeout=60, enabled_transforms='',
               disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.

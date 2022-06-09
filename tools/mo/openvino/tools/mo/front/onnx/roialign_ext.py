@@ -20,6 +20,8 @@ class ROIAlignExtractor(FrontExtractorOp):
         onnx_opset_version = get_onnx_opset_version(node)
         if onnx_opset_version >= 16:
             aligned_mode = onnx_attr(node, 'coordinate_transformation_mode', 's', default=b'half_pixel').decode()
+            if aligned_mode == "output_half_pixel":
+                aligned_mode = "asymmetric"
             ROIAlign.update_node_stat(node, {'pooled_h': output_height, 'pooled_w': output_width,
                                             'sampling_ratio': sampling_ratio, 'spatial_scale': spatial_scale,
                                             'mode': mode, 'aligned_mode': aligned_mode})
