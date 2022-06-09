@@ -144,6 +144,7 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    def test_roi_alignv16(self, params, ie_device, precision, ir_version, temp_dir, api_2):
         self._test(*self.create_net(**params, ir_version=ir_version, onnx_version=16), ie_device, precision,
                     ir_version,
                     temp_dir=temp_dir, api_2=api_2,
