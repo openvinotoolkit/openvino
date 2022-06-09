@@ -204,7 +204,18 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     deviceNameWithID.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
             // create meta device
-            metaDevices.push_back({deviceNameWithID, getDeviceConfig(deviceNameWithID), numRequests, defaultDeviceID, uniqueName, devicePriority});
+            auto deviceConfig = getDeviceConfig(deviceNameWithID);
+            // no performance mode setting for AUTO.
+            if (config.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == config.end()) {
+                for (auto device : deviceList) {
+                    auto item = config.find(device);
+                    if (item == config.end()) {
+                        // no properties specified for target device. setting tput as the default performance mode.
+                        deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+                    }
+                }
+            }
+            metaDevices.push_back({deviceNameWithID, deviceConfig, numRequests, defaultDeviceID, uniqueName, devicePriority});
         }
         if (enableDevicePriority) {
             devicePriority++;
