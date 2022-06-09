@@ -466,18 +466,17 @@ def visualize_model(model, fontsize=12, filename=None, detailed_label=False):
 ov.Model.print = print_model
 ov.Model.visualize = visualize_model
 
-def fill_tensors_with_random(input, alpha=0):
+def fill_tensors_with_random(input, shape):
     dtype = get_dtype(input.get_element_type())
     rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
-    shape = input.get_shape()
     a = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
     return ov.Tensor(a)
 
-def test_infer_queue(compiled_model, num_request, num_infer, time_limit=60):
+def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_limit=60):
     infer_queue = ov.AsyncInferQueue(compiled_model, num_request)
 
     latency_list = []
@@ -490,8 +489,11 @@ def test_infer_queue(compiled_model, num_request, num_infer, time_limit=60):
 
     all_input = {}
     for port, input in enumerate(compiled_model.inputs):
-        print("input[{}] {}".format(port, input))
-        all_input[port] = fill_tensors_with_random(input)
+        if port < len(input_shapes):
+            static_shape = input_shapes[port]
+        else:
+            static_shape = input.get_shape()
+        all_input[port] = fill_tensors_with_random(input, static_shape)
 
     for i in range(num_request):
         infer_queue.start_async(all_input, userdata=i)
@@ -514,7 +516,8 @@ if __name__ == "__main__":
     parser.add_argument("--raw", action="store_true", help="also dump raw ngraph model")
     parser.add_argument("--bf16", action="store_true", help="enable inference precision with bf16")
     parser.add_argument("--nthreads", type=int, default=4, help="set INFERENCE_NUM_THREADS for profiling")
-    
+    parser.add_argument("-i","--input_shapes", type=str, default="()",
+                        help="python tuple/list of static shapes used for profiling, e.g. [[6,23,240],[5,10,2]]")
     args = parser.parse_args()
 
     core = ov.Core()
@@ -545,8 +548,18 @@ if __name__ == "__main__":
         print("\t{:>32} : {}".format(k, v))
     compiled_model = core.compile_model(model, device, dev_prop)
 
+    input_shapes = eval(args.input_shapes)
+    print("inputs:")
+    for port, _input in enumerate(compiled_model.inputs):
+        print("\t[{}] {}".format(port, _input))
+        if (port < len(input_shapes)):
+            print("\t\t static input shape:{}".format(input_shapes[port]))
+    print("outputs:")
+    for port, _output in enumerate(compiled_model.outputs):
+        print("\t[{}] {}".format(port, _output))
+
     if args.perf:
-        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, 2, 20000, time_limit=10)
+        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, input_shapes, 2, 20000, time_limit=10)
         print(f"test_infer_queue FPS:{fps:.1f}")
 
     dest_file = "visual_{}_{}.html".format(model_fname, device)
