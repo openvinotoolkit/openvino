@@ -4,7 +4,7 @@ This page lists issues that you may encounter during the installation and config
 
 <!-- this part was from Docker installation -->
 
-## Errors with Installing via PIP for PRC Users
+## <a name="install-for-prc"></a>Errors with Installing via PIP for PRC Users
 
 PRC users might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
    
@@ -28,7 +28,7 @@ PRC users might encounter errors while downloading sources via PIP during OpenVI
 
 ## Issues with Installing OpenVINO on Linux from Docker
 
-### Proxy Issues
+### <a name="proxy-issues"></a>Proxy Issues
 
 If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
 
@@ -147,7 +147,7 @@ sudo modprobe myd_ion
 ```
 
 ---
-###Cannot reset VPU device and cannot find any 0x20-0x27 (Raw data card with HW version Fab-B and before) I2C addresses on SMBUS (using i2c-tools)
+### Cannot reset VPU device and cannot find any 0x20-0x27 (Raw data card with HW version Fab-B and before) I2C addresses on SMBUS (using i2c-tools)
 
 Please contact your motherboard vendor to verify SMBUS pins are connected to the PCIe slot.
 
