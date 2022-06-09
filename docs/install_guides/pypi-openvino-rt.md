@@ -1,15 +1,11 @@
 # OpenVINO™ Runtime
 
-## Introduction
+Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
-OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
-
-[OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md) package for Python includes a set of libraries for an easy inference integration into your Python applications and   supports of heterogeneous execution across Intel® CPU and Intel® GPU hardware.
+If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
-The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
-
-The table below lists supported operating systems and Python* versions required to run the installation.
+Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
@@ -27,10 +23,9 @@ The table below lists supported operating systems and Python* versions required 
 
 ### Step 1. Set Up Python Virtual Environment
 
-To avoid dependency conflicts, use a virtual environment. Skip this
-   step only if you do want to install all dependencies globally.
+Use a virtual environment to avoid dependency conflicts. 
 
-Create virtual environment:
+To create a virtual environment, use the following command:
 ```sh
 python -m pip install --user virtualenv 
 python -m venv openvino_env
@@ -75,6 +70,8 @@ python -c "from openvino.runtime import Core"
 If installation was successful, you will not see any error messages (no console output).
 
 ## Troubleshooting
+
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md).
 
 ### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
