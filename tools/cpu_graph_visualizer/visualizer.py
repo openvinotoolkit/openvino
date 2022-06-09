@@ -202,22 +202,6 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
                                 f"{acc_percentage:.1f}", f"+{percentage:.1f}", cnt, type_name))
         if acc_percentage >= 90 and len(sort_execTimeMcs_by_type) >= num_limit:
             break
-    
-    sort_execTimeMcs_by_name = []
-    acc_percentage = 0
-    for (n, t) in sorted(execTimeMcs_by_node.items(), key=lambda x: x[1], reverse=True):
-        friendly_name = name_normalize(n)
-        type_name = n.get_type_name()
-        rt_info = n.get_rt_info()
-        if type_name == "ExecutionNode" and "layerType" in rt_info:
-            type_name = str(rt_info["layerType"])
-        percentage = 0 if execTimeMcs_total <=0 else t*100/execTimeMcs_total
-        acc_percentage += percentage
-        sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
-                            f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
-        if acc_percentage >= 90 and len(sort_execTimeMcs_by_name) >= num_limit:
-            break
-    
     kwargs = {"shape":'box',
             "style":'filled',
             "fillcolor":"gold",
@@ -228,15 +212,31 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
             label="ProfileSummary\\nByType",
             **kwargs)
 
-    kwargs = {"shape":'box',
+    if execTimeMcs_total > 0:
+        sort_execTimeMcs_by_name = []
+        acc_percentage = 0
+        for (n, t) in sorted(execTimeMcs_by_node.items(), key=lambda x: x[1], reverse=True):
+            friendly_name = name_normalize(n)
+            type_name = n.get_type_name()
+            rt_info = n.get_rt_info()
+            if type_name == "ExecutionNode" and "layerType" in rt_info:
+                type_name = str(rt_info["layerType"])
+            percentage = 0 if execTimeMcs_total <=0 else t*100/execTimeMcs_total
+            acc_percentage += percentage
+            sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
+                                f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
+            if acc_percentage >= 90 and len(sort_execTimeMcs_by_name) >= num_limit:
+                break
+
+        kwargs = {"shape":'box',
             "style":'filled',
             "fillcolor":"gold",
             "fontsize":str(fontsize + 2),
             "margin":"0,0","width":"0","height":"0",
             "tooltip":"\n".join(sort_execTimeMcs_by_name)}
-    g.node(name="ProfileSummary_ByName",
-            label="ProfileSummary\\nByName",
-            **kwargs)
+        g.node(name="ProfileSummary_ByName",
+                label="ProfileSummary\\nByName",
+                **kwargs)
 
     for nindex, n in enumerate(model.get_ordered_ops()):
         friendly_name = name_normalize(n)
