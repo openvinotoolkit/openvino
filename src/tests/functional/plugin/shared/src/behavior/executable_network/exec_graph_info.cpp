@@ -139,105 +139,105 @@ const char serialize_test_model[] = R"V0G0N(<?xml version="1.0" ?>
 const char expected_serialized_model[] = R"V0G0N(
 <?xml version="1.0"?>
 <net name="addmul_abc" version="10">
-	<layers>
-		<layer id="0" name="C" type="Input">
-			<data shape="1" element_type="f32" execOrder="3" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="B" type="Input">
-			<data shape="1" element_type="f32" execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="A" type="Input">
-			<data shape="1" element_type="f32" execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="x" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="add_node2" type="Eltwise">
-			<data execOrder="2" execTimeMcs="not_executed" originalLayersNames="add_node2" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="add_node1" type="Eltwise">
-			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node3,add_node4" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-				</port>
-			</input>
-			<output>
-				<port id="4" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="5" name="Y" type="Eltwise">
-			<data execOrder="5" execTimeMcs="not_executed" originalLayersNames="Y" outputLayouts="x" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="6" name="out_Y" type="Output">
-			<data execOrder="6" execTimeMcs="not_executed" originalLayersNames="" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="4" to-port="3" />
-		<edge from-layer="0" from-port="0" to-layer="5" to-port="1" />
-		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
-		<edge from-layer="1" from-port="0" to-layer="4" to-port="1" />
-		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
-		<edge from-layer="2" from-port="0" to-layer="4" to-port="0" />
-		<edge from-layer="3" from-port="2" to-layer="4" to-port="2" />
-		<edge from-layer="4" from-port="4" to-layer="5" to-port="0" />
-		<edge from-layer="5" from-port="2" to-layer="6" to-port="0" />
-	</edges>
+        <layers>
+                <layer id="0" name="C" type="Input">
+                        <data shape="1" element_type="f32" SPD="  inConfs:&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="3" execTimeMcs="not_executed" fusedTypes="Parameter" isConstant="False" originalLayersNames="C" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+                        <output>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="1" name="B" type="Input">
+                        <data shape="1" element_type="f32" SPD="  inConfs:&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="1" execTimeMcs="not_executed" fusedTypes="Parameter" isConstant="False" originalLayersNames="B" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+                        <output>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="2" name="A" type="Input">
+                        <data shape="1" element_type="f32" SPD="  inConfs:&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="0" execTimeMcs="not_executed" fusedTypes="Parameter" isConstant="False" originalLayersNames="A" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+                        <output>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="3" name="add_node1" type="Eltwise">
+                        <data SPD="  inConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="2" execTimeMcs="not_executed" fusedTypes="Add" isConstant="False" originalLayersNames="add_node1" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                                <port id="1" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </input>
+                        <output>
+                                <port id="2" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="4" name="add_node2" type="Eltwise">
+                        <data SPD="  inConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="4" execTimeMcs="not_executed" fusedTypes="Multiply,Add,Add" isConstant="False" originalLayersNames="add_node2,add_node3,add_node4" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                                <port id="1" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                                <port id="2" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                                <port id="3" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </input>
+                        <output>
+                                <port id="4" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="5" name="Y" type="Eltwise">
+                        <data SPD="  inConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;  outConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;" execOrder="5" execTimeMcs="not_executed" fusedTypes="Add" isConstant="False" originalLayersNames="Y" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                                <port id="1" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </input>
+                        <output>
+                                <port id="2" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="6" name="Y/sink_port_0" type="Output">
+                        <data SPD="  inConfs:&#10;    {1} FP32 a  constant=0 inPlace=-1&#10;  outConfs:&#10;" execOrder="6" execTimeMcs="not_executed" fusedTypes="Result" isConstant="False" originalLayersNames="Y/sink_port_0" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                </port>
+                        </input>
+                </layer>
+        </layers>
+        <edges>
+                <edge from-layer="0" from-port="0" to-layer="4" to-port="3" />
+                <edge from-layer="0" from-port="0" to-layer="5" to-port="1" />
+                <edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+                <edge from-layer="1" from-port="0" to-layer="4" to-port="1" />
+                <edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+                <edge from-layer="2" from-port="0" to-layer="4" to-port="0" />
+                <edge from-layer="3" from-port="2" to-layer="4" to-port="2" />
+                <edge from-layer="4" from-port="4" to-layer="5" to-port="0" />
+                <edge from-layer="5" from-port="2" to-layer="6" to-port="0" />
+        </edges>
 </net>
 )V0G0N";
 
