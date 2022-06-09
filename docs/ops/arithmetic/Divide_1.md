@@ -30,7 +30,7 @@ The result of division by zero is undefined.
 
 * *auto_broadcast*
 
-  * **Description**: specifies rules used for auto-broadcasting of input tensors.
+  * **Description**: Specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
     * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
@@ -50,7 +50,7 @@ The result of division by zero is undefined.
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: Any numeric type.
 
 
 **Examples**
