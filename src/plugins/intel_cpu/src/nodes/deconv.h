@@ -62,6 +62,7 @@ public:
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
+    std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
