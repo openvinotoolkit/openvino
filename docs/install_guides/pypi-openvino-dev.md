@@ -1,8 +1,8 @@
 # OpenVINO™ Development Tools 
 
-Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It is a comprehensive toolkit for developing applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
+Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
-OpenVINO™ Development Tools enables you to download models from [Open Model Zoo](../model_zoo.md), [convert your own models to OpenVINO IR](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), as well as [optimize and tune pre-trained deep learning models](../optimization_guide/model_optimization_guide.md). See [What's in the Package](#whats-in-the-package) for more details of these tools.
+OpenVINO™ Development Tools enables you to download models from Open Model Zoo, convert your own models to OpenVINO IR, as well as optimize and tune pre-trained deep learning models. See [What's in the Package](#whats-in-the-package) for more information.
 
 ## System Requirements
 
@@ -55,6 +55,8 @@ python -m pip install --upgrade pip
 
 ### Step 4. Install the Package
 
+There are two options to install OpenVINO Development Tools:
+
 #### Installing Default Components
 
 To install default components only, use the following command:
@@ -64,7 +66,11 @@ pip install openvino-dev
 
 #### Installing Components for Specific Frameworks
 
-To install and configure the components of the package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
+To install and configure the components of the package for working with specific frameworks, use the following command:
+```sh
+pip install openvino-dev[extras]
+```
+ where `extras` has the following values: 
 
 | DL Framework                                                                     | Extra                           |
 | :------------------------------------------------------------------------------- | :-------------------------------|
@@ -112,7 +118,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md).
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages.
 
 ### zsh: no matches found : openvino-dev[...]
 
