@@ -297,9 +297,10 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
 @endsphinxdirective
 
 ## See Also
-[Debugging AUTO](AutoPlugin_Debugging.md)
-[Running on Multiple Devices Simultaneously](./multi_device.md)
-[Supported Devices](supported_plugins/Supported_Devices.md)
+
+- [Debugging AUTO](AutoPlugin_Debugging.md)
+- [Running on Multiple Devices Simultaneously](./multi_device.md)
+- [Supported Devices](supported_plugins/Supported_Devices.md)
 
 
 [autoplugin_accelerate]: ../img/autoplugin_accelerate.png

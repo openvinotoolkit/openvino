@@ -158,7 +158,9 @@ To facilitate the copy savings, it is recommended to run the requests in the ord
 
 
 ## See Also
-[Supported Devices](supported_plugins/Supported_Devices.md)
+
+- [Supported Devices](supported_plugins/Supported_Devices.md)
+- [Automatic Device Selection](./auto_device_selection.md)
 
 @sphinxdirective
 .. raw:: html
