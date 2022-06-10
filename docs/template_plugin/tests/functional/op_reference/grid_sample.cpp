@@ -451,15 +451,15 @@ std::vector<GridSampleParams> generateBicubicParams() {
 }
 
 std::vector<GridSampleParams> generateGridSampleParams() {
-    std::vector<std::vector<GridSampleParams>> all_params{generateNearestParamsOddDimensionsInnerGrids(),
-                                                          generateNearestParamsOddDimensionsOuterGrids(),
-                                                          generateNearestParamsEvenDimensions(),
-                                                          generateBilinearParamsOddDimensionsInnerGrids(),
-                                                          generateBilinearParamsOddDimensionsOuterGrids(),
-                                                          generateBilinearParamsEvenDimensions(),
-                                                          generateBicubicParams()};
+    std::vector<std::vector<GridSampleParams>> combo_params{generateNearestParamsOddDimensionsInnerGrids(),
+                                                            generateNearestParamsOddDimensionsOuterGrids(),
+                                                            generateNearestParamsEvenDimensions(),
+                                                            generateBilinearParamsOddDimensionsInnerGrids(),
+                                                            generateBilinearParamsOddDimensionsOuterGrids(),
+                                                            generateBilinearParamsEvenDimensions(),
+                                                            generateBicubicParams()};
     std::vector<GridSampleParams> test_params;
-    for (auto& params : all_params)
+    for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
     return test_params;
 }

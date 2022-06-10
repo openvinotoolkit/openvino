@@ -10,7 +10,6 @@
 
 #include "ngraph/shape.hpp"
 #include "openvino/op/grid_sample.hpp"
-// #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -156,22 +155,24 @@ DATA_ET nearest(const DATA_ET* data,
 }
 
 template <typename T>
-using vec4_t = std::array<T, 4>;
+using vector_4_t = std::array<T, 4>;
 template <typename T>
-using mtx4_t = std::array<vec4_t<T>, 4>;
+using matrix_4x4_t = std::array<vector_4_t<T>, 4>;
 
+// formula taken from
+// https://github.com/onnx/onnx/blob/a92870cdf359297495a118184dca2eaecee4b717/onnx/backend/test/case/node/resize.py#L201-L207
 template <typename T>
-vec4_t<T> cubic_coeffs(const T r, const T A = -0.75) {
-    vec4_t<T> v;
+vector_4_t<T> cubic_coeffs(const T r, const T A = -0.75) {
+    vector_4_t<T> v;
     v[0] = ((A * (r + 1) - 5 * A) * (r + 1) + 8 * A) * (r + 1) - 4 * A;
     v[1] = ((A + 2) * r - (A + 3)) * r * r + 1;
     v[2] = ((A + 2) * (1 - r) - (A + 3)) * (1 - r) * (1 - r) + 1;
-    v[3] = ((A * ((1 - r) + 1) - 5 * A) * ((1 - r) + 1) + 8 * A) * ((1 - r) + 1) - 4 * A;
+    v[3] = ((A * (2 - r) - 5 * A) * (2 - r) + 8 * A) * (2 - r) - 4 * A;
     return v;
 }
 
 template <typename T, size_t N>
-T the_dot(std::array<T, N> a, std::array<T, N> b) {
+T scalar_prod(std::array<T, N> a, std::array<T, N> b) {
     T c = 0;
     for (int i = 0; i < N; ++i)
         c += a[i] * b[i];
@@ -179,14 +180,14 @@ T the_dot(std::array<T, N> a, std::array<T, N> b) {
 }
 
 template <typename DATA_ET>
-mtx4_t<DATA_ET> get_square_4x4(const DATA_ET* data,
-                               const Shape& data_shape,
-                               const size_t n,
-                               const size_t c,
-                               const long y_topleft,
-                               const long x_topleft,
-                               const get_padded_fn_t<DATA_ET>& get_padded) {
-    mtx4_t<DATA_ET> s;
+matrix_4x4_t<DATA_ET> gather_4x4(const DATA_ET* data,
+                                 const Shape& data_shape,
+                                 const size_t n,
+                                 const size_t c,
+                                 const long y_topleft,
+                                 const long x_topleft,
+                                 const get_padded_fn_t<DATA_ET>& get_padded) {
+    matrix_4x4_t<DATA_ET> s;
     for (int j = 0; j < 4; ++j)
         for (int i = 0; i < 4; ++i)
             s[j][i] = get_padded(data, data_shape, n, c, y_topleft + j, x_topleft + i);
@@ -208,14 +209,14 @@ DATA_ET bicubic(const DATA_ET* data,
     const auto x_topleft = std::floor(x_d);
     const auto dy = y_d - y_topleft;
     const auto dx = x_d - x_topleft;
-    const auto s = get_square_4x4(data, data_shape, n, c, y_topleft - 1, x_topleft - 1, get_padded);
+    const auto s = gather_4x4(data, data_shape, n, c, y_topleft - 1, x_topleft - 1, get_padded);
 
     const auto cy = cubic_coeffs(dy);
     const auto cx = cubic_coeffs(dx);
-    vec4_t<DATA_ET> p;
+    vector_4_t<DATA_ET> p;
     for (int i = 0; i < 4; ++i)
-        p[i] = the_dot(cx, s[i]);
-    return the_dot(cy, p);
+        p[i] = scalar_prod(cx, s[i]);
+    return scalar_prod(cy, p);
 }
 }  // namespace
 
