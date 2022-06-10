@@ -534,6 +534,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
+    {static_shapes_to_test_representation({{59, 120}, {120, 120}}), {true, false}},
+
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
 
