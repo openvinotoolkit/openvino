@@ -25,7 +25,7 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 ### Step 1: Set Up the OpenVINO Toolkit APT Repository
 
-1. Install the GPG key for the repository.
+1. Install the GPG key for the repository:
 
     a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You may also use the following command:
       ```sh
@@ -136,9 +136,9 @@ sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 4 (Optional): Install Software Dependencies
 
-Once you have installed OpenVINO runtime and also decide to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+Once you have installed OpenVINO runtime and also decided to install [OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+For detailed information, refer to the <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a>.
 
 
 ### Step 5 (Optional): Configure Inference on Non-CPU Devices
@@ -156,7 +156,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 .. tab:: NCS 2
 
    To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps in :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
+   For more details, see the [Get Started page for Intel® Neural Compute Stick 2](https://software.intel.com/en-us/neural-compute-stick/get-started).
 
 .. tab:: VPU
 

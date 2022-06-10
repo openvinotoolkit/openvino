@@ -63,7 +63,7 @@ Each custom layer is described with the `CustomLayer` node. It has the following
     - Node `Source` must contain the following attributes:
       - `filename` – The path to a compiled binary relative to the XML configuration file.
   - Sub-node `Parameters` – Describes parameters bindings. For more information, see the description below.
-  - Sub-node `WorkSizes` – Describes local and global work group sizes and the source for dimension deduction as a pair `direction,port`. In the example above, the work group is described relatively to the dimension of the input tensor that comes through port 0 in the IR. Work group configurations, namely `global` and `local` support any simple math expressions with +,-,\*,/, and () from `B`(batch), `Y`(height), `X`(width) and `F`(channels).
+  - Sub-node `WorkSizes` – Describes local and global work group sizes and the source for dimension deduction as a pair `direction,port`. In the example above, the work group is described relatively to the dimension of the input tensor that comes through port 0 in the OpenVINO IR. Work group configurations, namely `global` and `local` support any simple math expressions with +,-,\*,/, and () from `B`(batch), `Y`(height), `X`(width) and `F`(channels).
   - Sub-node `Where` – Allows to customize bindings with the `key="value"` attribute. For example, to substitute only 3x3 convolutions, write `<Where kernel="3,3"/>` in the binding xml.
 
   Parameter description supports `Tensor` of one of tensor types such as `input`, `output`, `input_buffer`, `output_buffer` or `data`, `Scalar`, or `Data` nodes and has the following format:
@@ -179,7 +179,7 @@ This section provides optimization guidelines on writing custom layers with Open
 1. Distribute work evenly across work groups.
 2. Adjust work group granularity to maintain equal workload for all compute codes.
 3. Set the maximum number of cores using the `max-shaves` attribute for the `CustomLayer` node. This keeps more resources for the rest of topology. It is also useful if the kernel scalability reached its limits, which may happen while optimizing memory bound kernels or kernels with poor parallelization.
-4. Try an alternate data layout (`BFXY`/`BYXF`) for the kernel if it improves work group partitioning or data access patterns.
+4. Try an alternate data layout (`BFXY`/`BYXF`) for the kernel to see if it improves work group partitioning or data access patterns.
 Consider not just specific layer boost, but also full topology performance because data conversion layers will be automatically inserted as appropriate.
 
 Offline OpenCL compiler (`clc`) features automatic vectorization over `get_global_id(0)` usage, if uniform access is detected.
@@ -200,7 +200,7 @@ Here is a short list of optimization tips:
   - This can give a performance boost, especially for kernels with unrolling, like the `ocl_grn` from the example below.
   - Place `restrict` markers for kernels with manually vectorized codes. In the `ocl_grn` kernel below, the unrolled version without the `restrict` is up to 20% slower than the most optimal one, which combines both unrolling and `restrict`.
 2. Put `#&zwj;pragma unroll N` to your loop header. The compiler does not trigger unrolling by default, so it is your responsibility to annotate the code with pragmas as appropriate. The `ocl_grn` version with `#&zwj;pragma unroll 4` is up to 50% faster, most of which comes from unrolling the first loop, because LLVM, in general, is better in scheduling 3-stage loops (load-compute-store), while the first loop
- `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4` to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
+ The `variance += (float)(src_data[c*H*W + y*W + x] * src_data[c*H*W + y*W + x]);` is only 2-stage (load-compute). Pay attention to unrolling such cases first. Unrolling factor is loop-dependent. Choose the smallest number that still improves performance as an optimum between the kernel size and execution speed. For this specific kernel, changing the unroll factor from `4` to `6` results in the same performance, so unrolling factor equal to 4 is an optimum. For Intel Neural Compute Stick 2, unrolling is conjugated with the automatic software pipelining for load, store, and compute stages:
 ```cpp
 __kernel void ocl_grn(__global const half* restrict src_data, __global half* restrict dst_data, int C, float bias)
 {
@@ -218,7 +218,7 @@ __kernel void ocl_grn(__global const half* restrict src_data, __global half* res
         dst_data[c*H*W + y*W + x] = (half)((float)src_data[c*H*W + y*W + x] * variance);
 }
 ```
-To check the efficiency of WGV, you may compare performance of the kernel above with the kernel below, which is manually vectorized over width:
+To check the efficiency of WGV, compare performance of the kernel above with the kernel below, which is manually vectorized over width:
 ```cpp
 __kernel void ocl_grn_line(__global const half* restrict src_data,  __global half* restrict dst_data, int C, int W, float bias)
 {
@@ -265,7 +265,7 @@ Use the standard `native_*` function for the rest of types.
 
 5. Prefer to use the `convert_half` function over the `vstore_half` if conversion to 32-bit float is required. The `convert_half` function is mapped to a single hardware instruction. For the `cvtf32f16` kernel above, the `outImage[idx] = convert_half(inImage[idx]*scale+bias);` code is eight times slower than the code with `vstore_half`.
 
-6. Be aware of early exits. An early exit can be extremely costly for the current version of the `clc` compiler due to conflicts with the auto-vectorizer. It is recommended to setup local size by `x` dimension equal to inputs or/and outputs width. If it is impossible to define the work grid that exactly matches inputs or/and outputs to eliminate checks, for example, `if (get_global_id(0) >= width) return`, use line-wise kernel variant with manual vectorization. 
+6. Be aware of early exits, as they can be extremely costly for the current version of the `clc` compiler due to conflicts with the auto-vectorizer. It is recommended to setup local size by `x` dimension equal to inputs or/and outputs width. If it is impossible to define the work grid that exactly matches inputs or/and outputs to eliminate checks, for example, `if (get_global_id(0) >= width) return`, use line-wise kernel variant with manual vectorization.
 The kernel example below demonstrates the impact of early exits on kernel performance.
    ```cpp
    // Initial version
@@ -356,7 +356,7 @@ The `scr` data in this case is loaded only once. As the result, the cycle count 
 
 9. Copy data from the `__dlobal` to the `__local` or `__private` memory if the data is accessed more than once. Access to the `__dlobal` memory is orders of magnitude slower than access to the `__local`/`__private` due to statically scheduled pipeline, which stalls completely on memory access without any prefetch. The same recommendation is applicable for scalar load/store from/to the `__blobal` pointer since work-group copying could be done in a vector fashion.
 
-10. Use a manual DMA extension. Local (on-chip) memory throughput is up to 24x higher than DDR throughput. Starting from OpenVINO 2020.1, VPU OpenCL features manual-DMA kernel extension to copy sub-tensor used by work group into local memory and performing compute without DDR evolved. Here is the simple GRN kernel implementation that runs over DDR. Local size is in the form (width of the input tensor, 1, 1) to define a large enough work group to get code automatically vectorized and unrolled, while global size is (width of the input tensor, height of the input tensor, 1):
+10. Use a manual DMA extension. Local (on-chip) memory throughput is up to 24x higher than DDR throughput. Since the OpenVINO 2020.1 release, VPU OpenCL features manual-DMA kernel extension to copy sub-tensor used by a work group into local memory and performing compute without DDR evolved. Here is the simple GRN kernel implementation that runs over DDR. Local size is in the form (width of the input tensor, 1, 1) to define a large enough work group to get code automatically vectorized and unrolled, while global size is (width of the input tensor, height of the input tensor, 1):
    ```cpp
    __kernel void grn_NCHW(
      __global const half* restrict src_data,

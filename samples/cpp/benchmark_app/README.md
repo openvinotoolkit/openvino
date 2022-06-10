@@ -1,9 +1,9 @@
 # Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
-This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
+This article presents how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 Performance can be measured for two inference modes: latency- and throughput-oriented.
 
-> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python implementation, refer to [Benchmark Python Tool](../../../tools/benchmark_tool/README.md).
+> **NOTE**: This article describes usage of C++ implementation of the Benchmark Tool. For the Python implementation, refer to [Benchmark Python Tool](../../../tools/benchmark_tool/README.md).
 
 
 ## How It Works
@@ -53,7 +53,7 @@ The `benchmark_app` usually produces optimal performance for any device out of t
 However, it still may be sub-optimal for some cases, especially for very small networks. You will find more details in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 As explained in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md), for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md), it is preferable to use the `FP16` OpenVINO IR for the model.
-Also if latency of the CPU inference on multi-socket machines is of concern, you might refer to the same
+Also if latency of the CPU inference on multi-socket machines is of concern, you might refer to the same [Performance Optimization](../../../docs/optimization_guide/dldt_optimization_guide.md) guide.
 [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
@@ -67,7 +67,7 @@ Options:
     -m "<path>"               Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
                               In case of dynamic shapes networks with several inputs, provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
-                              You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
+                              Specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the implementations of kernels.
           Or
@@ -139,12 +139,12 @@ Example: -imean data[255,255,255],info[255,255,255]
 
 Running the application with an empty list of the options yields the usage message given above and an error message.
 
-Application supports topologies with one or more inputs. If a topology is not data-sensitive, you may skip the input parameter. In such a case, inputs are filled with random values.
+Application supports topologies with one or more inputs. If a topology is not data-sensitive, skip the input parameter. In such a case, inputs are filled with random values.
 If a model has only image input(s), provide a folder with images or a path to an image as input.
 If a model has some specific input(s) (not images), prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
+To run the tool, use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTE**: Before running the tool with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -238,7 +238,7 @@ Below are fragments of sample output static and dynamic networks:
    [ INFO ] Throughput: 86.59 FPS
    ```
 
-## See Also
+## Additional Resources
 * [Using OpenVINO Runtime Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)

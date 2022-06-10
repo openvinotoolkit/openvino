@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an inference of image classification networks such as AlexNet with images in `NV12` color format using Synchronous Inference Request API.
 
-Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
+Hello NV12 Input Classification C Sample demonstrates how to use the `NV12` automatic input pre-processing API of the Inference Engine in your applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
@@ -21,11 +21,10 @@ Basic Inference Engine API is described in [Hello Classification C sample](../he
 ## How It Works
 
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
-image in the `NV12` color format to the Inference Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the
-application outputs data to the standard output stream.
+image in the `NV12` color format to the Inference Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Building
 
@@ -35,11 +34,11 @@ To build the sample, use the instructions available in the **Build the Sample Ap
 
 To run the sample, you need to specify a model and an image:
 
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 The sample accepts an uncompressed image in the `NV12` color format. To run the sample, you need to
-convert your `BGR`/`RGB` image to `NV12`. To do this, you may use one of the widely available tools such
+convert your `BGR`/`RGB` image to `NV12`. To do this, use one of the widely available tools such
 as FFmpeg or GStreamer. The following command shows how to convert an ordinary image into an
 uncompressed `NV12` image, using FFmpeg:
 
@@ -50,7 +49,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 > **NOTES**:
 > - Since the sample reads raw image files, a correct image size along with the image path 
 >   should be provided. The sample expects the logical size of the image, not the buffer size. For example,
->   for 640x480 BGR/RGB image, the corresponding `NV12` logical image size is also 640x480, whereas the
+>   for 640x480 `BGR`/`RGB` image, the corresponding `NV12` logical image size is also 640x480, whereas the
 >   buffer size is 640x720.
 > - By default, this sample expects that network input has `BGR` order of channels. If you trained your
 >   model to work with the `RGB` order, you need to reconvert your model, using Model Optimizer 
@@ -104,7 +103,7 @@ classid probability
 This sample is an API example. Use the dedicated `benchmark_app` tool for any performance measurements.
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)

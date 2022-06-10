@@ -1,10 +1,10 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the YUM repository.
+This guide provides installation instructions for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the YUM repository.
 
-> **NOTE**: As of the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI. For more information on how to develop or optimize your models with OpenVINO, refer to the [Install OpenVINO Development Tools](installing-model-dev-tools.md) article.
+> **NOTE**: As of the 2022.1 release, OpenVINO Development Tools can only be installed via PyPI. For more information on how to develop or optimize your models with OpenVINO, refer to the [Install OpenVINO Development Tools](installing-model-dev-tools.md).
 
-> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<INSTALL_DIR>/licensing` folder for more details.
+> **IMPORTANT**: By downloading and using this container along with the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<INSTALL_DIR>/licensing` folder for more details.
 
 ## System Requirements
 
@@ -63,7 +63,7 @@ Intel® Distribution of OpenVINO™ toolkit will be installed in: `/opt/intel/op
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
-You may select one of the following procedures according to your need:
+Select one of the following procedures according to your need:
 
 #### Install the Latest Version
 
@@ -125,9 +125,9 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 ### Step 4 (Optional): Install Software Dependencies
 
-Once you have installed OpenVINO runtime and also decide to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
+Once you have installed OpenVINO runtime and also decided to install [OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+For detailed steps, refer to the <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> .
 
 ### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
@@ -144,7 +144,7 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
 .. tab:: NCS 2
 
    To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps in :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
+   For more details, see the [Get Started page for Intel® Neural Compute Stick 2](https://software.intel.com/en-us/neural-compute-stick/get-started).
 
 .. tab:: VPU
 

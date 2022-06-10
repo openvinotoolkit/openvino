@@ -26,7 +26,7 @@ Upon the start-up, the sample application reads command-line parameters, loads s
 Then, the sample creates a synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Building
 
@@ -36,8 +36,8 @@ To build the sample, use the instructions available in the **Build the Sample Ap
 
 Before running the sample, you need to specify a model and image:
 
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 > **NOTES**:
 > - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with the `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
@@ -89,7 +89,7 @@ classid probability
 This sample is an API example. Use the dedicated `benchmark_app` tool for any performance measurements.
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate OpenVINO into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
