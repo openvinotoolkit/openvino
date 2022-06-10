@@ -462,6 +462,8 @@ void multiclass_nms(const float* boxes_data,
                 continue;
             }
 
+            OPENVINO_ASSERT(boxes_data_shape[0] == scores_data_shape[0],
+                            "Expect class numbers of boxes and scores are the same.");
             const auto num_classes = boxes_data_shape[0];
 
             const auto boxes = slice_image(boxes_data, boxes_data_shape, head, roisnum_data[i]);

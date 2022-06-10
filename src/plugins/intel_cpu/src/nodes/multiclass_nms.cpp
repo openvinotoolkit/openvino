@@ -88,7 +88,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::en
     } else if (scores_dims.size() == 2) {
         if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
             IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
-        if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1])
+        if (!PartialShape(boxes_dims)[0].compatible(PartialShape(scores_dims)[0]) || boxes_dims[1] != scores_dims[1])
             IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
         if (getOriginalInputsNumber() != 3)
             IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";

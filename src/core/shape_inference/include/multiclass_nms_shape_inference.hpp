@@ -106,7 +106,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
         const auto num_classes_boxes = boxes_ps[0];
         const auto num_classes_scores = scores_ps[0];
         NODE_VALIDATION_CHECK(op,
-                              num_classes_boxes.same_scheme(num_classes_scores),
+                              num_classes_boxes.compatible(num_classes_scores),
                               "'boxes' and 'scores' input shapes must match. Boxes: ",
                               num_classes_boxes,
                               "; Scores: ",
