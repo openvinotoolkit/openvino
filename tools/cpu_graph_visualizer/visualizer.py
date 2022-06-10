@@ -531,7 +531,7 @@ if __name__ == "__main__":
     parser.add_argument("--bf16", action="store_true",
                         help="Enable inference with bf16")
     parser.add_argument("--nthreads", type=int, default=4,
-                        help="Set INFERENCE_NUM_THREADS for profiling")
+                        help="Set INFERENCE_NUM_THREADS for profiling (default is 4)")
     parser.add_argument("-r","--reshape", type=str, default="()",
                         help="Reshape raw model before visualization/profiling")
     parser.add_argument("-i","--input_shapes", type=str, default="()",
