@@ -54,7 +54,6 @@ However, it still may be sub-optimal for some cases, especially for very small n
 
 As explained in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md), for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md), it is preferable to use the `FP16` OpenVINO IR for the model.
 Also if latency of the CPU inference on multi-socket machines is of concern, you might refer to the same [Performance Optimization](../../../docs/optimization_guide/dldt_optimization_guide.md) guide.
-[Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
 ```
