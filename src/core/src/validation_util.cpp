@@ -1203,8 +1203,13 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
             for (auto& in : output.get_target_inputs()) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
-                auto consumer = in.get_node()->shared_from_this();
-                copy_runtime_info({curr_node, consumer}, consumer);
+                try {
+                    auto consumer = in.get_node()->shared_from_this();
+                    copy_runtime_info({curr_node, consumer}, consumer);
+                } catch (const std::bad_weak_ptr&) {
+                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
+                    // Continue propagation for other nodes.
+                }
             }
         }
     }
@@ -1275,11 +1280,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool inv
                     if (should_invalidate && input.get_target_inputs().size() == 1)
                         tensor.invalidate_values();
                 }
-                try {
-                    propagate_rt_info(node, output);
-                } catch (const std::bad_weak_ptr&) {
-                    continue;
-                }
+                propagate_rt_info(node, output);
             } else {
                 break;
             }
