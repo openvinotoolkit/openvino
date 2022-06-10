@@ -2159,7 +2159,7 @@ def test_grid_sample_custom_attributes():
     attributes = {
         "align_corners": True,
         "mode": "nearest",
-        "padding_mode": "reflection"
+        "padding_mode": "reflection",
     }
 
     node = ov.grid_sample(img, grid, attributes)

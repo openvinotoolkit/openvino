@@ -305,7 +305,7 @@ def grid_sample(
         data: NodeInput,
         grid: NodeInput,
         attributes: dict,
-        name: Optional[str] = None
+        name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs GridSample operation.
 
@@ -313,7 +313,9 @@ def grid_sample(
     :param grid: Grid values (normalized input coordinates).
     :param attributes: A dictionary containing GridSample's attributes.
     :param name: Optional name of the node.
+
     Available attributes:
+
     * align_corners A flag which specifies whether to align the grid extrema values
                     with the borders or center points of the input tensor's border pixels.
                     Range of values: true, false
@@ -327,6 +329,7 @@ def grid_sample(
                     Range of values: zeros, border, reflection
                     Default value: zeros
                     Required: no
+
     :return: A new GridSample node.
     """
     return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)

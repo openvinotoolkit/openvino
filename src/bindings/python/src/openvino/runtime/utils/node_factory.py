@@ -160,5 +160,3 @@ class NodeFactory(object):
         :return:   The appropriate setter function name.
         """
         return cls._normalize_attr_name(attr_name, "set_")
-
-    
