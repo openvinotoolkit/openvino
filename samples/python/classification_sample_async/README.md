@@ -23,7 +23,7 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification Python Sampl
 In the beginning, the sample application reads command-line parameters, prepares input data, loads a specified model and image(s) to OpenVINO Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Running
 
