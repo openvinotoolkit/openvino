@@ -186,7 +186,11 @@ bool nms_to_nms9_callback_func(pattern::Matcher& m, pass::MatcherPass* impl) {
 
     nms_9->set_friendly_name(root->get_friendly_name());
     ngraph::copy_runtime_info(root, nms_9);
-    root->output(0).replace(nms_9->output(0));
+    // nms0-4 have one output, nms5/9 have 3 outputs.
+    if (std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(root))
+        ngraph::replace_node(root, nms_9);
+    else
+        root->output(0).replace(nms_9->output(0));
     return true;
 }
 }  // namespace
