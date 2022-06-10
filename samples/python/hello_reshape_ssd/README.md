@@ -25,14 +25,14 @@ At startup, the sample application reads command-line parameters, prepares input
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Running
 
 Before running the sample, specify a model and an image:
 
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+- Use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 To run the sample, use the following script:
 
@@ -87,7 +87,7 @@ The sample application logs each step in a standard output stream and creates an
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
