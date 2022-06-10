@@ -20,7 +20,7 @@ The result of division by zero is undefined.
 
 * *m_pythondiv*
 
-  * **Description**: specifies if floor division should be calculated. This attribute is supported only for integer data types.
+  * **Description**: Specifies if floor division should be calculated. This attribute is supported only for integer data types.
   * **Range of values**:
     * false - regular division
     * true - floor division
