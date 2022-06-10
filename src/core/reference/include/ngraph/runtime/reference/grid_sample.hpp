@@ -16,13 +16,13 @@ namespace runtime {
 namespace reference {
 namespace {
 
-using index_4D_t = std::array<size_t, 4>;
+using index_4D_t = typename std::array<size_t, 4>;
 
 template <typename GRID_ET>
-using denormalize_fn_t = std::function<GRID_ET(GRID_ET, size_t)>;
+using denormalize_fn_t = typename std::function<GRID_ET(GRID_ET, size_t)>;
 
 template <typename DATA_ET>
-using get_padded_fn_t = std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
+using get_padded_fn_t = typename std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
 
 template <typename T, size_t N>
 T& get_v(T* buffer, const Shape& shape, const std::array<size_t, N>& index) {
@@ -155,9 +155,9 @@ DATA_ET nearest(const DATA_ET* data,
 }
 
 template <typename T>
-using vector_4_t = std::array<T, 4>;
+using vector_4_t = typename std::array<T, 4>;
 template <typename T>
-using matrix_4x4_t = std::array<vector_4_t<T>, 4>;
+using matrix_4x4_t = typename std::array<vector_4_t<T>, 4>;
 
 // formula taken from
 // https://github.com/onnx/onnx/blob/a92870cdf359297495a118184dca2eaecee4b717/onnx/backend/test/case/node/resize.py#L201-L207
