@@ -27,7 +27,7 @@ Upon the start-up the sample application reads command-line parameters, loads sp
 Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image and output data to the standard output stream.
 
 For more information, refer to the explicit description of
-each sample **Integration Step** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Building
 
