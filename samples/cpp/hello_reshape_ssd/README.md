@@ -37,8 +37,8 @@ To build the sample, use the instructions available at [Build the Sample Applica
 
 Before running the sample, specify a model and an image:
 
-- you may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
-- you may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
+- Use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 To run the sample, use the following script:
 
@@ -115,7 +115,7 @@ The resulting image was saved in the file: hello_reshape_ssd_output.bmp
 This sample is an API example, for any performance measurements use the dedicated benchmark_app tool
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
