@@ -48,7 +48,7 @@ const std::vector<ov::AnyMap> gpu_compileModel_properties = {
      ov::hint::num_requests(10),
      ov::enable_profiling(true)}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_cpuCompileModelBehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
                                             ::testing::ValuesIn(gpu_plugin_properties),
