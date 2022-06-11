@@ -222,6 +222,8 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
             rt_info = n.get_rt_info()
             if type_name == "ExecutionNode" and "layerType" in rt_info:
                 type_name = str(rt_info["layerType"])
+            if "primitiveType" in rt_info:
+                type_name += " {}".format(rt_info["primitiveType"])
             percentage = 0 if execTimeMcs_total <= 0 else t*100/execTimeMcs_total
             acc_percentage += percentage
             sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
