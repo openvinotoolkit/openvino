@@ -97,8 +97,8 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
                     var x = this.getAttribute("targetRect_x")
                     var y = this.getAttribute("targetRect_y")
                     window.scrollTo(x - window.innerWidth/2, y - window.innerHeight/2)
-                    SearchPointer.style.top = y
-                    SearchPointer.style.left = x
+                    SearchPointer.style.top = `${y}px`
+                    SearchPointer.style.left = `${x}px`
                 }
                 SearchList.appendChild(li)
             }
@@ -113,6 +113,7 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
 
     // make svg dragable
     svg = document.body.querySelector("svg")
+    svg.style.userSelect = 'none';
 
     let pos = { top: 0, left: 0, x: 0, y: 0 };
 
@@ -127,7 +128,6 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
         svg.onpointerup = null;
         svg.releasePointerCapture(e.pointerId);
         svg.style.cursor = '';
-        svg.style.removeProperty('user-select');
     };
 
     const mouseDownHandler = function (e, ele) {
@@ -142,7 +142,6 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
         };
         // Change the cursor and prevent user from selecting the text
         svg.style.cursor = 'grabbing';
-        svg.style.userSelect = 'none';
         svg.setPointerCapture(e.pointerId);
         svg.onpointermove = mouseMoveHandler;
         svg.onpointerup = mouseUpHandler;
@@ -177,8 +176,8 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
                     tooltip_txt = a.getAttribute("xlink:title")
                     var rect = this.getBoundingClientRect()
                     infopre.innerHTML = tooltip_txt
-                    infobar.style.top = rect.top + window.scrollY
-                    infobar.style.left = rect.right + window.scrollX
+                    infobar.style.top = `${rect.top + window.scrollY}px`
+                    infobar.style.left = `${rect.right + window.scrollX}px`
                     // remove custom setting, recover display's orginal setting in CSS
                     infobar.style.display = '';
                 }
@@ -188,8 +187,17 @@ _dot_svg_viewer_html_template='''<?xml version="1.0" encoding="UTF-8" standalone
             }
         }
     )
+    document.addEventListener('keyup', evt => {
+        if (evt.key === 'Escape') {
+            if (SearchList.innerHTML.length > 0) {
+                SearchList.innerHTML = ""
+            } else {
+                infobar_on = null
+                infobar.style.display = "none";
+            }
+        }
+    });
 </script>
-
 </body>
 </html>
 '''
