@@ -133,7 +133,6 @@ class TestROIAlign(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_roi_alignv10(self, params, ie_device, precision, ir_version, temp_dir, api_2):
-        if ie_device != "GPU":
-            self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
-                        ir_version,
-                        temp_dir=temp_dir, api_2=api_2)
+        self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
+                    ir_version,
+                    temp_dir=temp_dir, api_2=api_2)
