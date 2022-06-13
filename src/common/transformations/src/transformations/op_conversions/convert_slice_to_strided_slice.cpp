@@ -146,6 +146,7 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         strided_slice->set_friendly_name(slice_node->get_friendly_name());
         ngraph::copy_runtime_info(slice_node, new_ops);
         ngraph::replace_node(slice_node, strided_slice);
+        MATCHER_SCOPE_ENABLE(SliceToStridedSlice);
         return true;
     };
 

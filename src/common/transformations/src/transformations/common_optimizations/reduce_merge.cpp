@@ -93,6 +93,7 @@ pass::ReduceMerge::ReduceMerge() {
                                                                   reduce_sum_pattern});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(ReduceMerge);
         const auto node = m.get_match_root();
         if (ov::is_type<op::util::ArithmeticReductionKeepDims>(node)) {
             return fuse_reduce_operations<op::util::ArithmeticReductionKeepDims>(node);

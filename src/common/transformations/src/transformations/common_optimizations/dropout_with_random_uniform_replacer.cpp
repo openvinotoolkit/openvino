@@ -71,7 +71,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
         broadcast->set_friendly_name(ru->get_friendly_name());
         copy_runtime_info(ru, broadcast);
         ngraph::replace_node(ru, broadcast);
-
+        MATCHER_SCOPE_ENABLE(DropoutWithRandomUniformReplacer);
         return true;
     };
 

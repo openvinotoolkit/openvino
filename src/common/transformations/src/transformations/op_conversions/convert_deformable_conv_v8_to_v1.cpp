@@ -43,6 +43,7 @@ ngraph::pass::ConvertDeformableConv8To1::ConvertDeformableConv8To1() {
         deformable_conv_v1->set_friendly_name(deformable_conv_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(deformable_conv_v8_node, deformable_conv_v1);
         ngraph::replace_node(deformable_conv_v8_node, deformable_conv_v1);
+        MATCHER_SCOPE_ENABLE(ConvertDeformableConv8To1);
         return true;
     };
 

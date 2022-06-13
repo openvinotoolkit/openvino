@@ -53,6 +53,7 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(MVNTransformation);
         return transform(*context, m);
     };
 

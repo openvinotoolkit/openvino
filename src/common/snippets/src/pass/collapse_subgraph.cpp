@@ -523,6 +523,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << " inputs and " << subgraph->outputs().size()
                     << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
 
+        MATCHER_SCOPE_ENABLE(TokenizeSnippets);
         return true;
     };
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);

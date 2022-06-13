@@ -26,6 +26,7 @@ MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransf
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(MaxPoolTransformation);
         return transform(*context, m);
     };
 

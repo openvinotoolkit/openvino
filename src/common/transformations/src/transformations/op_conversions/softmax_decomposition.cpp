@@ -45,6 +45,7 @@ ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
         replace_node(m_softmax, div);
         copy_runtime_info(m_softmax, {reduce_max, reduce_sum, sub, exp, div});
         div->set_friendly_name(m_softmax->get_friendly_name());
+        MATCHER_SCOPE_ENABLE(SoftmaxDecomposition);
         return true;
     };
 

@@ -23,6 +23,7 @@ ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ReduceMinTransformation);
         return transform(*context, m);
     };
 

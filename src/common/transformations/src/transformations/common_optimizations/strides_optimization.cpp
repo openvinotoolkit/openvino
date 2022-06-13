@@ -147,7 +147,7 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             conv->set_auto_pad(op::PadType::EXPLICIT);
             conv->set_strides(conv_strides);
         }
-
+        MATCHER_SCOPE_ENABLE(ConvStridesPropagation);
         return true;
     };
 
@@ -173,7 +173,7 @@ ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation
         for (auto& input : node->inputs()) {
             insert_strides_prop(input, strides);
         }
-
+        MATCHER_SCOPE_ENABLE(SupportedNodesStridesPropagation);
         return true;
     };
 
@@ -189,7 +189,7 @@ ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropaga
         auto node = m.get_match_root();
         auto next_ops = op::util::get_node_target_inputs(node);
         handle_not_equal_stride_props(std::move(next_ops));
-
+        MATCHER_SCOPE_ENABLE(UnsupportedNodesStridesPropagation);
         return true;
     };
 

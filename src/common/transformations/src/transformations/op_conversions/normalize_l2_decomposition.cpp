@@ -47,6 +47,7 @@ ngraph::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
         div->set_friendly_name(normalize_l2->get_friendly_name());
         ngraph::copy_runtime_info(normalize_l2, {power, reduce_sum, eps_node, sqrt, div});
         ngraph::replace_node(normalize_l2, div);
+        MATCHER_SCOPE_ENABLE(NormalizeL2Decomposition);
         return true;
     };
 

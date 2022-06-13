@@ -29,6 +29,7 @@ ngraph::pass::Gelu7Downgrade::Gelu7Downgrade() {
         new_gelu_node->set_friendly_name(gelu_node->get_friendly_name());
         ngraph::copy_runtime_info(gelu_node, new_gelu_node);
         ngraph::replace_node(gelu_node, new_gelu_node);
+        MATCHER_SCOPE_ENABLE(Gelu7Downgrade);
         return true;
     };
 

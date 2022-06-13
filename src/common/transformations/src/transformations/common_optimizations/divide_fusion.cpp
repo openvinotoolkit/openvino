@@ -37,6 +37,7 @@ ngraph::pass::DivideFusion::DivideFusion() {
         div->set_friendly_name(mul->get_friendly_name());
         copy_runtime_info({mul, pow}, div);
         replace_node(mul, div);
+        MATCHER_SCOPE_ENABLE(DivideFusion);
         return true;
     };
 

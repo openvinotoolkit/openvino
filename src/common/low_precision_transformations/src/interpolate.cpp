@@ -42,6 +42,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(InterpolateTransformation);
         return transform(*context, m);
     };
 

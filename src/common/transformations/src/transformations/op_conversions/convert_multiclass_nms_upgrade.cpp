@@ -29,7 +29,7 @@ ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9::ConvertMulticlassNms8ToMult
         nms_v9_node->set_friendly_name(nms_v8_node->get_friendly_name());
         copy_runtime_info(nms_v8_node, nms_v9_node);
         replace_node(nms_v8_node, nms_v9_node);
-
+        MATCHER_SCOPE_ENABLE(ConvertMulticlassNms8ToMulticlassNms9);
         return true;
     };
 

@@ -31,6 +31,7 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(MatMulTransformation);
         return transform(*context, m);
     };
 

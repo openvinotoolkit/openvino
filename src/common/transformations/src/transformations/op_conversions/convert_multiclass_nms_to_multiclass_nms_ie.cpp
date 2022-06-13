@@ -73,6 +73,7 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         nms_new->set_friendly_name(nms->get_friendly_name());
         copy_runtime_info(nms, new_ops);
         replace_node(nms, {output_0, output_1, output_2});
+        MATCHER_SCOPE_ENABLE(ConvertMulticlassNmsToMulticlassNmsIE);
         return true;
     };
 

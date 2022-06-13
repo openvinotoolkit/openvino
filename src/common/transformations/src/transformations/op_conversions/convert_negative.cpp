@@ -28,6 +28,7 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         mul->set_friendly_name(neg->get_friendly_name());
         ngraph::copy_runtime_info(neg, mul);
         ngraph::replace_node(neg, mul);
+        MATCHER_SCOPE_ENABLE(ConvertNegative);
         return true;
     };
 

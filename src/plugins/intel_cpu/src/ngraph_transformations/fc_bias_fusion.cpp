@@ -68,6 +68,7 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         new_fc->set_friendly_name(add->get_friendly_name());
         ngraph::copy_runtime_info({fc, add}, new_ops);
         ngraph::replace_node(add, new_fc);
+        MATCHER_SCOPE_ENABLE(FullyConnectedBiasFusion);
         return true;
     };
 

@@ -33,6 +33,7 @@ public:
             for (const auto& out_node : out_nodes) {
                 ov::set_nms_selected_indices(out_node.get_node());
             }
+            MATCHER_SCOPE_ENABLE(InitNMSPath);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(nms_pattern, matcher_name);
@@ -58,6 +59,7 @@ public:
             auto node = m.get_match_root();
             const auto& inputs = node->input_values();
             if (any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+                    MATCHER_SCOPE_ENABLE(PropagateNMSPath);
                     return ov::has_nms_selected_indices(output.get_node());
                 })) {
                 ov::set_nms_selected_indices(node.get());
@@ -90,6 +92,7 @@ public:
                 gather->input(1).replace_source_output(new_convert_to_unsigned);
                 copy_runtime_info(gather, new_convert_to_unsigned);
             }
+            MATCHER_SCOPE_ENABLE(UpdateConvertGather);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);

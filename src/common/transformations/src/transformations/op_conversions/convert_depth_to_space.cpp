@@ -98,6 +98,7 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         reshape_end->set_friendly_name(dts_node->get_friendly_name());
         ngraph::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
         ngraph::replace_node(dts_node, reshape_end);
+        MATCHER_SCOPE_ENABLE(ConvertDepthToSpace);
         return true;
     };
 

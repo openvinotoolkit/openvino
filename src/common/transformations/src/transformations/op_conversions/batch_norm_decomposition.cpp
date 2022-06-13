@@ -98,7 +98,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
             {scale_add, scale, gamma_div_scale, gamma_div_scale_aligned, beta_aligned, input_sub_mean, mul, add});
 
         replace_node(m_bn, add);
-
+        MATCHER_SCOPE_ENABLE(BatchNormDecomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);

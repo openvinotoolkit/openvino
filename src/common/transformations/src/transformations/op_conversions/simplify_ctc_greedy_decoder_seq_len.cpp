@@ -137,7 +137,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         output_i->set_friendly_name(decoder_seq_len->get_friendly_name() + ".0");
         output_seq_len_i->set_friendly_name(decoder_seq_len->get_friendly_name() + ".1");
         ngraph::replace_node(decoder_seq_len, {output_i->output(0), output_seq_len_i->output(0)});
-
+        MATCHER_SCOPE_ENABLE(SimplifyCTCGreedyDecoderSeqLen);
         return true;
     };
 

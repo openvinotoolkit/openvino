@@ -8,6 +8,7 @@
 
 ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
     MATCHER_SCOPE(ConvertReduceMeanToPooling);
+    MATCHER_SCOPE_ENABLE(ConvertReduceMeanToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMean>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
@@ -17,6 +18,7 @@ ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
 }
 ngraph::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
     MATCHER_SCOPE(ConvertReduceMaxToPooling);
+    MATCHER_SCOPE_ENABLE(ConvertReduceMaxToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMax>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},
@@ -26,6 +28,7 @@ ngraph::pass::ConvertReduceMaxToPooling::ConvertReduceMaxToPooling() {
 }
 ngraph::pass::ConvertReduceSumToPooling::ConvertReduceSumToPooling() {
     MATCHER_SCOPE(ConvertReduceSumToPooling);
+    MATCHER_SCOPE_ENABLE(ConvertReduceSumToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceSum>(
             {pattern::any_input(pattern::has_static_shape()), pattern::wrap_type<opset1::Constant>()},

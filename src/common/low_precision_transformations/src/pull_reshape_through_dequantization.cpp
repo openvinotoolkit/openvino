@@ -132,7 +132,7 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
             }
         }
-
+        MATCHER_SCOPE_ENABLE(PullReshapeThroughDequantization);
         return true;
     };
 

@@ -102,6 +102,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(AddTransformation);
         return transform(*context, m);
     };
 

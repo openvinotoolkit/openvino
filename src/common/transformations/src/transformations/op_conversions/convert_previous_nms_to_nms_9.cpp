@@ -197,6 +197,7 @@ bool nms_to_nms9_callback_func(pattern::Matcher& m, pass::MatcherPass* impl) {
 
 ngraph::pass::ConvertNMS5ToNMS9::ConvertNMS5ToNMS9() {
     MATCHER_SCOPE(ConvertNMS5ToNMS9);
+    MATCHER_SCOPE_ENABLE(ConvertNMS5ToNMS9);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
@@ -208,6 +209,7 @@ ngraph::pass::ConvertNMS5ToNMS9::ConvertNMS5ToNMS9() {
 
 ngraph::pass::ConvertNMS4ToNMS9::ConvertNMS4ToNMS9() {
     MATCHER_SCOPE(ConvertNMS4ToNMS9);
+    MATCHER_SCOPE_ENABLE(ConvertNMS4ToNMS9);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset4::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
@@ -219,6 +221,7 @@ ngraph::pass::ConvertNMS4ToNMS9::ConvertNMS4ToNMS9() {
 
 ngraph::pass::ConvertNMS3ToNMS9::ConvertNMS3ToNMS9() {
     MATCHER_SCOPE(ConvertNMS3ToNMS9);
+    MATCHER_SCOPE_ENABLE(ConvertNMS3ToNMS9);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset3::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);
@@ -230,6 +233,7 @@ ngraph::pass::ConvertNMS3ToNMS9::ConvertNMS3ToNMS9() {
 
 ngraph::pass::ConvertNMS1ToNMS9::ConvertNMS1ToNMS9() {
     MATCHER_SCOPE(ConvertNMS1ToNMS9);
+    MATCHER_SCOPE_ENABLE(ConvertNMS1ToNMS9);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset1::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return nms_to_nms9_callback_func(m, this);

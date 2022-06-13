@@ -82,7 +82,7 @@ ngraph::pass::RandomUniformFusion::RandomUniformFusion() {
             new_ru->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), new_ru);
         }
-
+        MATCHER_SCOPE_ENABLE(RandomUniformFusion);
         return true;
     };
 

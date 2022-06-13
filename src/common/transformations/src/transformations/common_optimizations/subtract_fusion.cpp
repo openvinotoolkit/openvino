@@ -51,6 +51,7 @@ ngraph::pass::SubtractFusion::SubtractFusion() {
         sub->set_friendly_name(add->get_friendly_name());
         copy_runtime_info(nodes_to_replace, sub);
         replace_node(add, sub);
+        MATCHER_SCOPE_ENABLE(SubtractFusion);
         return true;
     };
 

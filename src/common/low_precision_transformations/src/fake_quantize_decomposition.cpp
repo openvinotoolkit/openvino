@@ -29,7 +29,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(FakeQuantizeDecompositionTransformation);
         return transform(*context, m);
     };
 

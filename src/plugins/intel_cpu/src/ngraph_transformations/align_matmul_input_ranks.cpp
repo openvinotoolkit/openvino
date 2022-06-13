@@ -133,7 +133,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             ngraph::replace_node(matmul, matmul_new);
         }
 
-
+        MATCHER_SCOPE_ENABLE(AlignMatMulInputRanks);
         return true;
     };
 

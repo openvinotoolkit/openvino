@@ -74,7 +74,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         new_fq->set_friendly_name(transpose->get_friendly_name());
         ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
-
+        MATCHER_SCOPE_ENABLE(PullTransposeThroughFQUp);
         return true;
     };
 

@@ -101,7 +101,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
                     return false;
                 }
             }
-
+            MATCHER_SCOPE_ENABLE(ConvertScatterElementsToScatter);
             return true;
         };
 

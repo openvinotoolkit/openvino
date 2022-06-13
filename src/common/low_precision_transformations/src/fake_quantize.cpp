@@ -25,7 +25,7 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(FakeQuantizeTransformation);
         return transform(*context, m);
     };
 

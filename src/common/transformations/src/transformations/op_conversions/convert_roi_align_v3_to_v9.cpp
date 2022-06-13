@@ -52,7 +52,7 @@ ngraph::pass::ConvertROIAlign3To9::ConvertROIAlign3To9() {
         roi_align_v9->set_friendly_name(roi_align_v3_node->get_friendly_name());
         ngraph::copy_runtime_info(roi_align_v3_node, roi_align_v9);
         ngraph::replace_node(roi_align_v3_node, roi_align_v9);
-
+        MATCHER_SCOPE_ENABLE(ConvertROIAlign3To9);
         return true;
     };
 

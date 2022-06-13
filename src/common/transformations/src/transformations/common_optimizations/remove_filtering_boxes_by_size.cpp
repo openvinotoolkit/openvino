@@ -108,7 +108,7 @@ ngraph::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
         range->set_friendly_name(output->get_friendly_name());
         // TODO: add copy_runtime_info
         ngraph::replace_node(output, range);
-
+        MATCHER_SCOPE_ENABLE(RemoveFilteringBoxesBySize);
         return true;
     };
 

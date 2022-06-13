@@ -23,6 +23,7 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(FuseSubtractToFakeQuantizeTransformation);
         return transform(*context, m);
     };
 

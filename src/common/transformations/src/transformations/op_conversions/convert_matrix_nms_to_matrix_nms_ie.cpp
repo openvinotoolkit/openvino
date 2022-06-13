@@ -59,6 +59,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
         nms_new->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);
         ngraph::replace_node(nms, {output_0, output_1, output_2});
+        MATCHER_SCOPE_ENABLE(ConvertMatrixNmsToMatrixNmsIE);
         return true;
     };
 

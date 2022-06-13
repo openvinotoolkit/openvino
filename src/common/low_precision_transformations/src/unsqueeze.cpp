@@ -26,6 +26,7 @@ UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTr
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(UnsqueezeTransformation);
         return transform(*context, m);
     };
 

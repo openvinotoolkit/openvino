@@ -223,7 +223,7 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
                            sizes_node,
                            interpolate});
         replace_node(concat, interpolate);
-
+        MATCHER_SCOPE_ENABLE(SplitConcatPairToInterpolateFusion);
         return true;
     };
 

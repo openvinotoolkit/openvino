@@ -33,6 +33,7 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         reduce_sum->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l1_node, {abs, reduce_sum});
         ngraph::replace_node(m.get_match_root(), reduce_sum);
+        MATCHER_SCOPE_ENABLE(ReduceL1Decomposition);
         return true;
     };
 

@@ -47,6 +47,7 @@ ngraph::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
                                         pattern_to_output.at(add).get_node_shared_ptr()};
         ngraph::copy_runtime_info(copy_from, prelu);
         ngraph::replace_node(add_node, prelu);
+        MATCHER_SCOPE_ENABLE(PReluFusionNegativeAdd);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
@@ -77,6 +78,7 @@ ngraph::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
                                         pattern_to_output.at(sub).get_node_shared_ptr()};
         ngraph::copy_runtime_info(copy_from, prelu);
         ngraph::replace_node(sub_node, prelu);
+        MATCHER_SCOPE_ENABLE(PReluFusionNegativeSub);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
@@ -124,6 +126,7 @@ ngraph::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
                                         pattern_to_output.at(add).get_node_shared_ptr()};
         ngraph::copy_runtime_info(copy_from, {prelu, negative});
         ngraph::replace_node(add_node, prelu);
+        MATCHER_SCOPE_ENABLE(PReluFusionMultiplyAdd);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
@@ -156,6 +159,7 @@ ngraph::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
                                         pattern_to_output.at(sub).get_node_shared_ptr()};
         ngraph::copy_runtime_info(copy_from, prelu);
         ngraph::replace_node(sub_node, prelu);
+        MATCHER_SCOPE_ENABLE(PReluFusionMultiplySub);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);

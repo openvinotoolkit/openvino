@@ -372,7 +372,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
             {reshape_2_node, mul_node, mul_const_node, concat_1_node, concat_2_node, ss_before_concat_1, shapeof_node},
             {scales_node, sizes_node, axes_node, interpolate});
         replace_node(reshape_2_node, interpolate);
-
+        MATCHER_SCOPE_ENABLE(NearestNeighborUpsamplingFusion);
         return true;
     };
 

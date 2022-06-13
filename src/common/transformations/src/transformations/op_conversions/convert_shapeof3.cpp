@@ -39,6 +39,7 @@ ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
         last.get_node_shared_ptr()->set_friendly_name(shapeof->get_friendly_name());
         ngraph::copy_runtime_info(shapeof, new_ops);
         ngraph::replace_node(shapeof, last.get_node_shared_ptr());
+        MATCHER_SCOPE_ENABLE(ConvertShapeOf3);
         return true;
     };
 

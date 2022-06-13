@@ -120,7 +120,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
                            reshape_or_trans_after},
                           batch_to_space);
         replace_node(reshape_or_trans_after, batch_to_space);
-
+        MATCHER_SCOPE_ENABLE(BatchToSpaceFusion);
         return true;
     };
 

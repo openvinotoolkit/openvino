@@ -30,7 +30,7 @@ ngraph::pass::SoftSignDecomposition::SoftSignDecomposition() {
         replace_node(m_softsign, div);
         copy_runtime_info(m_softsign, {abs, add, div});
         div->set_friendly_name(m_softsign->get_friendly_name());
-
+        MATCHER_SCOPE_ENABLE(SoftSignDecomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(softsign, matcher_name);

@@ -162,6 +162,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         new_ops.push_back(fc);
         ngraph::copy_runtime_info(matmul, new_ops);
         ngraph::replace_node(matmul, fc);
+        MATCHER_SCOPE_ENABLE(ConvertMatMulToFC);
         return true;
     };
 
