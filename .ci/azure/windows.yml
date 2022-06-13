@@ -285,6 +285,13 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
 
+  - script: |
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
+    continueOnError: false
+
   - task: PublishTestResults@2
     condition: always()
     inputs:
