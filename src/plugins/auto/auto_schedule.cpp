@@ -161,6 +161,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
 
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = InferenceEngine::PluginConfigParams::THROUGHPUT;
+        if (_autoSContext->_bindBuffer)
+            _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo = _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
                                                                            _loadContext[ACTUALDEVICE].networkPrecision,
@@ -200,7 +202,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     if (contextPtr->workName.empty()) {
                         contextPtr->workName = contextPtr->deviceInfo.deviceName;
                     }
-                    GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
+                    if (!isCumulative)
+                        GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                     //need lock
                     {
                         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);

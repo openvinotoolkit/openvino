@@ -19,6 +19,7 @@ void register_implementations() {
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
+    REGISTER_OCL(bucketize);
     REGISTER_OCL(concatenation);
     REGISTER_OCL(convolution);
     REGISTER_OCL(crop);
@@ -60,6 +61,7 @@ void register_implementations() {
     REGISTER_OCL(reorder);
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
+    REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
