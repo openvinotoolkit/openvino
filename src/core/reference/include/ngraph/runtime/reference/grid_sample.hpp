@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <cassert>
 #include <cfenv>
 #include <cmath>
@@ -24,8 +25,8 @@ using denormalize_fn_t = typename std::function<GRID_ET(GRID_ET, size_t)>;
 template <typename DATA_ET>
 using get_padded_fn_t = typename std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
 
-template <typename T, size_t N>
-T& get_v(T* buffer, const Shape& shape, const std::array<size_t, N>& index) {
+template <typename T>
+T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
     // In this context below assertion is guaranteed by grid_sample(..) function.
     // assert(shape.size() == index.size());
     size_t s = 1;
@@ -171,10 +172,10 @@ vector_4_t<T> cubic_coeffs(const T r, const T A = -0.75) {
     return v;
 }
 
-template <typename T, size_t N>
-T scalar_prod(std::array<T, N> a, std::array<T, N> b) {
+template <typename T>
+T scalar_prod(const vector_4_t<T>& a, const vector_4_t<T>& b) {
     T c = 0;
-    for (int i = 0; i < N; ++i)
+    for (int i = 0; i < a.size(); ++i)
         c += a[i] * b[i];
     return c;
 }
