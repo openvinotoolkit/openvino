@@ -28,6 +28,7 @@
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
+#include "openvino/runtime/intel_auto/properties.hpp"
 // clang-format on
 
 static const size_t progressBarDefaultTotalCount = 1000;
@@ -620,7 +621,10 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            compiledModel = core.compile_model(model, device_name);
+            ov::AnyMap config;
+            if (device_name.find("MULTI") != std::string::npos)
+                config = {ov::intel_auto::device_bind_buffer("YES")};
+            compiledModel = core.compile_model(model, device_name, config);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)

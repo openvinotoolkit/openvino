@@ -81,6 +81,11 @@ def run(args):
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
+        if MULTI_DEVICE_NAME in device_name:
+            if MULTI_DEVICE_NAME not in config.keys():
+                config[MULTI_DEVICE_NAME] = {}
+            config[MULTI_DEVICE_NAME]['DEVICE_BIND_BUFFER'] = 'YES'
+
         for device in devices:
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
             if 'PERFORMANCE_HINT' in supported_properties:
