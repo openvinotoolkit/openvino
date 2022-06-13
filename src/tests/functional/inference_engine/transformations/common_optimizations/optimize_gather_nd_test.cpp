@@ -21,7 +21,7 @@ using namespace testing;
 TEST_F(TransformationTestsF, OptimizeGatherND) {
     {
         // prepare inputs
-        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 1});
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
 
         // create GatherND operator
