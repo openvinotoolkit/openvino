@@ -59,7 +59,7 @@ There are two options to install OpenVINO Development Tools:
 
 #### Installing Default Components
 
-To install default components only, use the following command:
+To install [default components in the package](#whats-in-the-package), use the following command:
 ```
 pip install openvino-dev
 ```
@@ -72,15 +72,15 @@ pip install openvino-dev[extras]
 ```
  where `extras` has the following values: 
 
-| DL Framework                                                                     | Extra                           |
-| :------------------------------------------------------------------------------- | :-------------------------------|
-|   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   | kaldi                           |
-|   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
-|   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
-|   [PyTorch*](https://pytorch.org/)                                               | pytorch                         |
-|   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
-|   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
+| Extras Value                    | DL Framework                                                                     |
+| :-------------------------------| :------------------------------------------------------------------------------- |
+| caffe                           |   [Caffe*](https://caffe.berkeleyvision.org/)                                    |
+| kaldi                           |   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   |
+| mxnet                           |   [MXNet*](https://mxnet.apache.org/)                                            |
+| onnx                            |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             |
+| pytorch                         |   [PyTorch*](https://pytorch.org/)                                               |
+| tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
+| tensorflow2                     |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            |
 
 For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:  
    ```sh
