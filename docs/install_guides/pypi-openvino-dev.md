@@ -8,7 +8,7 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 
 | Component        | Console Script                                                                   | Description                                                                                                                                                                                                                                                                                                   |  
 |------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe\*, TensorFlow\*, MXNet\*, PaddlePaddle\*, and ONNX\*.                                               |
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe, TensorFlow, Apache MXNet, PaddlePaddle, and ONNX.                                               |
 | [Benchmark Tool](../../tools/benchmark_tool/README.md)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
 | [Accuracy Checker](@ref omz_tools_accuracy_checker) and <br> [Annotation Converter](@ref omz_tools_accuracy_checker_annotation_converters) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool that allows you to collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and a set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility that prepares datasets for evaluation with Accuracy Checker.                                             |
 | [Post-Training Optimization Tool](../../tools/pot/docs/pot_introduction.md)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models.                                            |
@@ -78,17 +78,17 @@ python -m pip install --upgrade pip
 
 To install and configure the components of the development package for working with specific frameworks, use the `pip install openvino-dev[extras]` command, where `extras` is a list of extras from the table below: 
 
-| DL Framework                                                                     | Extra                           |
-| :------------------------------------------------------------------------------- | :-------------------------------|
-|   [Caffe*](https://caffe.berkeleyvision.org/)                                    | caffe                           |
-|   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   | kaldi                           |
-|   [MXNet*](https://mxnet.apache.org/)                                            | mxnet                           |
-|   [ONNX*](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
-|   [PyTorch*](https://pytorch.org/)                                               | pytorch                         |
-|   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
-|   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
+| DL Framework                                                                    | Extra                           |
+| :------------------------------------------------------------------------------ | :-------------------------------|
+|   [Caffe](https://caffe.berkeleyvision.org/)                                    | caffe                           |
+|   [Kaldi](https://github.com/kaldi-asr/kaldi)                                   | kaldi                           |
+|   [Apache MXNet](https://mxnet.apache.org/)                                     | mxnet                           |
+|   [ONNX](https://github.com/microsoft/onnxruntime/)                             | onnx                            |
+|   [PyTorch](https://pytorch.org/)                                               | pytorch                         |
+|   [TensorFlow 1.x](https://www.tensorflow.org/versions#tensorflow_1)            | tensorflow                      |
+|   [TensorFlow 2.x](https://www.tensorflow.org/versions#tensorflow_2)            | tensorflow2                     |
 
-For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:  
+For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:  
    ```sh
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```
