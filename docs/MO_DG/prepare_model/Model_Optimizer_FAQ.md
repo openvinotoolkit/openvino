@@ -182,11 +182,11 @@ Your model contains a custom layer and you have correctly registered it with the
 
 #### 15. What does the message "Framework name can not be deduced from the given options. Use --framework to choose one of Caffe, TensorFlow, MXNet" mean? <a name="question-15"></a>
 
-You have run the Model Optimizer without a flag `--framework caffe|tf|mxnet`. Model Optimizer tries to deduce the framework by the input model file extension (`.pb` for TensorFlow\*, `.caffemodel` for Caffe\*, `.params` for MXNet\*). Your input model might have a different extension and you need to explicitly set the source framework. For example, use `--framework caffe`.
+You have run Model Optimizer without a flag `--framework caffe|tf|mxnet`. Model Optimizer tries to deduce the framework by the extension of input model file (`.pb` for TensorFlow, `.caffemodel` for Caffe, `.params` for Apache MXNet). Your input model might have a different extension and you need to explicitly set the source framework. For example, use `--framework caffe`.
 
 #### 16. What does the message "Input shape is required to convert MXNet model. Please provide it with --input_shape" mean? <a name="question-16"></a>
 
-Input shape was not provided. That is mandatory for converting an MXNet\* model to the Intermediate Representation, because MXNet models do not contain information about input shapes. Please, use the `--input_shape` flag to specify it. For more information about using the `--input_shape`, refer to the FAQ [#57](#question-57).
+Input shape was not provided. That is mandatory for converting an MXNet model to the OpenVINO Intermediate Representation, because MXNet models do not contain information about input shapes. Use the `--input_shape` flag to specify it. For more information about using the `--input_shape`, refer to FAQ [#56](#question-56).
 
 #### 17. What does the message "Both --mean_file and mean_values are specified. Specify either mean file or mean values" mean? <a name="question-17"></a>
 
@@ -326,9 +326,9 @@ Model Optimizer cannot convert the model to the specified data type. Currently, 
 
 Model Optimizer tried to access a node that does not exist. This could happen if you have incorrectly specified placeholder, input or output node name.
 
-#### 52. What does the message "Module mxnet was not found. Please install MXNet 1.0.0" mean? <a name="question-52"></a>
+#### 51. What does the message "Module MXNet was not found. Please install MXNet 1.0.0" mean? <a name="question-51"></a>
 
-To convert MXNet\* models with Model Optimizer, MXNet 1.0.0 must be installed. For more information about prerequisites, see [Configuring the Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md).
+To convert MXNet models with Model Optimizer, Apache MXNet 1.0.0 must be installed. For more information about prerequisites, see the[Configuring Model Optimizer](../Deep_Learning_Model_Optimizer_DevGuide.md) guide.
 
 #### 53. What does the message "The following error happened while loading MXNet model .." mean? <a name="question-53"></a>
 
@@ -480,13 +480,13 @@ For more information, refer to the [Converting a Model to Intermediate Represent
 
 #### 84. What does the message "Specified input json ... does not exist" mean? <a name="question-84"></a>
 
-Most likely, `.json` file does not exist or has a name that does not match the notation of MXNet. Make sure that the file exists and it has a correct name.
-For more information, refer to [Converting a MXNet\* Model](convert_model/Convert_Model_From_MxNet.md).
+Most likely, `.json` file does not exist or has a name that does not match the notation of Apache MXNet. Make sure the file exists and has a correct name.
+For more information, refer to the [Converting an MXNet Model](convert_model/Convert_Model_From_MxNet.md) guide.
 
 #### 85. What does the message "Unsupported Input model file type ... Model Optimizer support only .params and .nd files format" mean? <a name="question-85"></a>
 
-Model Optimizer for MXNet supports only `.params` and `.nd` files formats. Most likely, you specified some unsupported file format in `--input_model`.
-For more information, refer to [Converting a MXNet* Model](convert_model/Convert_Model_From_MxNet.md).
+Model Optimizer for Apache MXNet supports only `.params` and `.nd` files formats. Most likely, you specified an unsupported file format in `--input_model`.
+For more information, refer to [Converting an MXNet Model](convert_model/Convert_Model_From_MxNet.md).
 
 #### 86. What does the message "Operation ... not supported. Please register it as custom op" mean? <a name="question-86"></a>
 
@@ -569,11 +569,11 @@ file is not available or does not exist. Also refer to FAQ [#90](#question-90).
 
 #### 93. What does the message "For legacy MXNet models Model Optimizer does not support conversion of old MXNet models (trained with 1.0.0 version of MXNet and lower) with custom layers." mean? <a name="question-93"></a>
 
-This message means that if you have model with custom layers and its json file has been generated with MXNet version
-lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it you have to rebuild
-MXNet with unsupported layers or generate new json with MXNet version 1.0.0 and higher. Also you need to implement
-OpenVINO extension for used custom layers.
-For more information, refer to the [OpenVINO™ Extensibility Mechanism](../../Extensibility_UG/Intro.md).
+This message means that if you have a model with custom layers and its JSON file has been generated with Apache MXNet version
+lower than 1.0.0, Model Optimizer does not support such topologies. If you want to convert it, you have to rebuild
+MXNet with unsupported layers or generate a new JSON file with Apache MXNet version 1.0.0 or higher. You also need to implement
+OpenVINO extension to use custom layers.
+For more information, refer to the [OpenVINO&trade; Extensibility Mechanism](../../Extensibility_UG/Intro.md) guide.
 
 #### 97. What does the message "Graph contains a cycle. Can not proceed .." mean?  <a name="question-97"></a>
 
@@ -624,11 +624,11 @@ If a '*.caffemodel' file exists and it is correct, the error possibly occured du
 
 #### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
 
-The issue "SyntaxError: 'yield' inside list comprehension" might occur during converting MXNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue is caused by API changes for `yield expression` in Python 3.8.
+The issue "SyntaxError: `yield` inside list comprehension" might occur during converting MXNet models (`mobilefacedet-v1-mxnet`, `brain-tumor-segmentation-0001`) on Windows platform with Python 3.8 environment. This issue is caused by the API changes for `yield expression` in Python 3.8.
 The following workarounds are suggested to resolve this issue:
-1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
-2. Update MXNet: pip install mxnet=1.7.0.post2
-Note that you might have conflicts between previously installed PyPI dependencies.
+1. Use Python 3.6/3.7 to convert MXNet models on Windows
+2. Update Apache MXNet by using `pip install mxnet=1.7.0.post2`
+Note that it might have conflicts with previously installed PyPI dependencies.
 
 #### 105. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-105"></a>
 
