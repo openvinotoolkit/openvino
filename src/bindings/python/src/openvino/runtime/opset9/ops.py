@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -206,7 +207,7 @@ def multiclass_nms(
         keep_top_k: Optional[int] = -1,
         background_class: Optional[int] = -1,
         nms_eta: Optional[float] = 1.0,
-        normalized: Optional[bool] = True
+        normalized: Optional[bool] = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -248,7 +249,7 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
@@ -294,7 +295,7 @@ def generate_proposals(
         "post_nms_count": post_nms_count,
         "normalized": normalized,
         "nms_eta": nms_eta,
-        "roi_num_type": roi_num_type
+        "roi_num_type": roi_num_type,
     }
 
     return _get_node_factory_opset9().create("GenerateProposals", inputs, attributes)
@@ -304,7 +305,7 @@ def grid_sample(
         data: NodeInput,
         grid: NodeInput,
         attributes: dict,
-        name: Optional[str] = None
+        name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs GridSample operation.
 
@@ -312,7 +313,9 @@ def grid_sample(
     :param grid: Grid values (normalized input coordinates).
     :param attributes: A dictionary containing GridSample's attributes.
     :param name: Optional name of the node.
+
     Available attributes:
+
     * align_corners A flag which specifies whether to align the grid extrema values
                     with the borders or center points of the input tensor's border pixels.
                     Range of values: true, false
@@ -326,6 +329,7 @@ def grid_sample(
                     Range of values: zeros, border, reflection
                     Default value: zeros
                     Required: no
+
     :return: A new GridSample node.
     """
     return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)
