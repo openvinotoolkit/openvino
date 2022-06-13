@@ -46,7 +46,7 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
 
         ngraph::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});
         ngraph::replace_node(gather, sq);
-
+        MATCHER_SCOPE_ENABLE(ConvertGather0D);
         return true;
     };
 

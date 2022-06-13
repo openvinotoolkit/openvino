@@ -26,7 +26,7 @@ ngraph::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
         softmax_v8_node->set_friendly_name(softmax_v1_node->get_friendly_name());
         copy_runtime_info(softmax_v1_node, softmax_v8_node);
         replace_node(softmax_v1_node, softmax_v8_node);
-
+        MATCHER_SCOPE_ENABLE(ConvertSoftMax1ToSoftMax8);
         return true;
     };
 
