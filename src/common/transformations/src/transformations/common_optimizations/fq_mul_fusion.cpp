@@ -142,7 +142,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         new_fq_node->set_friendly_name(mul_node->get_friendly_name());
         copy_runtime_info({fq_node, mul_node}, new_fq_node);
-
+        MATCHER_SCOPE_ENABLE(FakeQuantizeMulFusion);
         return true;
     };
 
