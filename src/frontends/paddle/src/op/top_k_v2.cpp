@@ -23,7 +23,6 @@ NamedOutputs top_k_v2(const NodeContext& node) {
     auto axis = node.get_attribute<int32_t>("axis", -1);
     bool sorted = node.get_attribute<bool>("sorted", true);
     bool largest = node.get_attribute<bool>("largest", true);
-    const element::Type& index_element_type = element::i32;
 
     std::string sort_type = sorted ? "value" : "none";
     std::string mode = largest ? "max" : "min";
