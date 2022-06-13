@@ -134,6 +134,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         toReplace->set_friendly_name(node->get_friendly_name());
         ngraph::copy_runtime_info(node, toReplace);
         ngraph::replace_node(node, toReplace);
+        MATCHER_SCOPE_ENABLE(ConvertToPowerStatic);
         return true;
     };
 
