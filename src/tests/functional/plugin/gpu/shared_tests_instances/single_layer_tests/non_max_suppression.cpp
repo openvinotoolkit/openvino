@@ -14,7 +14,8 @@ using namespace ngraph;
 const std::vector<InputShapeParams> inShapeParams = {
     InputShapeParams{3, 100, 5},
     InputShapeParams{1, 10, 50},
-    InputShapeParams{2, 50, 50}
+    InputShapeParams{2, 50, 50},
+    InputShapeParams {50, 5, 3}  // GPU implementation is tested on this shape only
 };
 
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};

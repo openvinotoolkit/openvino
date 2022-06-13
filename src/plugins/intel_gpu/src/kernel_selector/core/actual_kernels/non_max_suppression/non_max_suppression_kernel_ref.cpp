@@ -261,7 +261,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     // Build clKernelData.
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(orgParams, static_cast<int>(i));
-        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options, i);
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
 
