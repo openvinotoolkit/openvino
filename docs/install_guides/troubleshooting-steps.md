@@ -70,4 +70,6 @@ To run inference on GPU, make sure that you have installed the correct GPU drive
 
 ## Firewall/Network Issues
 
-Make sure that your firewall and network settings are working as expected. For issues caused by this reason, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>.
+Make sure that your firewall and network settings are set correctly. For example, configure system-wide proxy settings, and specify options for using PIP behind the proxy: `pip install --proxy http://<address>:<port> --trusted-host pypi.org openvino`. 
+
+For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>.
