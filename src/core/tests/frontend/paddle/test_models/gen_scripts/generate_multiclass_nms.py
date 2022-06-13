@@ -411,7 +411,7 @@ def multiclass_nms_lod(appendix : str = '_default', background = -1, score_thres
     
 if __name__ == "__main__":
     main()
-    TEST1()
+    #TEST1()
     multiclass_nms_lod() # default
     multiclass_nms_lod('_background', background = -1)
     multiclass_nms_lod('_score_threshold', score_threshold = 0.5)
