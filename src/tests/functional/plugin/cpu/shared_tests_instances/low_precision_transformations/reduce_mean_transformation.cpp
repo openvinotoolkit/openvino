@@ -144,8 +144,7 @@ const std::vector<LayerTestsDefinitions::ReduceMeanTransformationParam> params =
         "FP32"
     },
 };
-// WR: Remove to pass the test because ReductionMeanToPoolingTranformation enabling.
-/*
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -154,5 +153,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReduceMeanTransformation::getTestCaseName);
-*/
 }  // namespace

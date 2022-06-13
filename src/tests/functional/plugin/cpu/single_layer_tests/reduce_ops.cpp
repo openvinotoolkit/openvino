@@ -249,8 +249,7 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 };
 
 const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
-// WR: Remove to pass the test because ReductionMeanToPoolingTranformation enabling.
-       // ngraph::helpers::ReductionType::Mean,
+        ngraph::helpers::ReductionType::Mean,
         ngraph::helpers::ReductionType::Max,
         ngraph::helpers::ReductionType::Sum,
         ngraph::helpers::ReductionType::Min,
@@ -260,8 +259,7 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
 };
 
 const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
-// WR: Remove to pass the test because ReductionMeanToPoolingTranformation enabling.
-        //ngraph::helpers::ReductionType::Mean,
+        ngraph::helpers::ReductionType::Mean,
         ngraph::helpers::ReductionType::Max,
         ngraph::helpers::ReductionType::L2,
 };
