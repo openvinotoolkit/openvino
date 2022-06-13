@@ -13,8 +13,34 @@ import ctypes, time, re
 import argparse
 import dot_to_html
 
+# build a numpy array and return
+def get_array(mem_rt_info):
+    precision2ctype = {
+        "I8":ctypes.c_int8,
+        "U8":ctypes.c_uint8,
+        "I32": ctypes.c_int32,
+        "FP32":ctypes.c_float,
+        "BF16":ctypes.c_int16,
+    }
+    arr = None
+    try:
+        Ptr = mem_rt_info["Ptr"]
+        p=ctypes.c_void_p(Ptr)
+        c_type = precision2ctype[mem_rt_info["Precision"]]
+        pf = ctypes.cast(p, ctypes.POINTER(c_type))
+        cnt = mem_rt_info["MaxMemSize"]//ctypes.sizeof(c_type)
+        arr = np.ctypeslib.as_array(pf, shape=(cnt,))
+    except Exception as e:
+        arr = None
+
+    return arr
+
 def get_value_strings(n, nlimit = 8):
-    values = n.get_vector()
+    if n.get_type_name() == "ExecutionNode":
+        output = n.output(0)
+        values = get_array(output.get_rt_info())
+    else:
+        values = n.get_vector()
     limit = min(len(values), nlimit)
     return [str(v) for v in values[:limit]]
 
@@ -266,7 +292,7 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
         # originalLayersNames gives mapping between runtime nodes and orginal nodes
         fsize = fontsize
         color = op2color[type_name] if type_name in op2color else "cyan"
-        if type_name == "Constant":
+        if type_name == "Constant" or type_name == "Const":
             vstr = get_value_strings(n)
             label = strings2label(vstr)
             fsize = fontsize - 2
@@ -514,7 +540,7 @@ def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_
     t0 = time.time()
     for i in range(num_infer):
         wtime = time.time() - t0
-        if time_limit and (wtime > time_limit):
+        if (time_limit >= 0) and (wtime > time_limit):
             break
         infer_queue.start_async(None, userdata=i)
     infer_queue.wait_all()
@@ -528,6 +554,8 @@ if __name__ == "__main__":
                         help="Model file path")
     parser.add_argument("-p","--perf", action="store_true",
                         help="Enable profiling")
+    parser.add_argument("-t","--time", type=float, default=10,
+                        help="Time in seconds to profile(default 10 seconds)")
     parser.add_argument("--raw", action="store_true",
                         help="Dump raw model")
     parser.add_argument("--bf16", action="store_true",
@@ -583,8 +611,8 @@ if __name__ == "__main__":
         print("\t[{}] {}".format(port, _output))
 
     if args.perf:
-        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, input_shapes, 2, 20000, time_limit=10)
-        print(f"test_infer_queue FPS:{fps:.1f}")
+        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, input_shapes, 2, 20000, time_limit=args.time)
+        print(f"test_infer_queue FPS:{fps:.4f}")
 
     dest_file = "visual_{}_{}.html".format(model_fname, device)
     print("Saving runtime model to: {}".format(dest_file))

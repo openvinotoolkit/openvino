@@ -233,13 +233,6 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         } else if (is_output) {
             results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
             return_node = results.back();
-        } else if (node->getType() == intel_cpu::Type::Input && node->isConstant()) {
-            auto & pmem = node->getChildEdgeAt(0)->getMemoryPtr();
-            void * data = pmem->GetData();
-            auto shape = pmem->getDesc().getShape().getDims();
-            auto type = details::convertPrecision(pmem->getDesc().getPrecision());
-            auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
-            return_node = std::make_shared<ngraph::op::Constant>(tensor);
         } else {
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
