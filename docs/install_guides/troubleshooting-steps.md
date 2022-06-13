@@ -23,7 +23,7 @@ sudo apt-get install libpython3-dev
 ```
 * For macOS, download a proper Python version from <https://www.python.org/> and install it. Note that macOS 10.x comes with python 2.7 installed, which is not supported, so you still need install Python from its official website.
 
-For PIP, make sure that you have installed the latest version. To check and upgrade your PIP version, run the following command:
+For PIP, make sure that you have installed the latest version. To check and upgrade your PIP version, run the following command after activating the virtual environment:
 
 @sphinxdirective
 
