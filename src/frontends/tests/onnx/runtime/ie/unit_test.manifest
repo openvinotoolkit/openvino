@@ -425,3 +425,5 @@ IE_CPU.onnx_softmax_crossentropy_loss_mean
 
 # Cannot find blob with name: Y
 IE_CPU.onnx_bool_init_and
+
+onnx_grid_sample
