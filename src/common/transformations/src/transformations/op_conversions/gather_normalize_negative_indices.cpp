@@ -71,7 +71,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         gather->input(1).replace_source_output(add);
 
         ngraph::copy_runtime_info(gather, {shape_of, input_gather, add});
-
+        MATCHER_SCOPE_ENABLE(GatherNegativeConstIndicesNormalize);
         return true;
     };
 
