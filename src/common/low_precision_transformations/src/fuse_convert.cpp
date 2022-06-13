@@ -38,6 +38,7 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(FuseConvertTransformation);
         return transform(*context, m);
     };
 

@@ -55,6 +55,7 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
             },
             hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE_ENABLE(HSigmoidFusionWithReluDiv);
         return true;
     };
 
@@ -102,6 +103,7 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
                                    pattern_to_output.at(mul_second).get_node_shared_ptr()},
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE_ENABLE(HSigmoidFusionWithReluMul);
         return true;
     };
 
@@ -154,6 +156,7 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE_ENABLE(HSigmoidFusionWithoutRelu);
         return true;
     };
 
@@ -200,6 +203,7 @@ ngraph::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
                                    pattern_to_output.at(mul_first).get_node_shared_ptr()},
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE_ENABLE(HSigmoidFusionWithClampMul);
         return true;
     };
 
@@ -246,6 +250,7 @@ ngraph::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE_ENABLE(HSigmoidFusionWithClampDiv);
         return true;
     };
 

@@ -24,7 +24,7 @@ ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
         power_static->set_friendly_name(power->get_friendly_name());
         ngraph::copy_runtime_info(power, power_static);
         ngraph::replace_node(power, power_static);
-
+        MATCHER_SCOPE_ENABLE(ConvertPowerToPowerStatic);
         return true;
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(scalarPower), callback);

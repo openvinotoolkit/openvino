@@ -51,7 +51,7 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
 
         copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);
         replace_node(fq, new_fq);
-
+        MATCHER_SCOPE_ENABLE(ReluFakeQuantizeFusion);
         return true;
     };
 
