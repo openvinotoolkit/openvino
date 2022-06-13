@@ -194,6 +194,7 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ngraph::replace_node(reshape_after, depth_to_space);
+        MATCHER_SCOPE_ENABLE(DepthToSpaceFusion);
         return true;
     };
 

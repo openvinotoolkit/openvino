@@ -151,6 +151,7 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
         shuffle_shannels->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, transpose, reshape_after}, shuffle_shannels);
         ngraph::replace_node(reshape_after, shuffle_shannels);
+        MATCHER_SCOPE_ENABLE(ShuffleChannelsFusion);
         return true;
     };
 

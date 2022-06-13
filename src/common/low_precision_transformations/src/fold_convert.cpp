@@ -24,6 +24,7 @@ FoldConvertTransformation::FoldConvertTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(FoldConvertTransformation);
         return transform(*context, m);
     };
 
