@@ -196,7 +196,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
 }
 
 device_info init_device_info(const cl::Device& device) {
-    device_info info;
+    device_info info = {};
     info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
     info.dev_name = device.getInfo<CL_DEVICE_NAME>();
     info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
