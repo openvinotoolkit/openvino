@@ -36,8 +36,8 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 
     auto output = params.outputs[0];
 
-    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
-        dispatchData.gws[0] = output.Y().v * output.X().v;
+    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 || output.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
+        dispatchData.gws[0] = output.Z().v *output.Y().v * output.X().v;
         dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
         dispatchData.gws[2] = output.Batch().v;
 
@@ -73,6 +73,7 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) {
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCKED_FORMAT", true));
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));

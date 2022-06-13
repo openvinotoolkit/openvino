@@ -615,6 +615,7 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 32;
     } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
                 params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
                 params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
