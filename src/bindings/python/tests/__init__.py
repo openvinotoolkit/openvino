@@ -126,10 +126,6 @@ xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes stre
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
 
-xfail_issue_81974 = xfail_test(reason="RuntimeError: OpenVINO does not support the following ONNX "
-                                      "operations: GridSample, Optional, SequenceConstruct, "
-                                      "OptionalHasElement, SequenceInsert")
-
 xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
