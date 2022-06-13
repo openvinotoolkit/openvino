@@ -62,6 +62,7 @@ ngraph::pass::ConvertTopK3::ConvertTopK3() {
         ngraph::copy_runtime_info(topk, new_ops);
         topk->output(0).replace(last0);
         topk->output(1).replace(last1);
+        MATCHER_SCOPE_ENABLE(ConvertTopK3)
         return true;
     };
 

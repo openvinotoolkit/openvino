@@ -46,6 +46,7 @@ NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(NormalizeL2Transformation);
         return transform(*context, m);
     };
 
