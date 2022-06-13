@@ -100,6 +100,7 @@ using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -1013,6 +1014,11 @@ TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectProper
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
 }
 
+TEST_P(OVClassLoadNetworkWithIncorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, deviceName, configuration), ov::Exception);
+}
+
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
@@ -1045,6 +1051,31 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       ov::device::priorities(deviceName, CommonTestUtils::DEVICE_CPU),
                                       ov::device::id("110")),
                      ov::Exception);
+    } else {
+        GTEST_SKIP();
+    }
+}
+
+//
+// LoadNetwork with AUTO on MULTI combinations particular device
+//
+TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
+        std::string devices;
+        auto availableDevices = ie.get_property(deviceName, ov::available_devices);
+        for (auto&& device : availableDevices) {
+            devices += deviceName + '.' + device;
+            if (&device != &(availableDevices.back())) {
+                devices += ',';
+            }
+        }
+        OV_ASSERT_NO_THROW(
+            ie.compile_model(actualNetwork,
+                             CommonTestUtils::DEVICE_MULTI,
+                             ov::device::properties(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(devices)),
+                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                                    ov::device::priorities(CommonTestUtils::DEVICE_AUTO, deviceName))));
     } else {
         GTEST_SKIP();
     }

@@ -121,33 +121,23 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    // keep the secondary priorities for AUTO
-    if (device == "AUTO") {
+    if (device.find("AUTO:") != std::string::npos || device.find("MULTI:") != std::string::npos ||
+        device.find("HETERO:") != std::string::npos) {
+        // keep the secondary priorities if virtual device contains any HW device
         return result;
     }
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
-        if (item->second.is<ov::AnyMap>()) {
-            if (device.find(parsed._deviceName) != std::string::npos) {
-                if (device.find("AUTO:") != std::string::npos || device.find("MULTI:") != std::string::npos ||
-                    device.find("HETERO:") != std::string::npos) {
-                    // keep the secondary priorities for the device appearing in virtual device name
-                    item++;
-                    continue;
-                }
-                for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
-                    result[sub_property.first] = sub_property.second;
-                }
-            }
-            if (device == "HETERO" || device == "MULTI") {
-                // keep secondary property for device HETERO and MULTI
-                item++;
-            } else {
-                item = result.erase(item);
-            }
+        if (!item->second.is<ov::AnyMap>() || device.find(parsed._deviceName) == std::string::npos) {
+            item++;
             continue;
         }
-        item++;
+        // 1. flatten the scondary property for target device
+        for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+            result[sub_property.first] = sub_property.second;
+        }
+        // 2. remove th secondary property for the target device
+        item = result.erase(item);
     }
     return result;
 }

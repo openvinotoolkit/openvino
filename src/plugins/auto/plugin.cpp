@@ -823,7 +823,8 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
                 context->_performanceHint = kvp.second;
             }
-        } else if (!devicesList.empty() && devicesList.find(kvp.first) != std::string::npos) {
+        } else if (devicesList.find(kvp.first) != std::string::npos || kvp.first == "HETERO" || kvp.first == "MULTI") {
+            // secondary prperties for HW or virtual device
             continue;
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
