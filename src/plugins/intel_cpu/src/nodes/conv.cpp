@@ -23,6 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <cpu/cpu_primitive.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -289,10 +290,13 @@ bool Convolution::canBeExecutedInInt8() const {
     if (!weightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
-    return inputDataType == memory::data_type::u8 && weightsDataType == memory::data_type::s8;
+    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
 }
 
 InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
+    if (sumPrc != Precision::UNSPECIFIED)
+        return sumPrc;
+
     InferenceEngine::Precision eltwisePrecision;
 
     int fusingPort = fusingNode->getFusingPort();
@@ -317,7 +321,7 @@ void Convolution::getSupportedDescriptors() {
         isPrimitivesPriorityDefined = true;
         // winograd support only constant weights and bias
         isWino = std::find(implPriorities.begin(), implPriorities.end(), impl_desc_type::jit_avx512_winograd) != implPriorities.end() &&
-                 dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) && !canBeExecutedInInt8() &&
+                 dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
                  getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
     }
@@ -340,7 +344,7 @@ void Convolution::getSupportedDescriptors() {
     if (!inputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
     eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
@@ -467,6 +471,13 @@ void Convolution::getSupportedDescriptors() {
             auto inputShape = getInputShapeAtPort(0);
             auto outputShape = getOutputShapeAtPort(0);
 
+            if (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
+                createDescriptor({ in_candidate }, { out_candidate });
+            }
+
             if (IC == 1 && groupOC == 1) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
@@ -490,7 +501,9 @@ void Convolution::getSupportedDescriptors() {
             out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
             createDescriptor({ in_candidate }, { out_candidate });
 
-            if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
+            if ((inputDataType != memory::data_type::bf16 && isNspcAvailable()) ||
+                    (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
                 createDescriptor({ in_candidate }, { out_candidate });
@@ -499,20 +512,19 @@ void Convolution::getSupportedDescriptors() {
     }
 }
 
-void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false) {
+void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights) {
     dnnl::post_ops ops;
-    const bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
 
     auto getBinPostOpShape = [&](){
-        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
-        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto outShapeRank = dims.size();
         const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = outShape[chIdx];
+        binaryShape[chIdx] = dims[chIdx];
         return binaryShape;
     };
 
-    for (auto &node : fusedWith) {
+    for (int i = 0; i < fusedWith.size(); i++) {
+        auto& node = fusedWith[i];
         if (node->getType() == Type::Split || node->getType() == Type::Concatenation)
             continue;
 
@@ -524,28 +536,156 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                    eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
+                    eltwiseNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps]);
                 }
             }
             continue;
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            if (useLegacyPostOps) {
-                fakeQuantizeNode->appendPostOps(ops, dims, postOpsArgs);
-            } else {
-                fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+            const Dim OC = dims[1];
+            if (i == 0) {
+                bool hasSubsequentSum = false;
+                bool hasSubsequentFQ = false;
+                for (int j = i + 1; j < fusedWith.size(); j++) {
+                    auto &nextNode = fusedWith[j];
+
+                    auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
+                    if (nextEltwiseNode && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
+                        hasSubsequentSum = true;
+                    }
+
+                    auto *nextQuantizeNode = dynamic_cast<FakeQuantize *>(nextNode.get());
+                    if (nextQuantizeNode) {
+                        hasSubsequentFQ = true;
+                    }
+                }
+
+                if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQCommon &&
+                    hasSubsequentSum &&
+                    hasSubsequentFQ) {
+                    std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
+                    if (!fqScale.empty()) {
+                        size_t size = fqScale.size();
+                        if (size == 1) {
+                            fqScale.resize(OC);
+                            for (size_t k = 0; k < OC; k++)
+                                fqScale[k] = fqScale[0];
+                        }
+
+                        attr.set_output_scales(1 << 1, fqScale);
+
+                        continue;
+                    }
+                }
+
+                if (node == fusedWith[fusedWith.size() - 1]) {
+                    auto &cl = fakeQuantizeNode->getCropLow();
+                    auto &ch = fakeQuantizeNode->getCropHigh();
+                    auto &isc = fakeQuantizeNode->getInputScale();
+                    auto &ish = fakeQuantizeNode->getInputShift();
+                    auto &osc = fakeQuantizeNode->getOutputScale();
+                    auto &osh = fakeQuantizeNode->getOutputShift();
+                    if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQQuantization) {
+                        if (outputDataType == memory::data_type::u8 &&
+                            std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+                            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; })) {
+                            std::vector<float> outScale = isc;
+                            if (!outScale.empty()) {
+                                size_t size = outScale.size();
+                                if (size == 1) {
+                                    outScale.resize(OC);
+                                    for (size_t k = 0; k < OC; k++)
+                                        outScale[k] = outScale[0];
+                                }
+
+                                attr.set_output_scales(1 << 1, outScale);
+
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (outputDataType == memory::data_type::s8 &&
+                        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
+                        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
+                        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
+                        bool isCropAligned = true;
+                        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
+                            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
+                            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
+                                isCropAligned = false;
+                            }
+                        }
+
+                        if (isCropAligned) {
+                            std::vector<float> outScale = isc;
+                            if (!outScale.empty()) {
+                                size_t size = outScale.size();
+                                if (size == 1) {
+                                    outScale.resize(OC);
+                                    for (size_t k = 0; k < OC; k++)
+                                        outScale[k] = outScale[0];
+                                }
+
+                                attr.set_output_scales(1 << 1, outScale);
+
+                                continue;
+                            }
+                        }
+                    }
+                }
             }
+
+            if (node == fusedWith[fusedWith.size() - 1] &&
+                outputDataType == memory::data_type::u8 &&
+                fakeQuantizeNode->getAlgorithm() == Algorithm::FQQuantization &&
+                ops.len() == 1 && ops.kind(0) == primitive::kind::sum
+                /*levels == 256*/) {
+                auto &cl = fakeQuantizeNode->getCropLow();
+                auto &isc = fakeQuantizeNode->getInputScale();
+                auto &ish = fakeQuantizeNode->getInputShift();
+
+                if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
+                    std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
+                    std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == 0; })) {
+                    std::vector<float> outScales;
+                    int mask = 1 << 1;
+                    attr.get_output_scales(mask, outScales);
+
+                    for (int j = 0; j < outScales.size(); j++) {
+                        outScales[j] *= isc[0];
+                    }
+                    attr.set_output_scales(mask, outScales);
+
+                    ops.get()->entry_[0].sum.scale = isc[0];
+
+                    continue;
+                }
+            }
+
+            if (useLegacyPostOps) {
+                fakeQuantizeNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+            } else {
+                fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps],
+                        node == fusedWith[fusedWith.size() - 1], outputDataType);
+            }
+
             continue;
         }
 
         auto* convolutionNode = dynamic_cast<Convolution *>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                postOpsArgs.push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
-                postOpsArgs.push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
+                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
+                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
 
                 // todo: rewrite onto append_dw_k3s2p1
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
@@ -576,8 +716,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    dnnl::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
+    dnnl::primitive_attr attrs[2];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
 
     bool containJitImpl = false;
 
@@ -721,7 +862,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     memory::data_type wdt = static_cast<memory::data_type>(inDnnlDesc.data.data_type);
 
-    if (inDnnlDesc.data.data_type == dnnl_u8) {
+    if (inDnnlDesc.data.data_type == dnnl_s8 || inDnnlDesc.data.data_type == dnnl_u8) {
         wdt = memory::data_type::s8;
     }
 
@@ -798,8 +939,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     }
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    dnnl::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
+    dnnl::primitive_attr attrs[2];
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -810,7 +952,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (auto &attr : attrs) {
+        for (int n = 0; n < sizeof(attrs) / sizeof(attrs[0]); n++) {
+            auto &attr = attrs[n];
             addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -864,6 +1007,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                         IE_THROW() << "Cannot get the original layer configuration!";
                     }
                     rightConfig = cfg;
+                    preferLegacyPostOps = n == 0;
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {
                     if (impl_type == selectedPD->getImplementationType()) {
@@ -1034,7 +1178,7 @@ bool Convolution::isNspcAvailable() const {
         }
 
         // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after the convolution performs slow
-        if (mayiuse(impl::cpu::x64::avx512_common) && is1x1) {
+        if (mayiuse(impl::cpu::x64::avx512_core) && is1x1) {
             auto end = inpDims.rbegin();
             std::advance(end, spatialRank);
             if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return dimsEqualStrong(1, x); })) {
@@ -1045,7 +1189,7 @@ bool Convolution::isNspcAvailable() const {
         unsigned thresholdNumChannels = 128u; // for avx and below
         if (is1x1) {
             thresholdNumChannels = 2048u;
-        } else if (mayiuse(impl::cpu::x64::avx512_common)) {
+        } else if (mayiuse(impl::cpu::x64::avx512_core)) {
             thresholdNumChannels = 512u;
         }
 
@@ -1125,7 +1269,7 @@ void Convolution::prepareParams() {
     auto initPrimitiveAttr = [&]() {
         dnnl::primitive_attr attr;
         addZeroPoints(attr);
-        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), true);
+        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), preferLegacyPostOps, true);
 
         return std::make_shared<dnnl::primitive_attr>(std::move(attr));
     };
@@ -1265,7 +1409,7 @@ void Convolution::prepareParams() {
         }
 
         appendZeroPointsArgs();
-        Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
+        Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
