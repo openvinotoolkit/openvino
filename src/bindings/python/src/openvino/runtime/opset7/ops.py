@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -40,7 +41,7 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 @nameable_op
 def einsum(
         inputs: List[Node],
-        equation: str
+        equation: str,
 ) -> Node:
     """Return a node which performs Einsum operation.
 
@@ -49,7 +50,7 @@ def einsum(
     :return: The new node performing Einsum operation on the inputs
     """
     attributes = {
-        "equation": equation
+        "equation": equation,
     }
 
     return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
@@ -71,7 +72,7 @@ def gelu(
     inputs = as_nodes(data)
 
     attributes = {
-        "approximation_mode": approximation_mode
+        "approximation_mode": approximation_mode,
     }
 
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
@@ -112,7 +113,7 @@ def gather(
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
-        "batch_dims": batch_dims
+        "batch_dims": batch_dims,
     }
     return _get_node_factory_opset7().create("Gather", inputs, attributes)
 

@@ -1,8 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-ONNX Backend implementation.
+"""ONNX Backend implementation.
 
 See ONNX documentation for details:
 https://github.com/onnx/onnx/blob/master/docs/Implementing%20an%20ONNX%20backend.md
@@ -39,7 +39,7 @@ class OpenVinoOnnxBackend(Backend):
         cls,
         model,  # type: onnx.ModelProto
         device="CPU",  # type: Text
-        **kwargs  # type: Any
+        **kwargs,  # type: Any
     ):  # type: (...) -> bool
         # Return whether the model is compatible with the backend.
         try:
@@ -53,7 +53,7 @@ class OpenVinoOnnxBackend(Backend):
         cls,
         onnx_model,  # type: onnx.ModelProto
         device="CPU",  # type: Text
-        **kwargs  # type: Any
+        **kwargs,  # type: Any
     ):  # type: (...) -> OpenVinoOnnxBackendRep
         super().prepare(onnx_model, device, **kwargs)
         ng_model_function = import_onnx_model(onnx_model)
@@ -65,7 +65,7 @@ class OpenVinoOnnxBackend(Backend):
         model,  # type: onnx.ModelProto
         inputs,  # type: Any
         device="CPU",  # type: Text
-        **kwargs  # type: Any
+        **kwargs,  # type: Any
     ):  # type: (...) -> Tuple[Any, ...]
         return cls.prepare(model, device, **kwargs).run(inputs)
 
@@ -76,7 +76,7 @@ class OpenVinoOnnxBackend(Backend):
         inputs,  # type: Any
         device="CPU",  # type: Text
         outputs_info=None,  # type: Optional[Sequence[Tuple[numpy.dtype, Tuple[int, ...]]]]
-        **kwargs  # type: Dict[Text, Any]
+        **kwargs,  # type: Dict[Text, Any]
     ):  # type: (...) -> Optional[Tuple[Any, ...]]
         """Prepare and run a computation on an ONNX node."""
         # default values for input/output tensors
@@ -97,7 +97,7 @@ class OpenVinoOnnxBackend(Backend):
         output_tensors = [
             make_tensor_value_info(name, tensor_type, shape)
             for name, shape, tensor_type in zip(
-                node.output, output_tensor_shapes, output_tensor_types
+                node.output, output_tensor_shapes, output_tensor_types,
             )
         ]
 
@@ -122,7 +122,7 @@ class OpenVinoTestBackend(OpenVinoOnnxBackend):
         cls,
         model,  # type: onnx.ModelProto
         device="CPU",  # type: Text
-        **kwargs  # type: Any
+        **kwargs,  # type: Any
     ):  # type: (...) -> bool
         # Return whether the model is compatible with the backend.
         import_onnx_model(model)

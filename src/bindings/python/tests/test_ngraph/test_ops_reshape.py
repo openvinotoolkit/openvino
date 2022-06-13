@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -10,22 +11,22 @@ from tests.test_ngraph.util import run_op_node, run_op_numeric_data
 
 
 def test_concat():
-    a = np.array([[1, 2], [3, 4]]).astype(np.float32)
-    b = np.array([[5, 6]]).astype(np.float32)
+    input_a = np.array([[1, 2], [3, 4]]).astype(np.float32)
+    input_b = np.array([[5, 6]]).astype(np.float32)
     axis = 0
-    expected = np.concatenate((a, b), axis=0)
+    expected = np.concatenate((input_a, input_b), axis=0)
 
     runtime = get_runtime()
-    parameter_a = ov.parameter(list(a.shape), name="A", dtype=np.float32)
-    parameter_b = ov.parameter(list(b.shape), name="B", dtype=np.float32)
+    parameter_a = ov.parameter(list(input_a.shape), name="A", dtype=np.float32)
+    parameter_b = ov.parameter(list(input_b.shape), name="B", dtype=np.float32)
     node = ov.concat([parameter_a, parameter_b], axis)
     computation = runtime.computation(node, parameter_a, parameter_b)
-    result = computation(a, b)
+    result = computation(input_a, input_b)
     assert np.allclose(result, expected)
 
 
 @pytest.mark.parametrize(
-    "val_type, value", [(bool, False), (bool, np.empty((2, 2), dtype=bool))]
+    ("val_type", "value"), [(bool, False), (bool, np.empty((2, 2), dtype=bool))],
 )
 def test_constant_from_bool(val_type, value):
     expected = np.array(value, dtype=val_type)
@@ -34,7 +35,7 @@ def test_constant_from_bool(val_type, value):
 
 
 @pytest.mark.parametrize(
-    "val_type, value",
+    ("val_type", "value"),
     [
         pytest.param(np.int16, np.int16(-12345)),
         pytest.param(np.int64, np.int64(-1234567)),
@@ -69,7 +70,7 @@ def test_constant_from_float_array(val_type):
 
 
 @pytest.mark.parametrize(
-    "val_type, range_start, range_end",
+    ("val_type", "range_start", "range_end"),
     [
         pytest.param(np.int16, -64, 64),
         pytest.param(np.int64, -16383, 16383),
@@ -84,7 +85,7 @@ def test_constant_from_float_array(val_type):
 def test_constant_from_integer_array(val_type, range_start, range_end):
     np.random.seed(133391)
     input_data = np.array(
-        np.random.randint(range_start, range_end, size=(2, 2)), dtype=val_type
+        np.random.randint(range_start, range_end, size=(2, 2)), dtype=val_type,
     )
     result = run_op_numeric_data(input_data, ov.constant, val_type)
     assert np.allclose(result, input_data)
@@ -96,7 +97,7 @@ def test_broadcast_numpy():
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     target_shape_parameter = ov.parameter(
-        target_shape_shape, name="Target_shape", dtype=np.int64
+        target_shape_shape, name="Target_shape", dtype=np.int64,
     )
 
     node = ov.broadcast(data_parameter, target_shape_parameter)
@@ -111,7 +112,7 @@ def test_broadcast_bidirectional():
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     target_shape_parameter = ov.parameter(
-        target_shape_shape, name="Target_shape", dtype=np.int64
+        target_shape_shape, name="Target_shape", dtype=np.int64,
     )
 
     node = ov.broadcast(data_parameter, target_shape_parameter, "BIDIRECTIONAL")
@@ -122,7 +123,7 @@ def test_broadcast_bidirectional():
 
 def test_transpose():
     input_tensor = np.arange(3 * 3 * 224 * 224, dtype=np.int32).reshape(
-        (3, 3, 224, 224)
+        (3, 3, 224, 224),
     )
     input_order = np.array([0, 2, 3, 1], dtype=np.int32)
 
@@ -145,7 +146,7 @@ def test_tile():
 
 
 @pytest.mark.xfail(
-    reason="RuntimeError: Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)'"
+    reason="RuntimeError: Check 'shape_size(get_input_shape(0)) == shape_size(output_shape)'",
 )
 def test_strided_slice():
     input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
@@ -172,20 +173,20 @@ def test_strided_slice():
     )
 
     expected = np.array(
-        [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], dtype=np.float32
+        [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], dtype=np.float32,
     ).reshape((1, 3, 4))
 
     assert np.allclose(result, expected)
 
 
 def test_reshape_v1():
-    A = np.arange(1200, dtype=np.float32).reshape((2, 5, 5, 24))
+    param_a = np.arange(1200, dtype=np.float32).reshape((2, 5, 5, 24))
     shape = np.array([0, -1, 4], dtype=np.int32)
     special_zero = True
 
     expected_shape = np.array([2, 150, 4])
-    expected = np.reshape(A, expected_shape)
-    result = run_op_node([A], ov.reshape, shape, special_zero)
+    expected = np.reshape(param_a, expected_shape)
+    result = run_op_node([param_a], ov.reshape, shape, special_zero)
 
     assert np.allclose(result, expected)
 

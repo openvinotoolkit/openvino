@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -6,6 +7,7 @@
 
 from openvino.utils import add_openvino_libs_to_path
 from pkg_resources import get_distribution, DistributionNotFound
+
 
 try:
     __version__ = get_distribution("openvino-core").version
@@ -64,6 +66,7 @@ from openvino.pyopenvino import properties
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
+
 
 # Extend Node class to support binary operators
 Node.__add__ = opset9.add

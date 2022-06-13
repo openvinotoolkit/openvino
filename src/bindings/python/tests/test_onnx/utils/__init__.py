@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -16,8 +17,7 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 def run_node(onnx_node, data_inputs, **kwargs):
     # type: (onnx.NodeProto, List[np.ndarray], Dict[Text, Any]) -> List[np.ndarray]
-    """
-    Convert ONNX node to ngraph node and perform computation on input data.
+    """Convert ONNX node to ngraph node and perform computation on input data.
 
     :param onnx_node: ONNX NodeProto describing a computation node
     :param data_inputs: list of numpy ndarrays with input data
@@ -29,8 +29,7 @@ def run_node(onnx_node, data_inputs, **kwargs):
 
 def run_model(onnx_model, data_inputs):
     # type: (onnx.ModelProto, List[np.ndarray]) -> List[np.ndarray]
-    """
-    Convert ONNX model to an ngraph model and perform computation on input data.
+    """Convert ONNX model to an ngraph model and perform computation on input data.
 
     :param onnx_model: ONNX ModelProto describing an ONNX model
     :param data_inputs: list of numpy ndarrays with input data
@@ -77,8 +76,7 @@ def get_node_model(op_type, *input_data, opset=1, num_outputs=1, **node_attribut
 
 def all_arrays_equal(first_list, second_list):
     # type: (Iterable[np.ndarray], Iterable[np.ndarray]) -> bool
-    """
-    Check that all numpy ndarrays in `first_list` are equal to all numpy ndarrays in `second_list`.
+    """Check that all numpy ndarrays in `first_list` are equal to all numpy ndarrays in `second_list`.
 
     :param first_list: iterable containing numpy ndarray objects
     :param second_list: another iterable containing numpy ndarray objects

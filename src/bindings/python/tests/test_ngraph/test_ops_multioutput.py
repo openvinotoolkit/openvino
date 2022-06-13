@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-/home/bszmelcz/openvino/src/bindings/python/tests/test_ngraph/test_ops_util_variable.py
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 

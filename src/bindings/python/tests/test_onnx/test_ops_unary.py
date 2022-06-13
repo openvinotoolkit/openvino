@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -123,7 +124,7 @@ def test_ceil(input_data):
 
 
 @pytest.mark.parametrize(
-    "min_value, max_value",
+    ("min_value", "max_value"),
     [(np.finfo(np.float32).min, np.finfo(np.float32).max), (-0.5, 0.5), (0.0, np.finfo(np.float32).max)],
 )
 def test_clip(min_value, max_value):
@@ -166,7 +167,7 @@ def test_reciprocal(input_data):
     assert np.allclose(ng_results, [expected_output])
 
 
-@pytest.mark.parametrize("axis, dim1, dim2", [(0, 1, 60), (1, 3, 20), (2, 12, 5)])
+@pytest.mark.parametrize(("axis", "dim1", "dim2"), [(0, 1, 60), (1, 3, 20), (2, 12, 5)])
 def test_hardmax(axis, dim1, dim2):
     def hardmax_2d(data):
         return np.eye(data.shape[1], dtype=data.dtype)[np.argmax(data, axis=1)]
@@ -197,8 +198,8 @@ def test_hardmax_special_cases():
     ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
+    node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=3)
     with pytest.raises(RuntimeError):
-        node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=3)
         ng_results = run_node(node, [data], opset_version=12)
 
     # For multiple occurrences of the maximal values, the first occurrence is selected
@@ -231,10 +232,10 @@ def test_hardsigmoid():
 
 
 def test_logsoftmax():
-    def logsoftmax_2d(x):
-        max_x = np.max(x, axis=1).reshape((-1, 1))
-        exp_x = np.exp(x - max_x)
-        return x - max_x - np.log(np.sum(exp_x, axis=1).reshape((-1, 1)))
+    def logsoftmax_2d(value):
+        max_x = np.max(value, axis=1).reshape((-1, 1))
+        exp_x = np.exp(value - max_x)
+        return value - max_x - np.log(np.sum(exp_x, axis=1).reshape((-1, 1)))
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)
@@ -259,14 +260,14 @@ def test_logsoftmax():
     ng_results = run_node(node, [data], opset_version=12)
     assert np.allclose(ng_results, [expected])
 
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=3)
     with pytest.raises(RuntimeError):
-        node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=3)
         ng_results = run_node(node, [data], opset_version=12)
 
 
 def test_softplus():
-    def softplus(x):
-        return np.where(x < 20, np.log(np.exp(x) + 1), x)
+    def softplus(value):
+        return np.where(value < 20, np.log(np.exp(value) + 1), value)
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)
@@ -278,8 +279,8 @@ def test_softplus():
 
 
 def test_softsign():
-    def softsign(x):
-        return x / (1 + np.abs(x))
+    def softsign(value):
+        return value / (1 + np.abs(value))
 
     np.random.seed(133391)
     data = np.random.randn(3, 4, 5).astype(np.float32)
@@ -322,7 +323,7 @@ def test_identity():
     assert np.array_equal(ng_results[0], expected_result)
 
 
-@pytest.mark.parametrize("val_type, input_data", [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
+@pytest.mark.parametrize(("val_type", "input_data"), [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
 
@@ -332,7 +333,7 @@ def test_cast_to_bool(val_type, input_data):
 
 
 @pytest.mark.parametrize(
-    "val_type, range_start, range_end, in_dtype",
+    ("val_type", "range_start", "range_end", "in_dtype"),
     [
         (np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
         (np.dtype(np.float64), -16383, 16383, np.dtype(np.int64)),
@@ -352,11 +353,12 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
     "val_type", [np.dtype(np.int8),
                  np.dtype(np.int16),
                  np.dtype(np.int32),
-                 np.dtype(np.int64)]
+                 np.dtype(np.int64)],
 )
 def test_cast_to_int(val_type):
     np.random.seed(133391)
-    input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16).astype(val_type)
+    random_data = np.random.rand(2, 3, 4) * 16
+    input_data = np.ceil(-8 + random_data).astype(val_type)
     expected = np.array(input_data, dtype=val_type)
 
     model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
@@ -365,7 +367,7 @@ def test_cast_to_int(val_type):
 
 
 @pytest.mark.parametrize(
-    "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)]
+    "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)],
 )
 def test_cast_to_uint(val_type):
     np.random.seed(133391)
@@ -389,9 +391,7 @@ def test_cast_errors():
         make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
         for name, value in zip(node.input, [input_data])
     ]
-    output_tensors = [
-        make_tensor_value_info(node.output[0], onnx.TensorProto.FLOAT16, input_data.shape)
-    ]  # type: ignore
+    output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.FLOAT16, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
@@ -404,9 +404,7 @@ def test_cast_errors():
         make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
         for name, value in zip(node.input, [input_data])
     ]
-    output_tensors = [
-        make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)
-    ]  # type: ignore
+    output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
@@ -419,9 +417,7 @@ def test_cast_errors():
         make_tensor_value_info(name, onnx.TensorProto.COMPLEX64, value.shape)
         for name, value in zip(node.input, [input_data])
     ]
-    output_tensors = [
-        make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)
-    ]  # type: ignore
+    output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
@@ -434,9 +430,7 @@ def test_cast_errors():
         make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
         for name, value in zip(node.input, [input_data])
     ]
-    output_tensors = [
-        make_tensor_value_info(node.output[0], onnx.TensorProto.COMPLEX128, input_data.shape)
-    ]  # type: ignore
+    output_tensors = [make_tensor_value_info(node.output[0], onnx.TensorProto.COMPLEX128, input_data.shape)]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="NgraphBackend")
@@ -484,7 +478,7 @@ def test_constant_err():
 
 
 @pytest.mark.parametrize(
-    "shape, shift",
+    ("shape", "shift"),
     [
         ((4, 4), 0),
         ((4, 4), 1),

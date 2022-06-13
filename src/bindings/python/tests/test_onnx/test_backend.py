@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -61,15 +62,16 @@ def expect_fail(test_case_path, xfail):  # type: (str) -> None
         xfail(getattr(module, test_name))
     else:
         logging.getLogger().warning(
-            "Could not mark test as XFAIL, not found: %s", test_case_path
+            "Could not mark test as XFAIL, not found: %s", test_case_path,
         )
 
 
 OpenVinoTestBackend.backend_name = BACKEND_NAME
 
-# This is a pytest magic variable to load extra plugins
-# Uncomment the line below to enable the ONNX compatibility report
-# pytest_plugins = "onnx.backend.test.report",
+"""This is a pytest magic variable to load extra plugins
+Uncomment the line below to enable the ONNX compatibility report
+pytest_plugins = "onnx.backend.test.report",
+"""
 
 # import all test cases at global scope to make them visible to python.unittest
 backend_test = onnx.backend.test.BackendTest(OpenVinoTestBackend, __name__)
@@ -412,4 +414,4 @@ tests_expected_to_fail = [
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
-        expect_fail("{}".format(test_case), test_group[0])
+        expect_fail(f"{test_case}", test_group[0])

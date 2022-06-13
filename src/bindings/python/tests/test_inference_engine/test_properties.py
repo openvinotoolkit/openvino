@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,18 +9,18 @@ from openvino.runtime import Core, Type, OVAny
 from openvino.runtime import properties
 
 
-def test_property_RW():
+def test_property_rw():
     assert properties.device.priorities() == "MULTI_DEVICE_PRIORITIES"
     assert properties.device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
     assert properties.device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
 
     with pytest.raises(TypeError) as e:
-        val = 6
-        properties.device.priorities("CPU", val)
-    assert f"Incorrect passed value: {val} , expected string values." in str(e.value)
+        value = 6
+        properties.device.priorities("CPU", value)
+    assert f"Incorrect passed value: {value} , expected string values." in str(e.value)
 
 
-def test_property_RO():
+def test_property_ro():
     assert properties.available_devices() == "AVAILABLE_DEVICES"
 
     with pytest.raises(TypeError) as e:
@@ -72,7 +73,7 @@ def test_single_property_setting():
         properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
         properties.hint.num_requests(): 12,
         "NUM_STREAMS": properties.streams.Num(5),
-    }
+    },
 ])
 def test_properties_core(properties_to_set):
     core = Core()
