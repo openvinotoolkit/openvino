@@ -14,17 +14,15 @@ ParamsKey ScatterNDUpdateKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -115,14 +113,10 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params) {
-    const auto& input = params.inputs[0];
+static std::string GetInputBlockND(const scatter_nd_update_params& params, int num, const int rank) {
+    const auto& input = params.inputs[num];
     auto input_dims = input.LogicalDims();
     std::reverse(input_dims.begin(), input_dims.end());
-    while (!input_dims.empty() && input_dims.back() == 1) {
-        input_dims.pop_back();
-    }
-    const int rank = static_cast<int>(input_dims.size());
     std::vector<size_t> block_nd(rank + 1);
     block_nd[rank] = 1;
     for (int idx = (rank - 1); idx >= 0; idx--) {
@@ -157,9 +151,14 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
+            int input0_rank = static_cast<int>(newParams.inputs[0].LogicalDims().size());
+            int input2_rank = static_cast<int>(newParams.inputs[2].LogicalDims().size());
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT_BLOCK_ND", GetInputBlockND(newParams)));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, input0_rank)));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, newParams.indices_rank - 1)));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, input2_rank)));
+            cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
         }
         std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

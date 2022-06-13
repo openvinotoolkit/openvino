@@ -30,6 +30,7 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
             leakyRelu->set_friendly_name(prelu->get_friendly_name());
             ngraph::copy_runtime_info(prelu, leakyRelu);
             ngraph::replace_node(prelu, leakyRelu);
+            MATCHER_SCOPE_ENABLE(ConvertToLeakyRelu);
             return true;
         }
         return false;

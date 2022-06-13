@@ -199,6 +199,7 @@ pass::BinarizeWeights::BinarizeWeights() {
             {new_activations_fq, new_conv, activations_norm_factor_reshaped, mul, weights_norm_factor_reshaped, mul2});
         mul2->set_friendly_name(conv->get_friendly_name());
         replace_node(conv, mul2);
+        MATCHER_SCOPE_ENABLE(BinarizeWeights);
         return true;
     };
 
