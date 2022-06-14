@@ -446,6 +446,10 @@ void multiclass_nms(const float* boxes_data,
     for (int64_t i = 0; i < num_images; i++) {
         std::vector<BoxInfo> selected_boxes;
         if (shared) {
+            OPENVINO_ASSERT(boxes_data_shape[0] == scores_data_shape[0],
+                            "Expect batch size of boxes and scores are the same.");
+            OPENVINO_ASSERT(boxes_data_shape[1] == scores_data_shape[2],
+                            "Expect box numbers of boxes and scores are the same.");
             const auto num_boxes = boxes_data_shape[1];
             const auto num_classes = scores_data_shape[1];
 
@@ -464,6 +468,8 @@ void multiclass_nms(const float* boxes_data,
 
             OPENVINO_ASSERT(boxes_data_shape[0] == scores_data_shape[0],
                             "Expect class numbers of boxes and scores are the same.");
+            OPENVINO_ASSERT(boxes_data_shape[1] == scores_data_shape[1],
+                            "Expect box numbers of boxes and scores are the same.");
             const auto num_classes = boxes_data_shape[0];
 
             const auto boxes = slice_image(boxes_data, boxes_data_shape, head, roisnum_data[i]);

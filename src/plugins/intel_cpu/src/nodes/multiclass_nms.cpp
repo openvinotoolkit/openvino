@@ -78,18 +78,20 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::en
     // boxes [C, M, 4], scores [C, M], roisnum [N] opset9
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
+    auto boxes_ps = PartialShape(boxes_dims);
+    auto scores_ps = PartialShape(scores_dims);
     if (boxes_dims.size() != 3)
         IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
     if (boxes_dims[2] != 4)
         IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
     if (scores_dims.size() == 3) {
-        if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2])
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[2]))
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
     } else if (scores_dims.size() == 2) {
         if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
             IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
-        if (!PartialShape(boxes_dims)[0].compatible(PartialShape(scores_dims)[0]) || boxes_dims[1] != scores_dims[1])
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[1]))
+            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
         if (getOriginalInputsNumber() != 3)
             IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";
     } else {
