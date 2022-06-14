@@ -63,6 +63,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     int selected_indices_num;
     bool center_point_box;
     bool sort_result_descending;
+    bool soft_nms;
     primitive_id num_select_per_class;
     primitive_id iou_threshold;
     primitive_id score_threshold;

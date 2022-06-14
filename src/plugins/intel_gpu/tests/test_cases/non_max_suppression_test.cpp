@@ -108,7 +108,7 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     topology topo;
     topo.add(input_layout("boxes", this->boxes_layout));
     topo.add(input_layout("scores", this->scores_layout));
-    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true));
+    topo.add(non_max_suppression("nms", "boxes", "scores", 6, false, true, false));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -152,7 +152,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     topo.add(input_layout("scores", this->scores_layout));
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(non_max_suppression("nms", "boxes", "scores",
-        this->batch_size * this->classes_num * 1, false, true, "num_per_class"));
+        this->batch_size * this->classes_num * 1, false, true, false, "num_per_class"));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -201,7 +201,7 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     topo.add(mutable_data("valid_outputs", valid_outputs_mem));
 
     topo.add(non_max_suppression("nms", "boxes", "scores",
-        this->batch_size * this->classes_num * 1, false, true,
+        this->batch_size * this->classes_num * 1, false, true, false,
                                 "num_per_class", cldnn::primitive_id(),
                                 cldnn::primitive_id(), cldnn::primitive_id(),
                                 "selected_scores", "valid_outputs"));
@@ -275,7 +275,7 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     topo.add(data("iou_threshold", iou_threshold_mem));
     topo.add(non_max_suppression("nms", "boxes", "scores",
         this->batch_size * this->classes_num * this->boxes_num,
-        false, true, "num_per_class", "iou_threshold"));
+        false, true,  false, "num_per_class", "iou_threshold"));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -332,7 +332,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     topo.add(data("score_threshold", score_threshold_mem));
     topo.add(non_max_suppression("nms", "boxes", "scores",
         this->batch_size * this->classes_num * this->boxes_num,
-        false, true, "num_per_class", "iou_threshold", "score_threshold"));
+        false, true, false, "num_per_class", "iou_threshold", "score_threshold"));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -392,7 +392,7 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     topo.add(data("soft_nms_sigma", soft_nms_sigma_mem));
     topo.add(non_max_suppression("nms", "boxes", "scores",
         this->batch_size * this->classes_num * this->boxes_num,
-        false, true, "num_per_class", "iou_threshold", "score_threshold", "soft_nms_sigma"));
+        false, true, false, "num_per_class", "iou_threshold", "score_threshold", "soft_nms_sigma"));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));

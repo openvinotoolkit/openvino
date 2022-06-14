@@ -152,10 +152,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
         static const precisions_array convert_precision_list {

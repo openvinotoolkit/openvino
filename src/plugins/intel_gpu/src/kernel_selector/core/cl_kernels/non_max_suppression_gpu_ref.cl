@@ -113,7 +113,7 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
 {
-    if (iou <= iou_threshold) {
+    if (iou <= iou_threshold || SOFT_NMS_SIGMA_VAL > 0.0f) {
         return exp(scale * iou * iou);
     } else {
         return 0.0f;
@@ -456,7 +456,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
             const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, selected_box_coord);
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
 
-            if (iou >= IOU_THRESHOLD_VAL) {
+            if (iou >= IOU_THRESHOLD_VAL && !(SOFT_NMS_SIGMA_VAL > 0.0f)) {
                 should_hard_suppress = true;
                 break;
             }

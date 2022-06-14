@@ -76,85 +76,6 @@ void NmsLayerTest::Compare(
     CompareBBoxes(expectedOutputs, actualOutputs);
 }
 
-void NmsLayerTest::CompareBuffer(
-    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
-        const auto& expected = expectedOutputs[outputIndex];
-        const auto& actual = actualOutputs[outputIndex];
-
-        const auto& expectedBuffer = expected.second.data();
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
-        const auto actualBuffer = lockedMemory.as<const uint8_t*>();
-
-        auto k = static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
-        // W/A for int4, uint4
-        if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
-            k /= 2;
-        }
-        if (outputIndex == 2) {
-            if (expected.second.size() != k * actual->byteSize())
-                throw std::runtime_error("Expected and actual size 3rd output have different size");
-        }
-
-        const auto& precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
-        switch (precision) {
-        case InferenceEngine::Precision::FP32: {
-            switch (expected.first) {
-            case ngraph::element::Type_t::f32:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
-                                                           reinterpret_cast<const float*>(actualBuffer),
-                                                           size,
-                                                           threshold);
-                break;
-            case ngraph::element::Type_t::f64:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const double*>(expectedBuffer),
-                                                           reinterpret_cast<const float*>(actualBuffer),
-                                                           size,
-                                                           threshold);
-                break;
-            default:
-                break;
-            }
-
-            const auto fBuffer = lockedMemory.as<const float*>();
-            for (int i = size; i < actual->size(); i++) {
-                ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
-            }
-            break;
-        }
-        case InferenceEngine::Precision::I32: {
-            switch (expected.first) {
-            case ngraph::element::Type_t::i32:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int32_t*>(expectedBuffer),
-                                                           reinterpret_cast<const int32_t*>(actualBuffer),
-                                                           size,
-                                                           0);
-                break;
-            case ngraph::element::Type_t::i64:
-                LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const int64_t*>(expectedBuffer),
-                                                           reinterpret_cast<const int32_t*>(actualBuffer),
-                                                           size,
-                                                           0);
-                break;
-            default:
-                break;
-            }
-            const auto iBuffer = lockedMemory.as<const int*>();
-            for (int i = size; i < actual->size(); i++) {
-                ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-            }
-            break;
-        }
-        default:
-            FAIL() << "Comparator for " << precision << " precision isn't supported";
-        }
-    }
-}
-
 typedef struct Rect {
     int32_t x1;
     int32_t y1;
@@ -461,7 +382,6 @@ void Nms9LayerTest::SetUp() {
                                 sortResDescend,
                                 outType,
                                 ngraph::builder::NmsVersion::NmsVersion9);
-    
     function = std::make_shared<Function>(nms, params, "NMS");
 }
 
