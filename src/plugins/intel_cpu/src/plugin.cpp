@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <ie_system_conf.h>
 #include <ie_ngraph_utils.hpp>
+#include <xmmintrin.h>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -652,6 +653,15 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
+
+    #if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
+        unsigned int DENORMALS_ZERO = 0x0040;
+        unsigned int FLUSH_ZERO = 0x8000;
+        unsigned int csr = _mm_getcsr();
+        csr |= DENORMALS_ZERO;
+        csr |= FLUSH_ZERO;
+        _mm_setcsr(csr);
+    #endif
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
