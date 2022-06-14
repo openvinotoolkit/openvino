@@ -22,6 +22,7 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(DepthToSpaceTransformation);
         return transform(*context, m);
     };
 
