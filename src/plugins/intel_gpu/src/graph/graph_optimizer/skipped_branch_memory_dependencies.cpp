@@ -27,6 +27,8 @@ void skipped_branch_memory_dependencies::run(program& p) {
     while (itrB != processing_order.end()) {
         auto& nodeB = *itrB;
         auto itrA = ++itrB;
+        if (nodeB->is_constant())
+            continue;
         if (nodeB->get_users().size() == 0)
             continue;
 

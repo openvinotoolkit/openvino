@@ -204,7 +204,7 @@ private:
     bool _is_primary_stream;
     bool _reset_arguments;
 
-    std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
+    std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
