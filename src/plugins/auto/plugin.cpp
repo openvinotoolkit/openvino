@@ -207,12 +207,10 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             auto deviceConfig = getDeviceConfig(deviceNameWithID);
             // no performance mode setting for AUTO.
             if (config.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == config.end()) {
-                for (auto device : deviceList) {
-                    auto item = config.find(device);
-                    if (item == config.end()) {
-                        // no properties specified for target device. setting tput as the default performance mode.
-                        deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
-                    }
+                auto item = config.find(deviceNameWithID);
+                if (item == config.end()) {
+                    // no properties specified for target device. setting tput as the default performance mode.
+                    deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
                 }
             }
             metaDevices.push_back({deviceNameWithID, deviceConfig, numRequests, defaultDeviceID, uniqueName, devicePriority});
