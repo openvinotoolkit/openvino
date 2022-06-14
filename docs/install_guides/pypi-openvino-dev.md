@@ -76,7 +76,7 @@ pip install openvino-dev[extras]
 | :-------------------------------| :------------------------------------------------------------------------------- |
 | caffe                           |   [Caffe*](https://caffe.berkeleyvision.org/)                                    |
 | kaldi                           |   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   |
-| mxnet                           |   [MXNet*](https://mxnet.apache.org/)                                            |
+| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                            |
 | onnx                            |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             |
 | pytorch                         |   [PyTorch*](https://pytorch.org/)                                               |
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
