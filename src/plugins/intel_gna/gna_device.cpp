@@ -28,8 +28,6 @@
 #include "layers/gna_convolution_layer.hpp"
 #include "memory/gna_mem_requests.hpp"
 
-//#define MODEL_DUMP
-
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
@@ -111,6 +109,15 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
 
+void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& infix) const {
+    for (auto&& a : allAllocations.GetAllocationsInExportOrder()) {
+        const auto& name = a.GetTagName();
+        std::ofstream file(std::to_string(idx) + name + kDumpDelimiter + infix + kDumpExt,
+                           std::ios::out | std::ios::binary);
+        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
+    }
+}
+
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
@@ -119,6 +126,11 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
+    if (debugLogEnabled) {
+        dumpAllAllocations(debugLogIndexRequestEnqueue, "BeforeGna2RequestEnqueue");
+        debugLogIndexRequestEnqueue++;
+    }
+
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
@@ -164,17 +176,18 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 
     GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
 
-#ifdef MODEL_DUMP
-    std::string path =
+    if (debugLogEnabled) {
+        std::string path =
 #ifdef _WIN32
-        ".\\";
+            ".\\";
 #else
-        "./";
+            "./";
 #endif
-    const std::string mode = useDeviceEmbeddedExport ? "_ee" : "";
-    const auto fileSuffix = mode + "_devVersion_" + toHexString(detectedGnaDevVersion);
-    DumpGna2Model(gnaModel, path, false, allAllocations, fileSuffix);
-#endif
+        const std::string mode = useDeviceEmbeddedExport ? "_ee" : "";
+        const auto fileSuffix = mode + "_devVersion_" + toHexString(detectedGnaDevVersion);
+        DumpGna2Model(gnaModel, path, false, allAllocations, fileSuffix);
+    }
+
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 
     checkGna2Status(status, gnaModel);
@@ -444,6 +457,10 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     }
     checkGna2Status(status, "Gna2RequestWait");
 
+    if (debugLogEnabled) {
+        dumpAllAllocations(debugLogIndexRequestWait, "AfterGna2RequestWait");
+        debugLogIndexRequestWait++;
+    }
     updateGnaPerfCounters();
     return GNA_REQUEST_COMPLETED;
 }
