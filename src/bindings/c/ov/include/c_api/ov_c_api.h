@@ -246,6 +246,11 @@ typedef struct ov_infer_request ov_infer_request_t;
 typedef struct ov_tensor ov_tensor_t;
 
 /**
+ * @struct ov_dimension_t
+ */
+typedef struct ov_dimensions ov_dimensions_t;
+
+/**
  * @struct ov_element_type_e
  */
 typedef enum {
@@ -283,20 +288,37 @@ typedef struct {
 } ov_shape_t;
 
 /**
- * @struct ov_PartialShape_t
+ * @struct ov_partial_shape_t
+ * brief Class representing a shape that may be partially or totally dynamic.
+ *
+ * A PartialShape may have:
+ * Dynamic rank. (Informal notation: `?`)
+ * Static rank, but dynamic dimensions on some or all axes.
+ *     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
+ * Static rank, and static dimensions on all axes.
+ *     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
+ *
+ * An interface to make user can initialize ov_partial_shape_t
  */
-typedef struct {
-    int ranks;
-    const char *dims[MAX_DIMENSION];
-} ov_partial_shape_t;
+typedef struct ov_partial_shape ov_partial_shape_t;
 
 /**
  * @enum ov_performance_mode_e
  * @brief Enum to define possible performance mode hints
  * @brief This represents OpenVINO 2.0 ov::hint::PerformanceMode entity.
+ *  It is same with enum class ov::hint::PerformanceMode as below:
+ *
+ *   enum class PerformanceMode {
+ *   UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+ *   LATENCY = 1,                //!<  Optimize for latency
+ *   THROUGHPUT = 2,             //!<  Optimize for throughput
+ *   CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+ *   };
+ *
+ *  There also is a map in C implement to keep it aligned with C++ definition.
  */
 typedef enum {
-    UNDEFINED_MODE = -1,             //!<  Undefined value, performance setting may vary from device to device
+    UNDEFINED_MODE = -1,        //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
@@ -349,9 +371,17 @@ typedef struct ov_property{
 
 /**
  * @brief Initialize a partial shape.
+ * @param str is the input partial info string
+ *  Dynamic rank:
+ *     Example: "?"
+ *  Static rank, but dynamic dimensions on some or all axes.
+ *     Examples: "{1,2,?,4}" or "{?,?,?}" or "{1,2,-1,4}""
+ *  Static rank, and static dimensions on all axes.
+ *     Examples: "{1,2,3,4}" or "{6}" or "{}""
+ *
  * @param ov_status_e a status code.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char* str);
+OPENVINO_C_API(ov_status_e) ov_partial_shape_init(ov_partial_shape_t** partial_shape, const char* str);
 
 /**
  * @brief Parse the partial shape to readable string.
@@ -510,14 +540,6 @@ OPENVINO_C_API(ov_status_e) ov_core_get_property(const ov_core_t* core, const ch
                                         ov_property_value* property_value);
 
 /**
- * @brief Registers an extension to a Core object.
- * @param core A pointer to the ie_core_t instance.
- * @param library_path Path to the library with ov::Extension.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e) ov_core_add_extension(const ov_core_t* core, const char* library_path);
-
-/**
  * @brief Returns devices available for inference.
  * @param core A pointer to the ie_core_t instance.
  * @param devices A pointer to the ov_available_devices_t instance.
@@ -646,9 +668,8 @@ OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
  * @param tensor_name input tensor name (char *).
  * @param partialShape A PartialShape.
  */
-OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model,
-                                        const char* tensor_name,
-                                        const ov_partial_shape_t partial_shape);
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape(const ov_model_t* model, const char* tensor_name, const ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Gets the friendly name for a model. 

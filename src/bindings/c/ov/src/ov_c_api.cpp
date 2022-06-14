@@ -76,6 +76,11 @@ struct ov_tensor {
     std::shared_ptr<ov::Tensor> object;
 };
 
+struct ov_partial_shape {
+    char ranks;                       // Support static rank and dynamic rank
+    std::vector<ov::Dimension> dims;  // Dimemsion vector
+};
+
 /**
  * @variable global value for error info
  */
@@ -613,33 +618,62 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
 
 std::vector<char*> split(std::string s) {
     std::vector<char*> result;
-    std::regex delimiter("[,]");
-    std::sregex_token_iterator tokens(s.cbegin(), s.cend(), delimiter, -1);
-    std::sregex_token_iterator end;
-    for (; tokens != end; ++tokens) {
-        result.push_back(str_to_char_array(*tokens));
+
+    std::regex delimiter("[^{},]+");
+    auto words_begin = std::sregex_iterator(s.begin(), s.end(), delimiter);
+    auto words_end = std::sregex_iterator();
+    for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+        std::smatch match = *i;
+        result.push_back(str_to_char_array(match.str()));
     }
     return result;
 }
 
-ov_status_e ov_partial_shape_init(ov_partial_shape_t* partial_shape, const char* str) {
-    if (!partial_shape || !str) {
+ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const char* str) {
+    *partial_shape_obj = nullptr;
+    if (!str) {
         return ov_status_e::GENERAL_ERROR;
     }
+    ov_partial_shape_t* partial_shape = new ov_partial_shape_t;
     try {
         std::string s = str;
-        std::regex reg("[^,0-9.?][^\\-1]");
+        std::regex reg("[^,0-9.?}{}][^\\-1]");
         bool res = std::regex_search(s, reg);
         if (res) {
             return ov_status_e::PARAMETER_MISMATCH;
         }
-        std::vector<char*> result = split(s);
-        partial_shape->ranks = result.size();
-        if (partial_shape->ranks > MAX_DIMENSION) {
-            return ov_status_e::GENERAL_ERROR;
+
+        if (s == "?") {  // dynamic rank
+            partial_shape->ranks = '?';
+            partial_shape->dims.emplace_back(ov::Dimension::dynamic());
+        } else {  // static rank
+            std::vector<char*> result = split(s);
+            size_t cnt = result.size();
+            if (cnt > MAX_DIMENSION) {
+                return ov_status_e::GENERAL_ERROR;
+            }
+            partial_shape->ranks = '0' + cnt;
+            for (auto& item : result) {
+                std::string dim = item;
+                if (dim == "?" || dim == "-1") {
+                    partial_shape->dims.emplace_back(ov::Dimension::dynamic());
+                } else {
+                    const std::string range_divider = "..";
+                    size_t range_index = dim.find(range_divider);
+                    if (range_index != std::string::npos) {
+                        std::string min = dim.substr(0, range_index);
+                        std::string max = dim.substr(range_index + range_divider.length());
+                        partial_shape->dims.emplace_back(min.empty() ? 0 : std::stoi(min),
+                                                         max.empty() ? ngraph::Interval::s_max : std::stoi(max));
+                    } else {
+                        partial_shape->dims.emplace_back(std::stoi(dim));
+                    }
+                }
+            }
         }
-        std::copy_n(result.begin(), result.size(), partial_shape->dims);
-    } CATCH_OV_EXCEPTIONS
+    }
+    CATCH_OV_EXCEPTIONS
+    *partial_shape_obj = partial_shape;
     return ov_status_e::OK;
 }
 
@@ -647,13 +681,28 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     if (!partial_shape) {
         return str_to_char_array("error");
     }
-    std::string str;
-    for (int i = 0; i < partial_shape->ranks; ++i) {
-        std::string tmp = partial_shape->dims[i];
-        str += tmp;
-        if (i != partial_shape->ranks - 1)
+
+    // dynamic rank
+    char ranks = partial_shape->ranks;
+    if (ranks == '?') {
+        return str_to_char_array("?");
+    } else if (ranks < '0' || ranks >= '0' + MAX_DIMENSION) {
+        return str_to_char_array("ranks error");
+    }
+
+    // static rank
+    std::string str = std::string("{");
+    int cnt = ranks - '0';
+    int i = 0;
+    for (auto& item : partial_shape->dims) {
+        std::ostringstream out;
+        out.str("");
+        out << item;
+        str += out.str();
+        if (i++ < cnt - 1)
             str += ",";
     }
+    str += std::string("}");
     const char* res = str_to_char_array(str);
     return res;
 }
@@ -663,56 +712,43 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        std::vector<size_t> tmp_shape;
-        std::regex reg("[^0-9,]");
-        auto tmp = ov_partial_shape_parse(partial_shape);
-        std::string dim(tmp);
-        bool res = std::regex_search(dim, reg);
-        if (res) {
-            return ov_status_e::PARAMETER_MISMATCH;
+        int ranks = partial_shape->ranks - '0';
+        for (int i = 0; i < ranks; ++i) {
+            auto& ov_dim = partial_shape->dims[i];
+            if (ov_dim.is_static())
+                shape->dims[i] = ov_dim.get_length();
+            else
+                return ov_status_e::PARAMETER_MISMATCH;
         }
-        for (int i = 0; i < partial_shape->ranks; ++i) {
-            shape->dims[i] = std::stoi(partial_shape->dims[i]);
-        }
-        shape->ranks = partial_shape->ranks;
-        delete tmp;
-    } CATCH_OV_EXCEPTIONS
+        shape->ranks = ranks;
+    }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-
 ov_status_e ov_model_reshape(const ov_model_t* model,
-                        const char* tensor_name,
-                        const ov_partial_shape_t partial_shape) {
+                             const char* tensor_name,
+                             const ov_partial_shape_t* partial_shape) {
     if (!model || !tensor_name) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        std::vector<ngraph::Dimension> shape;
-        for (int i = 0; i < partial_shape.ranks; i++) {
-            if (!partial_shape.dims[i])
-                return ov_status_e::GENERAL_ERROR;
-            std::string dim = partial_shape.dims[i];
-            if (dim == "?" || dim == "-1") {
-                shape.push_back(ov::Dimension::dynamic());
-            } else {
-                const std::string range_divider = "..";
-                size_t range_index = dim.find(range_divider);
-                if (range_index != std::string::npos) {
-                    std::string min = dim.substr(0, range_index);
-                    std::string max = dim.substr(range_index + range_divider.length());
-                    shape.emplace_back(min.empty() ? 0 : std::stoi(min),
-                                    max.empty() ? ngraph::Interval::s_max : std::stoi(max));
-                } else {
-                    shape.emplace_back(std::stoi(dim));
-                }
+        auto ranks = partial_shape->ranks;
+        std::map<std::string, ov::PartialShape> in_shape;
+        if (ranks >= '0' && ranks < '0' + MAX_DIMENSION) {
+            int cnt = ranks - '0';
+            if (cnt != partial_shape->dims.size()) {
+                return ov_status_e::PARAMETER_MISMATCH;
             }
+            in_shape[tensor_name] = partial_shape->dims;
+        } else if (ranks = '?') {
+            in_shape[tensor_name] = partial_shape->dims;
+        } else {
+            return ov_status_e::PARAMETER_MISMATCH;
         }
-
-        std::map<std::string, ov::PartialShape> const_pshape;
-        const_pshape[tensor_name] = shape;
-        model->object->reshape(const_pshape);
-    } CATCH_OV_EXCEPTIONS
+        model->object->reshape(in_shape);
+    }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
@@ -743,12 +779,8 @@ void ov_free(char *content) {
 }
 
 void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
-    if (partial_shape) {
-        std::for_each(&partial_shape->dims[0],
-                &partial_shape->dims[partial_shape->ranks],
-                [](const char* n){ delete [] n; });
-        partial_shape->ranks = 0;
-    }
+    if (partial_shape)
+        delete partial_shape;
 }
 
 ov_status_e ov_preprocess_create(const ov_model_t* model,
