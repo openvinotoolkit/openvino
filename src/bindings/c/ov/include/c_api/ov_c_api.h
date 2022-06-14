@@ -246,11 +246,6 @@ typedef struct ov_infer_request ov_infer_request_t;
 typedef struct ov_tensor ov_tensor_t;
 
 /**
- * @struct ov_dimension_t
- */
-typedef struct ov_dimensions ov_dimensions_t;
-
-/**
  * @struct ov_element_type_e
  */
 typedef enum {
