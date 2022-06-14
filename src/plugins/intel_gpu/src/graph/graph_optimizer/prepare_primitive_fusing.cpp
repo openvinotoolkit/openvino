@@ -612,8 +612,20 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
-        auto reduce_supports_fusings = [](reduce_node& node) -> bool {
+        auto reduce_supports_fusings = [&](reduce_node& node) -> bool {
             auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
+            auto axes = node.as<reduce>().get_primitive()->axes;
+
+            // If reduce tensor size is small, it sets not to fuse eltwise which leads to select oneDNN reference reduction
+            // Because oneDNN optimized kernel does NOT support eltwise fusing
+            if (p.get_engine().get_device_info().supports_immad && node.get_output_layout().get_dims().size() <= 4 &&
+                ((find(axes.begin(), axes.end(), reduce::along_x) != axes.end() &&
+                node.input().get_output_layout().spatial(0) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
+                node.input().get_output_layout().spatial(1) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
+                node.input().get_output_layout().feature() > 16)))
+                return false;
 
             if (keep_dims)
                 return true;
@@ -862,15 +874,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
                            pooling_supports_fusings(input_data.as<pooling>());
 
-            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+                           quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<resample>() &&
                            quantize_node.get_scale_shift_opt() &&

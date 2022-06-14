@@ -422,3 +422,8 @@ IE_CPU.onnx_scan15_dyn_rank_vals
 # z node not found in graph cache ticket: 81976
 IE_CPU.onnx_expand_context_dependent_function
 IE_CPU.onnx_softmax_crossentropy_loss_mean
+
+# Cannot find blob with name: Y
+IE_CPU.onnx_bool_init_and
+
+onnx_grid_sample

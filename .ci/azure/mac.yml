@@ -162,6 +162,7 @@ jobs:
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend UT'
     continueOnError: false
+    enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
@@ -207,6 +208,14 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+    displayName: 'IE CAPITests'
+    continueOnError: false
+    enabled: false
+
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
     enabled: false

@@ -708,6 +708,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
@@ -863,6 +864,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         }
         return decltype(ov::optimal_batch_size)::value_type {batch};
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid = {};
+        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
+        return decltype(ov::device::uuid)::value_type {uuid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";

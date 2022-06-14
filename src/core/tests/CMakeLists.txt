@@ -127,6 +127,7 @@ set(SRC
     type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
+    type_prop/generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/experimental_detectron_topkrois.cpp
     type_prop/strided_slice.cpp
@@ -147,6 +148,7 @@ set(SRC
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/gelu.cpp
+    type_prop/grid_sample.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -230,6 +232,7 @@ set(SRC
     type_prop/slice.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
+    type_prop/softsign.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
     type_prop/split.cpp
@@ -297,6 +300,8 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/generate_proposals.cpp
+    visitors/op/grid_sample.cpp
     visitors/op/experimental_detectron_prior_grid_generator.cpp
     visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/eye.cpp
@@ -395,6 +400,7 @@ set(SRC
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
+    visitors/op/softsign.cpp
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
@@ -421,6 +427,7 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
+                                type_prop/multiclass_nms.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 

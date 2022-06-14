@@ -36,7 +36,7 @@ ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
         copy_runtime_info({pattern_map.at(multiply_pattern).get_node_shared_ptr(), maximum.get_node_shared_ptr()},
                           leaky_relu);
         replace_node(maximum.get_node_shared_ptr(), leaky_relu);
-
+        MATCHER_SCOPE_ENABLE(LeakyReluFusion);
         return true;
     };
 

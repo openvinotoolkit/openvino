@@ -120,6 +120,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         new_fq->set_friendly_name(fq->get_friendly_name());
         copy_runtime_info({add_node, fq}, {new_input_low, new_input_high, new_fq});
         replace_node(fq, new_fq);
+        MATCHER_SCOPE_ENABLE(AddFakeQuantizeFusion);
         return true;
     };
 

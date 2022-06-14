@@ -386,7 +386,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     auto getBinPostOpShape = [&](){
         const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
         VectorDims binaryShape(binaryShapeRank, 1);
-        const size_t channelAxis = getFusingAxis();
+        const auto channelAxis = getFusingAxis();
         // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
         binaryShape[1] = dims[channelAxis];
 
@@ -421,6 +421,8 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgemm_avx512_amx,
+            impl_desc_type::brgemm_avx512,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,
@@ -446,14 +448,6 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             impl_desc_type::jit_sse42,
             impl_desc_type::ref,
     };
-
-    // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
-    const size_t simdWidth = 16;
-    auto inputDims = getInputShapeAtPort(DATA_ID).getDims();
-    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
-        priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
-        priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
-    }
 
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())

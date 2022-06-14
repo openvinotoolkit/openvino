@@ -69,7 +69,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         add->set_friendly_name(sub->get_friendly_name());
         ngraph::copy_runtime_info(sub, {neg, add});
         ngraph::replace_node(sub, add);
-
+        MATCHER_SCOPE_ENABLE(ConvertSubtract);
         return true;
     };
 
