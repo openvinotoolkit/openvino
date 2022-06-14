@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -12,7 +13,7 @@ from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper, numpy_function, reduction_axes",
+    ("ng_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_max, np.max, np.array([0, 1, 2, 3])),
         (ov.reduce_min, np.min, np.array([0, 1, 2, 3])),
@@ -39,7 +40,7 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper, numpy_function, reduction_axes",
+    ("ng_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_logical_and, np.logical_and.reduce, np.array([0])),
         (ov.reduce_logical_or, np.logical_or.reduce, np.array([0])),
@@ -62,9 +63,9 @@ def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
 def test_topk():
     data_shape = [6, 12, 10, 24]
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
-    K = np.int32(3)
+    k_val = np.int32(3)
     axis = np.int32(1)
-    node = ov.topk(data_parameter, K, axis, "max", "value")
+    node = ov.topk(data_parameter, k_val, axis, "max", "value")
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [6, 3, 10, 24]
@@ -72,7 +73,7 @@ def test_topk():
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper, numpy_function, reduction_axes",
+    ("ng_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
         (ov.reduce_mean, np.mean, np.array([0])),
@@ -134,7 +135,7 @@ def test_roi_align():
 
 
 @pytest.mark.parametrize(
-    "input_shape, cumsum_axis, reverse",
+    ("input_shape", "cumsum_axis", "reverse"),
     [([5, 2], 0, False), ([5, 2], 1, False), ([5, 2, 6], 2, False), ([5, 2], 0, True)],
 )
 def test_cum_sum(input_shape, cumsum_axis, reverse):
@@ -191,7 +192,7 @@ def test_normalize_l2():
             0.31428573,
             0.32857144,
             0.34285715,
-        ]
+        ],
     ).reshape(input_shape)
 
     assert np.allclose(result, expected)
