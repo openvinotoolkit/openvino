@@ -510,14 +510,6 @@ OPENVINO_C_API(ov_status_e) ov_core_get_property(const ov_core_t* core, const ch
                                         ov_property_value* property_value);
 
 /**
- * @brief Registers an extension to a Core object.
- * @param core A pointer to the ie_core_t instance.
- * @param library_path Path to the library with ov::Extension.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e) ov_core_add_extension(const ov_core_t* core, const char* library_path);
-
-/**
  * @brief Returns devices available for inference.
  * @param core A pointer to the ie_core_t instance.
  * @param devices A pointer to the ov_available_devices_t instance.
