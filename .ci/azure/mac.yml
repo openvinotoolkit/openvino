@@ -198,6 +198,14 @@ jobs:
     continueOnError: false
     enabled: false
 
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'IE CAPITests'
+    continueOnError: false
+    enabled: false
+
   - task: PublishTestResults@2
     condition: always()
     inputs:

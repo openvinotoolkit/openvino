@@ -56,6 +56,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -275,6 +276,9 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
+                            DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                                      " is compatible with parent ", parentPtr->getName(),
+                                      " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                         }
                     }
                 }
@@ -521,6 +525,8 @@ void Node::executeDynamic(dnnl::stream strm) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
                 " since the input shapes are not defined.";
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
             prepareParams();
         }
         executeDynamicImpl(strm);
@@ -718,7 +724,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
+void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -731,9 +737,10 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
-    std::vector<DnnlMemoryDescPtr> intDescs;
-    for (auto &it : internalBlobDesc)
-        intDescs.push_back(it(itpd, 0));
+
+    if (internalBlobs.size() != intDescs.size()) {
+        IE_THROW() << "Can't prepare memory for internal blob, internal blobs and internal descs number do not match";
+    }
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
@@ -769,6 +776,14 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
 
         internalBlobMemory.push_back(ptr);
     }
+}
+
+void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
+    std::vector<DnnlMemoryDescPtr> intDescs;
+    for (auto &it : internalBlobDesc)
+        intDescs.push_back(it(itpd, 0));
+
+    Node::prepareMemory(intDescs);
 }
 
 bool Node::isInPlace() {
@@ -870,8 +885,8 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
             // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-//            impl_desc_type::brgconv_avx512_1x1,
-//            impl_desc_type::brgconv_avx512,
+            // impl_desc_type::brgconv_avx512_1x1,
+            // impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,

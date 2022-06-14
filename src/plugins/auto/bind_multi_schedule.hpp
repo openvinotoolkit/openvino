@@ -29,8 +29,9 @@ public:
 
 protected:
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
 
 protected:
-    static thread_local SoInfer                               _sharedRequest;
+    thread_local static IE::IInferRequestInternal*                     _sharedRequest;
 };
 }  // namespace MultiDevicePlugin

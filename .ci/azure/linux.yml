@@ -262,6 +262,11 @@ jobs:
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
@@ -315,6 +320,13 @@ jobs:
   - script: |
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
+    continueOnError: false
+
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
     continueOnError: false
 
   - task: CMake@1

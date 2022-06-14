@@ -30,27 +30,23 @@ KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
 #endif
 )
 {
+    const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
     #if OUTPUT_DIMS == 6
         #define ORDER b,f,w,z,y,x
-        const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
-        const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
-        const uint z = (uint)get_global_id(1) % OUTPUT_SIZE_Z;
         const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Z;
-        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
-        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+        const uint z = (uint)get_global_id(1) % OUTPUT_SIZE_Z;
+        const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
+        const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
     #elif OUTPUT_DIMS == 5
         #define ORDER b,f,z,y,x
-        const uint x = (uint)get_global_id(0);
-        const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
         const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
-        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
-        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+        const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+        const uint x = (uint)get_global_id(0);
     #elif OUTPUT_DIMS == 4
         #define ORDER b,f,y,x
-        const uint x = (uint)get_global_id(0);
         const uint y = (uint)get_global_id(1);
-        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
-        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+        const uint x = (uint)get_global_id(0);
     #endif
 
     const uint indices_idx = GET_INDICES_INDEX(INDICES_INDEX_ORDER);

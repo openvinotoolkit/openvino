@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -81,10 +82,10 @@ def test_get_input_i(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input(0)
-    input_node = input.get_node()
+    net_input = exec_net.input(0)
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -92,10 +93,10 @@ def test_get_input_tensor_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input("data")
-    input_node = input.get_node()
+    net_input = exec_net.input("data")
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -103,10 +104,10 @@ def test_get_input(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input()
-    input_node = input.get_node()
+    net_input = exec_net.input()
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -130,11 +131,11 @@ def test_input_set_friendly_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input("data")
-    input_node = input.get_node()
+    net_input = exec_net.input("data")
+    input_node = net_input.get_node()
     input_node.set_friendly_name("input_1")
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "input_1"
 
 
@@ -189,9 +190,9 @@ def test_input_get_index(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input(0)
+    net_input = exec_net.input(0)
     expected_idx = 0
-    assert input.get_index() == expected_idx
+    assert net_input.get_index() == expected_idx
 
 
 def test_inputs(device):
@@ -304,10 +305,10 @@ def test_infer_tensor_wrong_input_data(device):
 def test_infer_numpy_model_from_buffer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
+    func = core.read_model(model=xml, weights=weights)
     img = generate_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
@@ -317,10 +318,10 @@ def test_infer_numpy_model_from_buffer(device):
 def test_infer_tensor_model_from_buffer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
+    func = core.read_model(model=xml, weights=weights)
     img = generate_image()
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
@@ -331,10 +332,10 @@ def test_infer_tensor_model_from_buffer(device):
 def test_direct_infer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    model = core.read_model(model=xml, weights=bin)
+    model = core.read_model(model=xml, weights=weights)
     img = generate_image()
     tensor = Tensor(img)
     comp_model = core.compile_model(model, device)

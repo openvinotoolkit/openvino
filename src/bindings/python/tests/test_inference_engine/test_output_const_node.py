@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -5,10 +6,17 @@ import os
 
 from ..conftest import model_path
 import openvino.runtime.opset8 as ops
-from openvino.runtime import ConstOutput, Shape, PartialShape, Type, \
-    Output, RTMap, OVAny
+from openvino.runtime import (
+    ConstOutput,
+    Shape,
+    PartialShape,
+    Type,
+    Output,
+    RTMap,
+    OVAny,
+    Core,
+)
 
-from openvino.runtime import Core
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -117,9 +125,9 @@ def test_update_rt_info(device):
     output_node = Output._from_node(relu)
     rt = output_node.get_rt_info()
     rt["test12345"] = "test"
-    for k, v in output_node.get_rt_info().items():
-        assert k == "test12345"
-        assert isinstance(v, OVAny)
+    for key, value in output_node.get_rt_info().items():
+        assert key == "test12345"
+        assert isinstance(value, OVAny)
 
 
 def test_operations():

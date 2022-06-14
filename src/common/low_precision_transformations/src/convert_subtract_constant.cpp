@@ -89,7 +89,7 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }
-
+        MATCHER_SCOPE_ENABLE(ConvertSubtractConstant);
         return true;
     };
 
