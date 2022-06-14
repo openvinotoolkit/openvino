@@ -119,7 +119,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     DataPtr foundOutput;
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto input = findInputByNodeName(name);
-    const auto output = findInputByNodeName(name);
+    const auto output = findOutputByNodeName(name);
 
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
@@ -130,7 +130,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
     const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
-    const bool isOutputDynamic = output && output->get_output_partial_shape(0).is_dynamic();
+    const bool isOutputDynamic = output && output->get_input_partial_shape(0).is_dynamic();
 
     size_t dataSize = userBlob->size();
     if (isInput) {
