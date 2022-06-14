@@ -627,7 +627,7 @@ If a `*.caffemodel` file exists and is correct, the error occurred possibly beca
 The issue "SyntaxError: `yield` inside list comprehension" might occur during converting MXNet models (`mobilefacedet-v1-mxnet`, `brain-tumor-segmentation-0001`) on Windows platform with Python 3.8 environment. This issue is caused by the API changes for `yield expression` in Python 3.8.
 The following workarounds are suggested to resolve this issue:
 1. Use Python 3.6/3.7 to convert MXNet models on Windows
-2. Update Apache MXNet by using `pip install mxnet=1.7.0.post2`
+2. Update Apache MXNet by using `pip install mxnet==1.7.0.post2`
 Note that it might have conflicts with previously installed PyPI dependencies.
 
 #### 101. What does the message "The IR preparation was executed by the legacy MO path. ..." mean? <a name="question-101"></a>
