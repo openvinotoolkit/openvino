@@ -90,7 +90,7 @@ Also make sure that the current user is included in the users groups. If not, ru
 sudo usermod -a -G users "$(whoami)"
 ```
 
----
+<!--
 ### setup.sh doesn't install the driver binaries to /lib/modules on CentOS systems
 
 As a temporary workaround, run the commands below to install the drivers. This issue will be fixed in future releases.
@@ -122,6 +122,7 @@ sudo modprobe myd_vsc
 ```sh
 sudo modprobe myd_ion 
 ```
+-->
 
 ---
 ### Host machine reboots after running an inference application with the HDDL plugin
