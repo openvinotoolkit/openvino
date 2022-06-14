@@ -41,7 +41,6 @@ def top_k_v2(name: str, x, k: int, axis=None, largest=True, sorted=True, k_is_va
 
 def main():
     data = np.random.random([8, 9, 10]).astype("float32")
-    # sorted must be true
     top_k_v2("top_k_v2_test_1", data, k=5, axis=-2, largest=True, sorted=True)
     top_k_v2("top_k_v2_test_2", data, k=6, axis=-1, largest=True, sorted=True)
     top_k_v2("top_k_v2_test_3", data, k=4, axis=0, largest=False, sorted=True)
