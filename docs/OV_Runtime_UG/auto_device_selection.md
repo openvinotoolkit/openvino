@@ -197,7 +197,7 @@ This mode prioritizes high throughput, balancing between latency and power. It i
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
 #### CUMULATIVE_THROUGHPUT Mode
-While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. CUMULATIVE_THROUGHPUT loads the network to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
+While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. With `CUMULATIVE_THROUGHPUT` mode, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
 
 CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device execution mode (MULTI)](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference. 
 
