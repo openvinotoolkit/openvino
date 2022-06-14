@@ -27,6 +27,14 @@ typedef std::tuple<
         std::string                  // Target Device
 > AddConstParams;
 
+typedef std::tuple<
+    InputShape,        // Input 0 Shape
+    InputShape,        // Input 1 Shape
+    size_t,                      // Expected num nodes
+    size_t,                      // Expected num subgraphs
+    std::string                  // Target Device
+    > AddDynamicParams;
+
 class Add : public testing::WithParamInterface<ov::test::snippets::AddParams>,
             virtual public ov::test::SnippetsTestsCommon {
 public:

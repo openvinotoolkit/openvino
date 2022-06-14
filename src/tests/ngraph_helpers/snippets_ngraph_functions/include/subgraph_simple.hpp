@@ -22,7 +22,7 @@ namespace snippets {
 //   Result
 class AddFunction : public SnippetsFunctionBase {
 public:
-    explicit AddFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -39,7 +39,7 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class AddSinhFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSinhFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -54,8 +54,9 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class AddSinhConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSinhConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddSinhConstFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+        NGRAPH_CHECK(input_shapes[0].is_static(), "This test supports only static shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -87,7 +88,7 @@ protected:
 //   Result
 class EltwiseFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -102,7 +103,7 @@ protected:
 //       Result
 class EltwiseThreeInputsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseThreeInputsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseThreeInputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
 protected:
@@ -113,7 +114,7 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class EltwiseThreeInputsSinhFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseThreeInputsSinhFunction(const std::vector<Shape>& inputShapes) :
+    explicit EltwiseThreeInputsSinhFunction(const std::vector<PartialShape>& inputShapes) :
         SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
@@ -131,7 +132,7 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class EltwiseMaxNumParamsSinhFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<Shape>& inputShapes) :
+    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<PartialShape>& inputShapes) :
             SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 10, "Got invalid number of input shapes");
     }
@@ -147,7 +148,7 @@ protected:
 //                     Result
 class MatMulEltwiseBranchesFunction : public SnippetsFunctionBase {
 public:
-    explicit MatMulEltwiseBranchesFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit MatMulEltwiseBranchesFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
             NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
             NGRAPH_CHECK(input_shapes[0].size() == 4 && input_shapes[1].size() == 4,
                          "Only 4D input shapes are currently supported by this test");
@@ -155,6 +156,7 @@ public:
             //  Note that single-element constant are not supported by the test, since they'll be converted
             //  to snippets::op::Scalar. So a more comlex logics is required to produce reference function.
             NGRAPH_CHECK(input_shapes[0][1] == input_shapes[1][1], "Channel dimensions must be equal and != 1");
+            NGRAPH_CHECK(input_shapes[0].is_static() && input_shapes[1].is_static(), "This test supports only static shapes");
     }
 
 protected:
@@ -170,7 +172,7 @@ protected:
 //       Result
 class EltwiseLogLoopFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseLogLoopFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseLogLoopFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
             NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -188,7 +190,7 @@ protected:
 //  Result
 class EltwiseTwoResultsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseTwoResultsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseTwoResultsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
             NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -206,7 +208,7 @@ protected:
 //             Result
 class TwoInputsAndOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit TwoInputsAndOutputsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit TwoInputsAndOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:

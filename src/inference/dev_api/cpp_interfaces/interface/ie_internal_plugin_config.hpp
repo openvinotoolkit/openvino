@@ -108,6 +108,12 @@ DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
  * @brief enable hyper thread
  */
 DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
+
+/**
+ * @brief Defines if dynamic nodes are allowed to be converted to Snippets
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(SNIPPETS_DYNAMISM_ENABLED);
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

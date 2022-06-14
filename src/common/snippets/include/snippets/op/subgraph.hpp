@@ -25,6 +25,7 @@ namespace op {
 class Subgraph : public ngraph::op::Op {
 public:
     OPENVINO_OP("Subgraph", "SnippetsOpset");
+    enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
 
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
@@ -67,7 +68,7 @@ public:
     //
     // D = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
     // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
-    using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
+    using BlockedShape = std::tuple<ngraph::PartialShape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
     Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
@@ -105,7 +106,10 @@ public:
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
     snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
-    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape get_master_shape();
+    std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
+    std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -146,6 +150,8 @@ private:
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;
     } config;
+
+    ov::PartialShape master_shape;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {
