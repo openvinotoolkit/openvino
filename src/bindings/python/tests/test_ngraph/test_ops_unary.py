@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,7 +12,7 @@ from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "ng_api_fn, numpy_fn, range_start, range_end",
+    ("ng_api_fn", "numpy_fn", "range_start", "range_end"),
     [
         (ov.absolute, np.abs, -1, 1),
         (ov.abs, np.abs, -1, 1),
@@ -47,7 +48,7 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
 
 
 @pytest.mark.parametrize(
-    "ng_api_fn, numpy_fn, input_data",
+    ("ng_api_fn", "numpy_fn", "input_data"),
     [
         pytest.param(ov.absolute, np.abs, np.float32(-3)),
         pytest.param(ov.abs, np.abs, np.float32(-3)),
@@ -78,7 +79,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 
 
 @pytest.mark.parametrize(
-    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
+    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))],
 )
 def test_logical_not(input_data):
     expected = np.logical_not(input_data)
@@ -91,8 +92,8 @@ def test_sigmoid():
     input_data = np.array([-3.14, -1.0, 0.0, 2.71001, 1000.0], dtype=np.float32)
     result = run_op_node([input_data], ov.sigmoid)
 
-    def sigmoid(x):
-        return 1.0 / (1.0 + np.exp(-x))
+    def sigmoid(value):
+        return 1.0 / (1.0 + np.exp(-value))
 
     expected = np.array(list(map(sigmoid, input_data)))
 

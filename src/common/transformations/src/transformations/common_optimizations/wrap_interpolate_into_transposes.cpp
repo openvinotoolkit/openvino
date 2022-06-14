@@ -100,7 +100,7 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
                            last_transpose_perm,
                            last_transpose});
         replace_node(interpolate, last_transpose);
-
+        MATCHER_SCOPE_ENABLE(WrapInterpolateIntoTransposes);
         return true;
     };
 
