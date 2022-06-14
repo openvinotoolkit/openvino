@@ -13,7 +13,6 @@
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
-#include "nodes/subgraph.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -241,10 +240,6 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
                 return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             }
-            //if (node->getType() == intel_cpu::Type::Subgraph) {
-            //    auto subgraph = std::dynamic_pointer_cast<node::Snippet>(node);
-            //    return_node->get_rt_info()["body"] = subgraph->getSnippet()->get_body();
-            //}
         }
 
         auto& node_rt_info = return_node->get_rt_info();
