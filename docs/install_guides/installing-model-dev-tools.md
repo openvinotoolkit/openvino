@@ -127,7 +127,7 @@ If you have installed OpenVINO Runtime via the installer, to avoid version confl
 pip install openvino-dev[tensorflow2,onnx]==2022.1
 ```
     
-> **NOTE**: Support of Model Optimizer in TensorFlow 1.x environment is deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. Use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+> **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. The `tensorflow` value is provided only for compatibility reasons, use the `tensorflow2` value instead.
 
 For more details, see <https://pypi.org/project/openvino-dev/>.
 
