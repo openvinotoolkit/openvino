@@ -201,7 +201,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                 uniqueName = fullDeviceName + "_" + defaultDeviceID;
             }
 
-            LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+            LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     deviceNameWithID.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
             // create meta device
             metaDevices.push_back({deviceNameWithID, getDeviceConfig(deviceNameWithID), numRequests, defaultDeviceID, uniqueName, devicePriority});
@@ -344,7 +344,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         std::string clonedModelPath = modelPath;
         if (modelPath.empty()) {
             // if network is valid
-            LOG_INFO("[AUTOPLUGIN]:load with CNN network");
+            LOG_INFO_TAG("load with CNN network");
             supportDevices = FilterDeviceByNetwork(supportDevicesByConfig, network);
             // clone the network, in case of reshape conflict
             clonedNetwork = InferenceEngine::details::cloneNetwork(network);
@@ -354,9 +354,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 clonedNetwork = GetCore()->ReadNetwork(modelPath, std::string());
                 // do we really need to disable model path?
                 clonedModelPath = "";
-                LOG_INFO("[AUTOPLUGIN]:load with CNN network");
+                LOG_INFO_TAG("load with CNN network");
             } else {
-                LOG_INFO("[AUTOPLUGIN]:load with model path");
+                LOG_INFO_TAG("load with model path");
             }
         }
         // replace the configure with configure that auto want to pass to device
@@ -371,7 +371,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              for (auto& config : configs) {
                  if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
                      deviceConfig.insert({config.first, config.second});
-                     LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
+                     LOG_INFO_TAG("device:%s, config:%s=%s", iter->deviceName.c_str(),
                              config.first.c_str(), config.second.c_str());
                  }
              }
@@ -383,7 +383,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
-             LOG_INFO("[AUTOPLUGIN]:device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         autoSContext->_modelPath = clonedModelPath;
         // clone the network, in case of reshape conflict
@@ -393,6 +393,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_strDevices = strDevices;
         autoSContext->_plugin = this;
         autoSContext->_core = GetCore();
+        autoSContext->_pluginName = GetName();
         auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
         if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
             autoSContext->_bindBuffer = true;
@@ -462,6 +463,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_config = multiNetworkConfig;
     multiSContext->_needPerfCounters = enablePerfCounters;
     multiSContext->_core = GetCore();
+    multiSContext->_pluginName = GetName();
     IExecutableNetworkInternal::Ptr impl;
     auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
     if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
@@ -735,7 +737,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 
             deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
             for (auto& iter : devicesToBeDeleted) {
-                LOG_INFO("[AUTOPLUGIN]:remove %s from device candidate list", iter.c_str());
+                LOG_INFO_TAG("remove %s from device candidate list", iter.c_str());
                 updateDeviceVec(iter);
             }
             for (auto&& device : deviceVec) {
@@ -882,7 +884,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         for (auto& op : model->get_ops()) {
             if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
                 std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
-                    LOG_INFO("[AUTOPLUGIN]:stateful mode, try deployed to CPU");
+                    LOG_INFO_TAG("stateful mode, try deployed to CPU");
                     return true;
                 }
         }
@@ -900,5 +902,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         return filterDevice;
     }
     return metaDevices;
+}
+std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
+    return GetName() + "PLUGIN";
 }
 }  // namespace MultiDevicePlugin
