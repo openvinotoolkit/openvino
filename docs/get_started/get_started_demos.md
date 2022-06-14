@@ -286,7 +286,7 @@ The command with most placeholders filled in and FP16 precision:
 
 @endsphinxdirective
 
-## <a name="download-media"></a> Step 3: Download a Video or Static Photo as Media
+## <a name="download-media"></a> Step 3: Download a Video or a Photo as Media
 
 Many sources are available from which you can download video media to use the code samples and demo applications. Possibilities include:
 
