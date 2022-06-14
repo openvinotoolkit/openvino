@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cfenv>
@@ -26,7 +27,7 @@ template <typename DATA_ET>
 using get_padded_fn_t = typename std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
 
 template <typename T>
-T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
+T& get_single_value(T* buffer, const Shape& shape, const index_4D_t& index) {
     // In this context below assertion is guaranteed by grid_sample(..) function.
     // assert(shape.size() == index.size());
     size_t s = 1;
@@ -39,13 +40,13 @@ T& get_v(T* buffer, const Shape& shape, const index_4D_t& index) {
 }
 
 template <typename GRID_ET>
-GRID_ET denormalize_align(GRID_ET v, size_t L) {
-    return (v + 1) * (static_cast<GRID_ET>(L) - 1) / 2;
+GRID_ET rescale_align(GRID_ET value, size_t range) {
+    return (value + 1) * (static_cast<GRID_ET>(range) - 1) / 2;
 }
 
 template <typename GRID_ET>
-GRID_ET denormalize_noalign(GRID_ET v, size_t L) {
-    return ((v + 1) * static_cast<GRID_ET>(L) - 1) / 2;
+GRID_ET rescale_noalign(GRID_ET value, size_t range) {
+    return ((value + 1) * static_cast<GRID_ET>(range) - 1) / 2;
 }
 
 template <typename DATA_ET>
@@ -62,7 +63,7 @@ DATA_ET zeros_padding(const DATA_ET* data,
     } else {
         const auto y = static_cast<size_t>(y_d);
         const auto x = static_cast<size_t>(x_d);
-        return get_v(data, data_shape, index_4D_t{n, c, y, x});
+        return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
     }
 }
 
@@ -77,7 +78,7 @@ DATA_ET border_padding(const DATA_ET* data,
     const auto W = static_cast<long>(data_shape[3]);
     const auto y = static_cast<size_t>(std::min(std::max(y_d, 0l), H - 1));
     const auto x = static_cast<size_t>(std::min(std::max(x_d, 0l), W - 1));
-    return get_v(data, data_shape, index_4D_t{n, c, y, x});
+    return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
 template <typename DATA_ET>
@@ -95,7 +96,7 @@ DATA_ET reflection_data_no_align(const DATA_ET* data,
     x_d = (x_d % W_2 + W_2) % W_2;
     const auto y = static_cast<size_t>(y_d >= H ? H_2 - 1 - y_d : y_d);
     const auto x = static_cast<size_t>(x_d >= W ? W_2 - 1 - x_d : x_d);
-    return get_v(data, data_shape, index_4D_t{n, c, y, x});
+    return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
 template <typename DATA_ET>
@@ -113,7 +114,7 @@ DATA_ET reflection_data_with_align(const DATA_ET* data,
     x_d = std::abs(x_d) % W_2_2;
     const auto y = static_cast<size_t>(y_d >= H ? H_2_2 - y_d : y_d);
     const auto x = static_cast<size_t>(x_d >= W ? W_2_2 - x_d : x_d);
-    return get_v(data, data_shape, index_4D_t{n, c, y, x});
+    return get_single_value(data, data_shape, index_4D_t{n, c, y, x});
 }
 
 template <typename DATA_ET, typename GRID_ET>
@@ -172,14 +173,6 @@ vector_4_t<T> cubic_coeffs(const T r, const T A = -0.75) {
     return v;
 }
 
-template <typename T>
-T scalar_prod(const vector_4_t<T>& a, const vector_4_t<T>& b) {
-    T c = 0;
-    for (int i = 0; i < a.size(); ++i)
-        c += a[i] * b[i];
-    return c;
-}
-
 template <typename DATA_ET>
 matrix_4x4_t<DATA_ET> gather_4x4(const DATA_ET* data,
                                  const Shape& data_shape,
@@ -215,9 +208,10 @@ DATA_ET bicubic(const DATA_ET* data,
     const auto cy = cubic_coeffs(dy);
     const auto cx = cubic_coeffs(dx);
     vector_4_t<DATA_ET> p;
-    for (int i = 0; i < 4; ++i)
-        p[i] = scalar_prod(cx, s[i]);
-    return scalar_prod(cy, p);
+    std::transform(s.begin(), s.end(), p.begin(), [&cx](const vector_4_t<DATA_ET>& v) {
+        return std::inner_product(cx.begin(), cx.end(), v.begin(), static_cast<DATA_ET>(0));
+    });
+    return std::inner_product(cy.begin(), cy.end(), p.begin(), static_cast<DATA_ET>(0));
 }
 }  // namespace
 
@@ -261,18 +255,18 @@ void grid_sample(DATA_ET* output,
 
     denormalize_fn_t<GRID_ET> denormalize_fn;
     if (align_corners)
-        denormalize_fn = denormalize_align<GRID_ET>;
+        denormalize_fn = rescale_align<GRID_ET>;
     else
-        denormalize_fn = denormalize_noalign<GRID_ET>;
+        denormalize_fn = rescale_noalign<GRID_ET>;
 
     for (size_t n = 0; n < N; ++n) {
         for (size_t c = 0; c < C; ++c) {
             for (size_t y = 0; y < H_out; ++y) {
                 for (size_t x = 0; x < W_out; ++x) {
-                    const auto y_n = get_v(grid, grid_shape, index_4D_t{n, y, x, 1});
-                    const auto x_n = get_v(grid, grid_shape, index_4D_t{n, y, x, 0});
+                    const auto y_n = get_single_value(grid, grid_shape, index_4D_t{n, y, x, 1});
+                    const auto x_n = get_single_value(grid, grid_shape, index_4D_t{n, y, x, 0});
 
-                    auto& out = get_v(output, output_shape, index_4D_t{n, c, y, x});
+                    auto& out = get_single_value(output, output_shape, index_4D_t{n, c, y, x});
 
                     switch (interpolation_mode) {
                     case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
