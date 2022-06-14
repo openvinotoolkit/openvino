@@ -1398,6 +1398,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id()) {
             can_use_fsv16 = false;
         }
@@ -1425,6 +1426,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id())
             can_use_bs_fs_yx_bsv16_fsv16 = false;
     }
