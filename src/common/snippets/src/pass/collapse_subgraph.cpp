@@ -121,7 +121,8 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
         static const std::set<ngraph::element::Type> supported_data_types =
                 { ngraph::element::f32, ngraph::element::i32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
-        return t.get_partial_shape().is_static() && supported_data_types.count(t.get_element_type()) != 0;
+        return //t.get_partial_shape().is_static() &&
+               supported_data_types.count(t.get_element_type()) != 0;
     };
     const auto & inputs = n->inputs();
     const auto & outputs = n->outputs();

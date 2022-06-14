@@ -105,7 +105,8 @@ public:
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
     snippets::Schedule generate(ngraph::pass::Manager &opt, const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
-    Shape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const ov::element::Type exec_type);
+    ov::PartialShape get_master_shape();
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -146,6 +147,8 @@ private:
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;
     } config;
+
+    ov::PartialShape master_shape;
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const op::Subgraph::BlockedShape& blocked_shape) {

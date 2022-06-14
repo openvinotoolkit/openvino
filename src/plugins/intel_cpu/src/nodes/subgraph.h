@@ -38,12 +38,16 @@ public:
 
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
+    void prepareParams() override;
+    bool needPrepareParams() const override;
 
     bool canBeInPlace() const override;
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+//    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     static const size_t rank6D {6};
@@ -56,8 +60,12 @@ private:
     void copy_snippet();
 
     void define_schedule();
+    static  ov::PartialShape prependWithOnes(const PartialShape& dims, size_t rank);
+    void normalizeShapes();
+    void optimizeExecDomain(std::vector<PartialShape>&, std::vector<PartialShape>&, PartialShape&, size_t&) const;
+    void calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::bitset<16>& broadcasting_mask) const;
 
-    void generate();
+    void generate(const jit_snippets_compile_args*);
 
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const jit_snippets_call_args& const_args) const;
@@ -83,14 +91,30 @@ private:
     size_t tensorRank = 0;
     size_t tileRank = 1;
     size_t fullWorkAmount = 0;
-    size_t schedulerWorkAmount = 0;
+    size_t harnessWorkAmount = 0;
     const size_t maxTileRank = 2;
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
+    std::vector<size_t> dataSize = {};
 
-    std::vector<std::vector<size_t>> dims_in = {};
-    std::vector<std::vector<size_t>> offsets_in = {};
+    std::vector<int64_t> data_offsets;
+    std::vector<int64_t> scheduler_offsets;
+    std::bitset<16> broadcasting_mask; // needed to pass broadcasting info in dynamic case
+    std::vector<size_t> scheduler_work_amounts;
+    std::vector<size_t> static_master_shape_placeholder = {}; // placeholder to pass per-inference static master_shape for dynamic cases
+
+    // this is needed for fast shape inference of blocking-invariant prepended shapes
+    std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
+    bool masterShapeIsBlocked = false;
+    //
+
+    // body Input & output shapes anre optimized and not necessarily the same as inputShapes and outputShapes
+    std::vector<PartialShape> normInputShapes = {};
+    std::vector<PartialShape> normOutputShapes = {};
+    // need to remember the original ones to avoid reshaping body in dynamic case
+    std::vector<PartialShape> originalNormOutputShapes = {};
+    PartialShape masterShape = {};
     std::vector<ptrdiff_t> start_offset_in = {};
     std::vector<ptrdiff_t> start_offset_out = {};
 

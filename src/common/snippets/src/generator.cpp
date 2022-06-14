@@ -11,6 +11,7 @@
 #include <snippets/itt.hpp>
 
 #include <ngraph/pass/manager.hpp>
+#include <openvino/core/type.hpp>
 
 auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
@@ -51,9 +52,15 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     std::vector<size_t> io_last_dims(in + out);
     std::vector<size_t> io_data_sizes(in + out);
     std::transform(params.begin(), params.end(), io_last_dims.begin(),
-                   [](const std::shared_ptr<Node>& n){return n->get_output_shape(0).back();});
+                   [](const std::shared_ptr<Node>& n){
+                       auto last_dim = n->get_output_partial_shape(0).rbegin();
+                       return last_dim->is_dynamic() ? 0 : last_dim->get_length();
+                   });
     std::transform(results.begin(), results.end(), io_last_dims.begin() + in,
-                   [](const std::shared_ptr<Node>& n){return n->get_input_shape(0).back();});
+                   [](const std::shared_ptr<Node>& n){
+                       auto last_dim = n->get_input_partial_shape(0).rbegin();
+                       return last_dim->is_dynamic() ? 0 : last_dim->get_length();
+                   });
     std::transform(params.begin(), params.end(), io_data_sizes.begin(),
                    [](const std::shared_ptr<Node>& n){return n->get_element_type().size();});
     std::transform(results.begin(), results.end(), io_data_sizes.begin() + in,
@@ -62,7 +69,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<AllocatedEmitter> lowered;
+    size_t load_index = 0;
     for (auto n : m->get_ordered_ops()) {
+        if (auto load = ov::as_type_ptr<op::Load>(n))
+            load->input_index = load_index++;
         lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
@@ -89,11 +99,14 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                     std::make_pair(std::vector<size_t>{}, std::vector<size_t>{}));
 
     OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
-    // wrapping into tiles2D
+    // If compile params are provided then it's a static case
+    AllocatedEmitter tile_scheduler_region;
     auto tile_scheduler = std::make_shared<ngraph::snippets::op::TileScheduler>(vector_region, scalar_region);
     tile_scheduler->compile_params = compile_params;
-    const auto& tile_scheduler_region = std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
-                                                       std::make_pair(std::vector<size_t>({in, out, target->get_lanes()}), std::vector<size_t>{}));
+
+    tile_scheduler_region =
+        std::make_pair(target->get(ngraph::snippets::op::TileScheduler::get_type_info_static())(tile_scheduler),
+                       std::make_pair(std::vector<size_t>({in, out, target->get_lanes()}), std::vector<size_t>{}));
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission
