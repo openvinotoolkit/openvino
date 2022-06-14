@@ -117,7 +117,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
             auto mul = std::make_shared<opset5::Multiply>(add, op::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
             replace_node(conv, mul);
-
+            MATCHER_SCOPE_ENABLE(ConvToBinaryConv);
             return true;
         }
 

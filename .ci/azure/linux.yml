@@ -341,6 +341,13 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
 
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
+    continueOnError: false
+
   - task: CMake@1
     inputs:
       cmakeArgs: >

@@ -44,6 +44,7 @@ ngraph::pass::ConvertMod::ConvertMod() {
             mod,
             {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
         ngraph::replace_node(mod, mul);
+        MATCHER_SCOPE_ENABLE(ConvertMod);
         return true;
     };
 

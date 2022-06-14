@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -20,7 +21,8 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     :param equation: Einsum equation
     :param data_type: a type of input data
     :param with_value: if True - tests output data shape and type along with its value,
-                       otherwise, tests only the output shape and type
+    otherwise, tests only the output shape and type
+
     :param seed: a seed for random generation of input data
     """
     np.random.seed(seed)
