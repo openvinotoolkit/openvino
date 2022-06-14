@@ -47,10 +47,10 @@
 | Tile |  |
 
 
-## MXNet Supported Symbols
+## Apache MXNet Supported Symbols
 
 
-| Symbol Name in MXNet| Limitations|
+| Symbol Name in Apache MXNet| Limitations|
 | :----------| :----------|
 | _Plus |  |
 | _contrib_arange_like |  |

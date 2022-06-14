@@ -23,17 +23,17 @@ MXNet-specific parameters:
   --save_params_from_nd
             Enable saving built parameters file from .nd files
   --legacy_mxnet_model
-            Enable MXNet loader to make a model compatible with the latest MXNet version.
-            Use only if your model was trained with MXNet version lower than 1.0.0
+            Enable Apache MXNet loader to make a model compatible with the latest Apache MXNet version.
+            Use only if your model was trained with Apache MXNet version lower than 1.0.0
   --enable_ssd_gluoncv
             Enable transformation for converting the gluoncv ssd topologies.
             Use only if your topology is one of ssd gluoncv topologies
 ```
 
-> **NOTE**: By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
-> version of MXNet, but it is required for models trained with lower version of MXNet. If your model was trained with MXNet version lower than 1.0.0, specify the
-> `--legacy_mxnet_model` key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
-> recompile MXNet with custom layers and install it to your environment.
+> **NOTE**: By default, Model Optimizer does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest
+> version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the
+> `--legacy_mxnet_model` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually
+> recompile Apache MXNet with custom layers and install it in your environment.
 
 ## Custom Layer Definition
 
