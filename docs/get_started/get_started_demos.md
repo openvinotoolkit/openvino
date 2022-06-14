@@ -1,6 +1,6 @@
 # Basic OpenVINO™ Workflow {#openvino_docs_get_started_get_started_demos}
 
-This guide will walk you through a basic workflow for the Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
+This guide will walk you through a basic workflow for Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
 
 This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
 
@@ -9,7 +9,7 @@ After that, you will perform the following steps:
 1. <a href="#download-models">Use Model Downloader to download suitable models.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the model with Model Optimizer.</a> 
 3. <a href="#download-media">Download media files to run inference.</a>
-4. <a href="#run-image-classification">Run inference on a sample and see the results.</a> The following sample is used as an example:
+4. <a href="#run-image-classification">Run inference on a sample and see the results.</a> The following code sample is used as an example:
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
 ## <a name="prerequisites"></a>Prerequisites
