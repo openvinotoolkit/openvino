@@ -22,10 +22,10 @@ public:
         float min_size;
         // specifies NMS threshold
         float nms_threshold;
-        // number of top-n proposals after NMS
-        int64_t post_nms_count;
         // number of top-n proposals before NMS
         int64_t pre_nms_count;
+        // number of top-n proposals after NMS
+        int64_t post_nms_count;
         // specify whether the bbox is normalized or not.
         // For example if *normalized* is true, width = x_right - x_left
         // If *normalized* is false, width = x_right - x_left + 1.
