@@ -6,7 +6,7 @@ This guide assumes you have completed all the installation and preparation steps
 
 After that, you will perform the following steps:
 
-1. <a href="#download-models">Use Model Downloader to download suitable models.</a>
+1. <a href="#download-models">Use Model Downloader to download a suitable model.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the model with Model Optimizer.</a> 
 3. <a href="#download-media">Download media files to run inference.</a>
 4. <a href="#run-image-classification">Run inference on a sample and see the results.</a> The following code sample is used as an example:
