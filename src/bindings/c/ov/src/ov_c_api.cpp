@@ -597,7 +597,7 @@ ov_status_e ov_model_get_input_by_name(const ov_model_t* model,
 ov_status_e ov_model_get_input_by_id(const ov_model_t* model,
                                 const size_t index,
                                 ov_output_node_t **input_node) {
-    if (!model || index < 0 || !input_node) {
+    if (!model || !input_node) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -741,7 +741,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
                 return ov_status_e::PARAMETER_MISMATCH;
             }
             in_shape[tensor_name] = partial_shape->dims;
-        } else if (ranks = '?') {
+        } else if (ranks == '?') {
             in_shape[tensor_name] = partial_shape->dims;
         } else {
             return ov_status_e::PARAMETER_MISMATCH;
