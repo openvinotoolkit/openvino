@@ -2,8 +2,6 @@
 
 This page lists issues that you may encounter during the installation and configuration of OpenVINO™, as well as their possible solutions.
 
-<!-- this part was from Docker installation -->
-
 ## <a name="install-for-prc"></a>Errors with Installing via PIP for PRC Users
 
 PRC users might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
@@ -20,17 +18,19 @@ PRC users might encounter errors while downloading sources via PIP during OpenVI
    pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
    ```
    
-* If you run into incompatibility issues between components after installing OpenVINO, try running ``requirements.txt`` with the following command:
+* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, instal the components in ``requirements.txt`` by using the following command:
 
    ``` sh
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
 
+<!-- this part was from Docker installation -->
+
 ## Issues with Installing OpenVINO on Linux from Docker
 
 ### <a name="proxy-issues"></a>Proxy Issues
 
-If you met proxy issues during the installation with Docker, please set up proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from DockerHub](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) topic.
+If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the [Set Proxy section in DL Workbench Installation](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Prerequisites.html#set-proxy) for more details.
 
 ### Permission Errors for /dev/shm
 
