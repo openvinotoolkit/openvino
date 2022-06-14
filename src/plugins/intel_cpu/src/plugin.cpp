@@ -655,12 +655,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
 
     #if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
-        unsigned int DENORMALS_ZERO = 0x0040;
         unsigned int FLUSH_ZERO = 0x8000;
-        unsigned int csr = _mm_getcsr();
-        csr |= DENORMALS_ZERO;
-        csr |= FLUSH_ZERO;
-        _mm_setcsr(csr);
+        unsigned int mxcsr = _mm_getcsr();
+        mxcsr |= DENORMALS_ZERO;
+        _mm_setcsr(mxcsr);
     #endif
 
     // verification of supported input
