@@ -2,7 +2,7 @@
 
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
-## Check the version of OpenVINO Runtime and Developement Tools
+## Check the versions of OpenVINO Runtime and Developement Tools
 
 * To check the version of OpenVINO Development Tools, use the following command:
    ```sh
@@ -13,7 +13,7 @@ If you run into issues while installing or configuring OpenVINO™, you can try 
    from openvino.runtime import get_version get_version()
    ```
 
-## Check the Python and PIP versions
+## Check the versions of Python and PIP
 
 To check your Python version, run `python -VV` or `python --version`. The supported Python versions should be 64-bit and between 3.7 and 3.9. Note that Python 3.6 is not supported anymore.
 
@@ -70,6 +70,6 @@ To run inference on GPU, make sure that you have installed the correct GPU drive
 
 ## Firewall/Network Issues
 
-Make sure that your firewall and network settings are set correctly. For example, configure system-wide proxy settings, and specify options for using PIP behind the proxy: `pip install --proxy http://<address>:<port> --trusted-host pypi.org openvino`. 
+Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: `pip install --proxy http://address:port --trusted-host pypi.org openvino`. 
 
 For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>.
