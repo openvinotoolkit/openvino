@@ -37,7 +37,7 @@ python -m pip install --upgrade pip
 <!--missing part-->
 
 
-## Check if required external dependencies is installed
+## Check if required external dependencies are installed
 
 For Ubuntu and RHEL 8 systems, if you installed OpenVINO Runtime via the installer, APT, or YUM repository, and decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> first. 
 
