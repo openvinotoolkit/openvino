@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/snippets_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "exec_graph_info.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -54,5 +55,10 @@ void SnippetsTestsCommon::validateOriginalLayersNamesByType(const std::string& l
     ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
 }
 
+void SnippetsTestsCommon::enableSnippetsDynamismSupport() {
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_DYNAMISM_ENABLED, InferenceEngine::PluginConfigParams::YES});
+    }
+}
 }  // namespace test
 }  // namespace ov

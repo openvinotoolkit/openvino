@@ -62,6 +62,36 @@ std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const Output
     return make_shared<Subgraph>(inputs, ov::clone_model(*m_body.get()));
 }
 
+std::vector<PartialShape> snippets::op::Subgraph::reshape_body(const std::vector<PartialShape>& input_shapes) {
+    auto& params = m_body->get_parameters();
+    OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < params.size(); ++i) {
+        params[i]->set_partial_shape(input_shapes[i]);
+    }
+    m_body->validate_nodes_and_infer_types();
+    std::vector<PartialShape> output_shapes;
+    for (const auto& res : m_body->get_results()) {
+        output_shapes.emplace_back(res->get_input_partial_shape(0));
+    }
+    return output_shapes;
+}
+
+std::vector<Shape> snippets::op::Subgraph::reshape_body(const std::vector<Shape>& input_shapes) {
+    auto& params = m_body->get_parameters();
+    OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < params.size(); ++i) {
+        params[i]->set_partial_shape(input_shapes[i]);
+    }
+    m_body->validate_nodes_and_infer_types();
+    std::vector<Shape> output_shapes;
+    for (const auto& res : m_body->get_results()) {
+        auto pshape = res->get_input_partial_shape(0);
+        OPENVINO_ASSERT(pshape.is_static(), "Subgraph inferred dynamic output shape during reshape with static inputs");
+        output_shapes.emplace_back(res->get_input_partial_shape(0).get_shape());
+    }
+    return output_shapes;
+}
+
 void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
@@ -169,7 +199,8 @@ void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_
 ///             * None: all inputs have the same layout
 ///             * Planar + blocked: some inputs have blocked, and some have planar layouts, e.g. <N, C, H, W, c> + <N, C, H, W>
 ///         Also there is precision aligning inside body of subgraph during canonicalization
-Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes) {
+ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShapes,
+                                                      const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
     NODE_VALIDATION_CHECK(this, inputShapes.size() == m_body->get_parameters().size(),
@@ -184,31 +215,30 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                             return std::get<0>(lhs).size() < std::get<0>(rhs).size();
                          });
     };
-    Shape baseShape;
+    PartialShape baseShape;
     AxisVector baseOrder;
     std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
     const auto baseRank = baseShape.size();
     const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
     for (size_t i = 0; i < inputShapes.size(); i++) {
         const auto &blockedShape = inputShapes[i];
-        Shape inShape;
+        PartialShape inShape;
         AxisVector inOrder;
         element::Type inType;
         std::tie(inShape, inOrder, inType) = blockedShape;
         const auto inRank = inShape.size();
         NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
         if (inRank < baseRank) {
-            Shape newShape(baseRank, 1);
+            PartialShape newShape(ov::Shape(baseRank, 1));
             // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
-            // could be done by PartialShape::broadcast_merge_into, but this way is faster
-            size_t startOffset = baseRank - inRank;
             if (baseIsBlocked) {
                 const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
                 NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
-                startOffset--;
+                inShape.insert(inShape.end(), ov::Dimension(1));
             }
-            std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
-            inShape = move(newShape);
+            NODE_VALIDATION_CHECK(this, PartialShape::broadcast_merge_into(newShape, inShape, ov::op::AutoBroadcastType::NUMPY),
+                                  "Failed to broadcast_merge inputs in snippets canonicalization");
+            inShape = std::move(newShape);
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
             NODE_VALIDATION_CHECK(this,
@@ -219,30 +249,30 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
         NODE_VALIDATION_CHECK(this,
                               PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                               "Failed to create broadcastable shapes in snippets canonicalization");
-        const auto paramShape = m_body->get_parameters()[i]->get_shape();
+        const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
-        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()) || paramType != inType)
+        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin())  || paramType != inType)
                 m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
     }
-
     m_body->validate_nodes_and_infer_types();
-    auto skipStartEndOnes = [](const Shape& shape) {
+    auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
         while (begin != end && *begin == 1)
             begin++;
         while (begin != end && *(end-1) == 1)
             end--;
-        Shape trimmedShape(end - begin, 1);
+
+        PartialShape trimmedShape(std::vector<ov::Dimension> (end - begin, 1));
         std::copy(begin, end, trimmedShape.begin());
         return trimmedShape;
     };
 
     // Check that output shapes are broadcastable => can be scheduled
     const auto& body_results = m_body->get_results();
-    PartialShape outPShape = body_results[0]->get_shape();
+    PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
     for (size_t i = 0; i < body_results.size(); i++) {
-        auto shape_i = body_results[i]->get_shape();
+        auto shape_i = body_results[i]->get_input_partial_shape(0);
         auto outputShape_i = std::get<0>(outputShapes[i]);
         // Check that the produced output shape corresponds to the passed shape
         // Some produced shapes may have been changed to be broadcastable (e.g. blocked + planar outputs),
@@ -250,9 +280,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
         PartialShape pShape_i(skipStartEndOnes(shape_i));
         bool compatibleWithPassedShape = PartialShape::broadcast_merge_into(pShape_i, skipStartEndOnes(outputShape_i),
                                                                               ::ngraph::op::AutoBroadcastType::NUMPY);
-        NODE_VALIDATION_CHECK(this, ov::shape_size(shape_i) == ov::shape_size(outputShape_i) &&
-                              compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ",
-                              get_friendly_name(), " : ", shape_i, " vs ", outputShape_i, ".");
+        NODE_VALIDATION_CHECK(this, compatibleWithPassedShape, "Inferred and passed results shapes are incompatible for snippet ");
         // Check that output shapes are broadcastable to each other => can be scheduled
         bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
                                                                ::ngraph::op::AutoBroadcastType::NUMPY);
@@ -263,8 +291,18 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
-    exec_domain = outPShape.get_shape();
-    return exec_domain;
+    master_shape = outPShape;
+    return master_shape;
+}
+
+PartialShape snippets::op::Subgraph::get_master_shape() {
+    auto results = m_body->get_results();
+    PartialShape outPShape = results[0]->get_input_partial_shape(0);
+    for (const auto& r : results)
+        PartialShape::broadcast_merge_into(outPShape, r->get_input_shape(0),
+                                           ::ngraph::op::AutoBroadcastType::NUMPY);
+    master_shape = outPShape;
+    return master_shape;
 }
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
@@ -313,42 +351,58 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
     auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
-        return n->get_input_shape(0).back() != 1;
+        const auto& pshape = n->get_input_partial_shape(0);
+        const auto& last_dim = pshape[pshape.size() - 1];
+        return last_dim.is_dynamic() || last_dim.get_length() != 1;
     };
 
     // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
     // Then we are going to support variadic Load/Store with different element count
     const size_t count = m_generator->get_target_machine()->get_lanes();
+    const auto & params = m_body->get_parameters();
 
+    bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
+                                                    [](const shared_ptr<ngraph::op::Parameter>& p){
+                                                        return p->get_partial_shape().rbegin()->is_dynamic();
+                                                    });
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
-    manager.register_pass<snippets::pass::InsertMoveBroadcast>();
-    manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
-    // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
-    // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
-    // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the the output does
-    // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
-    // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
-    // Parameter_0    Parameter_1        Parameter_2
-    // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
-    //   Load        BroadcastLoad         Load*       Scalar
-    //          Add                             Subtract
-    //            \___________     ___________BroadcastMove
-    //                        \   /
-    //                       Multiply
-    //                         Store
-    //                        Result
-    // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
-    if (!exec_domain.empty() && exec_domain.back() != 1) {
-        manager.register_pass<snippets::pass::SetScalarCountForLoad>();
-        manager.register_pass<snippets::pass::SetScalarCountForStore>();
-        manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
-        manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
+    // todo: presently dynamic pipeline is activated even if the last two dimension are static
+    //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
+    //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
+    // Presently Broadcasting is organized in the following way:
+    // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
+    // * AT LEAST ONE one dim is dynamic => broadcasting is handled dynamically inside the TileScheduler based on runtime
+    //   info, since we can't tell if the `1` dim should be broadcasted beforehand
+    if (!inputs_has_dynamic_last_dims) {
+        manager.register_pass<snippets::pass::InsertMoveBroadcast>();
+        manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
+        // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
+        // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
+        // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
+        // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
+        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
+        // Parameter_0    Parameter_1        Parameter_2
+        // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
+        //   Load        BroadcastLoad         Load*       Scalar
+        //          Add                             Subtract
+        //            \___________     ___________BroadcastMove
+        //                        \   /
+        //                       Multiply
+        //                         Store
+        //                        Result
+        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
+        if (master_shape.size() != 0 && master_shape[master_shape.size() - 1] != 1) {
+            manager.register_pass<snippets::pass::SetScalarCountForLoad>();
+            manager.register_pass<snippets::pass::SetScalarCountForStore>();
+            manager.get_pass_config()->
+                    set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
+            manager.get_pass_config()->
+                    set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
+        }
     }
     manager.run_passes(m_body);
 }
@@ -384,7 +438,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
-
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 
@@ -399,7 +452,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     }
     NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for scheduling");
 
-    return {exec_domain, false /*canBeLinearized*/, ptr};
+    return {master_shape, false /*canBeLinearized*/, ptr};
 }
 
 void snippets::op::Subgraph::print() const {

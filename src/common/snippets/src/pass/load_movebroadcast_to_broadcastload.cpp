@@ -34,8 +34,8 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
                 return false;
             }
 
-            auto inshape = root->input(0).get_shape();
-            auto outshape = root->output(0).get_shape();
+            auto inshape = root->input(0).get_partial_shape();
+            auto outshape = root->output(0).get_partial_shape();
 
             auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape);
             ngraph::copy_runtime_info(root, broadcastload);
