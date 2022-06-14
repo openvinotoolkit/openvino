@@ -726,7 +726,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     #if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
         unsigned int FLUSH_ZERO = 0x8000;
         unsigned int mxcsr = _mm_getcsr();
-        mxcsr |= DENORMALS_ZERO;
+        mxcsr |= FLUSH_ZERO;
         _mm_setcsr(mxcsr);
     #endif
 
