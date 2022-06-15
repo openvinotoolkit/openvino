@@ -76,7 +76,7 @@ int tmain(int argc, tchar* argv[]) {
         // - input() provides information about a single model input
         // - reuse precision and shape from already available `input_tensor`
         // - layout of data is 'NHWC'
-        ppp.input().tensor().set_from(input_tensor).set_layout(tensor_layout);
+        ppp.input().tensor().set_shape(input_shape).set_element_type(input_type).set_layout(tensor_layout);
         // 2) Adding explicit preprocessing steps:
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
