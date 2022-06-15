@@ -77,7 +77,7 @@ struct ov_tensor {
 };
 
 struct ov_partial_shape {
-    char ranks;                       // Support static rank and dynamic rank
+    ov::Dimension rank;               // Support static rank and dynamic rank
     std::vector<ov::Dimension> dims;  // Dimemsion vector
 };
 
@@ -633,19 +633,18 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const 
     if (!str) {
         return ov_status_e::GENERAL_ERROR;
     }
-    ov_partial_shape_t* partial_shape = new ov_partial_shape_t;
+    ov_partial_shape_t* partial_shape = nullptr;
     try {
         std::string s = str;
         std::regex reg("[^,0-9.?}{}][^\\-1]");
         bool res = std::regex_search(s, reg);
         if (res) {
-            delete partial_shape;
             return ov_status_e::PARAMETER_MISMATCH;
         }
 
+        partial_shape = new ov_partial_shape_t;
         if (s == "?") {  // dynamic rank
-            partial_shape->ranks = '?';
-            partial_shape->dims.emplace_back(ov::Dimension::dynamic());
+            partial_shape->rank = ov::Dimension::dynamic();
         } else {  // static rank
             std::vector<char*> result = split(s);
             size_t cnt = result.size();
@@ -653,7 +652,7 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const 
                 delete partial_shape;
                 return ov_status_e::GENERAL_ERROR;
             }
-            partial_shape->ranks = '0' + cnt;
+            partial_shape->rank = ov::Dimension(cnt);
             for (auto& item : result) {
                 std::string dim = item;
                 if (dim == "?" || dim == "-1") {
@@ -684,24 +683,23 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     }
 
     // dynamic rank
-    char ranks = partial_shape->ranks;
-    if (ranks == '?') {
+    if (partial_shape->rank.is_dynamic()) {
         return str_to_char_array("?");
-    }
-    if (ranks < '0' || ranks >= '0' + MAX_DIMENSION) {
-        return str_to_char_array("ranks error");
     }
 
     // static rank
+    auto ranks = partial_shape->rank.get_length();
+    if (ranks != partial_shape->dims.size()) {
+        return str_to_char_array("rank error");
+    }
     std::string str = std::string("{");
-    int cnt = ranks - '0';
     int i = 0;
     for (auto& item : partial_shape->dims) {
         std::ostringstream out;
         out.str("");
         out << item;
         str += out.str();
-        if (i++ < cnt - 1)
+        if (i++ < ranks - 1)
             str += ",";
     }
     str += std::string("}");
@@ -713,9 +711,16 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
     if (!partial_shape || !shape) {
         return ov_status_e::GENERAL_ERROR;
     }
+
     try {
-        int ranks = partial_shape->ranks - '0';
-        for (int i = 0; i < ranks; ++i) {
+        if (partial_shape->rank.is_dynamic()) {
+            return ov_status_e::PARAMETER_MISMATCH;
+        }
+        auto ranks = partial_shape->rank.get_length();
+        if (ranks > MAX_DIMENSION) {
+            return ov_status_e::PARAMETER_MISMATCH;
+        }
+        for (auto i = 0; i < ranks; ++i) {
             auto& ov_dim = partial_shape->dims[i];
             if (ov_dim.is_static())
                 shape->dims[i] = ov_dim.get_length();
@@ -735,15 +740,8 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        auto ranks = partial_shape->ranks;
         std::map<std::string, ov::PartialShape> in_shape;
-        if (ranks >= '0' && ranks < '0' + MAX_DIMENSION) {
-            int cnt = ranks - '0';
-            if (cnt != partial_shape->dims.size()) {
-                return ov_status_e::PARAMETER_MISMATCH;
-            }
-            in_shape[tensor_name] = partial_shape->dims;
-        } else if (ranks == '?') {
+        if (partial_shape->rank.is_static() && (partial_shape->rank.get_length() == partial_shape->dims.size())) {
             in_shape[tensor_name] = partial_shape->dims;
         } else {
             return ov_status_e::PARAMETER_MISMATCH;

@@ -1720,7 +1720,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_invalid) {
 }
 
 TEST(ov_partial_shape, ov_partial_shape_to_shape) {
-    const char* str = "{1,2,3,4,5}";
+    const char* str = "{10,20,30,40,50}";
     ov_partial_shape_t* partial_shape = nullptr;
 
     OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
@@ -1728,6 +1728,12 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     ov_shape_t shape;
     shape.ranks = 0;
     OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
+    EXPECT_EQ(shape.ranks, 5);
+    EXPECT_EQ(shape.dims[0], 10);
+    EXPECT_EQ(shape.dims[1], 20);
+    EXPECT_EQ(shape.dims[2], 30);
+    EXPECT_EQ(shape.dims[3], 40);
+    EXPECT_EQ(shape.dims[4], 50);
 
     ov_partial_shape_free(partial_shape);
 }
