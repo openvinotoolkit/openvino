@@ -48,8 +48,8 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 To list available OpenVINO packages, use the following command:
-```
-yum list 'openvino*'
+```sh
+yum list 'openvino\*'
 ```
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
@@ -83,7 +83,7 @@ sudo yum install openvino-2022.1.0
 
 Run the following command:
 ```sh
-yum list installed 'openvino*'
+yum list installed 'openvino\*'
 ```
 
 #### To Uninstall the Latest Version

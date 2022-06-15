@@ -34,7 +34,7 @@ python -m pip install --upgrade pip
 
 <!--## Check the special tips for Anaconda installation-->
 
-<!--missing part-->
+<!--add this part in future-->
 
 
 ## Check if required external dependencies are installed
@@ -56,11 +56,17 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 ## Verify if OpenVINO is correctly installed
 
-For Python developers, to verify if OpenVINO is correctly installed, use the following command:
-```sh
-python -c "from openvino.runtime import Core"
-```
-If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed. 
+* For Python developers, to verify if OpenVINO is correctly installed, use the following command:
+   ```sh
+   python -c "from openvino.runtime import Core"
+   ```
+   If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
+
+* If you installed OpenVINO Runtime by using the installer, you can search "openvino" in Apps & Features of a Windows system, or check your installation directory to see if OpenVINO is there.
+
+* If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list all installed OpenVINO packages.
+
+* If you installed OpenVINO Runtime from YUM, use the `yum list installed 'openvino\*'` command to list the installed OpenVINO packages.
 
 ## Check if GPU drvier is installed
 
