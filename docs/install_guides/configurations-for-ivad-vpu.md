@@ -8,7 +8,7 @@
    :maxdepth: 2
    :hidden:
 
-   Configurations for IEI Mustang-V100-MX8-R10 card <openvino_docs_install_guides_movidius_setup_guide>
+   IEI Mustang-V100-MX8-R10 Card <openvino_docs_install_guides_movidius_setup_guide>
         
 @endsphinxdirective
 
