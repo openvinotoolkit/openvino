@@ -687,8 +687,8 @@ def detection_output(
                             Required: no
 
     * decrease_label_id     The flag that denotes how to perform NMS.
-                            Range of values: False - perform NMS like in Caffe.
-                                             True  - perform NMS like in Apache MxNet.
+                            Range of values: False - perform NMS like in Caffe*.
+                                             True  - perform NMS like in MxNet*.
 
                             Default value: False
                             Required: no
