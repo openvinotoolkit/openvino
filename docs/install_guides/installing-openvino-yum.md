@@ -48,9 +48,13 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 To list available OpenVINO packages, use the following command:
-```
-yum list 'openvino*'
-```
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list 'openvino*'
+
+@endsphinxdirective
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
@@ -82,9 +86,14 @@ sudo yum install openvino-2022.1.0
 #### To Check for Installed Packages and Version
 
 Run the following command:
-```sh
-yum list installed 'openvino*'
-```
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list installed 'openvino*'
+
+@endsphinxdirective
 
 #### To Uninstall the Latest Version
 
