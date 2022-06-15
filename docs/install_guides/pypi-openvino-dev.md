@@ -86,7 +86,7 @@ For example, to install and configure the components for working with TensorFlow
    ```sh
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```
-> **NOTE**: Support of Model Optimizer in TensorFlow 1.x environment is deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
+> **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
 
 ### Step 5. Verify that the Package Is Installed
 
