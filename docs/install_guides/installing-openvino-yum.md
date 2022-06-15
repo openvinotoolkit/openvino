@@ -48,6 +48,7 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 To list available OpenVINO packages, use the following command:
+
 @sphinxdirective
 
    .. code-block:: sh
