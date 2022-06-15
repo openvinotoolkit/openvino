@@ -22,17 +22,6 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 
 
-def model_path(is_myriad=False):
-    path_to_repo = os.environ["MODELS_PATH"]
-    if not is_myriad:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.bin")
-    else:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.bin")
-    return (test_xml, test_bin)
-
-
 def test_const_output_type(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)

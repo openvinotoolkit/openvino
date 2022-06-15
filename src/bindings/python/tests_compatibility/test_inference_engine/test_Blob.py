@@ -7,11 +7,8 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from tests_compatibility.conftest import image_path, create_encoder
-import ngraph as ng
-
-
-path_to_image = image_path()
+from tests_compatibility.conftest import model_path
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 
 
 def test_init_with_tensor_desc():
@@ -89,15 +86,7 @@ def test_incompatible_array_and_td():
 
 
 def test_incompatible_input_precision():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_image)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1))
-    image = image.reshape((n, c, h, w))
+    image = generate_image(dtype="float64") 
     tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
     with pytest.raises(ValueError) as e:
         Blob(tensor_desc, image)
@@ -109,9 +98,7 @@ def test_incompatible_input_precision():
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_buffer_values_after_add_outputs(device):
-    path_to_repo = os.environ["MODELS_PATH"]
-    test_net_xml_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
-    test_net_bin_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
+    test_net_xml_fp16, test_net_bin_fp16 = model_path(is_myriad=True)
     ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
