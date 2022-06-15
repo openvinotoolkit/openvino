@@ -146,4 +146,4 @@ xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph c
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
-xfail_issue_00000 = xfail_test(reason='dwdwdasd')
+xfail_issue_86384 = xfail_test(reason='If op compatibility tests failing only when triggering whole test suite')

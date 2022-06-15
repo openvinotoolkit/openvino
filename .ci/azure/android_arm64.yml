@@ -13,7 +13,6 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
 
 jobs:
 - job: android_arm64

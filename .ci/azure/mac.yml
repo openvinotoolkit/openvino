@@ -13,7 +13,11 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
+
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
 
 jobs:
 - job: Mac
@@ -30,6 +34,7 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
+    MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
@@ -68,6 +73,11 @@ jobs:
     lfs: false
     submodules: recursive
     path: openvino_contrib
+
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
 
   - task: UsePythonVersion@0
     inputs:
@@ -140,15 +150,9 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
-    continueOnError: false
-    enabled: false
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-ONNXImportUT.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'ONNX Frontend UT'
     continueOnError: false
     enabled: false
 
@@ -193,15 +197,9 @@ jobs:
     enabled: false
 
   - script: |
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
-    displayName: 'IE CAPITests'
-    continueOnError: false
-    enabled: false
-
-  - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
     enabled: false
