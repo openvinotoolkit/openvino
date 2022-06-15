@@ -83,6 +83,7 @@
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
 #include "op/loop.hpp"
+#include "op/layer_norm.hpp"
 #include "op/lp_norm.hpp"
 #include "op/lp_pool.hpp"
 #include "op/lrn.hpp"
@@ -503,6 +504,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
+
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_norm);
 }
 
 #undef REGISTER_OPERATOR
