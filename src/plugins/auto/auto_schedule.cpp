@@ -535,63 +535,9 @@ AutoSchedule::~AutoSchedule() {
     LOG_INFO("[AUTOPLUGIN]ExecutableNetwork end");
 }
 
-
-IInferPtr AutoSchedule::CreateInferRequestImpl(
-    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    auto num = _numRequestsCreated++;
-    IE::SoIInferRequestInternal request_to_share_blobs_with;
-    IE::RemoteContext::Ptr ctx = nullptr;
-    if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-        try {
-            ctx = _autoSContext->_core->GetDefaultContext(
-                    _loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-        } catch (IE::Exception& ex) {
-            // plugin does not support context, say CPU
-            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-            // for dynamic shape support
-            auto& dev_requests =
-                _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-            }
-        }
-    }
-    return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with, ctx);
-}
-
-IInferPtr AutoSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
-    IE::OutputsDataMap networkOutputs) {
-    auto num = _numRequestsCreated++;
-    SoInfer request_to_share_blobs_with;
-    IE::RemoteContext::Ptr ctx = nullptr;
-    if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-        try {
-            ctx = _autoSContext->_core->GetDefaultContext(
-                    _loadContext[ACTUALDEVICE].deviceInfo.deviceName);
-        } catch (IE::Exception& ex) {
-            // plugin does not support context
-            LOG_DEBUG("[AUTOPLUGIN]context not supported for %s, fallback to default memory",
-                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-            auto& dev_requests =
-                _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            if (num < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
-            }
-        }
-    }
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with, ctx);
-}
-
 IInferPtr AutoSchedule::CreateInferRequest() {
     auto execNetwork = std::dynamic_pointer_cast<AutoExecutableNetwork>(
             _autoSContext->_executableNetwork.lock());
-    if (_passthroughExeNet) {
-        auto res = _passthroughExeNet->CreateInferRequest();
-        res->setPointerToExecutableNetworkInternal(execNetwork);
-        return res;
-    }
     IInferPtr syncRequestImpl;
     if (_multiSContext->_core && _multiSContext->_core->isNewAPI())
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_parameters, execNetwork->_results);

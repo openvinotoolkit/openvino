@@ -89,6 +89,8 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
+    if (_sharedRequest)
+        return _sharedRequest->GetPerformanceCounts();
     return _perfMap;
 }
 
