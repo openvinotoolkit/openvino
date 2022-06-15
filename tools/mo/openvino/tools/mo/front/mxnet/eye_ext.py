@@ -9,7 +9,7 @@ from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class EyeExtractor(FrontExtractorOp):
-    op = '_npi_eye'
+    op = '_eye'
     enabled = True
 
     @classmethod
