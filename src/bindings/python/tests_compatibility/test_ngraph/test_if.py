@@ -54,7 +54,7 @@ def create_simple_if_with_two_outputs(condition_val):
 
 
 def create_diff_if_with_two_outputs(condition_val):
-    condition = ng.constant(condition_val, dtype=np.int8)
+    condition = ng.constant(condition_val, dtype=np.bool)
 
     # then_body
     X_t = ng.parameter([2], np.float32, "X")
@@ -86,7 +86,7 @@ def create_diff_if_with_two_outputs(condition_val):
 
 
 def simple_if(condition_val):
-    condition = ng.constant(condition_val, dtype=np.int8)
+    condition = ng.constant(condition_val, dtype=np.bool)
     # then_body
     X_t = ng.parameter([2], np.float32, "X")
     Y_t = ng.parameter([2], np.float32, "Y")
