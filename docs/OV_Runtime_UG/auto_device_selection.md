@@ -121,7 +121,7 @@ Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
 
 ### Device Candidates and Priority
-The <device candidate list> enables you to customize the priority and limit the choice of devices available to AUTO. 
+The device candidate list enables you to customize the priority and limit the choice of devices available to AUTO. 
 - If <device candidate list> is not specified, AUTO assumes all the devices present in the system can be used. 
 - If `AUTO` without any device names is specified, AUTO assumes all the devices present in the system can be used, and will load the network to all devices and run inference based on their default priorities, from high to low.
 
