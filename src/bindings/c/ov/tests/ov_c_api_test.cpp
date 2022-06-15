@@ -190,7 +190,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     std::vector<uint8_t> weights_content(content_from_file(bin, true));
 
     ov_tensor_t* tensor = nullptr;
-    ov_shape_t shape = {1, weights_content.size()};
+    ov_shape_t shape = {2, {1, weights_content.size()}};
     OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     ASSERT_NE(nullptr, tensor);
 
@@ -553,7 +553,7 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_tensor) {
     ASSERT_NE(nullptr, input_tensor_info);
 
     ov_tensor_t* tensor = nullptr;
-    ov_shape_t shape = {1, 416, 416, 3};
+    ov_shape_t shape = {4, {1, 416, 416, 3}};
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
 
@@ -1377,7 +1377,7 @@ TEST_P(ov_infer_request, get_profiling_info) {
 
 TEST(ov_tensor, ov_tensor_create) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {10, 20, 30, 40};
+    ov_shape_t shape = {4, {10, 20, 30, 40}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
@@ -1386,7 +1386,7 @@ TEST(ov_tensor, ov_tensor_create) {
 
 TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {1, 3, 4, 4};
+    ov_shape_t shape = {4, {1, 3, 4, 4}};
     uint8_t host_ptr[1][3][4][4]= {0};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr,&tensor));
@@ -1428,7 +1428,7 @@ TEST(ov_tensor, ov_tensor_set_shape) {
 
 TEST(ov_tensor, ov_tensor_get_element_type) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {10, 20, 30, 40};
+    ov_shape_t shape = {4, {10, 20, 30, 40}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
@@ -1458,7 +1458,7 @@ size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
 
 TEST(ov_tensor, ov_tensor_get_size) {
     ov_element_type_e type = ov_element_type_e::I16;
-    ov_shape_t shape = {1, 3, 4, 4};
+    ov_shape_t shape = {4, {1, 3, 4, 4}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
@@ -1473,7 +1473,7 @@ TEST(ov_tensor, ov_tensor_get_size) {
 
 TEST(ov_tensor, ov_tensor_get_byte_size) {
     ov_element_type_e type = ov_element_type_e::I16;
-    ov_shape_t shape = {1, 3, 4, 4};
+    ov_shape_t shape = {4, {1, 3, 4, 4}};
     ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
@@ -1488,7 +1488,7 @@ TEST(ov_tensor, ov_tensor_get_byte_size) {
 
 TEST(ov_tensor, ov_tensor_get_data) {
     ov_element_type_e type = ov_element_type_e::U8;
-    ov_shape_t shape = {10, 20, 30, 40};
+    ov_shape_t shape = {4, {10, 20, 30, 40}};
     ov_tensor_t *tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
