@@ -63,7 +63,7 @@ constexpr auto GS_REFLECTION{op::v9::GridSample::PaddingMode::REFLECTION};
 constexpr auto GS_ZEROS{op::v9::GridSample::PaddingMode::ZEROS};
 
 constexpr std::array<op::v9::GridSample::PaddingMode, 3> padding_modes{GS_ZEROS, GS_BORDER, GS_REFLECTION};
-constexpr std::array<bool, 2> align_modes{false, true};
+constexpr std::array<bool, 2> align_corners_modes{false, true};
 
 std::vector<GridSampleParams> generateNearestParamsOddDimensionsInnerGrids() {
     std::vector<GridSampleParams> params;
@@ -80,7 +80,7 @@ std::vector<GridSampleParams> generateNearestParamsOddDimensionsInnerGrids() {
                                    element::f32,
                                    std::vector<float>{8, 8, 8, 8, 2, 12, 4, 14, 1, 11, 5, 15}};
     for (const auto& padding : padding_modes) {
-        for (const auto align : align_modes) {
+        for (const auto align : align_corners_modes) {
             std::stringstream name;
             name << "nearest_" << padding << (align ? "_align" : "_noalign") << "_odd_dims_inner";
             params.emplace_back(data_odd_dims,
@@ -372,7 +372,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                             1, 2, 2, 2, 2, 2, 1,
                             1, 2, 3, 5, 3, 2, 1,
                             1, 2, 5, 9, 5, 2, 1}};
-    reference_tests::Tensor grid_inner{
+    reference_tests::Tensor grid{
         {1, 4, 4, 2},
         element::f32,
         std::vector<float>{ -0.1, -0.1, -0.1, 0.1, 0.1, -0.1, 0.1, 0.1,
@@ -381,7 +381,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                             -1.75, 0.7, 1.33, -1.11, 0.965, 1.007, 21, 37}};
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{false, GS_BICUBIC, GS_ZEROS},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -392,7 +392,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                         "bicubic_zeros_noalign");
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{true, GS_BICUBIC, GS_ZEROS},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -403,7 +403,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                         "bicubic_zeros_align");
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{false, GS_BICUBIC, GS_BORDER},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -414,7 +414,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                         "bicubic_border_noalign");
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{true, GS_BICUBIC, GS_BORDER},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -425,7 +425,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                         "bicubic_border_align");
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{false, GS_BICUBIC, GS_REFLECTION},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -436,7 +436,7 @@ std::vector<GridSampleParams> generateBicubicParams() {
                         "bicubic_reflection_noalign");
 
     params.emplace_back(data_even_dims,
-                        grid_inner,
+                        grid,
                         op::v9::GridSample::Attributes{true, GS_BICUBIC, GS_REFLECTION},
                         reference_tests::Tensor{{1, 1, 4, 4},
                                                 element::f32,
@@ -450,6 +450,49 @@ std::vector<GridSampleParams> generateBicubicParams() {
     return params;
 }
 
+std::vector<GridSampleParams> generateBicubicBatchesParams() {
+    std::vector<GridSampleParams> params;
+
+    reference_tests::Tensor data{{2, 2, 4, 3},
+                                 element::f32,
+                                 std::vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+                                                    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                                                    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48}};
+    reference_tests::Tensor grid{{2, 2, 4, 2},
+                                 element::f32,
+                                 std::vector<float>{-0.1, -0.1, -0.1,  0.1, 0.1,  -0.1,  0.1,   0.1,   -0.5, -0.5, -0.5,
+                                                    0.5,  0.5,  -0.5,  0.5, 0.5,  -0.9,  -0.9,  -0.9,  0.9,  0.9,  -0.9,
+                                                    0.9,  0.9,  -1.75, 0.7, 1.33, -1.11, 0.965, 1.007, 21,   37}};
+
+    params.emplace_back(
+        data,
+        grid,
+        op::v9::GridSample::Attributes{true, GS_BICUBIC, GS_BORDER},
+        reference_tests::Tensor{
+            {2, 2, 2, 4},
+            element::f32,
+            std::vector<float>{6.0096254, 6.7048755, 6.2951245, 6.9903746, 3.4101562, 8.402344,  4.5976562, 9.589844,
+                               18.009624, 18.704876, 18.295124, 18.990376, 15.410156, 20.402344, 16.597656, 21.589844,
+                               25.415281, 33.735218, 27.26478,  35.58472,  32.884,    26.852259, 35.996872, 36.,
+                               37.41528,  45.735218, 39.264782, 47.58472,  44.884,    38.852257, 47.996872, 48.}},
+        "bicubic_border_align_batches");
+
+    params.emplace_back(
+        data,
+        grid,
+        op::v9::GridSample::Attributes{false, GS_BICUBIC, GS_REFLECTION},
+        reference_tests::Tensor{
+            {2, 2, 2, 4},
+            element::f32,
+            std::vector<float>{5.8170314, 6.7650313, 6.2349687, 7.182969,  2.4101562, 8.972656,  4.0273438, 10.589844,
+                               17.81703,  18.765032, 18.234968, 19.18297,  14.410156, 20.972656, 16.027344, 22.589844,
+                               24.356874, 34.301876, 26.698126, 36.643124, 34.304035, 26.55013,  36.74749,  36.75,
+                               36.356876, 46.301876, 38.698124, 48.643124, 46.304035, 38.55013,  48.74749,  48.75}},
+        "bicubic_reflection_noalign_batches");
+
+    return params;
+}
+
 std::vector<GridSampleParams> generateGridSampleParams() {
     std::vector<std::vector<GridSampleParams>> combo_params{generateNearestParamsOddDimensionsInnerGrids(),
                                                             generateNearestParamsOddDimensionsOuterGrids(),
@@ -457,7 +500,8 @@ std::vector<GridSampleParams> generateGridSampleParams() {
                                                             generateBilinearParamsOddDimensionsInnerGrids(),
                                                             generateBilinearParamsOddDimensionsOuterGrids(),
                                                             generateBilinearParamsEvenDimensions(),
-                                                            generateBicubicParams()};
+                                                            generateBicubicParams(),
+                                                            generateBicubicBatchesParams()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));

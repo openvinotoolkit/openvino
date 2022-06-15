@@ -30,13 +30,14 @@ template <typename T>
 T& get_single_value(T* buffer, const Shape& shape, const index_4D_t& index) {
     // In this context below assertion is guaranteed by grid_sample(..) function.
     // assert(shape.size() == index.size());
-    size_t s = 1;
+    auto sx = shape.back();
     auto offset = index.back();
-    for (auto i = index.size() - 2; i; --i) {
-        s *= shape[i + 1];
-        offset += index[i] * s;
+    for (auto i = index.size() - 2; i > 0; --i) {
+        offset += index[i] * sx;
+        sx *= shape[i];
     }
-    return *(buffer + offset);
+    offset += index[0] * sx;
+    return buffer[offset];
 }
 
 template <typename GRID_ET>
