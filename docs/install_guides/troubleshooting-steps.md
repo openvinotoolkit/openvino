@@ -2,13 +2,13 @@
 
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
-## Check the versions of OpenVINO Runtime and Developement Tools <!--updated-->
+## Check the versions of OpenVINO Runtime and Developement Tools
 
-* To check the version of OpenVINO Development Tools, use the following command:
+* To check the version of OpenVINO Development Tools, use the following command: <!--updated-->
    ```sh
    mo --version
    ```
-* To check the version of OpenVINO Runtime, use the following command:
+* To check the version of OpenVINO Runtime, use the following command: <!--updated-->
    ```sh
    from openvino.runtime import get_version get_version()
    ```
