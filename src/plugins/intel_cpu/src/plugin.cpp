@@ -172,6 +172,11 @@ static std::string getDeviceFullName() {
 }
 
 #if defined(__GNUC__)
+
+#ifndef AT_MINSIGSTKSZ
+#define AT_MINSIGSTKSZ	51
+#endif
+
 class SigAltStackSetup {
     stack_t new_stack{0};
     stack_t old_stack{0};
