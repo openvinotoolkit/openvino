@@ -24,6 +24,7 @@ PRC users might encounter errors while downloading sources via PIP during OpenVI
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
 
+
 <!-- this part was from Docker installation -->
 
 ## Issues with Installing OpenVINO on Linux from Docker
