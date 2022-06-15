@@ -66,7 +66,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 * If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list all installed OpenVINO packages.
 
-* If you installed OpenVINO Runtime from YUM, use the `yum list installed 'openvino\*'` command to list the installed OpenVINO packages.
+* If you installed OpenVINO Runtime from YUM, use the `yum list installed 'openvino*'` command to list the installed OpenVINO packages.
 
 ## Check if GPU drvier is installed
 
