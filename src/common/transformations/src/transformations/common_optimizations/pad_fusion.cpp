@@ -143,7 +143,7 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
 
         copy_runtime_info({pad, avg_pool}, new_avg_pool);
         replace_node(avg_pool, new_avg_pool);
-
+        MATCHER_SCOPE_ENABLE(PadFusionAvgPool);
         return true;
     };
 
@@ -218,7 +218,7 @@ pass::PadFusionConvolution::PadFusionConvolution() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-
+        MATCHER_SCOPE_ENABLE(PadFusionConvolution);
         return true;
     };
 
@@ -276,7 +276,7 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-
+        MATCHER_SCOPE_ENABLE(PadFusionConvolutionBackpropData);
         return true;
     };
 
@@ -324,7 +324,7 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-
+        MATCHER_SCOPE_ENABLE(PadFusionGroupConvolution);
         return true;
     };
 
@@ -382,7 +382,7 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-
+        MATCHER_SCOPE_ENABLE(PadFusionGroupConvolutionBackpropData);
         return true;
     };
 

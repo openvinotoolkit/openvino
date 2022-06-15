@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -149,7 +150,7 @@ def test_pad_edge():
             [9, 9, 10, 11, 12, 12, 12, 12],
             [9, 9, 10, 11, 12, 12, 12, 12],
             [9, 9, 10, 11, 12, 12, 12, 12],
-        ]
+        ],
     )
     assert np.allclose(result, expected)
 
@@ -173,7 +174,7 @@ def test_pad_constant():
             [100, 9, 10, 11, 12, 100, 100, 100],
             [100, 100, 100, 100, 100, 100, 100, 100],
             [100, 100, 100, 100, 100, 100, 100, 100],
-        ]
+        ],
     )
     assert np.allclose(result, expected)
 
