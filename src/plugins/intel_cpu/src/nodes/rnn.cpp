@@ -782,6 +782,8 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
+static bool rnnt_wfmt_any = atoi(std::getenv("rnnt_wfmt_any")?:"1");
+
 void RNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
@@ -810,7 +812,7 @@ void RNN::prepareParams() {
 
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (SL != 1 || B < optimalBatchSize) {
+    if (!rnnt_wfmt_any && (SL != 1 || B < optimalBatchSize)) {
         if (wFormat != dnnl::memory::format_tag::ldigo) {
             wFormat = dnnl::memory::format_tag::ldigo;
             wFormatWasChanged = true;
