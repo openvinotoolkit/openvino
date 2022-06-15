@@ -1,4 +1,4 @@
-# python API AMX enviroment initialization
+# Python API AMX environment initialization
 
 Unlike SSE/AVX, AMX feature on Linux is not enabled by default for every process(due to excessively larger register space requirement on [XSAVE][1] area and thus longer context switching latency), user application needs to request permission for such dynamically enabled feature using [XSTATE system call][2].
 
@@ -12,7 +12,7 @@ This is fine for C/C++ OpenVINO application, but Python application using OpenVI
 
 In brief, CPython sets it's [signal stack][5] too small in [Modules/faulthandler.c][6], so no enough space to store AMX in [XSAVE][1] area, causing [Linux XSTATE implementation][7] to return ENOSPC. This issue is probably not fixed until Python3.9.
 
-The stream schedualing thread created by pthread_create() [does not inherit the creating thread's alternate signal stack][8], so it's big enough, but [Linux XSTATE][7] API requires all threads in current process to have big enough signal stack since the feature is enabled for whole process, and the CPython main thread dosn't satisfy this requirement due to above issue, so the fix has to be done in CPython thread rather than in stream scheduling thread.
+The stream scheduling thread created by pthread_create() [does not inherit the creating thread's alternate signal stack][8], so it's big enough, but [Linux XSTATE][7] API requires all threads in current process to have big enough signal stack since the feature is enabled for whole process, and the CPython main thread doesn't satisfy this requirement due to above issue, so the fix has to be done in CPython thread rather than in stream scheduling thread.
 
 We choose to fix it in constructor/destructor of `Engine` class, a member variable of type `std::shared_ptr<void>` holds a reference to a `CPUSpecialSetup` instance which manages signal stack replacement.
 

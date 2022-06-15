@@ -133,7 +133,7 @@
 # endif
 #endif
 
-#if defined(__GNUC__)
+#if defined(__linux__)
 #include <sys/auxv.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -171,10 +171,10 @@ static std::string getDeviceFullName() {
     return brand_string;
 }
 
-#if defined(__GNUC__)
+#if defined(__linux__)
 
 #ifndef AT_MINSIGSTKSZ
-#define AT_MINSIGSTKSZ	51
+#define AT_MINSIGSTKSZ 51
 #endif
 
 class SigAltStackSetup {
