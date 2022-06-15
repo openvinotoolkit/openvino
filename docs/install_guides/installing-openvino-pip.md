@@ -22,7 +22,7 @@ For system requirements and troubleshooting, see the [OpenVINO™ Runtime](https
 
 ### Step 1. Set Up Python Virtual Environment
 
-To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
+To avoid dependency conflicts, use a virtual environment. 
 
 Use the following command to create a virtual environment:
 

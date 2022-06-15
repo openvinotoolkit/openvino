@@ -20,10 +20,10 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
    1. Go to the install_dependencies directory:
 
+
    .. code-block:: sh
 
       cd <INSTALL_DIR>/install_dependencies/
-
 
    2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install, run this script:
 

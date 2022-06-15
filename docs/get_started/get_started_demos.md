@@ -1,15 +1,15 @@
-# Get Started with Sample and Demo Applications {#openvino_docs_get_started_get_started_demos}
+# Basic OpenVINO™ Workflow {#openvino_docs_get_started_get_started_demos}
 
-This guide will walk you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
+This guide will walk you through a basic workflow for Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
 
 This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
 
 After that, you will perform the following steps:
 
-1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
-2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
-3. <a href="#download-media">Download media files to run inference on.</a>
-4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
+1. <a href="#download-models">Use Model Downloader to download a suitable model.</a>
+2. <a href="#convert-models-to-intermediate-representation">Convert the model with Model Optimizer.</a> 
+3. <a href="#download-media">Download media files to run inference.</a>
+4. <a href="#run-image-classification">Run inference on a sample and see the results.</a> The following code sample is used as an example:
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
 ## <a name="prerequisites"></a>Prerequisites
@@ -292,7 +292,6 @@ Video media can be downloaded to use as the code samples and demo applications f
 
 
 Alternatively, the Intel® Distribution of OpenVINO™ toolkit includes several sample [images](https://storage.openvinotoolkit.org/data/test_data/) and [videos](https://github.com/intel-iot-devkit/sample-videos) that can be used for running code samples and demo applications:
-
 
 ## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
