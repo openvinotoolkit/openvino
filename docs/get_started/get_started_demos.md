@@ -1,15 +1,15 @@
-# Get Started with Sample and Demo Applications {#openvino_docs_get_started_get_started_demos}
+# Basic OpenVINO™ Workflow {#openvino_docs_get_started_get_started_demos}
 
-This guide will walk you through a simplified workflow for the Intel® Distribution of OpenVINO™ toolkit using code samples and demo applications.
+This guide will walk you through a basic workflow for Intel® Distribution of OpenVINO™ toolkit, including how to use code samples.
 
 This guide assumes you have completed all the installation and preparation steps. If you have not, check out the <a href="prerequisites">Prerequisites</a> section to install OpenVINO Runtime, install OpenVINO Development Tools, or build samples and demos.
 
 After that, you will perform the following steps:
 
-1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
-2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
-3. <a href="#download-media">Download media files to run inference on.</a>
-4. <a href="#run-image-classification">Run inference on the sample and see the results:</a>
+1. <a href="#download-models">Use Model Downloader to download a suitable model.</a>
+2. <a href="#convert-models-to-intermediate-representation">Convert the model with Model Optimizer.</a> 
+3. <a href="#download-media">Download media files to run inference.</a>
+4. <a href="#run-image-classification">Run inference on a sample and see the results.</a> The following code sample is used as an example:
     - <a href="#run-image-classification">Image Classification Code Sample</a>
 
 ## <a name="prerequisites"></a>Prerequisites
@@ -286,7 +286,7 @@ The command with most placeholders filled in and FP16 precision:
 
 @endsphinxdirective
 
-## <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
+## <a name="download-media"></a> Step 3: Download a Video or a Photo as Media
 
 Many sources are available from which you can download video media to use the code samples and demo applications. Possibilities include:
 
@@ -298,7 +298,7 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes seve
    - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
    - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
 
-## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
+## <a name="run-image-classification"></a>Step 4: Run Inference on a Sample
 
 
 ### Run the Image Classification Code Sample

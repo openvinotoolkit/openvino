@@ -18,9 +18,9 @@ While installing OpenVINO Development Tools, OpenVINO Runtime will also be insta
 
 ### Step 1. Set Up Python Virtual Environment
 
-To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
+Use a virtual environment to avoid dependency conflicts. 
 
-Use the following command to create a virtual environment:
+To create a virtual environment, use the following command:
 
 @sphinxdirective
 
@@ -80,7 +80,7 @@ For example, to install and configure the components for working with TensorFlow
 pip install openvino-dev[tensorflow2,onnx]
 ```
 
-> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+> **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. Use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
 
 
 ### Step 5. Verify the Installation
@@ -127,7 +127,7 @@ If you have installed OpenVINO Runtime via the installer, to avoid version confl
 pip install openvino-dev[tensorflow2,onnx]==2022.1
 ```
     
-> **NOTE**: For TensorFlow, use the `tensorflow2` value as much as possible. The `tensorflow` value is provided only for compatibility reasons.
+> **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. The `tensorflow` value is provided only for compatibility reasons, use the `tensorflow2` value instead.
 
 For more details, see <https://pypi.org/project/openvino-dev/>.
 
