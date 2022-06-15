@@ -56,7 +56,7 @@ Note that if you choose to exclude CPU from the priority list, it will be unable
      
 ![autoplugin_accelerate]
 
-This mechanism can be easily observed in our [Benchmark Application sample](#Benchmark App Info) showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
+This mechanism can be easily observed in the [Using AUTO with Benchmark app sample](#using-auto-with-openvino-samples-and-benchmark-app) section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
 ```sh
 benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d GPU -niter 128
