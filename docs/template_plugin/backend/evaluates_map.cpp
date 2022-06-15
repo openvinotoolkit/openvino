@@ -138,6 +138,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -148,7 +154,13 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i64):
-        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f32, ET>(op, outputs, inputs);
@@ -162,6 +174,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -173,6 +191,48 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     default:
         return false;
@@ -2052,11 +2112,11 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
-    size_t rois_num = attrs.max_detections_per_image;
+    const size_t output_roi_count = attrs.max_detections_per_image;
 
-    const Shape output_boxes_shape = Shape{rois_num, 4};
-    const Shape output_classes_shape = Shape{rois_num};
-    const Shape output_scores_shape = Shape{rois_num};
+    const Shape output_boxes_shape = Shape{output_roi_count, 4};
+    const Shape output_classes_shape = Shape{output_roi_count};
+    const Shape output_scores_shape = Shape{output_roi_count};
 
     const auto output_type = op->get_input_element_type(0);
 
@@ -2064,6 +2124,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
     const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
     const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
     const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
+    const auto input_roi_count = inputs[0]->get_shape()[0];
 
     std::vector<float> output_boxes(shape_size(output_boxes_shape));
     std::vector<int32_t> output_classes(shape_size(output_classes_shape));
@@ -2080,6 +2141,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
                                                                 input_deltas_data.data(),
                                                                 input_scores_data.data(),
                                                                 input_im_info_data.data(),
+                                                                input_roi_count,
                                                                 attrs,
                                                                 output_boxes.data(),
                                                                 output_scores.data(),

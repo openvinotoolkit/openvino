@@ -579,7 +579,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled())
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
@@ -1397,7 +1397,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
-            prim.type() != cldnn::gather::type_id()) {
+            prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1423,6 +1424,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::quantize::type_id())
             can_use_bs_fs_yx_bsv16_fsv16 = false;
     }
@@ -1542,7 +1544,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, 0, false));
         }
     }
 
