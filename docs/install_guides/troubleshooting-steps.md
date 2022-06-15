@@ -62,9 +62,9 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
    ```
    If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
 
-* If you installed OpenVINO Runtime by using the installer, you can search "openvino" in Apps & Features of a Windows system, or check your installation directory to see if OpenVINO is there.
+* If you installed OpenVINO Runtime by using the installer, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 
-* If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list all installed OpenVINO packages.
+* If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list the installed OpenVINO packages.
 
 * If you installed OpenVINO Runtime from YUM, use the `yum list installed 'openvino*'` command to list the installed OpenVINO packages.
 
@@ -76,6 +76,14 @@ To run inference on GPU, make sure that you have installed the correct GPU drive
 
 ## Firewall/Network Issues
 
-Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: `pip install --proxy http://<address:port> --trusted-host pypi.org openvino`. <!--updated-->
+Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: <!--updated-->
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      pip install --proxy http://address:port --trusted-host pypi.org openvino` 
+
+@endsphinxdirective
 
 For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>. <!--updated-->
