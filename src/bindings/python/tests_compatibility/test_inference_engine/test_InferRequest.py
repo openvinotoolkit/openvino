@@ -9,13 +9,13 @@ from datetime import datetime
 import time
 
 from openvino.inference_engine import ie_api as ie
-from tests_compatibility.conftest import model_path, image_path, create_encoder
+from tests_compatibility.conftest import model_path, create_encoder
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 import ngraph as ng
 from ngraph.impl import Function, Type
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
-path_to_img = image_path()
 
 
 def create_function_with_memory(input_shape, data_type):
@@ -27,19 +27,6 @@ def create_function_with_memory(input_shape, data_type):
     func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
     caps = Function.to_capsule(func)
     return caps
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_img)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1)).astype(np.float32)
-    image = image.reshape((n, c, h, w))
-    return image
 
 
 def load_sample_model(device, num_requests=1):
@@ -117,7 +104,7 @@ def test_write_to_input_blobs_directly(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = executable_network.requests[0]
     input_data = request.input_blobs["data"]
     input_data.buffer[:] = img
@@ -131,7 +118,7 @@ def test_write_to_input_blobs_copy(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = executable_network.requests[0]
     request.input_blobs["data"].buffer[:] = img
     assert np.allclose(executable_network.requests[0].input_blobs["data"].buffer, img)
@@ -144,11 +131,11 @@ def test_infer(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.infer({'data': img})
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     del exec_net
     del ie_core
     del net
@@ -158,12 +145,12 @@ def test_async_infer_default_timeout(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
     request.wait()
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     del exec_net
     del ie_core
     del net
@@ -173,12 +160,12 @@ def test_async_infer_wait_finish(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
     request.wait(ie.WaitMode.RESULT_READY)
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     del exec_net
     del ie_core
     del net
@@ -188,7 +175,7 @@ def test_async_infer_wait_time(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=2)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
     start_time = datetime.utcnow()
@@ -207,7 +194,7 @@ def test_async_infer_wait_time(device):
         i += 1
     assert status == ie.StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     del exec_net
     del ie_core
     del net
@@ -217,12 +204,12 @@ def test_async_infer_wait_status(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
     request.wait(ie.WaitMode.RESULT_READY)
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     status = request.wait(ie.WaitMode.STATUS_ONLY)
     assert status == ie.StatusCode.OK
     del exec_net
@@ -234,14 +221,14 @@ def test_async_infer_fill_inputs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.input_blobs['data'].buffer[:] = img
     request.async_infer()
     status_end = request.wait()
     assert status_end == ie.StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res[0]) == 2
+    assert np.argmax(res[0]) == 9
     del exec_net
     del ie_core
     del net
@@ -251,18 +238,18 @@ def test_infer_modify_outputs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     outputs0 = exec_net.infer({'data': img})
     status_end = request.wait()
     assert status_end == ie.StatusCode.OK
-    assert np.argmax(outputs0['fc_out']) == 2
+    assert np.argmax(outputs0['fc_out']) == 9
     outputs0['fc_out'][:] = np.zeros(shape=(1, 10), dtype=np.float32)
     outputs1 = request.output_blobs
-    assert np.argmax(outputs1['fc_out'].buffer) == 2
+    assert np.argmax(outputs1['fc_out'].buffer) == 9
     outputs1['fc_out'].buffer[:] = np.ones(shape=(1, 10), dtype=np.float32)
     outputs2 = request.output_blobs
-    assert np.argmax(outputs2['fc_out'].buffer) == 2
+    assert np.argmax(outputs2['fc_out'].buffer) == 9
     del exec_net
     del ie_core
     del net
@@ -284,14 +271,14 @@ def test_async_infer_callback(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.set_completion_callback(callback)
     request.async_infer({'data': img})
     status = request.wait()
     assert status == ie.StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     assert callback.callback_called == 1
     del exec_net
     del ie_core
@@ -312,7 +299,7 @@ def test_async_infer_callback_wait_before_start(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.set_completion_callback(callback)
     status = request.wait()
@@ -321,7 +308,7 @@ def test_async_infer_callback_wait_before_start(device):
     status = request.wait()
     assert status == ie.StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
-    assert np.argmax(res) == 2
+    assert np.argmax(res) == 9
     assert callback.callback_called == 1
     del exec_net
     del ie_core
@@ -354,7 +341,7 @@ def test_async_infer_callback_wait_in_callback(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
-    img = read_image()
+    img = generate_image()
     request_wrap = InferReqWrap(exec_net.requests[0])
     request_wrap.execute({'data': img})
     del exec_net
@@ -373,7 +360,7 @@ def test_async_infer_wait_while_callback_will_not_finish(device):
     callback_status['finished'] = False
     request = exec_net.requests[0]
     request.set_completion_callback(callback, py_data=callback_status)
-    img = read_image()
+    img = generate_image()
     request.async_infer({'data': img})
     request.wait()
     assert callback_status['finished'] == True
@@ -384,7 +371,7 @@ def test_get_perf_counts(device):
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
-    img = read_image()
+    img = generate_image()
     request = exec_net.requests[0]
     request.infer({'data': img})
     pc = request.get_perf_counts()
@@ -406,11 +393,11 @@ def test_set_batch_size(device):
     net.batch_size = 10
     data = np.zeros(shape=net.input_info['data'].input_data.shape)
     exec_net = ie_core.load_network(net, device)
-    data[0] = read_image()[0]
+    data[0] = generate_image()[0]
     request = exec_net.requests[0]
     request.set_batch(1)
     request.infer({'data': data})
-    assert np.allclose(int(round(request.output_blobs['fc_out'].buffer[0][2])), 1), "Incorrect data for 1st batch"
+    assert np.allclose(int(round(request.output_blobs['fc_out'].buffer[0][2])), 0), "Incorrect data for 1st batch"
     del exec_net
     del ie_core
     del net
@@ -453,7 +440,7 @@ def test_blob_setter(device):
     net.input_info['data'].layout = "NHWC"
     exec_net_2 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
-    img = read_image()
+    img = generate_image()
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
     img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
@@ -471,7 +458,7 @@ def test_blob_setter_with_preprocess(device):
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
-    img = read_image()
+    img = generate_image()
     tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
     img_blob = ie.Blob(tensor_desc, img)
     preprocess_info = ie.PreProcessInfo()
@@ -498,25 +485,15 @@ def test_resize_algorithm_work(device):
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
-    img = read_image()
+    img = generate_image()
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
     net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
 
     exec_net_2 = ie_core.load_network(net, device)
 
-    import cv2
-
-    image = cv2.imread(path_to_img)
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = image / 255
-    image = image.transpose((2, 0, 1)).astype(np.float32)
-    image = np.expand_dims(image, 0)
-
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
-    img_blob = ie.Blob(tensor_desc, image)
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, img.shape[2], img.shape[3]], "NCHW")
+    img_blob = ie.Blob(tensor_desc, img)
     request = exec_net_2.requests[0]
     assert request.preprocess_info["data"].resize_algorithm == ie.ResizeAlgorithm.RESIZE_BILINEAR
     request.set_blob('data', img_blob)
