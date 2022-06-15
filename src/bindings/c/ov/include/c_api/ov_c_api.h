@@ -689,7 +689,7 @@ OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t *output_node);
  * @brief free char
  * @param content The pointer to the char to free.
  */
-OPENVINO_C_API(void) ov_free(char *content);
+OPENVINO_C_API(void) ov_free(const char *content);
 
 /**
  * @brief Create a ov_preprocess_t instance. 

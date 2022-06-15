@@ -1619,6 +1619,7 @@ TEST(ov_model, ov_model_reshape) {
 
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
 
+    ov_partial_shape_free(partial_shape);
     ov_free(tensor_name);
     ov_output_node_list_free(&input_node_list1);
     ov_output_node_list_free(&input_node_list2);
@@ -1652,7 +1653,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse) {
     auto tmp = ov_partial_shape_parse(partial_shape);
     EXPECT_STREQ(tmp, str);
 
-    delete tmp;
+    ov_free(tmp);
     ov_partial_shape_free(partial_shape);
 }
 
@@ -1664,7 +1665,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic) {
     auto tmp = ov_partial_shape_parse(partial_shape);
     EXPECT_STREQ(tmp, str);
 
-    delete tmp;
+    ov_free(tmp);
     ov_partial_shape_free(partial_shape);
 }
 
@@ -1676,7 +1677,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_mix) {
     auto tmp = ov_partial_shape_parse(partial_shape);
     EXPECT_STREQ(tmp, str);
 
-    delete tmp;
+    ov_free(tmp);
     ov_partial_shape_free(partial_shape);
 }
 
@@ -1691,8 +1692,8 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_mix_2) {
     auto tmp2 = ov_partial_shape_parse(partial_shape);
     EXPECT_STREQ(tmp, tmp2);
 
-    delete tmp;
-    delete tmp2;
+    ov_free(tmp);
+    ov_free(tmp2);
     ov_partial_shape_free(partial_shape);
     ov_partial_shape_free(partial_shape2);
 }
@@ -1705,7 +1706,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_rank) {
     auto tmp = ov_partial_shape_parse(partial_shape);
     EXPECT_STREQ(tmp, str);
 
-    delete tmp;
+    ov_free(tmp);
     ov_partial_shape_free(partial_shape);
 }
 

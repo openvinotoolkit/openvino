@@ -622,9 +622,8 @@ std::vector<char*> split(std::string s) {
     std::regex delimiter("[^{},]+");
     auto words_begin = std::sregex_iterator(s.begin(), s.end(), delimiter);
     auto words_end = std::sregex_iterator();
-    for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-        std::smatch match = *i;
-        result.push_back(str_to_char_array(match.str()));
+    for (auto iter = words_begin; iter != words_end; ++iter) {
+        result.push_back(str_to_char_array(iter->str()));
     }
     return result;
 }
@@ -640,6 +639,7 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const 
         std::regex reg("[^,0-9.?}{}][^\\-1]");
         bool res = std::regex_search(s, reg);
         if (res) {
+            delete partial_shape;
             return ov_status_e::PARAMETER_MISMATCH;
         }
 
@@ -650,6 +650,7 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const 
             std::vector<char*> result = split(s);
             size_t cnt = result.size();
             if (cnt > MAX_DIMENSION) {
+                delete partial_shape;
                 return ov_status_e::GENERAL_ERROR;
             }
             partial_shape->ranks = '0' + cnt;
@@ -686,7 +687,8 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     char ranks = partial_shape->ranks;
     if (ranks == '?') {
         return str_to_char_array("?");
-    } else if (ranks < '0' || ranks >= '0' + MAX_DIMENSION) {
+    }
+    if (ranks < '0' || ranks >= '0' + MAX_DIMENSION) {
         return str_to_char_array("ranks error");
     }
 
@@ -729,7 +731,7 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
 ov_status_e ov_model_reshape(const ov_model_t* model,
                              const char* tensor_name,
                              const ov_partial_shape_t* partial_shape) {
-    if (!model || !tensor_name) {
+    if (!model || !tensor_name || !partial_shape) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
@@ -774,8 +776,9 @@ void ov_output_node_free(ov_output_node_t *output_node) {
     delete output_node;
 }
 
-void ov_free(char *content) {
-    delete content;
+void ov_free(const char *content) {
+    if (content)
+        delete content;
 }
 
 void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
