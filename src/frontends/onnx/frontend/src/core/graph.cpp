@@ -376,7 +376,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
-    if (onnx_node.op_type() == "Identity") {
+    if (std::all_of(std::begin(ng_subgraph_outputs), std::end(ng_subgraph_outputs), common::is_optimized_out)) {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
             ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
             ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
