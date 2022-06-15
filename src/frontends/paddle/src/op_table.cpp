@@ -87,6 +87,7 @@ OP_CONVERTER(stack);
 OP_CONVERTER(strided_slice);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
+OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
@@ -182,6 +183,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
