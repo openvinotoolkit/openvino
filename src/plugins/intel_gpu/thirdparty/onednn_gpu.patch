@@ -1,0 +1,16 @@
+diff --git a/include/oneapi/dnnl/dnnl_config.h.in b/include/oneapi/dnnl/dnnl_config.h.in
+index e4516a4a0..85443fe5a 100644
+--- a/include/oneapi/dnnl/dnnl_config.h.in
++++ b/include/oneapi/dnnl/dnnl_config.h.in
+@@ -42,7 +42,11 @@
+ #define DNNL_API DNNL_HELPER_DLL_IMPORT
+ #endif
+ #else
++#if defined _WIN32 || defined __CYGWIN__
+ #define DNNL_API
++#else
++#define DNNL_API __attribute__((weak))
++#endif
+ #endif
+ 
+ #if defined(__GNUC__)
