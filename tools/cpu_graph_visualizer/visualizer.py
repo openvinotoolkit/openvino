@@ -225,8 +225,12 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
     for (type_name, (t, cnt)) in sorted(execTimeMcs_by_type.items(), key=lambda x: x[1][0], reverse=True):
         percentage = 0 if execTimeMcs_total <= 0 else t*100/execTimeMcs_total
         acc_percentage += percentage
-        sort_execTimeMcs_by_type.append("{:>6}%  {:>6}%  {} x {}".format(
-                                f"{acc_percentage:.1f}", f"+{percentage:.1f}", cnt, type_name))
+        sort_execTimeMcs_by_type.append("{:>6}%  {:>6}%  {} x {:.1f} {}".format(
+                                f"{acc_percentage:.1f}",
+                                f"+{percentage:.1f}",
+                                cnt,
+                                t/cnt if cnt > 0 else t,
+                                type_name))
         if acc_percentage >= 90 and len(sort_execTimeMcs_by_type) >= num_limit:
             break
     kwargs = {"shape":'box',
@@ -252,8 +256,11 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
                 type_name += " {}".format(rt_info["primitiveType"])
             percentage = 0 if execTimeMcs_total <= 0 else t*100/execTimeMcs_total
             acc_percentage += percentage
-            sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {}({})".format(
-                                f"{acc_percentage:.1f}", f"+{percentage:.1f}", friendly_name, type_name))
+            sort_execTimeMcs_by_name.append("{:>6}%  {:>6}%  {:>10} {}({})".format(
+                                f"{acc_percentage:.1f}",
+                                f"+{percentage:.1f}",
+                                t,
+                                friendly_name, type_name))
             if acc_percentage >= 90 and len(sort_execTimeMcs_by_name) >= num_limit:
                 break
 
@@ -614,7 +621,7 @@ if __name__ == "__main__":
         latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, input_shapes, 2, 20000, time_limit=args.time)
         print(f"test_infer_queue FPS:{fps:.4f}")
 
-    dest_file = "visual_{}_{}.html".format(model_fname, device)
+    dest_file = "visual_{}_{}{}.html".format(model_fname, device, "_bf16" if args.bf16 else "")
     print("Saving runtime model to: {}".format(dest_file))
     compiled_model.get_runtime_model().visualize(filename=dest_file)
     print("Model is successfully saved")
