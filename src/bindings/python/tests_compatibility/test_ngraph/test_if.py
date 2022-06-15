@@ -9,7 +9,6 @@ from ngraph.utils.tensor_iterator_types import (
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
 )
-from tests_compatibility import xfail_issue_86384
 from tests_compatibility.runtime import get_runtime
 
 
