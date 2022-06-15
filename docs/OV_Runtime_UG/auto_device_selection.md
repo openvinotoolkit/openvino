@@ -75,7 +75,7 @@ benchmark_app -m ../public/alexnet/FP32/alexnet.xml -d AUTO -niter 128
 
 ## Using AUTO 
 
-Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of “AUTO”. It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
+Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of “AUTO.” It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options: 
 
 @sphinxdirective
 
