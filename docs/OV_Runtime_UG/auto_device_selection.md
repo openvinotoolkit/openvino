@@ -278,7 +278,7 @@ Although the methods described above are currently the preferred way to execute 
 
 @endsphinxdirective
 
-## <a name="benchmark-app-info"></a>Using AUTO with OpenVINO Samples and Benchmark app
+## Using AUTO with OpenVINO Samples and Benchmark app
 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
