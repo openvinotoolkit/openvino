@@ -79,31 +79,41 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 
 @sphinxdirective
 
-+-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| Property                                              | Description                                                                                         |
-+=======================================================+=====================================================================================================+
-| | <device candidate list>                             | | Lists the devices available for selection.                                                        |
-| | **Values**:                                         | | The device sequence will be taken as priority from high to low.                                   |
-| | empty, or                                           | | If not specified, `AUTO` will be used as default, and all devices will be "viewed" as candidates. |
-| | `AUTO`, or                                          |                                                                                                     |
-| | `AUTO: <device names>` (comma-separated, no spaces) |                                                                                                     |
-+-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| | `ov::device:priorities`                             | | Specifies the devices for Auto-Device plugin to select.                                           |
-| | **Value**:                                          | | The device sequence will be taken as priority from high to low.                                   |
-| | `<device names>` (comma-separated, no spaces)       | | This configuration is optional.                                                                   |
-+-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| | `ov::hint::performance_mode`                        | | Specifies the performance mode preferred by the application.                                      |
-| | **Values**:                                         |                                                                                                     |
-| | `ov::hint::PerformanceMode::LATENCY`                |                                                                                                     |
-| | `ov::hint::PerformanceMode::THROUGHPUT`             |                                                                                                     |
-| | `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`  |                                                                                                     |
-+-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
-| | `ov::hint::model_priority`                          | | Indicates the priority for a model.                                                               |
-| | **Values**:                                         | | IMPORTANT:                                                                                        |
-| | `ov::hint::Priority::HIGH`                          | | This property is not fully supported yet.                                                         |
-| | `ov::hint::Priority::MEDIUM`                        |                                                                                                     |
-| | `ov::hint::Priority::LOW`                           |                                                                                                     |
-+-------------------------------------------------------+-----------------------------------------------------------------------------------------------------+
++-----------------------------------+-----------------------------------------------------------------------------+
+| | Property                        | | Values and Description                                                    |
++===================================+=============================================================================+
+| | <device candidate list>         | | **Values**:                                                               |
+| |                                 | |       empty                                                               |
+| |                                 | |       `AUTO`                                                              |
+| |                                 | |       `AUTO: <device names>` (comma-separated, no spaces)                 |
+| |                                 | |                                                                           |
+| |                                 | | Lists the devices available for selection.                                |
+| |                                 | | The device sequence will be taken as priority from high to low.           |
+| |                                 | | If not specified, `AUTO` will be used as default,                         |
+| |                                 | | and all devices will be "viewed" as candidates.                           |
++-----------------------------------+-----------------------------------------------------------------------------+
+| | `ov::device:priorities`         | | **Values**:                                                               |
+| |                                 | |       `<device names>` (comma-separated, no spaces)                       |
+| |                                 | |                                                                           |
+| |                                 | | Specifies the devices for Auto-Device mode to select.                     |
+| |                                 | | The device sequence will be taken as priority from high to low.           |
+| |                                 | | This configuration is optional.                                           |
++-----------------------------------+-----------------------------------------------------------------------------+
+| | `ov::hint::performance_mode`    | | **Values**:                                                               |
+| |                                 | |       `ov::hint::PerformanceMode::LATENCY`                                |
+| |                                 | |       `ov::hint::PerformanceMode::THROUGHPUT`                             |
+| |                                 | |       `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`                  |
+| |                                 | |                                                                           |
+| |                                 | | Specifies the performance mode preferred by the application.              |
++-----------------------------------+-----------------------------------------------------------------------------+
+| | `ov::hint::model_priority`      | | **Values**:                                                               |
+| |                                 | |       `ov::hint::Priority::HIGH`                                          |
+| |                                 | |       `ov::hint::Priority::MEDIUM`                                        |
+| |                                 | |       `ov::hint::Priority::LOW`                                           |
+| |                                 | |                                                                           |
+| |                                 | | Indicates the priority for a model.                                       |
+| |                                 | | IMPORTANT: This property is not fully supported yet.                      |
++-----------------------------------+-----------------------------------------------------------------------------+
 
 @endsphinxdirective
 
