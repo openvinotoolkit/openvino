@@ -558,6 +558,8 @@ void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
             input.tensor_names.insert(readString(is));
         }
+
+        AppendTensorNameIfNeeded(input);
     }
 }
 
@@ -584,6 +586,8 @@ void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS:
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
             output.tensor_names.insert(readString(is));
         }
+
+        AppendTensorNameIfNeeded(output);
     }
 }
 
@@ -614,5 +618,14 @@ void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
         for (const auto &transposeFragmentInfo : transpositionInfo.second) {
             writeNBytes(&transposeFragmentInfo, sizeof(TranspositionInfo), os);
         }
+    }
+}
+
+void GNAModelSerial::AppendTensorNameIfNeeded(GnaDesc& nodeDesc) const {
+    static constexpr Header2dot8::ModelHeader::Version kHasTensorNamesVersion;
+
+    if (HeaderLatest::IsFirstVersionLower(model_header_.version, kHasTensorNamesVersion) &&
+        nodeDesc.tensor_names.empty()) {
+        nodeDesc.tensor_names.insert(nodeDesc.name);
     }
 }
