@@ -109,12 +109,20 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
 
+void GNADeviceHelper::enableDiagnostics() {
+    debugLogEnabled = true;
+}
+
 void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& infix) const {
     for (auto&& a : allAllocations.GetAllocationsInExportOrder()) {
         const auto& name = a.GetTagName();
-        std::ofstream file(std::to_string(idx) + name + kDumpDelimiter + infix + kDumpExt,
-                           std::ios::out | std::ios::binary);
-        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
+        const auto filename = std::to_string(idx) + name + kDumpDelimiter + infix + kDumpExt;
+        std::ofstream file(filename, std::ios::out | std::ios::binary);
+        if (file) {
+            file.write(static_cast<char*>(a.ptr), a.sizeGranted);
+        } else {
+            gnawarn() << "Can not dump memory region, file not created: '" << filename << "'\n";
+        }
     }
 }
 
@@ -126,13 +134,15 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
+
+    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
+    checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
+
     if (debugLogEnabled) {
         dumpAllAllocations(debugLogIndexRequestEnqueue, "BeforeGna2RequestEnqueue");
         debugLogIndexRequestEnqueue++;
     }
 
-    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
-    checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
 

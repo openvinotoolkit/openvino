@@ -68,6 +68,12 @@ class GNADeviceHelper {
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 
+    bool debugLogEnabled = false;
+    uint64_t debugLogIndexRequestEnqueue = 0;
+    uint64_t debugLogIndexRequestWait = 0;
+    static constexpr const char* kDumpExt = ".bin";
+    static constexpr const char* kDumpDelimiter = ".";
+
 public:
     explicit GNADeviceHelper(std::string executionTargetIn = "",
          std::string compileTargetIn = "",
@@ -97,11 +103,7 @@ public:
         }
     }
 
-    bool debugLogEnabled = false;
-    uint64_t debugLogIndexRequestEnqueue = 0;
-    uint64_t debugLogIndexRequestWait = 0;
-    static constexpr const char* kDumpExt = ".bin";
-    static constexpr const char* kDumpDelimiter = ".";
+    void enableDiagnostics();
 
     /**
      * @brief Dump raw memory of each GNA allocation to files
