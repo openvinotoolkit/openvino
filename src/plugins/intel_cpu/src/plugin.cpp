@@ -217,6 +217,7 @@ public:
 
 class CPUSpecialSetup {
     SigAltStackSetup ss;
+
 public:
     CPUSpecialSetup() = default;
 };
@@ -226,8 +227,6 @@ public:
     CPUSpecialSetup() = default;
 };
 #endif
-
-
 
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
