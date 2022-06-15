@@ -100,7 +100,6 @@ using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
-using OVClassLoadNetworkWithIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -1012,11 +1011,6 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
-}
-
-TEST_P(OVClassLoadNetworkWithIncorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.compile_model(actualNetwork, deviceName, configuration), ov::Exception);
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {

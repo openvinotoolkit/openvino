@@ -331,8 +331,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
+        auto deviceList = GetCore()->GetAvailableDevices();
         // keep the secondary priorities when the config key is one of the available hardware devices
-        CheckConfig(fullConfig, autoSContext, filterConfig, strDevices);
+        CheckConfig(fullConfig, autoSContext, filterConfig, deviceList);
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
@@ -753,7 +754,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        AutoScheduleContext::Ptr& context, std::map<std::string, std::string>& filterConfig, std::string devicesList) {
+                                             AutoScheduleContext::Ptr& context,
+                                             std::map<std::string, std::string>& filterConfig,
+                                             const std::vector<std::string>& devicesList) {
     // TODO need to optimize this code, too much duplicated code
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
@@ -823,8 +826,9 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
                 context->_performanceHint = kvp.second;
             }
-        } else if (devicesList.find(kvp.first) != std::string::npos || kvp.first == "HETERO" || kvp.first == "MULTI") {
-            // secondary prperties for HW or virtual device
+        } else if (std::find(devicesList.begin(), devicesList.end(), kvp.first) != devicesList.end() ||
+                   kvp.first == "HETERO" || kvp.first == "MULTI") {
+            // keep secondary prperties for HW or virtual device
             continue;
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
