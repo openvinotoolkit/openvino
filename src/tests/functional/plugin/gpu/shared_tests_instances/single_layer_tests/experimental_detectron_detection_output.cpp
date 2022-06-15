@@ -13,6 +13,11 @@ using namespace ov::test::subgraph;
 
 namespace {
 
+const std::vector<ov::test::ElementType> netPrecisions = {
+    ov::element::Type_t::f16,
+    ov::element::Type_t::f32,
+};
+
 const std::vector<float> score_threshold = {0.01000000074505806f};
 
 const std::vector<float> nms_threshold = {0.2f};
@@ -53,8 +58,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::ValuesIn(max_detections_per_image),
                                             ::testing::ValuesIn(class_agnostic_box_regression),
                                             ::testing::ValuesIn(deltas_weights),
-                                            ::testing::Values(ov::element::Type_t::f32),
+                                            ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
+
 
 }  // namespace
