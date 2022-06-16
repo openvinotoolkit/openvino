@@ -135,7 +135,8 @@ xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElemen
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
-xfail_issue_78741 = xfail_test(reason="Cannot get dims for non static shape")
+xfail_issue_78741 = xfail_test(reason="Cannot get dims for non-static shapes. "
+                                      "Requires dynamism support enabled.")
 
 xfail_issue_81974 = xfail_test(reason="RuntimeError: OpenVINO does not support the following ONNX "
                                       "operations: GridSample, Optional, SequenceConstruct, "
@@ -145,3 +146,4 @@ xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph c
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
+skip_issue_86384 = pytest.mark.skip(reason="If op compatibility tests failing only when triggering whole test suite")
