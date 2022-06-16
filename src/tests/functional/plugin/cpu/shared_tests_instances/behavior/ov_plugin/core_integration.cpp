@@ -179,7 +179,7 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
-    ASSERT_EQ(precision, forcedPrecision);
+    ASSERT_EQ(value, forcedPrecision);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {

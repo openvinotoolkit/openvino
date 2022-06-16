@@ -110,6 +110,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::b_fs_yx_fsv4: return dnnl::memory::format_tag::aBcd4b;
         case cldnn::format::b_fs_yx_fsv16: return dnnl::memory::format_tag::nChw16c;
         case cldnn::format::b_fs_yx_fsv32: return dnnl::memory::format_tag::aBcd32b;
+        case cldnn::format::b_fs_zyx_fsv4: return dnnl::memory::format_tag::aBcde4b;
         case cldnn::format::b_fs_zyx_fsv16: return dnnl::memory::format_tag::nCdhw16c;
         case cldnn::format::b_fs_zyx_fsv32: return dnnl::memory::format_tag::aBcde32b;
         case cldnn::format::bs_fs_yx_bsv16_fsv16: return dnnl::memory::format_tag::NChw16n16c;
@@ -119,14 +120,20 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case cldnn::format::bs_fs_yx_bsv8_fsv2: return dnnl::memory::format_tag::ABcd8a2b;
         case cldnn::format::bs_fs_yx_bsv4_fsv2: return dnnl::memory::format_tag::ABcd4a2b;
         case cldnn::format::bs_fs_yx_bsv32_fsv16: return dnnl::memory::format_tag::NChw32n16c;
+        case cldnn::format::bs_fs_zyx_bsv32_fsv16: return dnnl::memory::format_tag::NCdhw32n16c;
+        case cldnn::format::bs_fs_zyx_bsv32_fsv32: return dnnl::memory::format_tag::NCdhw32n32c;
         case cldnn::format::bs_fs_zyx_bsv16_fsv16: return dnnl::memory::format_tag::NCdhw16n16c;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout " + fmt_to_str(fmt));
+        case cldnn::format::bs_fs_zyx_bsv8_fsv4: return dnnl::memory::format_tag::ABcde8a4b;
+        case cldnn::format::bs_fs_zyx_bsv8_fsv2: return dnnl::memory::format_tag::ABcde8a2b;
+        default: return dnnl::memory::format_tag::undef;
     }
 }
 
 std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
+        case cldnn::format::b_fs_zyx_fsv2: return "aBcde2b";
+        case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
     }
 }
@@ -140,7 +147,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
-int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc desc) {
+int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
@@ -341,8 +348,10 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         switch (fmt) {
         case dnnl::memory::format_tag::abcde: return cldnn::format::goiyx;
         case dnnl::memory::format_tag::abcdef: return cldnn::format::goizyx;
+        case dnnl::memory::format_tag::Abcdef16a: return cldnn::format::gs_oizyx_gsv16;
         case dnnl::memory::format_tag::Abcde16a: return cldnn::format::gs_oiyx_gsv16;
         case dnnl::memory::format_tag::Abcde32a: return cldnn::format::gs_oiyx_gsv32;
+        case dnnl::memory::format_tag::Abcdef32a: return cldnn::format::gs_oizyx_gsv32;
         case dnnl::memory::format_tag::aCBde16c16b: return cldnn::format::g_is_os_yx_isv16_osv16;
         case dnnl::memory::format_tag::aBCde2b8c8b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
         case dnnl::memory::format_tag::aBCde4b8c8b4c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
@@ -369,8 +378,11 @@ static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_groupe
         case dnnl::memory::format_tag::ABcde4a8b8a2b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
         case dnnl::memory::format_tag::ABcde4a8b8a4b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
         case dnnl::memory::format_tag::ABcd8a4b: return cldnn::format::os_is_yx_osv8_isv4;
+        case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::os_is_zyx_osv8_isv4;
+        case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::os_is_zyx_osv8_isv2;
         case dnnl::memory::format_tag::ABcd8a2b: return cldnn::format::os_is_yx_osv8_isv2;
         case dnnl::memory::format_tag::Acdb16a: return cldnn::format::os_yxi_osv16;
+        case dnnl::memory::format_tag::Acdeb16a: return cldnn::format::os_zyxi_osv16;
         case dnnl::memory::format_tag::ABcde16b16a: return cldnn::format::os_is_zyx_isv16_osv16;
         case dnnl::memory::format_tag::aBcd16b: return cldnn::format::o_is_yx_isv16;
         case dnnl::memory::format_tag::ABcd2a8b8a2b: return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
@@ -408,8 +420,6 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
                 && compare_strides(order, {0, 1, 2, 3, 4})) {
                 return cldnn::format::g_os_is_yx_isa8_osv8_isv2;
-            } else {
-                throw std::runtime_error(std::string("Unsupported grouped onednn dnnl::memory::desc find_format"));
             }
         } else {
             if (desc.data.ndims == 4 && blk.inner_nblks == 4
@@ -433,24 +443,39 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                     return cldnn::format::os_is_yx_isa8_osv8_isv2;
                 } else if (compare_strides(order, {1, 0, 2, 3})) {
                     return cldnn::format::is_os_yx_isa8_osv8_isv2;
-                } else {
-                    throw std::runtime_error(std::string("Unsupported onednn dnnl::memory::desc find_format"));
                 }
-            } else {
-                std::stringstream msg;
-                msg << "Unsupported onednn dnnl::memory::desc find_format. "
-                    << "ndims: " << desc.data.ndims
-                    << ", inner_nblks: " << blk.inner_nblks
-                    << ", inner_blks: ";
-                for (int i = 0; i < blk.inner_nblks; i++)
-                    msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
-
-                throw std::runtime_error(msg.str());
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
+                blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
+                return cldnn::format::os_is_zyx_osa2_isa8_osv8_isv2;
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
+                if (compare_strides(order, {0, 1, 2, 3, 4})) {
+                    return cldnn::format::os_is_zyx_isa8_osv8_isv2;
+                } else if (compare_strides(order, {1, 0, 2, 3, 4})) {
+                    return cldnn::format::is_os_zyx_isa8_osv8_isv2;
+                }
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
+                blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
+                return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
             }
         }
+
+        std::stringstream msg;
+        msg << "Unsupported " << (is_grouped ? "grouped" : "") << "onednn dnnl::memory::desc find_format. "
+            << "ndims: " << desc.data.ndims
+            << ", inner_nblks: " << blk.inner_nblks
+            << ", inner_blks: ";
+        for (int i = 0; i < blk.inner_nblks; i++)
+            msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+
+        throw std::runtime_error(msg.str());
     }
 }
 
+// Currently, usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
 dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
@@ -465,6 +490,8 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
         case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
         case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
+        case cldnn::activation_func::pow: return dnnl::algorithm::eltwise_pow;
+        case cldnn::activation_func::sqrt: return dnnl::algorithm::eltwise_sqrt;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }

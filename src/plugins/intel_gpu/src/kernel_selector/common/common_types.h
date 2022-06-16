@@ -24,6 +24,7 @@ enum class KernelType {
     RANGE,
     ROI_POOLING,
     ROI_ALIGN,
+    ROLL,
     FULLY_CONNECTED,
     ACTIVATION,
     SOFT_MAX,
@@ -44,6 +45,7 @@ enum class KernelType {
     TILE,
     SELECT,
     BROADCAST,
+    BUCKETIZE,
     GEMM,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
@@ -83,7 +85,8 @@ enum class KernelType {
     EXPERIMENTAL_DETECTRON_TOPK_ROIS,
     CONVERT_COLOR,
     RANDOM_UNIFORM,
-    ADAPTIVE_POOLING
+    ADAPTIVE_POOLING,
+    REVERSE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

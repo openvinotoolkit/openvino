@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -40,7 +41,7 @@ def test_is_non_negative_value_unsigned_type(dtype):
 
 
 @pytest.mark.parametrize(
-    "value, val_type",
+    ("value", "val_type"),
     [
         (np.int8(64), np.integer),
         (np.int16(64), np.integer),
@@ -55,14 +56,14 @@ def test_is_non_negative_value_unsigned_type(dtype):
     ],
 )
 def test_check_value(value, val_type):
-    def is_even(x):
-        return x % 2 == 0
+    def is_even(value):
+        return value % 2 == 0
 
     assert _check_value("TestOp", "test_attr", value, val_type, is_even)
 
 
 @pytest.mark.parametrize(
-    "value, val_type",
+    ("value", "val_type"),
     [
         (np.int8(64), np.floating),
         (np.int16(64), np.floating),
@@ -86,7 +87,7 @@ def test_check_value_fail_type(value, val_type):
 
 
 @pytest.mark.parametrize(
-    "value, val_type",
+    ("value", "val_type"),
     [
         (np.int8(61), np.integer),
         (np.int16(61), np.integer),
@@ -101,8 +102,8 @@ def test_check_value_fail_type(value, val_type):
     ],
 )
 def test_check_value_fail_cond(value, val_type):
-    def is_even(x):
-        return x % 2 == 0
+    def is_even(value):
+        return value % 2 == 0
 
     try:
         _check_value("TestOp", "test_attr", value, val_type, is_even)
@@ -136,8 +137,8 @@ def test_check_valid_attributes():
         "coefficients": [1, 2, 3, 4, 5],
     }
 
-    def _is_supported_mode(x):
-        return x in ["linear", "area", "cubic", "bilinear"]
+    def _is_supported_mode(mode):
+        return mode in ["linear", "area", "cubic", "bilinear"]
 
     requirements = [
         ("width", False, np.unsignedinteger, None),

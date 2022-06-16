@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -5,42 +6,47 @@ import numpy as np
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model, Shape
 
-from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription,\
-    SliceInputDescription, MergedInputDescription, ConcatOutputDescription
+from openvino.runtime.op.util import (
+    InvariantInputDescription,
+    BodyOutputDescription,
+    SliceInputDescription,
+    MergedInputDescription,
+    ConcatOutputDescription,
+)
 
 
 def test_simple_loop():
-    X = ov.parameter(Shape([32, 1, 10]), np.float32, "X")
-    Y = ov.parameter(Shape([32, 1, 10]), np.float32, "Y")
-    M = ov.parameter(Shape([32, 1, 10]), np.float32, "M")
+    param_x = ov.parameter(Shape([32, 1, 10]), np.float32, "X")
+    param_y = ov.parameter(Shape([32, 1, 10]), np.float32, "Y")
+    param_m = ov.parameter(Shape([32, 1, 10]), np.float32, "M")
 
     input_shape = Shape([])
 
     current_iteration = ov.parameter(Shape([1]), np.int64)
-    X_i = ov.parameter(input_shape, np.float32)
-    Y_i = ov.parameter(input_shape, np.float32)
-    M_body = ov.parameter(input_shape, np.float32)
+    x_i = ov.parameter(input_shape, np.float32)
+    y_i = ov.parameter(input_shape, np.float32)
+    m_body = ov.parameter(input_shape, np.float32)
     bool_val = np.array([1], dtype=np.bool)
     bool_val[0] = True
     body_condition = ov.constant(bool_val)
     trip_count = ov.constant(10, dtype=np.int64)
     exec_condition = ov.constant(True, dtype=np.bool)
 
-    sum = ov.add(X_i, Y_i)
-    Zo = ov.multiply(sum, M_body)
+    add = ov.add(x_i, y_i)
+    zo = ov.multiply(add, m_body)
 
-    body = Model([body_condition, Zo], [current_iteration, X_i, Y_i, M_body], "body_function")
+    body = Model([body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function")
 
     loop = ov.loop(trip_count, exec_condition)
     loop.set_function(body)
-    loop.set_invariant_input(X_i, X.output(0))
-    loop.set_invariant_input(Y_i, Y.output(0))
-    loop.set_merged_input(M_body, M.output(0), Zo.output(0))
+    loop.set_invariant_input(x_i, param_x.output(0))
+    loop.set_invariant_input(y_i, param_y.output(0))
+    loop.set_merged_input(m_body, param_m.output(0), zo.output(0))
     loop.set_special_body_ports([-1, 0])
 
     out0 = loop.get_iter_value(body_condition.output(0), -1)
-    out1 = loop.get_iter_value(Zo.output(0), -1)
-    out2 = loop.get_concatenated_slices(Zo.output(0), 0, 1, 1, -1, 1)
+    out1 = loop.get_iter_value(zo.output(0), -1)
+    out2 = loop.get_concatenated_slices(zo.output(0), 0, 1, 1, -1, 1)
 
     result0 = ov.result(out0)
     result1 = ov.result(out1)
@@ -87,8 +93,11 @@ def test_loop_basic():
     iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
     body_const_condition = ov.constant(bool_val)
 
-    graph_body = Model([curr_cma, cma_hist, body_const_condition], [body_timestep,
-                       body_data_in, body_prev_cma, body_const_one], "body_function")
+    graph_body = Model(
+        [curr_cma, cma_hist, body_const_condition],
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        "body_function",
+    )
 
     ti_slice_input_desc = [
         # timestep
@@ -137,14 +146,18 @@ def test_loop_basic():
     input_desc = loop.get_input_descriptions()
     output_desc = loop.get_output_descriptions()
 
-    assert len(input_desc) == len(ti_slice_input_desc) + \
-        len(ti_merged_input_desc) + len(ti_invariant_input_desc)
+    assert len(input_desc) == len(ti_slice_input_desc) + len(
+        ti_merged_input_desc,
+    ) + len(ti_invariant_input_desc)
     assert len(output_desc) == len(ti_body_output_desc) + len(ti_concat_output_desc)
 
     for i in range(len(ti_slice_input_desc)):
         assert input_desc[i].get_type_info() == ti_slice_input_desc[i].get_type_info()
         assert input_desc[i].input_index == ti_slice_input_desc[i].input_index
-        assert input_desc[i].body_parameter_index == ti_slice_input_desc[i].body_parameter_index
+        assert (
+            input_desc[i].body_parameter_index
+            == ti_slice_input_desc[i].body_parameter_index
+        )
         assert input_desc[i].start == ti_slice_input_desc[i].start
         assert input_desc[i].stride == ti_slice_input_desc[i].stride
         assert input_desc[i].part_size == ti_slice_input_desc[i].part_size
@@ -152,22 +165,53 @@ def test_loop_basic():
         assert input_desc[i].axis == ti_slice_input_desc[i].axis
 
     for i in range(len(ti_merged_input_desc)):
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].get_type_info() == ti_merged_input_desc[i].get_type_info()
-        assert input_desc[len(ti_slice_input_desc) + i].input_index == ti_merged_input_desc[i].input_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_parameter_index == ti_merged_input_desc[i].body_parameter_index
-        assert input_desc[len(ti_slice_input_desc)
-                          + i].body_value_index == ti_merged_input_desc[i].body_value_index
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].get_type_info()
+            == ti_merged_input_desc[i].get_type_info()
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].input_index
+            == ti_merged_input_desc[i].input_index
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].body_parameter_index
+            == ti_merged_input_desc[i].body_parameter_index
+        )
+        assert (
+            input_desc[len(ti_slice_input_desc) + i].body_value_index
+            == ti_merged_input_desc[i].body_value_index
+        )
 
     for i in range(len(ti_concat_output_desc)):
-        assert output_desc[len(ti_body_output_desc)
-                           + i].get_type_info() == ti_concat_output_desc[i].get_type_info()
-        assert output_desc[len(ti_body_output_desc) + i].output_index == ti_concat_output_desc[i].output_index
-        assert output_desc[len(ti_body_output_desc)
-                           + i].body_value_index == ti_concat_output_desc[i].body_value_index
-        assert output_desc[len(ti_body_output_desc) + i].start == ti_concat_output_desc[i].start
-        assert output_desc[len(ti_body_output_desc) + i].stride == ti_concat_output_desc[i].stride
-        assert output_desc[len(ti_body_output_desc) + i].part_size == ti_concat_output_desc[i].part_size
-        assert output_desc[len(ti_body_output_desc) + i].end == ti_concat_output_desc[i].end
-        assert output_desc[len(ti_body_output_desc) + i].axis == ti_concat_output_desc[i].axis
+        assert (
+            output_desc[len(ti_body_output_desc) + i].get_type_info()
+            == ti_concat_output_desc[i].get_type_info()
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].output_index
+            == ti_concat_output_desc[i].output_index
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].body_value_index
+            == ti_concat_output_desc[i].body_value_index
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].start
+            == ti_concat_output_desc[i].start
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].stride
+            == ti_concat_output_desc[i].stride
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].part_size
+            == ti_concat_output_desc[i].part_size
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].end
+            == ti_concat_output_desc[i].end
+        )
+        assert (
+            output_desc[len(ti_body_output_desc) + i].axis
+            == ti_concat_output_desc[i].axis
+        )

@@ -123,6 +123,36 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         std::list<DeviceInformation> validDevices =
             _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities, _loadContext[ACTUALDEVICE].networkPrecision);
 
+        // check if device priority is enabled
+        bool enableDevicePriority =
+            std::find_if(std::begin(validDevices), std::end(validDevices), [](DeviceInformation& di) {
+                return di.devicePriority > 0;
+            }) != std::end(validDevices);
+
+        // for the case of -d "AUTO" or "AUTO: -xxx"
+        if (!enableDevicePriority) {
+            std::list<DeviceInformation>::iterator itCPUDevice;
+            int GPUNums = 0, CPUNums = 0;
+            for (auto it = validDevices.begin(); it != validDevices.end(); it++) {
+                if (it->deviceName.find("GPU") != std::string::npos) {
+                    GPUNums++;
+                }
+
+                if (it->deviceName.find("CPU") == 0) {
+                    CPUNums++;
+                    itCPUDevice = it;
+                }
+            }
+
+            // remove CPU from default candidate list for Cumulative Throughput mode
+            if (GPUNums >= 2 && CPUNums > 0) {
+                validDevices.erase(itCPUDevice);
+                LOG_INFO("[AUTOPLUGIN]:GPUNums:%d, remove CPU from default candidate list for "
+                         "CUMULATIVE_THROUGHPUT",
+                         GPUNums);
+            }
+        }
+
         std::string deviceName = "MULTI:";
         for (auto& device : validDevices) {
             deviceName += device.deviceName;
@@ -131,6 +161,11 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
 
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = InferenceEngine::PluginConfigParams::THROUGHPUT;
+        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
+            _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
+                                             : InferenceEngine::PluginConfigParams::NO;
+        if (_autoSContext->_bindBuffer)
+            _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo = _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
                                                                            _loadContext[ACTUALDEVICE].networkPrecision,
@@ -170,7 +205,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     if (contextPtr->workName.empty()) {
                         contextPtr->workName = contextPtr->deviceInfo.deviceName;
                     }
-                    GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
+                    if (!isCumulative)
+                        GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                     //need lock
                     {
                         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);

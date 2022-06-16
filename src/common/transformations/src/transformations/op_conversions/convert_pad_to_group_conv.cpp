@@ -85,6 +85,7 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         conv->set_friendly_name(pad->get_friendly_name());
         ngraph::copy_runtime_info(pad, conv);
         ngraph::replace_node(pad, conv);
+        MATCHER_SCOPE_ENABLE(ConvertPadToGroupConvolution);
         return true;
     };
 
