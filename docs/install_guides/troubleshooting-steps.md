@@ -23,9 +23,9 @@ If your Python version does not meet the requirements, update Python:
 * For Linux and macOS systems, download and install a proper Python version from <https://www.python.org/>. See the [Python Beginners' Guide](https://wiki.python.org/moin/BeginnersGuide/Download) for more information on  version selection. Note that macOS 10.x comes with python 2.7 installed, which is not supported, so you still need install Python from its official website.
 
 For PIP, make sure that you have installed the latest version. To check and upgrade your PIP version, run the following command:
-'''sh
+```sh
 python -m pip install --upgrade pip
-'''
+```
 
 <!--## Check the special tips for Anaconda installation-->
 
@@ -60,7 +60,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 * If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list the installed OpenVINO packages.
 
-* If you installed OpenVINO Runtime from YUM, use the `yum list installed 'openvino*'` command to list the installed OpenVINO packages.
+* If you installed OpenVINO Runtime from YUM, use the **yum list installed 'openvino\*'** command to list the installed OpenVINO packages.
 
 ## Check if GPU drvier is installed
 
@@ -76,7 +76,7 @@ Make sure that your firewall and network settings are set correctly. For example
 
    .. code-block:: sh
 
-      pip install --proxy http://address:port --trusted-host pypi.org openvino` 
+      pip install --proxy http://address:port --trusted-host pypi.org openvino 
 
 @endsphinxdirective
 
