@@ -34,6 +34,7 @@ std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
     ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes attributes;
     ElementType netPrecision;
     std::string targetName;
+    int id;
     std::tie(inputShapes,
              attributes.score_threshold,
              attributes.nms_threshold,
@@ -44,11 +45,12 @@ std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
              attributes.class_agnostic_box_regression,
              attributes.deltas_weights,
              netPrecision,
-             targetName) = obj.param;
+             targetName, id) = obj.param;
 
     std::ostringstream result;
 
     using ov::test::operator<<;
+    result << "id=" << id;
     result << "input_rois=" << inputShapes[0] << "_";
     result << "input_deltas=" << inputShapes[1] << "_";
     result << "input_scores=" << inputShapes[2] << "_";
@@ -66,6 +68,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
     ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes attributes;
 
     ElementType netPrecision;
+    int id;
     std::string targetName;
     std::tie(inputShapes,
              attributes.score_threshold,
@@ -77,7 +80,8 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
              attributes.class_agnostic_box_regression,
              attributes.deltas_weights,
              netPrecision,
-             targetName) = this->GetParam();
+             targetName,
+             id) = this->GetParam();
 
     if (netPrecision == element::f16)
         abs_threshold = 0.01;

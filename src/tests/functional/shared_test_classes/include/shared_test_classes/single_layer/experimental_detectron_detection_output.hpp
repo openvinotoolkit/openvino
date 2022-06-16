@@ -21,7 +21,8 @@ typedef std::tuple<
         bool,                                   // class_agnostic_box_regression
         std::vector<float>,                     // deltas_weights
         ElementType,                            // Network precision
-        std::string                             // Device name
+        std::string,                             // Device name
+    int // id so that the test can be run multiple times with the same data
 > ExperimentalDetectronDetectionOutputTestParams;
 
 class ExperimentalDetectronDetectionOutputLayerTest :

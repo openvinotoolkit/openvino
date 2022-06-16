@@ -48,135 +48,9 @@ constexpr int kImInfoInputIdx = 3;
 constexpr int kOutputClassesInputIdx = 4;
 constexpr int kOutputScoresInputIdx = 5;
 
-constexpr int kRefinedBoxesBufferIdx = 0;
-constexpr int kRefinedBoxAreasBufferIdx = 1;
-constexpr int kRefinedScoresBufferIdx = 2;
-constexpr int kScoreClassIndexBufferIdx = 3;
-constexpr int kDetectionCountBufferIdx = 4;
-
-constexpr int kBufferCount = 5;
-
 constexpr int kOutputIdx = 0;
 
-constexpr int kRoiCountScalarIdx = 0;
-
-JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
-    const experimental_detectron_detection_output_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    jit.AddConstants({
-        MakeJitConstant("SCORE_THRESHOLD", params.score_threshold),
-        MakeJitConstant("NMS_THRESHOLD", params.nms_threshold),
-        MakeJitConstant("NUM_CLASSES", params.num_classes),
-        MakeJitConstant("POST_NMS_COUNT", params.post_nms_count),
-        MakeJitConstant("MAX_DETECTIONS_PER_IMAGE", params.max_detections_per_image),
-        MakeJitConstant("MAX_DELTA_LOG_WH", params.max_delta_log_wh),
-        MakeJitConstant("DELTA_WEIGHT_X", params.deltas_weights[0]),
-        MakeJitConstant("DELTA_WEIGHT_Y", params.deltas_weights[1]),
-        MakeJitConstant("DELTA_WEIGHT_LOG_W", params.deltas_weights[2]),
-        MakeJitConstant("DELTA_WEIGHT_LOG_H", params.deltas_weights[3]),
-
-        MakeJitConstant("OUTPUT_INDICES_TYPE", "INPUT4_TYPE"),
-    });
-
-    return jit;
-}
-
 using DispatchData = CommonDispatchData;
-
-void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
-    const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
-    std::vector<size_t> gws,
-    const std::string& stage_name,
-    size_t stage_index,
-    clKernelData& kernel) const {
-    DispatchData dispatch_data;
-    dispatch_data.gws = std::move(gws);
-    dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
-
-    const auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options, stage_index);
-    auto cldnn_jit = GetJitConstants(params);
-    cldnn_jit.AddConstant(MakeJitConstant(stage_name, "true"));
-
-    const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-    KernelBase::CheckDispatchData(kernelName, dispatch_data, params.engineInfo.maxWorkGroupSize);
-    kernel.params.workGroups.global = dispatch_data.gws;
-    kernel.params.workGroups.local = dispatch_data.lws;
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
-}
-
-void ExperimentalDetectronDetectionOutputKernelRef::PrepareRefineBoxesKernel(
-    const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
-    clKernelData& kernel) const {
-    const size_t roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    const size_t class_count = params.num_classes;
-
-    PrepareKernelCommon(params, options, {roi_count, class_count, 1}, "EDDO_STAGE_0_REFINE_BOXES", 0, kernel);
-
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kBoxesInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kDeltasInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kScoresInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxAreasBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedScoresBufferIdx});
-}
-
-void ExperimentalDetectronDetectionOutputKernelRef::PrepareNmsClassWiseKernel(
-    const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
-    clKernelData& kernel) const {
-    PrepareKernelCommon(params, options, {1, 1, 1}, "EDDO_STAGE_1_NMS", 1, kernel);
-
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedScoresBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxAreasBufferIdx});
-    const auto roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    ScalarDescriptor s;
-    s.t = ScalarDescriptor::Types::UINT32;
-    s.v.u32 = roi_count;
-    kernel.params.scalars.push_back(s);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, kRoiCountScalarIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
-}
-
-void ExperimentalDetectronDetectionOutputKernelRef::PrepareTopKDetectionsKernel(
-    const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
-    clKernelData& kernel) const {
-    PrepareKernelCommon(params, options, {1, 1, 1}, "EDDO_STAGE_2_TOPK", 2, kernel);
-
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
-}
-
-void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
-    const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
-    clKernelData& kernel) const {
-    PrepareKernelCommon(params,
-                        options,
-                        {params.max_detections_per_image, 1, 1},
-                        "EDDO_STAGE_3_COPY_OUTPUT",
-                        3,
-                        kernel);
-
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
-    const auto roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    ScalarDescriptor s;
-    s.t = ScalarDescriptor::Types::UINT32;
-    s.v.u32 = roi_count;
-    kernel.params.scalars.push_back(s);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, kRoiCountScalarIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputClassesInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputScoresInputIdx});
-}
 
 KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const Params& params,
                                                                           const optional_params& options) const {
@@ -184,26 +58,30 @@ KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const 
         return {};
     }
 
-    constexpr size_t kKernelCount = 4;
+    constexpr size_t kKernelCount = 1;
     KernelData kd = KernelData::Default<experimental_detectron_detection_output_params>(params, kKernelCount);
     const auto& eddo_params = static_cast<const experimental_detectron_detection_output_params&>(params);
 
-    const auto roi_count = eddo_params.inputs[kScoresInputIdx].Batch().v;
-    const auto class_count = static_cast<size_t>(eddo_params.num_classes);
+    DispatchData dispatchData;
+    dispatchData.gws = {1, 1, 1};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, eddo_params.engineInfo);
 
-    kd.internalBufferDataType = Datatype::F32;
+    const auto entryPoint = GetEntryPoint(kernelName, eddo_params.layerID, eddo_params, options, 0);
+    JitConstants cldnnJit = MakeBaseParamsJitConstants(eddo_params);
 
-    kd.internalBufferSizes.resize(kBufferCount);
-    kd.internalBufferSizes[kRefinedBoxesBufferIdx] = class_count * roi_count * 4 * sizeof(float);
-    kd.internalBufferSizes[kRefinedBoxAreasBufferIdx] = class_count * roi_count * sizeof(float);
-    kd.internalBufferSizes[kRefinedScoresBufferIdx] = class_count * roi_count * sizeof(float);
-    kd.internalBufferSizes[kScoreClassIndexBufferIdx] = class_count * roi_count * 12;  // sizeof ScoreClassIndex
-    kd.internalBufferSizes[kDetectionCountBufferIdx] = sizeof(uint32_t);
+    cldnnJit.AddConstants({
+        MakeJitConstant("OUTPUT_INDICES_TYPE", "INPUT4_TYPE"),
+    });
 
-    PrepareRefineBoxesKernel(eddo_params, options, kd.kernels[0]);
-    PrepareNmsClassWiseKernel(eddo_params, options, kd.kernels[1]);
-    PrepareTopKDetectionsKernel(eddo_params, options, kd.kernels[2]);
-    PrepareCopyOutputKernel(eddo_params, options, kd.kernels[3]);
+    const auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+    CheckDispatchData(kernelName, dispatchData, eddo_params.engineInfo.maxWorkGroupSize);
+    kd.kernels[0].params.workGroups.global = dispatchData.gws;
+    kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    kd.kernels[0].code.kernelString = GetKernelString(kernelName, jit, entryPoint, eddo_params.engineInfo);
+
+    kd.kernels[0].params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputIdx});
+    kd.kernels[0].params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputClassesInputIdx});
+    kd.kernels[0].params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputScoresInputIdx});
 
     return {kd};
 }

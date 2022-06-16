@@ -326,6 +326,15 @@ void SubgraphBaseTest::validate() {
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
+    for (int i = 0; i < expectedOutputs.size(); ++i) {
+        std::cout << "output " << i << "\n";
+        for (size_t j = 0; j < shape_size(expectedOutputs[i].get_shape()); j++) {
+            double expected_value = expectedOutputs[i].data<float>()[j];
+            double actual_value = actualOutputs[i].data<float>()[j];
+            std::cout << "  " << expected_value << "   " << actual_value << "\n";
+        }
+    }
+
     compare(expectedOutputs, actualOutputs);
 }
 
