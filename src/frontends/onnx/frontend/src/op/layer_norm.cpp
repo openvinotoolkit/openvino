@@ -65,3 +65,4 @@ OutputVector layer_norm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+
