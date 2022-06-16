@@ -73,7 +73,7 @@ void ExecutorManagerImpl::resetTbb() {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         try {
             if (tbbTaskScheduler && tbbThreadsCreated) {
-                tbbTaskScheduler->blocking_terminate();
+                tbbTaskScheduler->terminate();
             }
             tbbThreadsCreated = false;
             tbbTaskScheduler = nullptr;
