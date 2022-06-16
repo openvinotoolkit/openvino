@@ -1,7 +1,7 @@
 # OpenVINO™ Development Tools 
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
-<!--updated-->
+
 OpenVINO™ Development Tools enables you to download models from Open Model Zoo, convert your own models to OpenVINO IR, as well as optimize and tune pre-trained deep learning models. See [What's in the Package](#whats-in-the-package) for more information.
 
 ## System Requirements
@@ -31,14 +31,14 @@ To create a virtual environment, use the following commands:
 On Windows:
 ```sh
 python -m venv openvino_env
+```
 
 On Linux and macOS:
 ```sh
 python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
-`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -62,14 +62,14 @@ python -m pip install --upgrade pip
 
 There are two options to install OpenVINO Development Tools:
 
-#### Installing Default Components <!--updated-->
+#### Installing Default Components
 
 To install [default components in the package](#whats-in-the-package), use the following command:
 ```
 pip install openvino-dev
 ```
 
-#### Installing Components for Specific Frameworks <!--updated-->
+#### Installing Components for Specific Frameworks
 
 To install and configure the components of the package for working with specific frameworks, use the following command:
 ```sh
