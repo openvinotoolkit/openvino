@@ -4,11 +4,11 @@ If you run into issues while installing or configuring OpenVINO™, you can try 
 
 ## Check the versions of OpenVINO Runtime and Developement Tools
 
-* To check the version of OpenVINO Development Tools, use the following command: <!--updated-->
+* To check the version of OpenVINO Development Tools, use the following command:
    ```sh
    mo --version
    ```
-* To check the version of OpenVINO Runtime, use the following code: <!--updated-->
+* To check the version of OpenVINO Runtime, use the following code:
    ```sh
    from openvino.runtime import get_version get_version()
    ```
@@ -44,15 +44,14 @@ For Ubuntu and RHEL 8 systems, if you installed OpenVINO Runtime via the install
 For C++ developers with Windows systems, make sure that Microsoft Visual Studio 2019 with MSBuild and CMake 3.14 or higher (64-bit) are installed. While installing Microsoft Visual Studio 2019, make sure that you have selected **Desktop development with C++** in the **Workloads** tab. If not, launch the installer again to select that option. For more information on modifying the installation options for Microsoft Visual Studio, see its [official support page](https://docs.microsoft.com/en-us/visualstudio/install/modify-visual-studio?view=vs-2019).
 
 ## Check if environment variables are set correctly 
-<!--updated-->
+
+- For Python developers, if you installed OpenVINO using the installer previously, and now are installing OpenVINO with PIP, remove all the PATH settings and the lines with `setupvars` from `.bashrc`. Note that if you installed OpenVINO with PIP in a virtual environment, you do not need to set environment variables.
 - If you have installed OpenVINO before, you probably have added `setupvars` to your `PATH /.bashrc` or Windows environment variables. After restarting your environment, you should see similar information as below: 
 ```sh
 [setupvars.sh] OpenVINO™ environment initialized
 ```
-   - If you don't see the information, your PATH variable may be configured incorrectly. Check if you have written the correct <INSTALL_DIR> or tried to activate it in the right folder.
+   - If you don't see the information, your PATH variables may be configured incorrectly. Check if you have written the correct <INSTALL_DIR> or tried to activate it in the right folder.
    - If you added it to a `.bashrc` file, make sure that the command is correctly written and the file is found in the `~/.bashrc` folder.
-
-- For Python developers, if you installed OpenVINO using the installer previously, and now are installing OpenVINO with PIP, remove all the PATH settings and the lines with `setupvars` from `.bashrc`. <!--updated-->
 
 ## Verify if OpenVINO is correctly installed
 
@@ -74,9 +73,9 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 To run inference on GPU, make sure that you have installed the correct GPU driver. To check that, see [additional configurations for GPU](configurations-for-intel-gpu.md).
 
-## Firewall/Network Issues
+## Check firewall/network settings
 
-Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: <!--updated-->
+Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: 
 
 @sphinxdirective
 
@@ -86,4 +85,4 @@ Make sure that your firewall and network settings are set correctly. For example
 
 @endsphinxdirective
 
-For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>. <!--updated-->
+For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>. 
