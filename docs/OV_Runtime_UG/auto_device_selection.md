@@ -95,7 +95,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | | `ov::device:priorities`      | | **Values**:                                                        |
 | |                              | |       `<device names>` (comma-separated, no spaces)                |
 | |                              | |                                                                    |
-| |                              | | Specifies the devices for Auto-Device mode to select.              |
+| |                              | | Specifies the devices for AUTO to select.                          |
 | |                              | | The device sequence will be taken as priority from high to low.    |
 | |                              | | This configuration is optional.                                    |
 +--------------------------------+----------------------------------------------------------------------+
@@ -104,7 +104,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                              | |       `ov::hint::PerformanceMode::THROUGHPUT`                      |
 | |                              | |       `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`           |
 | |                              | |                                                                    |
-| |                              | | Specifies the performance mode preferred by the application.       |
+| |                              | | Specifies the performance option preferred by the application.     |
 +--------------------------------+----------------------------------------------------------------------+
 | | `ov::hint::model_priority`   | | **Values**:                                                        |
 | |                              | |       `ov::hint::Priority::HIGH`                                   |
@@ -196,15 +196,15 @@ AUTO will then query all available devices and remove CPU from the candidate lis
 Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in [How AUTO Works](#how-auto-works).
 
 ### Performance Hints for AUTO
-The `ov::hint::performance_mode` property enables you to specify a performance mode for AUTO to be more efficient for particular use cases.
+The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases.
 
 > **NOTE**: Currently, the `ov::hint` property is supported by CPU and GPU devices only.
 
-#### THROUGHPUT Mode
-This mode prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
+#### THROUGHPUT
+This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
-#### LATENCY Mode
-This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
+#### LATENCY
+This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
 @sphinxdirective
 
@@ -212,12 +212,12 @@ This mode prioritizes low latency, providing short response time for each infere
 
 @endsphinxdirective
 
-#### CUMULATIVE_THROUGHPUT Mode
-While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. With the `CUMULATIVE_THROUGHPUT` mode, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
+#### CUMULATIVE_THROUGHPUT
+While `LATENCY` and `THROUGHPUT` can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` option enables running inference on multiple devices for higher throughput. With `CUMULATIVE_THROUGHPUT`, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
 
 CUMULATIVE_THROUGHPUT has similar behavior as [the Multi-Device execution mode (MULTI)](./multi_device.md). The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference. 
 
-In the CUMULATIVE_THROUGHPUT mode:
+With the CUMULATIVE_THROUGHPUT option:
 - If `AUTO` without any device names is specified, and the system has more than one GPU devices, AUTO will remove CPU from the device candidate list to keep GPU running at full capacity.
 - If device priority is specified, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
    ```sh
