@@ -46,6 +46,7 @@ private:
 
 ExecutorManagerImpl::~ExecutorManagerImpl() {
     resetTbb();
+    std::cout << "ExecutorManagerImpl::~ExecutorManagerImpl()..." << std::endl;
 }
 
 void ExecutorManagerImpl::setTbbFlag(bool flag) {
@@ -73,7 +74,9 @@ void ExecutorManagerImpl::resetTbb() {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         try {
             if (tbbTaskScheduler && tbbThreadsCreated) {
+                std::cout << "\ttbb terminate" << std::endl;
                 tbbTaskScheduler->terminate();
+                std::cout << "\ttbb terminate is done" << std::endl;
             }
             tbbThreadsCreated = false;
             tbbTaskScheduler = nullptr;
