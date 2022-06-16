@@ -79,41 +79,41 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 
 @sphinxdirective
 
-+-----------------------------------+-----------------------------------------------------------------------------+
-| | Property                        | | Values and Description                                                    |
-+===================================+=============================================================================+
-| | <device candidate list>         | | **Values**:                                                               |
-| |                                 | |       empty                                                               |
-| |                                 | |       `AUTO`                                                              |
-| |                                 | |       `AUTO: <device names>` (comma-separated, no spaces)                 |
-| |                                 | |                                                                           |
-| |                                 | | Lists the devices available for selection.                                |
-| |                                 | | The device sequence will be taken as priority from high to low.           |
-| |                                 | | If not specified, `AUTO` will be used as default,                         |
-| |                                 | | and all devices will be "viewed" as candidates.                           |
-+-----------------------------------+-----------------------------------------------------------------------------+
-| | `ov::device:priorities`         | | **Values**:                                                               |
-| |                                 | |       `<device names>` (comma-separated, no spaces)                       |
-| |                                 | |                                                                           |
-| |                                 | | Specifies the devices for Auto-Device mode to select.                     |
-| |                                 | | The device sequence will be taken as priority from high to low.           |
-| |                                 | | This configuration is optional.                                           |
-+-----------------------------------+-----------------------------------------------------------------------------+
-| | `ov::hint::performance_mode`    | | **Values**:                                                               |
-| |                                 | |       `ov::hint::PerformanceMode::LATENCY`                                |
-| |                                 | |       `ov::hint::PerformanceMode::THROUGHPUT`                             |
-| |                                 | |       `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`                  |
-| |                                 | |                                                                           |
-| |                                 | | Specifies the performance mode preferred by the application.              |
-+-----------------------------------+-----------------------------------------------------------------------------+
-| | `ov::hint::model_priority`      | | **Values**:                                                               |
-| |                                 | |       `ov::hint::Priority::HIGH`                                          |
-| |                                 | |       `ov::hint::Priority::MEDIUM`                                        |
-| |                                 | |       `ov::hint::Priority::LOW`                                           |
-| |                                 | |                                                                           |
-| |                                 | | Indicates the priority for a model.                                       |
-| |                                 | | IMPORTANT: This property is not fully supported yet.                      |
-+-----------------------------------+-----------------------------------------------------------------------------+
++--------------------------------+----------------------------------------------------------------------+
+| | Property                     | | Values and Description                                             |
++================================+======================================================================+
+| | <device candidate list>      | | **Values**:                                                        |
+| |                              | |       empty                                                        |
+| |                              | |       `AUTO`                                                       |
+| |                              | |       `AUTO: <device names>` (comma-separated, no spaces)          |
+| |                              | |                                                                    |
+| |                              | | Lists the devices available for selection.                         |
+| |                              | | The device sequence will be taken as priority from high to low.    |
+| |                              | | If not specified, `AUTO` will be used as default,                  |
+| |                              | | and all devices will be "viewed" as candidates.                    |
++--------------------------------+----------------------------------------------------------------------+
+| | `ov::device:priorities`      | | **Values**:                                                        |
+| |                              | |       `<device names>` (comma-separated, no spaces)                |
+| |                              | |                                                                    |
+| |                              | | Specifies the devices for Auto-Device mode to select.              |
+| |                              | | The device sequence will be taken as priority from high to low.    |
+| |                              | | This configuration is optional.                                    |
++--------------------------------+----------------------------------------------------------------------+
+| | `ov::hint::performance_mode` | | **Values**:                                                        |
+| |                              | |       `ov::hint::PerformanceMode::LATENCY`                         |
+| |                              | |       `ov::hint::PerformanceMode::THROUGHPUT`                      |
+| |                              | |       `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`           |
+| |                              | |                                                                    |
+| |                              | | Specifies the performance mode preferred by the application.       |
++--------------------------------+----------------------------------------------------------------------+
+| | `ov::hint::model_priority`   | | **Values**:                                                        |
+| |                              | |       `ov::hint::Priority::HIGH`                                   |
+| |                              | |       `ov::hint::Priority::MEDIUM`                                 |
+| |                              | |       `ov::hint::Priority::LOW`                                    |
+| |                              | |                                                                    |
+| |                              | | Indicates the priority for a model.                                |
+| |                              | | IMPORTANT: This property is not fully supported yet.               |
++--------------------------------+----------------------------------------------------------------------+
 
 @endsphinxdirective
 
@@ -171,9 +171,9 @@ To check what devices are present in the system, you can use Device API, as list
 
 @endsphinxdirective
 
-#### Excluding Hardware from Device Candidate List
+#### Excluding Devices from Device Candidate List
 
-You can also exclude hardware devices from AUTO, for example, reserve CPU for other jobs. AUTO will not use the devices for inference then. To do that, add a minus sign (-) before CPU in `AUTO: <device names>`, as in the following example:
+You can also exclude hardware devices from AUTO, for example, to reserve CPU for other jobs. AUTO will not use the device for inference then. To do that, add a minus sign (-) before CPU in `AUTO: <device names>`, as in the following example:
 
 @sphinxdirective
 
