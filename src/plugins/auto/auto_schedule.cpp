@@ -161,6 +161,9 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
 
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = InferenceEngine::PluginConfigParams::THROUGHPUT;
+        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
+            _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
+                                             : InferenceEngine::PluginConfigParams::NO;
         if (_autoSContext->_bindBuffer)
             _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] = InferenceEngine::PluginConfigParams::YES;
     } else {
