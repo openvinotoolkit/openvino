@@ -121,7 +121,7 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    if (device.find("AUTO:") != std::string::npos || device.find("MULTI:") != std::string::npos ||
+    if (device.find("AUTO") != std::string::npos || device.find("MULTI:") != std::string::npos ||
         device.find("HETERO:") != std::string::npos) {
         // keep the secondary priorities if virtual device contains any HW device
         return result;
