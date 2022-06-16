@@ -81,7 +81,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
         const auto num_batches_scores = scores_ps[0];
 
         NODE_VALIDATION_CHECK(op,
-                              num_batches_boxes.same_scheme(num_batches_scores),
+                              num_batches_boxes.compatible(num_batches_scores),
                               "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
                               num_batches_boxes,
                               "; Scores: ",
@@ -90,7 +90,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
         const auto num_boxes_boxes = boxes_ps[1];
         const auto num_boxes_scores = scores_ps[2];
         NODE_VALIDATION_CHECK(op,
-                              num_boxes_boxes.same_scheme(num_boxes_scores),
+                              num_boxes_boxes.compatible(num_boxes_scores),
                               "'boxes' and 'scores' input shapes must match at the second and third "
                               "dimension respectively. Boxes: ",
                               num_boxes_boxes,
@@ -106,7 +106,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
         const auto num_classes_boxes = boxes_ps[0];
         const auto num_classes_scores = scores_ps[0];
         NODE_VALIDATION_CHECK(op,
-                              num_classes_boxes.same_scheme(num_classes_scores),
+                              num_classes_boxes.compatible(num_classes_scores),
                               "'boxes' and 'scores' input shapes must match. Boxes: ",
                               num_classes_boxes,
                               "; Scores: ",
@@ -115,7 +115,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
         const auto num_boxes_boxes = boxes_ps[1];
         const auto num_boxes_scores = scores_ps[1];
         NODE_VALIDATION_CHECK(op,
-                              num_boxes_boxes.same_scheme(num_boxes_scores),
+                              num_boxes_boxes.compatible(num_boxes_scores),
                               "'boxes' and 'scores' input shapes must match. Boxes: ",
                               num_boxes_boxes,
                               "; Scores: ",
