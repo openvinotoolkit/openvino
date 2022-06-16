@@ -50,7 +50,7 @@ To put it simply, when loading the model to the first device on the list fails, 
 What is important, **AUTO always starts inference with CPU**, as it provides very low latency and can start inference with no additional delays. 
 While CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
-For example, if you use a CPU and a GPU, first-inference latency of AUTO will be better than that of GPU alone.
+For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
 Note that if you choose to exclude CPU from the priority list, it will be unable to support the initial model compilation stage.
      
