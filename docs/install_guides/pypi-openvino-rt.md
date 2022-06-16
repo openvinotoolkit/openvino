@@ -76,7 +76,7 @@ If installation was successful, you will not see any error messages (no console 
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. <!--updated-->
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. 
 
 ### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
