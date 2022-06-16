@@ -23,6 +23,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ReduceSumTransformation);
         return transform(*context, m);
     };
 

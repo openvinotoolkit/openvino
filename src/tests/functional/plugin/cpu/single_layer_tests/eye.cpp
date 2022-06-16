@@ -113,7 +113,10 @@ protected:
             if (i == 3) {  // batch shape
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 int *batchShapePtr = tensor.data<int>();
-                for (size_t j = 0; j < targetInputStaticShapes[i].size(); j++) {
+                // Spec: batch_shape - 1D tensor with non-negative values of type T_NUM defines leading batch dimensions of output shape
+                EXPECT_EQ(targetInputStaticShapes[i].size(), 1);
+                EXPECT_EQ(targetInputStaticShapes[i][0], outBatchShape.size());
+                for (size_t j = 0; j < targetInputStaticShapes[i][0]; j++) {
                     batchShapePtr[j] = outBatchShape[j];
                 }
             } else {
