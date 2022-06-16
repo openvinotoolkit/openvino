@@ -8,7 +8,7 @@ If you run into issues while installing or configuring OpenVINO™, you can try 
    ```sh
    mo --version
    ```
-* To check the version of OpenVINO Runtime, use the following command: <!--updated-->
+* To check the version of OpenVINO Runtime, use the following code: <!--updated-->
    ```sh
    from openvino.runtime import get_version get_version()
    ```
