@@ -73,7 +73,7 @@ void ExecutorManagerImpl::resetTbb() {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         try {
             if (tbbTaskScheduler && tbbThreadsCreated) {
-                tbbTaskScheduler->blocking_terminate();
+                tbbTaskScheduler->terminate();
             }
             tbbThreadsCreated = false;
             tbbTaskScheduler = nullptr;
@@ -166,6 +166,7 @@ public:
         auto manager = _manager.lock();
         if (!manager) {
             _manager = manager = std::make_shared<ExecutorManagerImpl>();
+            manager->setTbbFlag(true);
         }
         return manager;
     }
