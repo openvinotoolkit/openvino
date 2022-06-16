@@ -559,7 +559,7 @@ ov_status_e ov_node_get_tensor_shape(ov_output_node_list_t* nodes, size_t idx,
         if (shape.size() > MAX_DIMENSION) {
             return ov_status_e::GENERAL_ERROR;
         }
-        tensor_shape->ranks = shape.size();
+        tensor_shape->rank = shape.size();
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     } CATCH_OV_EXCEPTIONS
 
@@ -616,16 +616,26 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
     return model->object->is_dynamic();
 }
 
-std::vector<char*> split(std::string s) {
-    std::vector<char*> result;
+std::vector<std::string> split_to_dims(const std::string& partial_shape_str) {
+    std::vector<std::string> result;
 
     std::regex delimiter("[^{},]+");
-    auto words_begin = std::sregex_iterator(s.begin(), s.end(), delimiter);
+    auto words_begin = std::sregex_iterator(partial_shape_str.begin(), partial_shape_str.end(), delimiter);
     auto words_end = std::sregex_iterator();
     for (auto iter = words_begin; iter != words_end; ++iter) {
-        result.push_back(str_to_char_array(iter->str()));
+        result.push_back(iter->str());
     }
     return result;
+}
+
+template <class T>
+T str_to_value(const std::string& str) {
+    T ret{0};
+    std::istringstream ss(str);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
 }
 
 ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const char* str) {
@@ -646,27 +656,28 @@ ov_status_e ov_partial_shape_init(ov_partial_shape_t** partial_shape_obj, const 
         if (s == "?") {  // dynamic rank
             partial_shape->rank = ov::Dimension::dynamic();
         } else {  // static rank
-            std::vector<char*> result = split(s);
+            std::vector<std::string> result = split_to_dims(s);
+            using value_type = ov::Dimension::value_type;
             size_t cnt = result.size();
             if (cnt > MAX_DIMENSION) {
                 delete partial_shape;
                 return ov_status_e::GENERAL_ERROR;
             }
             partial_shape->rank = ov::Dimension(cnt);
-            for (auto& item : result) {
-                std::string dim = item;
+            for (auto& dim : result) {
                 if (dim == "?" || dim == "-1") {
                     partial_shape->dims.emplace_back(ov::Dimension::dynamic());
                 } else {
                     const std::string range_divider = "..";
                     size_t range_index = dim.find(range_divider);
                     if (range_index != std::string::npos) {
-                        std::string min = dim.substr(0, range_index);
-                        std::string max = dim.substr(range_index + range_divider.length());
-                        partial_shape->dims.emplace_back(min.empty() ? 0 : std::stoi(min),
-                                                         max.empty() ? ngraph::Interval::s_max : std::stoi(max));
+                        std::string min_str = dim.substr(0, range_index);
+                        std::string max_str = dim.substr(range_index + range_divider.length());
+                        value_type min = min_str.empty() ? 0 : str_to_value<value_type>(min_str);
+                        value_type max = max_str.empty() ? -1 : str_to_value<value_type>(max_str);
+                        partial_shape->dims.emplace_back(min, max);
                     } else {
-                        partial_shape->dims.emplace_back(std::stoi(dim));
+                        partial_shape->dims.emplace_back(str_to_value<value_type>(dim));
                     }
                 }
             }
@@ -688,8 +699,8 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
     }
 
     // static rank
-    auto ranks = partial_shape->rank.get_length();
-    if (ranks != partial_shape->dims.size()) {
+    auto rank = partial_shape->rank.get_length();
+    if (rank != partial_shape->dims.size()) {
         return str_to_char_array("rank error");
     }
     std::string str = std::string("{");
@@ -699,7 +710,7 @@ const char* ov_partial_shape_parse(ov_partial_shape_t* partial_shape) {
         out.str("");
         out << item;
         str += out.str();
-        if (i++ < ranks - 1)
+        if (i++ < rank - 1)
             str += ",";
     }
     str += std::string("}");
@@ -716,18 +727,18 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
         if (partial_shape->rank.is_dynamic()) {
             return ov_status_e::PARAMETER_MISMATCH;
         }
-        auto ranks = partial_shape->rank.get_length();
-        if (ranks > MAX_DIMENSION) {
+        auto rank = partial_shape->rank.get_length();
+        if (rank > MAX_DIMENSION) {
             return ov_status_e::PARAMETER_MISMATCH;
         }
-        for (auto i = 0; i < ranks; ++i) {
+        for (auto i = 0; i < rank; ++i) {
             auto& ov_dim = partial_shape->dims[i];
             if (ov_dim.is_static())
                 shape->dims[i] = ov_dim.get_length();
             else
                 return ov_status_e::PARAMETER_MISMATCH;
         }
-        shape->ranks = ranks;
+        shape->rank = rank;
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1367,7 +1378,7 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1382,7 +1393,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type, const o
         *tensor = new ov_tensor_t;
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
-        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
         (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1394,7 +1405,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     }
     try {
         ov::Shape tmp_shape;
-        std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
         tensor->object->set_shape(tmp_shape);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1409,7 +1420,7 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
         if (tmp_shape.size() > MAX_DIMENSION) {
             return ov_status_e::GENERAL_ERROR;
         }
-        shape->ranks = tmp_shape.size();
+        shape->rank = tmp_shape.size();
         std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
     } CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

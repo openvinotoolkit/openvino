@@ -1403,7 +1403,7 @@ TEST(ov_tensor, ov_tensor_get_shape) {
 
     ov_shape_t shape_res = {0,{0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
-    EXPECT_EQ(shape.ranks, shape_res.ranks);
+    EXPECT_EQ(shape.rank, shape_res.rank);
     OV_EXPECT_ARREQ(shape.dims, shape_res.dims);
 
     ov_tensor_free(tensor);
@@ -1420,7 +1420,7 @@ TEST(ov_tensor, ov_tensor_set_shape) {
     OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
     ov_shape_t shape_res = {0,{0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
-    EXPECT_EQ(shape_update.ranks, shape_res.ranks);
+    EXPECT_EQ(shape_update.rank, shape_res.rank);
     OV_EXPECT_ARREQ(shape_update.dims, shape_res.dims);
 
     ov_tensor_free(tensor);
@@ -1448,7 +1448,7 @@ static size_t product(const std::vector<size_t>& dims) {
 
 size_t calculate_size(ov_shape_t shape) {
     std::vector<size_t> tmp_shape;
-    std::copy_n(shape.dims, shape.ranks, std::back_inserter(tmp_shape));
+    std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
     return product(tmp_shape);
 }
 
@@ -1726,9 +1726,9 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
 
     ov_shape_t shape;
-    shape.ranks = 0;
+    shape.rank = 0;
     OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
-    EXPECT_EQ(shape.ranks, 5);
+    EXPECT_EQ(shape.rank, 5);
     EXPECT_EQ(shape.dims[0], 10);
     EXPECT_EQ(shape.dims[1], 20);
     EXPECT_EQ(shape.dims[2], 30);
@@ -1745,7 +1745,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_num) {
     OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
 
     ov_shape_t shape;
-    shape.ranks = 0;
+    shape.rank = 0;
     OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
 
     ov_partial_shape_free(partial_shape);
@@ -1758,7 +1758,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_sign) {
     OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
 
     ov_shape_t shape;
-    shape.ranks = 0;
+    shape.rank = 0;
     OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
 
     ov_partial_shape_free(partial_shape);

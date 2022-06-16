@@ -278,7 +278,7 @@ typedef char ov_layout_t[MAX_DIMENSION];
  * @struct ov_shape_t
  */
 typedef struct {
-    int ranks;
+    size_t rank;
     size_t dims[MAX_DIMENSION];
 } ov_shape_t;
 
