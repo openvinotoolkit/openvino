@@ -34,7 +34,6 @@ python -m venv openvino_env
 
 On Linux and macOS:
 ```sh
-python3 -m pip install --user virtualenv 
 python3 -m venv openvino_env
 ```
 
