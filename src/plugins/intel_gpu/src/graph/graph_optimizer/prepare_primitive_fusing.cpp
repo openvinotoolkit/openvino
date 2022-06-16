@@ -67,6 +67,25 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            for (auto prev : node.get_dependencies()) {
+                if (!prev->is_type<reshape>())
+                    return;
+                if (prev->get_users().size() > 1)
+                    return;
+                if (prev->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
+                    p.add_optimized_primitive_info(prev->id());
+                    p.add_optimized_primitive_info(node.id());
+                    p.extract_and_remove(*prev);
+                    p.extract_and_remove(node);
+                }
+            }
+        });
+    }
+
+    node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             auto input_lay = node.input().get_output_layout();
             auto output_lay = node.get_output_layout();
 
@@ -74,6 +93,29 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
                 return;
 
             if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
+
+    node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
+            auto& input_node = node.input();
+            if (input_node.get_users().size() > 1 || node.get_users().size() > 1 || node.is_endpoint())
+                return;
+            auto input_lay = input_node.get_output_layout();
+            auto output_lay = node.get_output_layout();
+            auto user_node = *node.get_users().begin();
+            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                    return;
+                }
+                if (!node.get_users().empty() && user_node->is_type<reshape>()) {
+                    return;
+                }
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }

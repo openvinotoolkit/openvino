@@ -26,6 +26,7 @@ layout gather_elements_inst::calc_output_layout(gather_elements_node const& node
 
     auto output_type = (node.has_fused_primitives()) ? node.get_fused_output_layout().data_type :
                        input_layout_origin.data_type;
+
     auto output_shape = op->output_shape;
     auto output_format = op->output_format;
     // calculate initial output shape
