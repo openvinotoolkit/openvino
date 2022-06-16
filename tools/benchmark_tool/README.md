@@ -1,110 +1,135 @@
-# Benchmark Python* Tool {#openvino_inference_engine_tools_benchmark_tool_README}
+# Benchmark Python Tool {#openvino_inference_engine_tools_benchmark_tool_README}
 
-This topic demonstrates how to run the Benchmark Python* Tool, which performs inference using convolutional networks.
-Performance can be measured for two inference modes: latency- and throughput-oriented.
+This page demonstrates how to use the Benchmark Python Tool to estimate deep learning inference performance on supported devices.
 
-> **NOTE**: This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md).
+> **NOTE**: This page describes usage of the Python implementation of the Benchmark Tool. For the C++ implementation, refer to the [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have the same command interface and a similar backend.
 
-## How It Works
-Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
-Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
-or left default. In the latter case, the sample logic will select the values for the optimal throughput.
-While further experimenting with individual parameters (like number of streams and requests, batch size, etc) allows to find the performance sweet spot,
-usually, the resulting values are not very performance-portable,
-so the values from one machine or device are not necessarily optimal for another.
-From this perspective, the most portable way is experimenting only the performance hints. To learn more, refer to the section below.
+## Basic Usage
 
-> **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+The Python benchmark_app is automatically installed when you install OpenVINO Runtime or OpenVINO Developer Tools using [PyPI](../../docs/install_guides/installing-openvino-pip.md) or [Anaconda Cloud](../../docs/install_guides/installing-openvino-conda.md). Before running `benchmark_app`, make sure the `openvino_env` virtual environment is activated, and navigate to the directory where your model is located.
 
-### Latency and Throughput-focused Inference Modes
-In many cases the primary performance metric is the time (in milliseconds) for an individual inference request.
-For conventional devices the best latency is usually achieved when the application operates single inference request.
-Similarly, while for some devices the synchronous API (`Infer` method) was slightly better for the latency.
-However, advanced devices like multi-socket CPUs, modern GPUs and so on, are capable to run multiple inference requests,
-while delivering the same latency (as with the single request). Also, the asynchronous API is more general/flexible
-(with respect to handling multiple inference requests).
-Overall, the legacy way of measuring latency (triggered by '-api sync') with a single request and synchronous API is discouraged
-in favor of the dedicated '-hint latency' that lets the _device_ to apply the right settings to minimize the time to request.
+The benchmarking application works with OpenVINO models in IR format. You can use it with your own models or pre-trained [public](@ref omz_models_group_public) or [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which can be downloaded using the [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is converted to OpenVINO format (`model.xml` and `model.bin`) using the [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) tool. The application also works with models in ONNX format (`model.onnx`).
 
-Throughput-oriented scenarios, in contrast, are focused on fully saturating the machine with enough data to crunch,
-as opposite to the time of the individual request. So, the primary performance metric is rather FPS (frames per second).
-Yet, just like with the latency case, the optimal execution parameters may differ between machines and devices.
-So, again, as explained in the previous section, the most portable way is to use the dedicated performance hint, rather than playing individual parameters.
-The hints allow the device to configure actual settings for the specified mode. The sample then queries/executes the optimal number of inference requests.
-
-During the execution, the application collects/reports two types of metrics:
-* Wall-clock time (latency) of each infer request and resulting latency
-* Duration of all inference executions and resulting throughput
-By default, the reported latency value is always calculated as the median (i.e. 50th percentile) value of all collected latencies from individual requests.
-Notice that you can change the desired percentile with the command-line flag.
-The throughput value is derived from the overall inference execution time and number of completed requests (respecting the batch size).
-
-### Defining the Number of Inference Executions
-A number of executions is defined by one of the two values:
-* Explicitly, with the `-niter` command-line argument
-* As _time_ duration specified with the `-t` command-line argument
-* Both of them (execution will continue until both conditions are met)
-* Predefined duration if neither `-niter` nor `-t` are not specified. Predefined duration value depends on the device.
-
-## Run the Tool
-
-Before running the Benchmark tool, install  [OpenVINO™ Development Tools](../../docs/install_guides/installing-model-dev-tools.md).
-
-Notice that the benchmark_app usually produces optimal performance for any device out of the box.
-**So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
-
-```sh
-benchmark_app -m <model> -i <input> -d CPU
-```
-
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../docs/optimization_guide/dldt_optimization_guide.md).
-
-Running the application with the `-h` or `--help`' option yields the following usage message:
+To run benchmarking with default options on a model, use the following command. 
 
 ```
-usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL 
-                     [-d TARGET_DEVICE] 
-                     [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] 
-                     [-api {sync,async}]
-                     [-niter NUMBER_ITERATIONS]
-                     [-nireq NUMBER_INFER_REQUESTS]
-                     [-b BATCH_SIZE]
-                     [-stream_output [STREAM_OUTPUT]]
-                     [-t TIME]
-                     [-progress [PROGRESS]]
-                     [-shape SHAPE]
-                     [-layout LAYOUT]
-                     [-nstreams NUMBER_STREAMS]
-                     [-enforcebf16 [{True,False}]]
-                     [-nthreads NUMBER_THREADS]
-                     [-pin {YES,NO,NUMA,HYBRID_AWARE}]
-                     [-exec_graph_path EXEC_GRAPH_PATH]
-                     [-pc [PERF_COUNTS]]
-                     [-report_type {no_counters,average_counters,detailed_counters}]
-                     [-report_folder REPORT_FOLDER]
-                     [-dump_config DUMP_CONFIG]
-                     [-load_config LOAD_CONFIG]
-                     [-qb {8,16}]
-                     [-ip {U8,FP16,FP32}]
-                     [-op {U8,FP16,FP32}]
-                     [-iop INPUT_OUTPUT_PRECISION]
-                     [-cdir CACHE_DIR]
-                     [-lfile [LOAD_FROM_FILE]]
+benchmark_app -m model.xml
+```
+
+By default, the application will load the specified model onto the CPU and perform inferencing on batches of randomly-generated data inputs for 60 seconds. As it loads, it prints information about benchmark parameters. When benchmarking is completed, it reports the minimum, average, and maximum inferencing latency and average the throughput.
+
+You may be able to improve benchmark results beyond the default configuration by configuring some of the execution parameters for your model. For example, you can use "throughput" or "latency" performance hints to optimize the runtime for higher FPS or reduced inferencing time. Read on to learn more about the configuration options available with benchmark_app.
+
+## Configuration Options
+The benchmark app provides various options for configuring execution parameters. This section covers key configuration options for easily tuning benchmarking to achieve better performance on your device. A list of all configuration options is given in the [Advanced Usage](#advanced-usage) section.
+
+### Performance hints: latency and throughput
+The benchmark app allows users to provide high-level "performance hints" for setting latency-focused or throughput-focused inference modes. This hint causes the runtime to automatically adjust runtime parameters, such as number of processing streams and inference batch size, to prioritize for reduced latency or high throughput.
+
+The performance hints do not require any device-specific settings and they are completely portable between devices. Parameters are automatically configured based on whichver deviced is being used. This allows users to easily port applications between hardware targets without having to re-determine the best runtime parameters for the new device.
+
+The performance hint is set by using `-hint latency` or `-hint throughput` when running benchmark_app:
+
+```
+benchmark_app -m model.xml -hint latency
+benchmark_app -m model.xml -hint throughput
+```
+
+#### Latency
+Latency is the amount of time it takes to process a single inference request. In applications where data needs to be inferenced and acted on as quickly as possible (such as autonomous driving), low latency is desirable. For conventional devices, lower latency is achieved by reducing the amount of parallel processing streams so the system can utilize as many resources as possible to quickly calculate each inference request. However, advanced devices like multi-socket CPUs and modern GPUs are capable of running multiple inference requests while delivering the same latency.
+
+When benchmark_app is run with `-hint latency`, it determines the optimal number of parallel inference requests for minimizing latency while still maximizing the parallelization capabilities of the hardware. It automatically sets the number of processing streams and inference batch size to achieve the best latency.
+
+#### Throughput
+Throughput is the amount of data an inferencing pipeline can process at once, and it is usually measured in frames per second (FPS) or inferences per second. In applications where large amounts of data needs to be inferenced simultaneously (such as multi-camera video streams), high throughput is needed. To achieve high throughput, the runtime focuses on fully saturating the device with enough data to process. It utilizes as much memory and as many parallel streams as possible to maximize the amount of data that can be processed simultaneously.
+
+When benchmark_app is run with `-hint throughput`, it automatically sets the inference batch size to fill up all the memory available. It also maximizes the number of parallel inference requests to utilize all the threads available on the device.
+
+For more information on performance hints, see the [High-level Performance Hints](../../docs/OV_Runtime_UG/performance_hints.md) page.
+
+
+### Device
+To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "MYRIAD" (also known as [VPU](../../docs/OV_Runtime_UG/supported_plugins/VPU.md)) devices. In order to use the GPU or VPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
+
+For example, to run benchmarking on GPU, use:
+
+```
+benchmark_app -m model.xml -d GPU
+```
+
+You may also specify "AUTO" as the device, and benchmark_app will automatically select the best device to run benchmarking on. For more information, see the [Automatic device selection](../../docs/OV_Runtime_UG/auto_device_selection.md) page.
+
+(Note: If the latency or throughput hint is set, it will automatically configure streams and batch sizes for optimal performance based on the specified device.)
+
+### Number of iterations
+By default, the benchmarking app will run for a predefined duration, repeatedly performing inferencing with the model and measuring the resulting inference speed. There are several options for setting the number of inference iterations:
+
+* Explicitly specify the number of iterations the model runs using the `-niter <number_of_iterations>` option
+* Set how much time the app runs for using the `-t <seconds>` option
+* Set both of them (execution will continue until both conditions are met)
+* If neither -niter nor -t are specified, the app will run for a predefined duration that depends on the device
+
+The more iterations a model runs, the better the statistics will be for determing average latency and throughput.
+
+### Inputs
+The benchmark tool runs benchmarking on user-provided input data (images or binary files). Use `-i <PATH_TO_INPUT>` to specify the path to an image, binary file, folder of images, or folder of binary files. For example, to run benchmarking on an image named `test1.jpg`, use:
+
+```
+benchmark_app -m model.xml -i test1.jpg
+```
+
+The tool will repeatedly loop through the provided inputs and run inferencing on them for the specified amount of time or number of iterations. If the `-i` flag is not used, the tool will automatically generate random data to fit the input shape of the model. 
+
+### Examples
+For more usage examples (and step-by-step instructions on how to set up a model for benchmarking), see the [Examples of Running the Tool](#examples-of-running-the-tool) section.
+
+## Advanced Usage
+
+> **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with --reverse_input_channels argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
+
+### Per-layer performance and logging
+The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
+
+* `no_counters` report includes configuration options specified, resulting FPS and latency.
+* `average_counters` report extends the `no_counters` report and additionally includes average PM counters values for each layer from the network.
+* `detailed_counters` report extends the `average_counters` report and additionally includes per-layer PM counters and latency for each executed infer request.
+
+Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
+
+### All configuration options
+Running the application with the -h option yields the following usage message:
+
+```
+benchmark_app -h
+[Step 1/11] Parsing and validating input arguments
+usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
+                     [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE] [-stream_output [STREAM_OUTPUT]] [-t TIME] [-progress [PROGRESS]] [-shape SHAPE]
+                     [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS]
+                     [--latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}]
+                     [-enforcebf16 [{True,False}]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
+                     [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
+                     [-load_config LOAD_CONFIG] [-qb {8,16}] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
+                     [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
 
 Options:
   -h [HELP], --help [HELP]
                         Show this help message and exit.
   -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
-                        Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+                        Optional. Path to a folder with images and/or binaries or to specific image or binary file.It is also allowed to map files to network inputs:
+                        input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
-                        Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob file with a trained compiled model.
+                        Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to specify
-                        HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
+                        Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to
+                        specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
   -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
                         Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
+  -hint {throughput,latency,none}, --perf_hint {throughput,latency,none}
+                        Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings. 'throughput': device
+                        performance mode will be set to THROUGHPUT. 'latency': device performance mode will be set to LATENCY. 'none': no device performance mode will be set. Using explicit 'nstreams'
+                        or other device-specific options, please set hint to 'none'
   -api {sync,async}, --api_type {sync,async}
                         Optional. Enable using sync/async API. Default value is async.
   -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
@@ -117,65 +142,75 @@ Options:
                         Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multi-line output.
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
   -progress [PROGRESS]  Optional. Show progress bar (can affect performance measurement). Default values is 'False'.
-  -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+  -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.This parameter affect model Parameter shape, can be
+                        dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
+  -data_shape DATA_SHAPE
+                        Optional. Optional if network shapes are all static (original ones or set by -shape).Required if at least one input shape is dynamic and input images are not provided.Set shape
+                        for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.
   -layout LAYOUT        Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                        Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for
-                        some cases, especially for very small networks. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be
-                        set to 1. See samples README for more details.
+                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
+                        <nstreams>). Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it still may be
+                        non - optimal for some cases, especially for very small networks. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the
+                        number of streams should be set to 1. See samples README for more details.
+  --latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}
+                        Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
   -enforcebf16 [{True,False}], --enforce_bfloat16 [{True,False}]
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'true' - enable bfloat16 regardless of platform support. 'false' -
-                        disable bfloat16 regardless of platform support.
+                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'True' - enable bfloat16 regardless of platform support.
+                        'False' - disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
-                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'), threads->appropriate core types ('HYBRID_AWARE', which
-                        is OpenVINO runtime's default for Hybrid CPUs)or completely disable ('NO')CPU threads pinning for CPU-involved inference.
+                        Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'), threads->appropriate core types
+                        ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads pinning for CPU-involved inference.
   -exec_graph_path EXEC_GRAPH_PATH, --exec_graph_path EXEC_GRAPH_PATH
                         Optional. Path to a file where to store executable graph information serialized.
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
+  -pcseq [PCSEQ], --pcseq [PCSEQ]
+                        Optional. Report latencies for each shape in -data_shape sequence.
+  -inference_only [INFERENCE_ONLY], --inference_only [INFERENCE_ONLY]
+                        Optional. If true inputs filling only once before measurements (default for static models), else inputs filling is included into loop measurement (default for dynamic models)
   -report_type {no_counters,average_counters,detailed_counters}, --report_type {no_counters,average_counters,detailed_counters}
-                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters"
-                        report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-
-                        layer PM counters and latency for each executed infer request.
+                        Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends
+                        "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and
+                        additionally includes per-layer PM counters and latency for each executed infer request.
   -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
                         Optional. Path to a folder where statistics report is stored.
   -dump_config DUMP_CONFIG
-                        Optional. Path to JSON file to dump IE parameters, which were set by application.
+                        Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
-                        Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
+                        Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
   -qb {8,16}, --quantization_bits {8,16}
                         Optional. Weight bits for quantization: 8 (I8) or 16 (I16)
-  -ip {U8,FP16,FP32}, --input_precision {U8,FP16,FP32}
+  -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all input layers of the network.
-  -op {U8,FP16,FP32}, --output_precision {U8,FP16,FP32}
+  -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all output layers of the network.
   -iop INPUT_OUTPUT_PRECISION, --input_output_precision INPUT_OUTPUT_PRECISION
-                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options
-                        for specified layers.
+                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:f16, output:f16". Notice that quotes are required. Overwrites precision from ip and op
+                        options for specified layers.
   -cdir CACHE_DIR, --cache_dir CACHE_DIR
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_network.
+  -iscale INPUT_SCALE, --input_scale INPUT_SCALE
+                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example: -iscale
+                        data[255,255,255],info[255,255,255]
+  -imean INPUT_MEAN, --input_mean INPUT_MEAN
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example: -imean
+                        data[255,255,255],info[255,255,255]
 ```
+
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-Application supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
-If a model has only image input(s), please a provide folder with images or a path to an image as input.
-If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
-If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
-
-To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO format (\*.xml + \*.bin) using the [Model Optimizer tool](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+### More information on inputs
+The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices.  The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
-
-> **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
 
 1. Install OpenVINO Development Tools to work with Caffe* models:
 
@@ -183,72 +218,81 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev[caffe]
    ```
 
-2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` tool with the model name and directory to download the model to:
+2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` script with specifying the model name and directory to download the model to:
 
    ```sh
    omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-3. Convert the model to the OpenVINO IR format. Run Model Optimizer with the path to the model, model format and output directory to generate the IR files:
+
+3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
+
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-4. Run the tool with specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+
+4. Run the tool specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model, and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the throughput mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-    benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i dog.bmp -progress -b 1
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp  -d CPU -hint throughput -progress
    ```
    * On GPU:
    ```sh
-   benchmark_app -m <ir_dir>/googlenet-v1.xml -d GPU -api async -i dog.bmp -progress -b 1
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp -d GPU -hint throughput -progress
    ```
 
-The application outputs number of executed iterations, total duration of execution, latency and throughput.
-Additionally, if you set the `-pc` parameter, the application outputs performance counters.
-If you set `-exec_graph_path`, the application reports executable graph information serialized.
+The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
+Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output for static and dynamic models:
-* For static model:
+Below are fragments of sample output static and dynamic networks:
+
+* For static network:
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: True, limits: 60000 ms duration)
-   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-   [ INFO ] First inference took 5.00 ms
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
+   [ INFO ] Input blobs will be filled once before performance measurements.
+   [ INFO ] First inference took 26.26 ms
+   Progress: [................... ]  99% done
+
    [Step 11/11] Dumping statistics report
-   Count:          29936 iterations
-   Duration:       60010.13 ms
-   Latency:
-      Median:     7.30 ms
-      AVG:        7.97 ms
-      MIN:        5.02 ms
-      MAX:        29.26 ms
-   Throughput: 498.85 FPS
+   [ INFO ] Count:      6640 iterations
+   [ INFO ] Duration:   60039.70 ms
+   [ INFO ] Latency:
+   [ INFO ]        Median:  35.36 ms
+   [ INFO ]        Avg:    36.12 ms
+   [ INFO ]        Min:    18.55 ms
+   [ INFO ]        Max:    88.96 ms
+   [ INFO ] Throughput: 110.59 FPS
    ```
-* For dynamic model:
+
+* For dynamic network:
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: False, limits: 60000 ms duration)
-   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-   [ INFO ] First inference took 5.10 ms
+   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
+   [ INFO ] BENCHMARK IS IN FULL MODE.
+   [ INFO ] Inputs setup stage will be included in performance measurements.
+   [ INFO ] First inference took 26.80 ms
+   Progress: [................... ]  99% done
+
    [Step 11/11] Dumping statistics report
-   Count:          13596 iterations
-   Duration:       60028.12 ms
-   Latency:
-      AVG:        17.53 ms
-      MIN:        2.88 ms
-      MAX:        63.54 ms
-   Latency for each data shape group:
-   data: {1, 3, 128, 128}
-      AVG:        5.09 ms
-      MIN:        2.88 ms
-      MAX:        23.30 ms
-   data: {1, 3, 224, 224}
-      AVG:        10.67 ms
-      MIN:        5.97 ms
-      MAX:        31.79 ms
-   data: {1, 3, 448, 448}
-      AVG:        36.84 ms
-      MIN:        24.76 ms
-      MAX:        63.54 ms
-   Throughput: 226.49 FPS
+   [ INFO ] Count:      5199 iterations
+   [ INFO ] Duration:   60043.34 ms
+   [ INFO ] Latency:
+   [ INFO ]        Median:  41.58 ms
+   [ INFO ]        Avg:    46.07 ms
+   [ INFO ]        Min:    8.44 ms
+   [ INFO ]        Max:    115.65 ms
+   [ INFO ] Latency for each data shape group:
+   [ INFO ] 1. data : [1, 3, 224, 224]
+   [ INFO ]        Median:  38.37 ms
+   [ INFO ]        Avg:    30.29 ms
+   [ INFO ]        Min:    8.44 ms
+   [ INFO ]        Max:    61.30 ms
+   [ INFO ] 2. data : [1, 3, 448, 448]
+   [ INFO ]        Median:  68.21 ms
+   [ INFO ]        Avg:    61.85 ms
+   [ INFO ]        Min:    29.58 ms
+   [ INFO ]        Max:    115.65 ms
+   [ INFO ] Throughput: 86.59 FPS
    ```
 
 ## See Also
