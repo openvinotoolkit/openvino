@@ -1,8 +1,12 @@
 # Running on Multiple Devices Simultaneously {#openvino_docs_OV_UG_Running_on_multiple_devices}
 
+@sphinxdirective
+
 To run inference on multiple devices, you can choose either of the following ways:
-- Use the [CUMULATIVE_THROUGHPUT mode](./auto_device_selection.md#cumulativethroughput-mode) of the [Automatic Device Selection mode](./auto_device_selection.md). This way, you can use all available devices in the system without the need to specify them. 
+- Use the :ref:`CUMULATIVE_THROUGHPUT mode <cumulative throughput>` of :ref:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`. This way, you can use all available devices in the system without the need to specify them. 
 - Use the Multi-Device execution mode. This page will explain how it works and how to use it.
+
+@endsphinxdirective
 
 ## How MULTI Works
 

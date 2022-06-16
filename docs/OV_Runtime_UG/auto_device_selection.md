@@ -206,6 +206,12 @@ This mode prioritizes high throughput, balancing between latency and power. It i
 #### LATENCY Mode
 This mode prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
+@sphinxdirective
+
+.. _cumulative throughput:
+
+@endsphinxdirective
+
 #### CUMULATIVE_THROUGHPUT Mode
 While the `LATENCY` mode and `THROUGHPUT` mode can select one target device with your preferred performance option, the `CUMULATIVE_THROUGHPUT` mode enables running inference on multiple devices for higher throughput. With the `CUMULATIVE_THROUGHPUT` mode, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority. 
 
