@@ -94,6 +94,15 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         IE_THROW() << ss.str();
     }
 
+    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
+    if (layout.bytes_count() + used_mem > get_max_memory_size()) {
+        std::stringstream ss;
+        ss << "Exceeded max size of memory allocation: "
+            << "Required " << layout.bytes_count() + used_mem << " bytes "
+            << "but max alloc size is " << get_max_memory_size() << " bytes";
+        IE_THROW() << ss.str();
+    }
+
     if (type != allocation_type::cl_mem && !supports_allocation(type)) {
         std::ostringstream type_str;
         type_str << type;
