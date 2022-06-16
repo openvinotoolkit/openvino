@@ -724,7 +724,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
-void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
+void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -737,9 +737,10 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
-    std::vector<DnnlMemoryDescPtr> intDescs;
-    for (auto &it : internalBlobDesc)
-        intDescs.push_back(it(itpd, 0));
+
+    if (internalBlobs.size() != intDescs.size()) {
+        IE_THROW() << "Can't prepare memory for internal blob, internal blobs and internal descs number do not match";
+    }
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
@@ -775,6 +776,14 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
 
         internalBlobMemory.push_back(ptr);
     }
+}
+
+void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
+    std::vector<DnnlMemoryDescPtr> intDescs;
+    for (auto &it : internalBlobDesc)
+        intDescs.push_back(it(itpd, 0));
+
+    Node::prepareMemory(intDescs);
 }
 
 bool Node::isInPlace() {
@@ -875,8 +884,9 @@ const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
             impl_desc_type::jit_avx512_amx_dw,
             impl_desc_type::jit_avx512_amx_1x1,
             impl_desc_type::jit_avx512_amx,
-            impl_desc_type::brgconv_avx512_1x1,
-            impl_desc_type::brgconv_avx512,
+            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+            // impl_desc_type::brgconv_avx512_1x1,
+            // impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,

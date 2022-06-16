@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,10 +14,10 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from ..conftest import read_image
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -51,7 +52,7 @@ def test_subprocess():
     assert not status.returncode
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -63,7 +64,7 @@ def test_subprocess():
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool)
+    (ov.Type.boolean, np.bool),
 ])
 def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
@@ -81,7 +82,7 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     assert np.all(ov_tensor.data.shape == shape for ov_tensor in ov_tensors)
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -93,10 +94,10 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool)
+    (ov.Type.boolean, np.bool),
 ])
 def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
-    arr = read_image().astype(numpy_dtype)
+    arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
     arr = np.ascontiguousarray(arr)
     ov_tensor = Tensor(array=arr, shared_memory=True)
@@ -118,7 +119,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     assert tuple(ov_tensor.get_strides()) == arr.strides
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -130,10 +131,10 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool)
+    (ov.Type.boolean, np.bool),
 ])
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
-    arr = read_image().astype(numpy_dtype)
+    arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
     ov_tensor = Tensor(array=arr, shared_memory=False)
     assert tuple(ov_tensor.shape) == shape
@@ -148,7 +149,7 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 
 def test_init_with_numpy_fail():
-    arr = np.asfortranarray(read_image())
+    arr = np.asfortranarray(generate_image())
     with pytest.raises(RuntimeError) as e:
         _ = Tensor(array=arr, shared_memory=True)
     assert "Tensor with shared memory must be C contiguous" in str(e.value)
@@ -164,7 +165,7 @@ def test_init_with_roi_tensor():
     assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -186,7 +187,7 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, ones_arr)
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (ov.Type.f32, np.float32),
     (ov.Type.f64, np.float64),
     (ov.Type.f16, np.float16),
@@ -322,7 +323,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     ([1, 3, 28, 28]),
     ([1, 3, 27, 27]),
 ])
-@pytest.mark.parametrize("low, high, ov_type, dtype", [
+@pytest.mark.parametrize(("low", "high", "ov_type", "dtype"), [
     (0, 2, ov.Type.u1, np.uint8),
     (0, 16, ov.Type.u4, np.uint8),
     (-8, 7, ov.Type.i4, np.int8),
@@ -358,19 +359,16 @@ def test_packing(shape, low, high, ov_type, dtype):
     (ov.Type.u32),
     (ov.Type.i64),
     (ov.Type.u64),
-    # (ov.Type.f16),
-    # (ov.Type.f32),
-    # (ov.Type.f64),
 ])
 def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
     fit = (dtype().nbytes * 8) / element_type.bitwidth
-    t = Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
-    assert np.array_equal(t.data, buffer.view(ov.utils.types.get_dtype(element_type)))
+    tensor = Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
+    assert np.array_equal(tensor.data, buffer.view(ov.utils.types.get_dtype(element_type)))
 
 
 def test_viewed_tensor_default_type():
     buffer = np.random.normal(size=(2, 16))
     new_shape = (4, 8)
-    t = Tensor(buffer, new_shape)
-    assert np.array_equal(t.data, buffer.reshape(new_shape))
+    tensor = Tensor(buffer, new_shape)
+    assert np.array_equal(tensor.data, buffer.reshape(new_shape))

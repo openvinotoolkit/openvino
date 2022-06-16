@@ -743,6 +743,7 @@ ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
         last_node->set_friendly_name(einsum_node->get_friendly_name());
         ngraph::copy_runtime_info(einsum_node, subgraph_nodes);
         ngraph::replace_node(einsum_node, last_node);
+        MATCHER_SCOPE_ENABLE(EinsumDecomposition);
         return true;
     };
 
