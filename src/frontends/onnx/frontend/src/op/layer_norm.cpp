@@ -50,7 +50,7 @@ OutputVector layer_norm(const Node& node) {
     // multiply by gamma
     result = std::make_shared<default_opset::Multiply>(result, nodes[1]);
     // add beta if available
-    if (num_nodes > 2) {
+    if (num_nodes >2) {
         result = std::make_shared<default_opset::Add>(result, nodes[2]);
     }
     // spec mentions three outputs (output, mean, inv_std_var) while we support only first one, but:
