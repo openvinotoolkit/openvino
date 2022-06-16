@@ -1,7 +1,7 @@
 # OpenVINO™ Runtime
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
-
+<!--updated-->
 If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](../OV_Runtime_UG/openvino_intro.md) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
@@ -25,10 +25,18 @@ Before you start the installation, check the supported operating systems and req
 
 Use a virtual environment to avoid dependency conflicts. 
 
-To create a virtual environment, use the following command:
+To create a virtual environment, use the following commands:
+
+On Windows:
 ```sh
 python -m pip install --user virtualenv 
 python -m venv openvino_env
+```
+
+On Linux and macOS:
+```sh
+python3 -m pip install --user virtualenv 
+python3 -m venv openvino_env
 ```
 
 > **NOTE**: On Linux and macOS, you may need to type `python3` instead of
@@ -71,7 +79,7 @@ If installation was successful, you will not see any error messages (no console 
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages.
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. <!--updated-->
 
 ### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
