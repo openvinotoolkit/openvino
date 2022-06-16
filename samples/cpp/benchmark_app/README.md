@@ -1,66 +1,107 @@
 # Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
-This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
-Performance can be measured for two inference modes: latency- and throughput-oriented.
+This page demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. The tool is automatically installed with the OpenVINO Toolkit when   Performance can be measured for two inference modes: latency-oriented or throughput-oriented.
 
-> **NOTE**: This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
+> **NOTE**: This page describes usage of the C++ implementation of the Benchmark Tool. For the Python implementation, refer to the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have the same command interface and a similar backend.
+		
+
+## Basic Usage
+To use the C++ benchmark_app, you first must build it following the [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications) instructions and then set up paths and environment variables by following the [Get Ready for Running the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md#get-ready-for-running-the-sample-applications) instructions. Navigate to the directory where the benchmark_app C++ sample binary was built.
+
+> **NOTE**: If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) is available, and you should follow the usage instructions on that page instead.
+
+The benchmarking application works with OpenVINO models in IR format. You can use it with your own models or pre-trained [public](@ref omz_models_group_public) or [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which can be downloaded using the [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is converted to OpenVINO format (`model.xml` and `model.bin`) using the [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) tool. The application also works with models in ONNX format (`model.onnx`).
+
+To run benchmarking with default options on a model, use the following command. 
+
+```
+benchmark_app -m model.xml
+```
+
+By default, the application will load the specified model onto the CPU and perform inferencing on batches of randomly-generated data inputs for 60 seconds. As it loads, it prints information about benchmark parameters. When benchmarking is completed, it reports the minimum, average, and maximum inferencing latency and average the throughput.
+
+You may be able to improve benchmark results beyond the default configuration by configuring some of the execution parameters for your model. For example, you can use "throughput" or "latency" performance hints to optimize the runtime for higher FPS or reduced inferencing time. Read on to learn more about the configuration options available with benchmark_app.
+
+## Configuration Options
+The benchmark app provides various options for configuring execution parameters. This section covers key configuration options for easily tuning benchmarking to achieve better performance on your device. A list of all configuration options is given in the [Advanced Usage](#advanced-usage) section.
+
+### Performance hints: latency and throughput
+The benchmark app allows users to provide high-level "performance hints" for setting latency-focused or throughput-focused inference modes. This hint causes the runtime to automatically adjust runtime parameters, such as number of processing streams and inference batch size, to prioritize for reduced latency or high throughput.
+
+The performance hints do not require any device-specific settings and they are completely portable between devices. Parameters are automatically configured based on whichver deviced is being used. This allows users to easily port applications between hardware targets without having to re-determine the best runtime parameters for the new device.
+
+The performance hint is set by using `-hint latency` or `-hint throughput` when running benchmark_app:
+
+```
+benchmark_app -m model.xml -hint latency
+benchmark_app -m model.xml -hint throughput
+```
+
+#### Latency
+Latency is the amount of time it takes to process a single inference request. In applications where data needs to be inferenced and acted on as quickly as possible (such as autonomous driving), low latency is desirable. For conventional devices, lower latency is achieved by reducing the amount of parallel processing streams so the system can utilize as many resources as possible to quickly calculate each inference request. However, advanced devices like multi-socket CPUs and modern GPUs are capable of running multiple inference requests while delivering the same latency.
+
+When benchmark_app is run with `-hint latency`, it determines the optimal number of parallel inference requests for minimizing latency while still maximizing the parallelization capabilities of the hardware. It automatically sets the number of processing streams and inference batch size to achieve the best latency.
+
+#### Throughput
+Throughput is the amount of data an inferencing pipeline can process at once, and it is usually measured in frames per second (FPS) or inferences per second. In applications where large amounts of data needs to be inferenced simultaneously (such as multi-camera video streams), high throughput is needed. To achieve high throughput, the runtime focuses on fully saturating the device with enough data to process. It utilizes as much memory and as many parallel streams as possible to maximize the amount of data that can be processed simultaneously.
+
+When benchmark_app is run with `-hint throughput`, it automatically sets the inference batch size to fill up all the memory available. It also maximizes the number of parallel inference requests to utilize all the threads available on the device.
+
+For more information on performance hints, see the [High-level Performance Hints](../../../docs/OV_Runtime_UG/performance_hints.md) page.
 
 
-## How It Works
+### Device
+To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "MYRIAD" (also known as [VPU](../../../docs/OV_Runtime_UG/supported_plugins/VPU.md)) devices. In order to use the GPU or VPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
 
-Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
+For example, to run benchmarking on GPU, use:
 
-  **NOTE**: By default, OpenVINO™ Toolkit Samples, Tools and Demos expect input with BGR channels order.
-  If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
-  or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
-  For more information about the argument, refer to **When to Reverse Input Channels** section of
-  [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
+```
+benchmark_app -m model.xml -d GPU
+```
 
-Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
-or left default. In the last case, the sample logic will select the values for the optimal throughput.
-While experimenting with individual parameters allows to find the performance sweet spot, usually, the parameters are not very performance-portable,
-so the values from one machine or device are not necessarily optimal for another.
-From this perspective, the most portable way is experimenting only with the performance hints. To learn more, refer to the section on the command-line parameters below.
+You may also specify "AUTO" as the device, and benchmark_app will automatically select the best device to run benchmarking on. For more information, see the [Automatic device selection](../../../docs/OV_Runtime_UG/auto_device_selection.md) page.
 
-A number of execution steps is defined by one of the following parameters:
-* Number of iterations specified with the `-niter` command-line argument
-* Time duration specified with the `-t` command-line argument
-* Both of them (execution will continue until both conditions are met)
-* Predefined duration if `-niter` and `-t` are not specified. Predefined duration value depends on a device.
+(Note: If the latency or throughput hint is set, it will automatically configure streams and batch sizes for optimal performance based on the specified device.)
 
-During the execution, the application calculates latency (if applicable) and overall throughput:
-* By default, the median latency value is reported
-* Throughput is calculated as overall_inference_time/number_of_processed_requests. Note that the throughput value also depends on batch size.
+### Number of iterations
+By default, the benchmarking app will run for a predefined duration, repeatedly performing inferencing with the model and measuring the resulting inference speed. There are several options for setting the number of inference iterations:
 
-The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
-enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
+* Explicitly specify the number of iterations the model runs using the `-niter <number_of_iterations>` option
+* Set how much time the app runs for using the `-t <seconds>` option
+* Set both of them (execution will continue until both conditions are met)
+* If neither -niter nor -t are specified, the app will run for a predefined duration that depends on the device
+
+The more iterations a model runs, the better the statistics will be for determing average latency and throughput.
+
+### Inputs
+The benchmark tool runs benchmarking on user-provided input data (images or binary files). Use `-i <PATH_TO_INPUT>` to specify the path to an image, binary file, folder of images, or folder of binary files. For example, to run benchmarking on an image named `test1.jpg`, use:
+
+```
+benchmark_app -m model.xml -i test1.jpg
+```
+
+The tool will repeatedly loop through the provided inputs and run inferencing on them for the specified amount of time or number of iterations. If the `-i` flag is not used, the tool will automatically generate random data to fit the input shape of the model. 
+
+### Examples
+For more usage examples (and step-by-step instructions on how to set up a model for benchmarking), see the [Examples of Running the Tool](#examples-of-running-the-tool) section.
+
+## Advanced Usage
+
+> **NOTE**: By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with --reverse_input_channels argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
+
+### Per-layer performance and logging
+The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
+
 * `no_counters` report includes configuration options specified, resulting FPS and latency.
 * `average_counters` report extends the `no_counters` report and additionally includes average PM counters values for each layer from the network.
 * `detailed_counters` report extends the `average_counters` report and additionally includes per-layer PM counters and latency for each executed infer request.
 
-Depending on the type, the report is stored to `benchmark_no_counters_report.csv`, `benchmark_average_counters_report.csv`,
-or `benchmark_detailed_counters_report.csv` file located in the path specified in `-report_folder`.
+Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
-The application also saves executable graph information serialized to an XML file if you specify a path to it with the
-`-exec_graph_path` parameter.
+### All configuration options
 
+Running the application with the -h option yields the following usage message:
 
-## Run the Tool
-
-Note that the benchmark_app usually produces optimal performance for any device out of the box.
-
-**So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
-```sh
-./benchmark_app -m <model> -i <input> -d CPU
-```
-
-But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
-
-As explained in the  [Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md) section, for all devices, including new [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md) it is preferable to use the FP16 IR for the model.
-Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-[Performance Optimization Guide](../../../docs/optimization_guide/dldt_optimization_guide.md).
-
-Running the application with the `-h` option yields the following usage message:
 ```
 ./benchmark_app -h
 
@@ -143,22 +184,13 @@ Example: -imean data[255,255,255],info[255,255,255]
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-Application supports topologies with one or more inputs. If a topology is not data-sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
-If a model has only image input(s), please provide a folder with images or a path to an image as input.
-If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
-If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
-
-To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the OpenVINO IR (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+### More information on inputs
+The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
-
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices.  The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
 
-> **NOTE**: The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+> **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
 
 1. Install OpenVINO Development Tools to work with Caffe* models:
 
@@ -171,21 +203,22 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    omz_downloader --name googlenet-v1 -o <models_dir>
    ```
+
 3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
 
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 
-4. Run the tool with specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
+4. Run the tool specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model, and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the throughput mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp  -d CPU -api async -progress
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp  -d CPU -hint throughput -progress
    ```
    * On GPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp -d GPU -api async -progress
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp -d GPU -hint throughput -progress
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
