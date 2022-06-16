@@ -10,6 +10,7 @@
 #    include <tbb/task_scheduler_init.h>
 #endif
 
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
