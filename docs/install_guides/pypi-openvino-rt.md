@@ -25,13 +25,21 @@ Before you start the installation, check the supported operating systems and req
 
 Use a virtual environment to avoid dependency conflicts. 
 
-To create a virtual environment, use the following command:
+To create a virtual environment, use the following commands:
+
+On Windows:
 ```sh
 python -m pip install --user virtualenv 
 python -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
+On Linux and macOS:
+```sh
+python3 -m pip install --user virtualenv 
+python3 -m venv openvino_env
+```
+
+> **NOTE**: On Linux and macOS, you may need to use `python3` instead of
 `python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
