@@ -30,9 +30,7 @@ To create a virtual environment, use the following commands:
 
 On Windows:
 ```sh
-python -m pip install --user virtualenv 
 python -m venv openvino_env
-```
 
 On Linux and macOS:
 ```sh
