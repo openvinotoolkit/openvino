@@ -20,11 +20,15 @@ namespace op {
 namespace set_1 {
 OutputVector fusedgemm(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
+    auto num_inputs = inputs.size();
+    NGRAPH_CHECK(num_inputs == 2 || num_inputs == 3,
+                 "FusedGemm takes 2/3 inputs. Provided " + std::to_string(num_inputs));
+
     Output<ngraph::Node> input_a = inputs.at(0);
     Output<ngraph::Node> input_b = inputs.at(1);
     Output<ngraph::Node> input_c;
 
-    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
+    if (num_inputs == 3 && !ngraph::op::is_null(inputs[2])) {
         input_c = inputs.at(2);
     } else {
         input_c = default_opset::Constant::create(input_b.get_element_type(), ngraph::Shape{}, {0});
