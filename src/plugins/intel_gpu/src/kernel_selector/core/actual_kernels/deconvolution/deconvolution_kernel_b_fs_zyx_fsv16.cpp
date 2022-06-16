@@ -126,6 +126,10 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
     const auto& params = static_cast<const deconvolution_params&>(p);
     const auto feature_block_size = 16;
 
+    // Check whether feature size of input is aligned with 16 or not
+    if (params.inputs[0].Feature().v % feature_block_size != 0)
+        return false;
+
     // Check that padding features doesn't miss-align the blocks
     if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
