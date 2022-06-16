@@ -171,7 +171,7 @@ To check what devices are present in the system, you can use Device API, as list
 
 @endsphinxdirective
 
-#### Excluding CPU from AUTO
+#### Excluding HW devices from AUTO device candidate-list
 
 You can also exclude CPU from AUTO to reserve it for other jobs. AUTO will not use it for inference then. To do that, add a minus sign (-) before CPU in `AUTO: <device names>`, as in the following code:
 
