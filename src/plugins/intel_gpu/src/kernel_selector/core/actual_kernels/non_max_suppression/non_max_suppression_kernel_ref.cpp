@@ -50,6 +50,10 @@ inline std::string GetToInputTypeStr(uint32_t idx) {
     return "TO_" + GetInputTypeStr(idx);
 }
 
+inline std::string GetToInputIndexStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_GET_INDEX";
+}
+
 JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppression_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -109,6 +113,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     if (params.has_second_output) {
         jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexSecondOutput())));
         jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexSecondOutput())));
+        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexSecondOutput())));
     }
 
     if (params.has_third_output) {

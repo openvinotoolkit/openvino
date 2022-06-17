@@ -60,7 +60,10 @@ typedef struct {
 
 inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE *boxes, const short batch, const ushort boxId)
 {
-    COORD_TYPE_4 coords = TO_COORD_TYPE_4(vload4(0, &boxes[INPUT0_GET_INDEX(batch, boxId, 0, 0)]));
+    COORD_TYPE_4 coords = (COORD_TYPE_4)(boxes[INPUT0_GET_INDEX(batch, boxId, 0, 0)],
+                                       boxes[INPUT0_GET_INDEX(batch, boxId, 1, 0)],
+                                       boxes[INPUT0_GET_INDEX(batch, boxId, 2, 0)],
+                                       boxes[INPUT0_GET_INDEX(batch, boxId, 3, 0)]);
 
 #if BOX_ENCODING == 0
     const COORD_TYPE ax1 = min(coords[1], coords[3]);
@@ -226,10 +229,9 @@ inline int FUNC(initBoxList)(__global SBOX_INFO *outBoxes, int boxNum, const __g
 inline void FUNC(initOutputBoxList)(__global BOX_INFO *outBoxes, int boxNum, const __global INPUT1_TYPE *scores, __global OUTPUT_TYPE *output)
 {
     for (int i = 0; i < boxNum; ++i) {
-        const int outputId = i * 3;
-        outBoxes[i].batchId = output[outputId + 0];
-        outBoxes[i].classId = output[outputId + 1];
-        outBoxes[i].boxId = output[outputId + 2];
+        outBoxes[i].batchId = output[OUTPUT_GET_INDEX(i, 0, 0, 0)];
+        outBoxes[i].classId = output[OUTPUT_GET_INDEX(i, 1, 0, 0)];
+        outBoxes[i].boxId = output[OUTPUT_GET_INDEX(i, 2, 0, 0)];
         outBoxes[i].score = scores[INPUT1_GET_INDEX(outBoxes[i].batchId, outBoxes[i].classId, outBoxes[i].boxId, 0)];
     }
 }
@@ -284,19 +286,16 @@ KERNEL (non_max_suppression_ref_stage_0)(
     __local int block_num[NUM_SCORE_BLOCK];
 
     block_num[box_gid] = 0;
-
     {
         int mask_id = start_bid / 8;
         int total_block_selected_num = 0;
         for (int i = start_bid; i < end_bid; i += 8) {
-            MAKE_VECTOR_TYPE(INPUT1_TYPE, 8) score8 = vload8(0, &scores[INPUT1_GET_INDEX(batchId, classId, i, 0)]);
-
             char mask = 0;
             for (int bi = 0; bi < 8; bi++) {
                 if ((i + bi) >= NUM_BOXES)
                     break;
 
-                if (convert_float(score8[bi]) <= SCORE_THRESHOLD_VAL)
+                if (convert_float(scores[INPUT1_GET_INDEX(batchId, classId, i, bi)]) <= SCORE_THRESHOLD_VAL)
                     continue;
 
                 mask |= (1 << bi);
@@ -334,15 +333,13 @@ KERNEL (non_max_suppression_ref_stage_0)(
 
         int mask_id = start_bid / 8;
         for (int i = start_bid; i < end_bid; i += 8) {
-            MAKE_VECTOR_TYPE(INPUT1_TYPE, 8) score8 = vload8(0, &scores[INPUT1_GET_INDEX(batchId, classId, i, 0)]);
             const char mask = bit_mask[mask_id];
-
             for (int bi = 0; bi < 8; bi++) {
                 if ((mask & (1 << bi)) && (i + bi) < NUM_BOXES) {
                     SBOX_INFO binfo;
                     binfo.boxId = i + bi;
                     binfo.suppress_begin_index = 0;
-                    binfo.score = score8[bi];
+                    binfo.score = scores[INPUT1_GET_INDEX(batchId, classId, i, bi)];
                     sortedBoxList[write_offset] = binfo;
 
                     write_offset++;
@@ -530,34 +527,30 @@ KERNEL (non_max_suppression_ref_stage_3)(
 #endif
 
     unroll_for (int i = 0; i < outputIdx; i++) {
-        const int offset = 3 * i;
-        output[offset + 0] = sortedBoxList[i].batchId;
-        output[offset + 1] = sortedBoxList[i].classId;
-        output[offset + 2] = sortedBoxList[i].boxId;
+        output[OUTPUT_GET_INDEX(i, 0, 0, 0)] = sortedBoxList[i].batchId;
+        output[OUTPUT_GET_INDEX(i, 1, 0, 0)] = sortedBoxList[i].classId;
+        output[OUTPUT_GET_INDEX(i, 2, 0, 0)] = sortedBoxList[i].boxId;
     }
 
     // Padding
     unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
-        const int offset = 3 * i;
-        output[offset + 0] = -1;
-        output[offset + 1] = -1;
-        output[offset + 2] = -1;
+        output[OUTPUT_GET_INDEX(i, 0, 0, 0)] = -1;
+        output[OUTPUT_GET_INDEX(i, 1, 0, 0)] = -1;
+        output[OUTPUT_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 
 #ifdef SECOND_OUTPUT_TYPE
     unroll_for (int i = 0; i < outputIdx; i++) {
-        const int offset = 3 * i;
-        selected_scores[offset + 0] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].batchId);
-        selected_scores[offset + 1] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].classId);
-        selected_scores[offset + 2] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].score);
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 0, 0, 0)] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].batchId);
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 1, 0, 0)] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].classId);
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 2, 0, 0)] = TO_SECOND_OUTPUT_TYPE(sortedBoxList[i].score);
     }
 
     // Padding
     unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
-        const int offset = 3 * i;
-        selected_scores[offset + 0] = -1;
-        selected_scores[offset + 1] = -1;
-        selected_scores[offset + 2] = -1;
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 0, 0, 0)] = -1;
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 1, 0, 0)] = -1;
+        selected_scores[SECOND_OUTPUT_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 #endif
 

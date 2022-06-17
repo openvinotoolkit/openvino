@@ -11,7 +11,6 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
-#include <utility>
 #include <tuple>
 
 namespace cldnn {
@@ -53,7 +52,7 @@ std::vector<result_indices> run_nms(
 
     auto coeff = [&](float iou) {
         const float weight = std::exp(scale * iou * iou);
-        return iou <= iou_threshold || soft_nms? weight : 0.0f;
+        return (iou <= iou_threshold || soft_nms) ? weight : 0.0f;
     };
     std::vector<result_indices> result;
 
@@ -101,13 +100,12 @@ std::vector<result_indices> run_nms(
     }
 
     if (sort_result_descending) {
-        std::sort(result.begin(), result.end(),
-                [](const result_indices& l, const result_indices& r) {
-                    return (l.score > r.score) ||
-                           (l.score == r.score && l.batch_index < r.batch_index) ||
-                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                           (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
-                });
+        std::sort(result.begin(), result.end(), [](const result_indices& l, const result_indices& r) {
+            return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
+                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
+                   (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index &&
+                    l.box_index < r.box_index);
+        });
     }
     return result;
 }
@@ -128,12 +126,11 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
         for (int bxi = 0; bxi < boxes_num; ++bxi) {
             int offset = bi * boxes_num * 4 + bxi * 4;
             if (center_point) {
-                result[bi].emplace_back(
-                    static_cast<float>(ptr[offset + 0]),
-                    static_cast<float>(ptr[offset + 1]),
-                    static_cast<float>(ptr[offset + 2]),
-                    static_cast<float>(ptr[offset + 3]),
-                    bounding_box::center_point_construct_tag());
+                result[bi].emplace_back(static_cast<float>(ptr[offset + 0]),
+                                        static_cast<float>(ptr[offset + 1]),
+                                        static_cast<float>(ptr[offset + 2]),
+                                        static_cast<float>(ptr[offset + 3]),
+                                        bounding_box::center_point_construct_tag());
             } else {
                 result[bi].emplace_back(
                     static_cast<float>(ptr[offset + 1]),

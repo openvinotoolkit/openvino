@@ -3,13 +3,12 @@
 //
 
 #include "data_inst.h"
+#include "kernel_selector_helper.h"
+#include "non_max_suppression/non_max_suppression_kernel_ref.h"
+#include "non_max_suppression/non_max_suppression_kernel_selector.h"
 #include "non_max_suppression_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "non_max_suppression/non_max_suppression_kernel_selector.h"
-#include "non_max_suppression/non_max_suppression_kernel_ref.h"
-
 
 namespace cldnn {
 namespace ocl {
@@ -44,7 +43,7 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        args.outputs = { instance.output_memory_ptr() };
+        args.outputs = {instance.output_memory_ptr()};
         if (instance.has_second_output())
             args.inputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
@@ -177,12 +176,14 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 
                                                      std::make_tuple(data_types::f16, format::bfyx),
                                                      std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
                                                      std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
                                                      std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
                                                      std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
 
                                                      std::make_tuple(data_types::f32, format::bfyx),
                                                      std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
                                                      std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
                                                      std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
                                                      std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
