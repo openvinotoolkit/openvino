@@ -48,7 +48,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
    - If you don't see the information above, your PATH variables may be configured incorrectly. Check if you have typed the correct <INSTALL_DIR> or check if you are trying to activate in the correct directory.
    - If you added it to a `.bashrc` file, make sure that the command is correctly written and the file is found in the `~/.bashrc` folder.
 
-## Verify if OpenVINO is correctly installed
+## Verify that OpenVINO is correctly installed
 
 * For Python developers, to verify if OpenVINO is correctly installed, use the following command:
    ```sh
