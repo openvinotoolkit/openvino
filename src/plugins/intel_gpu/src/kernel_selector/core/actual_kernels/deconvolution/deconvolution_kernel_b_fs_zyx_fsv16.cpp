@@ -127,9 +127,10 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
     const auto feature_block_size = 16;
 
 #ifdef _WIN32
-    // Check whether feature size of input is aligned with 16 or not.
-    // NaN value in non-valid area from input makes an issue when Windows os. This is WA to avoid.
-    if (params.inputs[0].Feature().v % feature_block_size != 0)
+    // NaN value in non-valid area from input makes an issue when Windows OS. This is WA to avoid the issue.
+    // The issue happens when input feature size = 8.
+    // TO-DO: Make the kernel handling this input case
+    if (params.inputs[0].Feature().v == 8)
         return false;
 #endif
 
