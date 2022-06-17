@@ -6,6 +6,7 @@
 
 #include <sys/stat.h>
 
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -430,6 +431,7 @@ public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         executorManagerPtr = executorManager();
         frontEndManagerPtr = ov::frontend::get_frontend_manager();
+        std::cout << "CoreImpl() - _newAPI = " << _newAPI << std::endl;
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -440,7 +442,9 @@ public:
         opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() override = default;
+    ~CoreImpl() {
+        std::cout << "~CoreImpl() - " << std::endl;
+    }
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
