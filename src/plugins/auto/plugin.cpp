@@ -224,7 +224,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
             return { it->second };
         }
     } else {
-        IE_THROW() << "Unsupported config key: " << name;
+        IE_THROW() << "2-Unsupported config key: " << name;
     }
 }
 
@@ -832,7 +832,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             continue;
         } else if (supported_configKeys.end() ==
                    std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
-            IE_THROW() << "Unsupported config key: " << kvp.first;
+            IE_THROW() << "1-Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;
         }
