@@ -832,7 +832,10 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             continue;
         } else if (supported_configKeys.end() ==
                    std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
-            IE_THROW() << "1-Unsupported config key: " << kvp.first;
+            for (auto device : devicesList) {
+                std::cout << "\tDevice List: " << device << std::endl;
+            }
+            IE_THROW() << "1-Unsupported config key: " << kvp.first << "\tDevice List: \n";
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;
         }
