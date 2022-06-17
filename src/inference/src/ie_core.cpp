@@ -121,11 +121,6 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    if (device.find("AUTO") != std::string::npos || device.find("MULTI:") != std::string::npos ||
-        device.find("HETERO:") != std::string::npos) {
-        // keep the secondary priorities if virtual device contains any HW device
-        return result;
-    }
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
         if (!item->second.is<ov::AnyMap>()) {
@@ -135,6 +130,9 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
         if (device.find(parsed._deviceName) != std::string::npos) {
             // 1. flatten the scondary property for target device
             for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+                // 1.1 1st level property overides 2nd level property
+                if (result.find(sub_property.first) != result.end())
+                    continue;
                 result[sub_property.first] = sub_property.second;
             }
             item = result.erase(item);

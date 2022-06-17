@@ -128,6 +128,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::device::properties("AUTO",
                             ov::enable_profiling(false),
+                            ov::device::priorities(CommonTestUtils::DEVICE_GPU),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("CPU",
                             ov::enable_profiling(true),

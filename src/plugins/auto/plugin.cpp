@@ -77,6 +77,8 @@ namespace {
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
+std::set<std::string> MultiDeviceInferencePlugin::_availableDevices =
+    std::set<std::string>{"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO"};
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
@@ -224,7 +226,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
             return { it->second };
         }
     } else {
-        IE_THROW() << "2-Unsupported config key: " << name;
+        IE_THROW() << "Unsupported config key: " << name;
     }
 }
 
@@ -331,9 +333,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
-        auto deviceList = GetCore()->GetAvailableDevices();
         // keep the secondary priorities when the config key is one of the available hardware devices
-        CheckConfig(fullConfig, autoSContext, filterConfig, deviceList);
+        CheckConfig(fullConfig, autoSContext, filterConfig);
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
@@ -755,8 +756,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
                                              AutoScheduleContext::Ptr& context,
-                                             std::map<std::string, std::string>& filterConfig,
-                                             const std::vector<std::string>& devicesList) {
+                                             std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
@@ -826,16 +826,13 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
                 context->_performanceHint = kvp.second;
             }
-        } else if (std::find(devicesList.begin(), devicesList.end(), kvp.first) != devicesList.end() ||
-                   kvp.first == "HETERO" || kvp.first == "MULTI" || kvp.first == "AUTO") {
+        } else if (_availableDevices.end() !=
+                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
             // keep secondary prperties for HW or virtual device
             continue;
         } else if (supported_configKeys.end() ==
                    std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
-            for (auto device : devicesList) {
-                std::cout << "\tDevice List: " << device << std::endl;
-            }
-            IE_THROW() << "1-Unsupported config key: " << kvp.first << "\tDevice List: \n";
+            IE_THROW() << "Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;
         }
