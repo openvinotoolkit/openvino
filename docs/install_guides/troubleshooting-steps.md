@@ -20,7 +20,7 @@ To check your Python version, run `python -VV` or `python --version`. The suppo
 If your Python version does not meet the requirements, update Python:
 
 * For Windows, **do not install Python from a Windows Store** as it can cause issues. You are highly recommended to install Python from <https://www.python.org/>.
-* For Linux and macOS systems, download and install a proper Python version from <https://www.python.org/>. See the [Python Beginners' Guide](https://wiki.python.org/moin/BeginnersGuide/Download) for more information on  version selection. Note that macOS 10.x comes with python 2.7 installed, which is not supported, so you still need install Python from its official website.
+* For Linux and macOS systems, download and install a proper Python version from <https://www.python.org/>. See the [Python Beginners' Guide](https://wiki.python.org/moin/BeginnersGuide/Download) for more information selecting a version. Note that macOS 10.x comes with python 2.7 installed, which is not supported, so you must install Python from the official website.
 
 For PIP, make sure that you have installed the latest version. To check and upgrade your PIP version, run the following command:
 ```sh
