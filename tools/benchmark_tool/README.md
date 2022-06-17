@@ -97,7 +97,7 @@ The application also collects per-layer Performance Measurement (PM) counters fo
 Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
 ### All configuration options
-Running the application with the -h option yields the following usage message:
+Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
 benchmark_app -h
