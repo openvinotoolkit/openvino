@@ -513,14 +513,17 @@ ov.Model.print = print_model
 ov.Model.visualize = visualize_model
 
 def fill_tensors_with_random(input, shape):
-    dtype = get_dtype(input.get_element_type())
+    if input.get_element_type() == ov.Type.bf16:
+        dtype = np.float32
+    else:
+        dtype = get_dtype(input.get_element_type())
     rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     a = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
-    return ov.Tensor(a)
+    return ov.Tensor(a, ov.Shape(a.shape), input.get_element_type())
 
 def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_limit=60):
     infer_queue = ov.AsyncInferQueue(compiled_model, num_request)
