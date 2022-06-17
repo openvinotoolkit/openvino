@@ -15,7 +15,7 @@ If you run into issues while installing or configuring OpenVINO™, you can try 
 
 ## Check the versions of Python and PIP
 
-To check your Python version, run `python -VV` or `python --version`. The supported Python versions should be 64-bit and between 3.7 and 3.9. Note that Python 3.6 is not supported anymore. <!--check with Ryan-->
+To check your Python version, run `python -VV` or `python --version`. The supported Python versions should be 64-bit and between 3.7 and 3.9. Starting in 2022.2, Python 3.6 is no longer recommended. Please upgrade.
 
 If your Python version does not meet the requirements, update Python:
 
