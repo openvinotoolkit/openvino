@@ -104,7 +104,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
             auto& input_node = node.input();
-            if (input_node.get_users().size() > 1 || node.get_users().size() > 1 || node.is_endpoint())
+            if (input_node.get_users().size() > 1 || node.get_users().size() > 1 || node.is_endpoint() || input_node.is_input())
                 return;
             auto input_lay = input_node.get_output_layout();
             auto output_lay = node.get_output_layout();
