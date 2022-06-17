@@ -64,7 +64,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 ## Check if GPU drvier is installed
 
-[Additional configurations](configurations-header.md) are required in order to use OpenVINO on different hardware.
+[Additional configurations](configurations-header.md) may be required in order to use OpenVINO with different hardware like Intel GPUs.
 
 To run inference on GPU, make sure that you have installed the correct GPU driver. To check that, see [additional configurations for GPU](configurations-for-intel-gpu.md).
 
