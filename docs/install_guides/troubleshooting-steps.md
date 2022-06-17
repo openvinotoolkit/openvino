@@ -68,7 +68,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 To run inference on an Intel GPU, make sure that you have installed the correct GPU driver. To check that, see [additional configurations for GPU](configurations-for-intel-gpu.md).
 
-## Check firewall/network settings
+## Check firewall and network settings
 
 Make sure that your firewall and network settings are set correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: 
 
