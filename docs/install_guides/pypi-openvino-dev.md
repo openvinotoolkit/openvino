@@ -123,7 +123,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. <!--updated-->
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. 
 
 ### zsh: no matches found : openvino-dev[...]
 
