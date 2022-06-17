@@ -99,7 +99,7 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
 }
 
 void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
-    _pluginName = sContext->_pluginName;
+    _LogTag = sContext->_LogTag;
     LOG_INFO_TAG("ExecutableNetwork start");
     // initialize cpuHelpReleasetime
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
@@ -161,7 +161,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         }
 
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
-        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = InferenceEngine::PluginConfigParams::THROUGHPUT;
+        _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+            InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERF_COUNT)] =
             _autoSContext->_needPerfCounters ? InferenceEngine::PluginConfigParams::YES
                                              : InferenceEngine::PluginConfigParams::NO;

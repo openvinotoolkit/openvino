@@ -74,6 +74,7 @@ private:
     std::string GetLogTag() const noexcept;
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
+    std::string _LogTag;
 };
 
 }  // namespace MultiDevicePlugin

@@ -44,6 +44,6 @@ void ExecutableNetwork::SetExeNetworkForContext() {
 }
 
 std::string ExecutableNetwork::GetLogTag() const noexcept {
-    return _sContext->_pluginName + "PLUGIN";
+    return _sContext->_LogTag;
 }
 }  // namespace MultiDevicePlugin

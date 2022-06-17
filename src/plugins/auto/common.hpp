@@ -108,7 +108,7 @@ public:
     using Ptr = std::shared_ptr<ScheduleContext>;
     std::shared_ptr<IE::ICore>  _core;
     std::weak_ptr<IExecNetwork> _executableNetwork;
-    std::string _pluginName;
+    std::string _LogTag;
     virtual ~ScheduleContext() = default;
 };
 

@@ -314,7 +314,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (modelPath.empty() && network.getFunction() == nullptr) {
         IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
-
+    _LogTag = GetName() + "PLUGIN";
     auto fullConfig = mergeConfigs(_config, config);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
@@ -393,13 +393,23 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_strDevices = strDevices;
         autoSContext->_plugin = this;
         autoSContext->_core = GetCore();
-        autoSContext->_pluginName = GetName();
+        autoSContext->_LogTag = _LogTag;
         auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
         if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
             autoSContext->_bindBuffer = true;
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
+    // if is cumulative, PERFORMANCE_HINT set to THROUGHPUT and _LogTag set to AUTO
+    auto configIter =
+        std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
+            return (config.first == CONFIG_KEY(PERFORMANCE_HINT));
+        });
+    if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+        configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
+        _LogTag = "AUTOPLUGIN";
+        LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
+    }
     if (priorities == fullConfig.end()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
@@ -463,7 +473,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_config = multiNetworkConfig;
     multiSContext->_needPerfCounters = enablePerfCounters;
     multiSContext->_core = GetCore();
-    multiSContext->_pluginName = GetName();
+    multiSContext->_LogTag = _LogTag;
     IExecutableNetworkInternal::Ptr impl;
     auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
     if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
@@ -904,6 +914,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     return metaDevices;
 }
 std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
-    return GetName() + "PLUGIN";
+    return _LogTag;
 }
 }  // namespace MultiDevicePlugin

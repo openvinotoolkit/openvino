@@ -16,7 +16,7 @@ thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
-    _pluginName = sContext->_pluginName;
+    _LogTag = sContext->_LogTag;
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
@@ -282,7 +282,7 @@ IInferPtr MultiSchedule::CreateInferRequest() {
                                                execNetwork->_callbackExecutor);
 }
 std::string MultiSchedule::GetLogTag() const noexcept {
-    return _pluginName + "PLUGIN";
+    return _LogTag;
 }
 }  // namespace MultiDevicePlugin
 
