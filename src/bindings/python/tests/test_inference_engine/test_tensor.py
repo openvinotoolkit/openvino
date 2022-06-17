@@ -14,7 +14,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from ..conftest import read_image
+from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -97,7 +97,7 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     (ov.Type.boolean, np.bool),
 ])
 def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
-    arr = read_image().astype(numpy_dtype)
+    arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
     arr = np.ascontiguousarray(arr)
     ov_tensor = Tensor(array=arr, shared_memory=True)
@@ -134,7 +134,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     (ov.Type.boolean, np.bool),
 ])
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
-    arr = read_image().astype(numpy_dtype)
+    arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
     ov_tensor = Tensor(array=arr, shared_memory=False)
     assert tuple(ov_tensor.shape) == shape
@@ -149,7 +149,7 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 
 def test_init_with_numpy_fail():
-    arr = np.asfortranarray(read_image())
+    arr = np.asfortranarray(generate_image())
     with pytest.raises(RuntimeError) as e:
         _ = Tensor(array=arr, shared_memory=True)
     assert "Tensor with shared memory must be C contiguous" in str(e.value)
