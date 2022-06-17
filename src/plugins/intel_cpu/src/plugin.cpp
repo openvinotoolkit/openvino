@@ -21,7 +21,6 @@
 #include <unordered_set>
 #include <ie_system_conf.h>
 #include <ie_ngraph_utils.hpp>
-#include <xmmintrin.h>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -121,6 +120,7 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
+#include "utils/denormals.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -723,12 +723,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
 
-    #if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
-        unsigned int FLUSH_ZERO = 0x8000;
-        unsigned int mxcsr = _mm_getcsr();
-        mxcsr |= FLUSH_ZERO;
-        _mm_setcsr(mxcsr);
-    #endif
+    // [todo] config or set property to control
+    flush_to_zero(true);
+    denormals_as_zero(true);
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
