@@ -104,8 +104,13 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         if (!deviceIDLocal.empty()) {
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
-
-        return GetCore()->GetSupportedConfig(deviceName, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
+        // no performance mode setting for AUTO.
+        if (deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end()) {
+            // no properties specified for target device. setting tput as the default performance mode.
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+        }
+        return deviceConfig;
     };
 
     auto getDefaultDeviceID = [this](std::string deviceName) -> std::string {
@@ -204,16 +209,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             LOG_DEBUG("[AUTOPLUGIN]:deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     deviceNameWithID.c_str(), defaultDeviceID.c_str(), uniqueName.c_str());
             // create meta device
-            auto deviceConfig = getDeviceConfig(deviceNameWithID);
-            // no performance mode setting for AUTO.
-            if (config.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == config.end()) {
-                auto item = config.find(deviceNameWithID);
-                if (item == config.end()) {
-                    // no properties specified for target device. setting tput as the default performance mode.
-                    deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
-                }
-            }
-            metaDevices.push_back({deviceNameWithID, deviceConfig, numRequests, defaultDeviceID, uniqueName, devicePriority});
+            metaDevices.push_back({deviceNameWithID, getDeviceConfig(deviceNameWithID), numRequests, defaultDeviceID, uniqueName, devicePriority});
         }
         if (enableDevicePriority) {
             devicePriority++;
