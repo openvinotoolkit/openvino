@@ -50,17 +50,23 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 ## Verify that OpenVINO is correctly installed
 
+@sphinxdirective
+
 * For Python developers, to verify if OpenVINO is correctly installed, use the following command:
-   ```sh
-   python -c "from openvino.runtime import Core"
-   ```
+
+   .. code-block:: sh
+
+      python -c "from openvino.runtime import Core"
+   
    If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
 
 * If you installed OpenVINO Runtime using the installer, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 
-* If you installed OpenVINO Runtime from APT, use the `apt list --installed | grep openvino` command to list the installed OpenVINO packages.
+* If you installed OpenVINO Runtime from APT, use the ``apt list --installed | grep openvino`` command to list the installed OpenVINO packages.
 
-* If you installed OpenVINO Runtime from YUM, use the **yum list installed 'openvino\*'** command to list the installed OpenVINO packages.
+* If you installed OpenVINO Runtime from YUM, use the ``yum list installed 'openvino*'`` command to list the installed OpenVINO packages.
+
+@endsphinxdirective
 
 ## Check if GPU drvier is installed
 
