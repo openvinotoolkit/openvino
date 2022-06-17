@@ -35,11 +35,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
 void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
             InferenceEngine::RemoteContext::Ptr ctx) {
     if (request_to_share_blobs_with) {
-        // borrow device-friendly blobs from the request
-        for (const auto &it : _networkInputs)
-            _inputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
-        for (const auto &it : _networkOutputs)
-            _outputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
+        // do not need to touch multi memory blobs
         return;
     }
     // Allocate all input blobs
