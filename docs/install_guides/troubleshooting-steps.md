@@ -40,7 +40,7 @@ For C++ developers with Windows systems, make sure that Microsoft Visual Studio 
 
 ## Check if environment variables are set correctly 
 
-- For Python developers, if you installed OpenVINO using the installer previously, and now are installing OpenVINO with PIP, remove all the PATH settings and the lines with `setupvars` from `.bashrc`. Note that if you installed OpenVINO with PIP in a virtual environment, you do not need to set environment variables.
+- For Python developers, if you previously installed OpenVINO using the installer, and are now installing OpenVINO using PIP, please remove all the PATH settings and the lines with `setupvars` from `.bashrc`. Note that if you installed OpenVINO with PIP in a virtual environment, you don't need to set any environment variables.
 - If you have installed OpenVINO before, you probably have added `setupvars` to your `PATH /.bashrc` or Windows environment variables. After restarting your environment, you should see similar information as below: 
 ```sh
 [setupvars.sh] OpenVINO™ environment initialized
