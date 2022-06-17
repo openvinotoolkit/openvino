@@ -15,7 +15,7 @@ The benchmarking application works with OpenVINO models in IR format. You can us
 To run benchmarking with default options on a model, use the following command. 
 
 ```
-benchmark_app -m model.xml
+./benchmark_app -m model.xml
 ```
 
 By default, the application will load the specified model onto the CPU and perform inferencing on batches of randomly-generated data inputs for 60 seconds. As it loads, it prints information about benchmark parameters. When benchmarking is completed, it reports the minimum, average, and maximum inferencing latency and average the throughput.
@@ -33,8 +33,8 @@ The performance hints do not require any device-specific settings and they are c
 The performance hint is set by using `-hint latency` or `-hint throughput` when running benchmark_app:
 
 ```
-benchmark_app -m model.xml -hint latency
-benchmark_app -m model.xml -hint throughput
+./benchmark_app -m model.xml -hint latency
+./benchmark_app -m model.xml -hint throughput
 ```
 
 #### Latency
@@ -56,7 +56,7 @@ To set which device benchmarking runs on, use the `-d <device>` argument. This w
 For example, to run benchmarking on GPU, use:
 
 ```
-benchmark_app -m model.xml -d GPU
+./benchmark_app -m model.xml -d GPU
 ```
 
 You may also specify "AUTO" as the device, and benchmark_app will automatically select the best device to run benchmarking on. For more information, see the [Automatic device selection](../../../docs/OV_Runtime_UG/auto_device_selection.md) page.
@@ -77,7 +77,7 @@ The more iterations a model runs, the better the statistics will be for determin
 The benchmark tool runs benchmarking on user-provided input data (images or binary files). Use `-i <PATH_TO_INPUT>` to specify the path to an image, binary file, folder of images, or folder of binary files. For example, to run benchmarking on an image named `test1.jpg`, use:
 
 ```
-benchmark_app -m model.xml -i test1.jpg
+./benchmark_app -m model.xml -i test1.jpg
 ```
 
 The tool will repeatedly loop through the provided inputs and run inferencing on them for the specified amount of time or number of iterations. If the `-i` flag is not used, the tool will automatically generate random data to fit the input shape of the model. 
