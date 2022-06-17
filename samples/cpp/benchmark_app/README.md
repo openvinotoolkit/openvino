@@ -100,7 +100,7 @@ Depending on the type, the report is stored to benchmark_no_counters_report.csv,
 
 ### All configuration options
 
-Running the application with the -h option yields the following usage message:
+Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
 ./benchmark_app -h
