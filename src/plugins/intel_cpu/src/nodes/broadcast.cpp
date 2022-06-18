@@ -20,17 +20,36 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+static std::pair<bool, op::AutoBroadcastType> get_mode(const std::shared_ptr<const ov::Node>& op) {
+    if (ov::is_type<ov::op::v1::Broadcast>(op)) {
+        return std::make_pair(true, ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type);
+    }
+    if (ov::is_type<ov::op::v3::Broadcast>(op)) {
+        auto type =  ov::as_type_ptr<const ov::op::v3::Broadcast>(op)->get_broadcast_spec().m_type;
+        switch (type) {
+            case op::BroadcastType::NUMPY:
+                return std::make_pair(true, op::AutoBroadcastType::NUMPY);
+            case op::BroadcastType::EXPLICIT:
+                return std::make_pair(true, op::AutoBroadcastType::EXPLICIT);
+        }
+    }
+    return std::make_pair(false, op::AutoBroadcastType::NONE);
+}
+
 bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Broadcast>(op)) {
+        if (!ov::is_type<ov::op::v1::Broadcast>(op) &&
+            !ov::is_type<ov::op::v3::Broadcast>(op)) {
             errorMessage = "Only Broadcast operations from opset1 are supported.";
             return false;
         }
-        if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
-                ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::EXPLICIT)) {
+
+        auto mode = get_mode(op);
+        if (!mode.first) {
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
             return false;
         }
+
         if (op->get_input_partial_shape(TARGET_SHAPE_IDX).is_dynamic() ||
                 (op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic())) {
             errorMessage = "Only static shapes are supported for target shape and axes mapping inputs.";
@@ -62,15 +81,18 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& en
     if (op->get_output_size() == 0)
         IE_THROW() << errorPrefix << "has no output edges.";
 
-    auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
-    if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
+    auto mode = get_mode(op);
+    if (!mode.first) {
+        IE_THROW() << errorPrefix << "has unexpected broadcast type";
+    }
+    if (mode.second == ov::op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
-    } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
+    } else if (mode.second == ov::op::AutoBroadcastType::EXPLICIT) {
         if (op->get_input_size() <= AXES_MAPPING_IDX)
             IE_THROW() << errorPrefix << " and EXPLICIT mode must have tree input edges: " << getParentEdges().size();
         broadcastType = EXPLICIT;
     } else {
-        IE_THROW() << errorPrefix << "has unexpected broadcast type: " << broadcastOp->get_broadcast_spec().m_type;
+        IE_THROW() << errorPrefix << "has unexpected broadcast type: " << mode.second;
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
