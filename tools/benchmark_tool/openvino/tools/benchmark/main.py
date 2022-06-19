@@ -184,6 +184,10 @@ def run(args):
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
 
+                if is_flag_set_in_command_line('do'):
+                    config[device]['DENORMALS_OPTIMIZATION'] = 'YES'
+                    
+
             if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):

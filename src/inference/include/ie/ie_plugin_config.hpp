@@ -450,6 +450,20 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
+/**
+ * @brief The name for defining if denormals is optimized whenever it is possible
+ *
+ * This option let plugin know if denormals is optimized where it see performance benefits from
+ * getting ride of denormals computation.
+ * Such option do not guarantee accuracy of the network, the accuracy in this mode should be
+ * verified separately by the user and basing on performance and accuracy results it should be
+ * user's decision to use this option or not to use
+ * It is passed to Core::SetConfig(), this option should be used with values:
+ * PluginConfigParams::YES or PluginConfigParams::NO
+ * If not set explicitly, the behavior is kept in runtime enviroment where compile_model is called.
+ */
+DECLARE_CONFIG_KEY(DENORMALS_OPTIMIZATION);
+
 }  // namespace PluginConfigParams
 
 /**
