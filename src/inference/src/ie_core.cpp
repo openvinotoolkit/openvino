@@ -443,7 +443,7 @@ public:
     }
 
     ~CoreImpl() {
-        std::cout << "~CoreImpl() - " << std::endl;
+        std::cout << "~CoreImpl() - executor_count = " << executorManagerPtr.use_count() << std::endl;
     }
 
     /**

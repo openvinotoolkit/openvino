@@ -75,20 +75,22 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
     }, 10000);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 // tested function: RegisterPlugin
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     InferenceEngine::Core ie;
     std::atomic<int> index{0};
-    runParallel([&] () {
-        const std::string deviceName = std::to_string(index++);
-        ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, deviceName);
-        ie.GetVersions(deviceName);
-        ie.UnregisterPlugin(deviceName);
-    }, 4000);
+    runParallel(
+        [&]() {
+            const std::string deviceName = std::to_string(index++);
+            ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, deviceName);
+            ie.GetVersions(deviceName);
+            ie.UnregisterPlugin(deviceName);
+        },
+        4000);
 }
-
-// TODO: CVS-68982
-#ifndef OPENVINO_STATIC_LIBRARY
 
 // tested function: RegisterPlugins
 TEST_F(CoreThreadingTests, RegisterPlugins) {

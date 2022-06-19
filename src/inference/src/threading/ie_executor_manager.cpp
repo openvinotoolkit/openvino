@@ -163,7 +163,9 @@ class ExecutorManagerHolder {
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
 
 public:
-    ExecutorManagerHolder() = default;
+    ExecutorManagerHolder() {
+        std::cout << "Initialize static ExecutorManagerHolder = " << this << std::endl;
+    }
 
     ExecutorManager::Ptr get() {
         std::lock_guard<std::mutex> lock(_mutex);
