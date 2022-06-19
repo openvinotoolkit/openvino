@@ -19,8 +19,6 @@ bool denormals_as_zero(bool on);
 // GCC __x86_64__
 
 bool flush_to_zero(bool on) {
-    // [verify: ehl]
-    // static Xbyak::util::Cpu cpu;
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
         mxcsr |= FTZ_FLAG;
@@ -56,7 +54,6 @@ bool denormals_as_zero(bool on) {
 
         bool denormals_as_zero(bool on) {
         // for some processor, DAZ flag is a reserved bit even SSE is available. Set 1 to this flag will generate #GP exception.
-        // runtime check is needed.
         struct {
             char fcw0;
             char fcw1;
