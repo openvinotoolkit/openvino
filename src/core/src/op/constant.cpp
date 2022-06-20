@@ -14,9 +14,13 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/util.hpp"
-#include "openvino/frontend/manager.hpp"
 
 using namespace std;
+
+namespace ov::frontend {
+class FrontEndManager;
+std::shared_ptr<FrontEndManager> get_frontend_manager();
+}  // namespace ov::frontend
 
 template <typename T>
 static inline string to_cpp_string(T value) {
@@ -233,7 +237,7 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
 }
 
 ov::op::v0::Constant::~Constant() {
-    // guarantee that data is released before femgr
+    // guarantee m_data is released before femgr
     m_data = nullptr;
     m_femgr = nullptr;
 }

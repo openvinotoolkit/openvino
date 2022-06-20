@@ -31,8 +31,7 @@ std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, 
 
 namespace frontend {
 class FrontEnd;
-class FrontEndManager;
-}  // namespace frontend
+}
 
 class ModelAccessor;
 
@@ -115,7 +114,8 @@ public:
     /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
 
-    std::shared_ptr<frontend::FrontEndManager> m_femgr;
+    /// \brief Reference to frontend maanager
+    std::shared_ptr<void> m_femgr;
 
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();

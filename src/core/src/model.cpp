@@ -20,7 +20,6 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/frontend/manager.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
@@ -34,6 +33,11 @@ using namespace std;
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
+
+namespace ov::frontend {
+class FrontEndManager;
+std::shared_ptr<FrontEndManager> get_frontend_manager();
+}  // namespace ov::frontend
 
 namespace {
 
