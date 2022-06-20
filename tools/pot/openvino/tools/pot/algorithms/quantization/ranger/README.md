@@ -43,6 +43,7 @@ Algorithm has a minimal configuration. Below is an example of such configuration
 	"name": "Ranger", 
 	"params": {
 			"stat_subset_size": 300
+			"stat_batch_size": 1
 		}
 	
 }
