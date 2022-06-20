@@ -377,7 +377,7 @@ private:
                 uint8 imm = 1;
                 imm = ~((imm << tail_num) - imm);
                 vblendps(vmm_val, vmm_val, vmm_zero, imm);
-            } else if (isa == cpu::x64::avx512_common) {
+            } else if (isa == cpu::x64::avx512_core) {
                 uint64_t tail_mask = 1;
                 tail_mask = ~((tail_mask << tail_num) - tail_mask);
                 mov(reg_aux, tail_mask);
@@ -802,7 +802,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     };
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -853,13 +853,13 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
     jcp.across_channels = mvnAttrs.execAcrossChannels_;
     int N = 0;
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = mvnAttrs.shape5D;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         jcp.normalize_variance = false;
-        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>(jcp));
         if (mvnAttrs.normalizeVariance_) {
             jcp.normalize_variance = true;
-            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>(jcp));
         }
     } else if (mayiuse(cpu::x64::avx2)) {
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
@@ -1018,7 +1018,7 @@ void MVN::execute(dnnl::stream strm) {
 
 void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // blk size in vmm
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
@@ -1256,7 +1256,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
 
 void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else {
         blk_size = 8;

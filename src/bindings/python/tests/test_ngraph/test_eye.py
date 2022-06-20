@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,7 +12,7 @@ from openvino.runtime.utils.types import get_element_type
 
 
 @pytest.mark.parametrize(
-    "num_rows, num_columns, diagonal_index, out_type",
+    ("num_rows", "num_columns", "diagonal_index", "out_type"),
     [
         pytest.param(2, 5, 0, np.float32),
         pytest.param(5, 3, 2, np.int64),
@@ -47,14 +48,15 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
 
     # TODO: Enable with Eye reference implementation
-    # runtime = get_runtime()
-    # computation = runtime.computation(eye_node)
-    # eye_results = computation()
-    # assert np.allclose(eye_results, expected_results)
+    """runtime = get_runtime()
+    computation = runtime.computation(eye_node)
+    eye_results = computation()
+    assert np.allclose(eye_results, expected_results)
+    """
 
 
 @pytest.mark.parametrize(
-    "num_rows, num_columns, diagonal_index, batch_shape, out_type",
+    ("num_rows", "num_columns", "diagonal_index", "batch_shape", "out_type"),
     [
         pytest.param(2, 5, 0, [1], np.float32),
         pytest.param(5, 3, 2, [2, 2], np.int64),
@@ -96,7 +98,8 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
 
     # TODO: Enable with Eye reference implementation
-    # runtime = get_runtime()
-    # computation = runtime.computation(eye_node)
-    # eye_results = computation()
-    # assert np.allclose(eye_results, expected_results)
+    """runtime = get_runtime()
+    computation = runtime.computation(eye_node)
+    eye_results = computation()
+    assert np.allclose(eye_results, expected_results)
+    """

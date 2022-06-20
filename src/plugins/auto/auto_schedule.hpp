@@ -43,9 +43,6 @@ public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     void init(const ScheduleContext::Ptr& sContext) override;
     IInferPtr CreateInferRequest() override;
-    IInferPtr CreateInferRequestImpl(IE::InputsDataMap networkInputs, IE::OutputsDataMap networkOutputs) override;
-    IInferPtr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     void WaitActualNetworkReady() const;
     virtual ~AutoSchedule();
 

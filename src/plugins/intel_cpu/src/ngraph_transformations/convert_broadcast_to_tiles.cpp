@@ -91,6 +91,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
         ngraph::copy_runtime_info(broadcast, new_ops);
         ngraph::replace_node(broadcast, tile);
+        MATCHER_SCOPE_ENABLE(ConvertBroadcastToTiles);
         return true;
     };
 

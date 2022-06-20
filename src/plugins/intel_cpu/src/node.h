@@ -33,6 +33,7 @@
 
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -705,6 +706,7 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
+    void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;

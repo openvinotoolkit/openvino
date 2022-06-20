@@ -133,6 +133,12 @@
 # endif
 #endif
 
+#if defined(__linux__)
+#include <sys/auxv.h>
+#include <signal.h>
+#include <sys/mman.h>
+#endif
+
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
 
@@ -165,8 +171,71 @@ static std::string getDeviceFullName() {
     return brand_string;
 }
 
+#if defined(__linux__)
+
+#ifndef AT_MINSIGSTKSZ
+#define AT_MINSIGSTKSZ 51
+#endif
+
+class SigAltStackSetup {
+    stack_t new_stack{0};
+    stack_t old_stack{0};
+
+public:
+    SigAltStackSetup() {
+        memset(&old_stack, 0, sizeof(old_stack));
+        memset(&new_stack, 0, sizeof(new_stack));
+
+        auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
+        auto new_size = minsigstksz + SIGSTKSZ;
+        void * altstack =  mmap(NULL, new_size, PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        if (altstack == MAP_FAILED) {
+            return;
+        }
+        new_stack.ss_size = new_size;
+        new_stack.ss_sp = altstack;
+        auto rc = sigaltstack(&new_stack, &old_stack);
+        if (rc) {
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+            return;
+        }
+    }
+
+    ~SigAltStackSetup() {
+        stack_t current_stack;
+        if (new_stack.ss_sp) {
+            // restore old stack if new_stack is still the current one
+            if (sigaltstack(NULL, &current_stack) == 0) {
+                if (current_stack.ss_sp == new_stack.ss_sp) {
+                    sigaltstack(&old_stack, NULL);
+                }
+            }
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+        }
+    }
+};
+
+class CPUSpecialSetup {
+    SigAltStackSetup ss;
+
+public:
+    CPUSpecialSetup() = default;
+};
+#else
+class CPUSpecialSetup {
+public:
+    CPUSpecialSetup() = default;
+};
+#endif
+
 Engine::Engine() :
-    deviceFullName(getDeviceFullName()) {
+    deviceFullName(getDeviceFullName()),
+    specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 }
@@ -447,7 +516,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8}},
+                {0, {ngraph::element::u8, ngraph::element::i8}},
                 {1, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
@@ -497,7 +566,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
-            return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+            return true;//MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
         });
         lptManager.run_passes(nGraphFunc);
     }
@@ -682,8 +751,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-            || engConfig.enforceBF16) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    bool enableBF16;
+    if (BF16Prop != config.end()) {
+        if (BF16Prop->second == PluginConfigParams::YES) {
+            enableBF16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+        } else {
+            enableBF16 = false;
+        }
+    } else {
+        enableBF16 = engConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+    }
     const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
     const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
             || !engConfig.cache_dir.empty();
@@ -812,7 +889,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));
@@ -882,7 +959,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
             capabilities.push_back(METRIC_VALUE(BF16));
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(FP16));

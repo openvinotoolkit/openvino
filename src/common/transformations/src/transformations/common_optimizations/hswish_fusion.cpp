@@ -60,6 +60,7 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
             },
             hswish);
         ngraph::replace_node(m.get_match_root(), hswish);
+        MATCHER_SCOPE_ENABLE(HSwishFusionWithReluDiv);
         return true;
     };
 
@@ -112,6 +113,7 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
                                    pattern_to_output.at(mul_second).get_node_shared_ptr()},
                                   hswish);
         ngraph::replace_node(m.get_match_root(), hswish);
+        MATCHER_SCOPE_ENABLE(HSwishFusionWithReluMul);
         return true;
     };
 
@@ -135,6 +137,7 @@ ngraph::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
         hswish->set_friendly_name(mul->get_friendly_name());
         ngraph::copy_runtime_info({hsigmoid, mul}, hswish);
         ngraph::replace_node(mul, hswish);
+        MATCHER_SCOPE_ENABLE(HSwishFusionWithHSigmoid);
         return true;
     };
 
@@ -177,6 +180,7 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
                                    pattern_to_output.at(mul).get_node_shared_ptr()},
                                   {hswish, new_mul_const, new_mul});
         ngraph::replace_node(m.get_match_root(), new_mul);
+        MATCHER_SCOPE_ENABLE(HSwishFusionWithClampMul);
         return true;
     };
 
