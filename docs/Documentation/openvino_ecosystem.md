@@ -1,4 +1,4 @@
-# OpenVINO Ecosystem Overview {#openvino_ecosystem}
+# OpenVINO™ Ecosystem Overview {#openvino_ecosystem}
 
 
 OpenVINO™ is not just one tool. It is part of an expansive ecosystem of utilities, frameworks, addons, etc. They all provide a comprehensive workflow for developing deep learning solutions. Learn more about each of them to reach the full potential of OpenVINO™.
