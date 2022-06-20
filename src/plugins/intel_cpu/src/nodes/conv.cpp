@@ -471,8 +471,8 @@ void Convolution::getSupportedDescriptors() {
             auto inputShape = getInputShapeAtPort(0);
             auto outputShape = getOutputShapeAtPort(0);
 
-            if (one_of(inputDataType, memory::data_type::bf16) &&
-                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
+            if (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
                 createDescriptor({ in_candidate }, { out_candidate });
@@ -502,8 +502,8 @@ void Convolution::getSupportedDescriptors() {
             createDescriptor({ in_candidate }, { out_candidate });
 
             if ((inputDataType != memory::data_type::bf16 && isNspcAvailable()) ||
-                    (one_of(inputDataType, memory::data_type::bf16) &&
-                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))) {
+                    (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
                 createDescriptor({ in_candidate }, { out_candidate });
