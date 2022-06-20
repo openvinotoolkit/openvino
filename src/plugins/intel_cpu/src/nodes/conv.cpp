@@ -311,6 +311,51 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
     return eltwisePrecision;
 }
 
+const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))
+        return Node::getPrimitivesPriority();
+
+    std::vector<impl_desc_type> priorities = {
+            impl_desc_type::unknown,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
+            impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1,
+            impl_desc_type::jit_avx512,
+            impl_desc_type::jit_avx2_dw,
+            impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw,
+            impl_desc_type::jit_sse42_1x1,
+            impl_desc_type::jit_sse42,
+            impl_desc_type::gemm_any,
+            impl_desc_type::gemm_blas,
+            impl_desc_type::gemm_avx512,
+            impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
+            impl_desc_type::gemm_sse42,
+            impl_desc_type::jit_gemm,
+            impl_desc_type::ref_any,
+            impl_desc_type::ref,
+    };
+    for (const auto& impl : priorities) {
+        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
+            implPriorities.push_back(impl);
+    }
+    return implPriorities;
+}
+
 void Convolution::getSupportedDescriptors() {
     if (!descs.empty())
         return;
@@ -471,7 +516,7 @@ void Convolution::getSupportedDescriptors() {
             auto inputShape = getInputShapeAtPort(0);
             auto outputShape = getOutputShapeAtPort(0);
 
-            if (one_of(inputDataType, memory::data_type::bf16) &&
+            if (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -502,7 +547,7 @@ void Convolution::getSupportedDescriptors() {
             createDescriptor({ in_candidate }, { out_candidate });
 
             if ((inputDataType != memory::data_type::bf16 && isNspcAvailable()) ||
-                    (one_of(inputDataType, memory::data_type::bf16) &&
+                    (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);

@@ -69,6 +69,7 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
     class FusedSubgraph;
