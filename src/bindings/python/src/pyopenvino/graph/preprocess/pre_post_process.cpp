@@ -301,7 +301,17 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Tensor& tensor) {
             return &self.set_from(tensor);
         },
-        py::arg("runtime_tensor"));
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created tensor
+            :type type: openvino.runtime.Tensor
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
 
     info.def(
         "set_from",
@@ -309,7 +319,17 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             // Convert to contiguous array if not already C-style.
             return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
         },
-        py::arg("runtime_tensor"));
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created numpy array
+            :type type: numpy.ndarray
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
@@ -480,7 +500,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build);
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;

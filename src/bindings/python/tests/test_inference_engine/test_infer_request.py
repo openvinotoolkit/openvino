@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,7 +14,9 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
-from ..conftest import model_path, read_image
+# TODO: reformat into absolute paths
+from ..conftest import model_path
+from ..test_utils.test_utils import generate_image
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -45,12 +48,50 @@ def create_simple_request_and_inputs(device):
     return request, arr_1, arr_2
 
 
+def concat_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [5]
+
+    params = []
+    params += [ops.parameter(input_shape, ov_type)]
+    if ov_type == Type.bf16:
+        params += [ops.parameter(input_shape, ov_type)]
+    else:
+        params += [ops.parameter(input_shape, numpy_dtype)]
+
+    model = Model(ops.concat(params, 0), params)
+    core = Core()
+    compiled = core.compile_model(model, device)
+    request = compiled.create_infer_request()
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
+    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
+
+    return request, tensor1, array1
+
+
+def abs_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [1, 4]
+    param = ops.parameter(input_shape, ov_type)
+    model = Model(ops.abs(param), [param])
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    request = compiled_model.create_infer_request()
+
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, -7, -8, 9])
+
+    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
+
+    return request, tensor1, array1
+
+
 def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
     tensor_name = compiled.input("data").any_name
     request.infer({tensor_name: img})
@@ -71,7 +112,7 @@ def test_tensor_setter(device):
     compiled_2 = core.compile_model(model=model, device_name=device)
     compiled_3 = core.compile_model(model=model, device_name=device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     request1 = compiled_1.create_infer_request()
@@ -81,10 +122,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request1.infer({0: tensor})
-    k = list(res)[0]
-    res_1 = np.sort(res[k])
+    key = list(res)[0]
+    res_1 = np.sort(res[key])
     t2 = request1.get_tensor("fc_out")
-    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
     request = compiled_2.create_infer_request()
     res = request.infer({"data": tensor})
@@ -102,10 +143,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request.infer()
-    k = list(res)[0]
-    res_1 = np.sort(res[k])
+    key = list(res)[0]
+    res_1 = np.sort(res[key])
     t2 = request1.get_tensor(model.outputs[0])
-    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
 
 def test_set_tensors(device):
@@ -113,7 +154,7 @@ def test_set_tensors(device):
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
 
-    data1 = read_image()
+    data1 = generate_image()
     tensor1 = Tensor(data1)
     data2 = np.ones(shape=(1, 10), dtype=np.float32)
     tensor2 = Tensor(data2)
@@ -161,17 +202,17 @@ def test_set_tensors(device):
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
-@pytest.mark.dynamic_library
-@pytest.mark.template_extension
+@pytest.mark.dynamic_library()
+@pytest.mark.template_extension()
 def test_batched_tensors(device):
-    batch = 4
-    one_shape = Shape([1, 2, 2, 2])
-    batch_shape = Shape([batch, 2, 2, 2])
-    one_shape_size = np.prod(one_shape)
-
     core = Core()
-
+    # TODO: remove when plugins will support set_input_tensors
     core.register_plugin("openvino_template_plugin", "TEMPLATE")
+
+    batch = 4
+    one_shape = [1, 2, 2, 2]
+    one_shape_size = np.prod(one_shape)
+    batch_shape = [batch, 2, 2, 2]
 
     data1 = ops.parameter(batch_shape, np.float32)
     data1.set_friendly_name("input0")
@@ -191,21 +232,21 @@ def test_batched_tensors(device):
 
     compiled = core.compile_model(model, "TEMPLATE")
 
-    buffer = np.zeros([one_shape_size * batch * 2], dtype=np.float32)
-
     req = compiled.create_infer_request()
 
+    # Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
+    buffer = np.zeros([batch * 2, *batch_shape[1:]], dtype=np.float32)
+
     tensors = []
+    for i in range(batch):
+        # non contiguous memory (i*2)
+        tensors.append(Tensor(np.expand_dims(buffer[i * 2], 0), shared_memory=True))
 
-    for i in range(0, batch):
-        _start = i * one_shape_size * 2
-        # Use of special constructor for Tensor.
-        # It creates a Tensor from pointer, thus it requires only
-        # one element from original buffer, and shape to "crop".
-        tensor = Tensor(buffer[_start:(_start + 1)], one_shape)
-        tensors.append(tensor)
+    req.set_input_tensors(tensors)
 
-    req.set_input_tensors(tensors)  # using list overload!
+    with pytest.raises(RuntimeError) as e:
+        req.get_tensor("tensor_input0")
+    assert "get_tensor shall not be used together with batched set_tensors/set_input_tensors" in str(e.value)
 
     actual_tensor = req.get_tensor("tensor_output0")
     actual = actual_tensor.data
@@ -218,8 +259,8 @@ def test_batched_tensors(device):
         # Reference values for each batch:
         _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
 
-        for j in range(0, batch):
-            assert np.array_equal(actual[j], _tmp)
+        for idx in range(0, batch):
+            assert np.array_equal(actual[idx], _tmp)
 
 
 def test_inputs_outputs_property(device):
@@ -242,7 +283,7 @@ def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
 
     request.start_async({0: img})
@@ -262,7 +303,7 @@ def test_start_async(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     jobs = 3
     requests = []
     for _ in range(jobs):
@@ -302,7 +343,9 @@ def test_infer_list_as_inputs(device):
     request.infer(inputs)
     check_fill_inputs(request, inputs)
 
-    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+    inputs = [
+        np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)
+    ]
     request.infer(inputs)
     check_fill_inputs(request, inputs)
 
@@ -313,7 +356,7 @@ def test_infer_mixed_keys(device):
     core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     data2 = np.ones(shape=img.shape, dtype=np.float32)
@@ -321,7 +364,100 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 2
+    assert np.argmax(res[model.output()]) == 9
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.bf16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, np.bool),
+])
+def test_infer_mixed_values(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+
+    request.infer([tensor1, array1])
+
+    print(request.outputs[0].data)
+    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.bf16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.u32, np.uint32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+    (Type.u64, np.uint64),
+    (Type.boolean, np.bool),
+])
+def test_async_mixed_values(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async([tensor1, array1])
+    request.wait()
+
+    print(request.outputs[0].data)
+    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+])
+def test_infer_single_input(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+
+    request.infer(array1)
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.infer(tensor1)
+    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
+
+
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
+    (Type.f32, np.float32),
+    (Type.f64, np.float64),
+    (Type.f16, np.float16),
+    (Type.i8, np.int8),
+    (Type.u8, np.uint8),
+    (Type.i32, np.int32),
+    (Type.i16, np.int16),
+    (Type.u16, np.uint16),
+    (Type.i64, np.int64),
+])
+def test_async_single_input(device, ov_type, numpy_dtype):
+    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+
+    request.start_async(array1)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
+
+    request.start_async(tensor1)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
 def test_infer_queue(device):
@@ -337,7 +473,7 @@ def test_infer_queue(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
@@ -355,6 +491,7 @@ def test_infer_queue_is_ready(device):
 
     def callback(request, _):
         time.sleep(0.001)
+
     infer_queue.set_callback(callback)
     assert infer_queue.is_ready()
     infer_queue.start_async()
@@ -373,7 +510,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     def callback(request, _):
         request.get_tensor("Unknown")
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(RuntimeError) as e:
@@ -395,7 +532,7 @@ def test_infer_queue_fail_on_py_model(device):
     def callback(request, _):
         request = request + 21
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(TypeError) as e:
@@ -430,14 +567,14 @@ def test_infer_queue_get_idle_handle(device):
 @pytest.mark.parametrize("data_type",
                          [np.float32,
                           np.int32,
-                          pytest.param(np.float16,
-                                       marks=pytest.mark.xfail(reason="FP16 isn't "
-                                                                      "supported in the CPU plugin"))])
+                          np.float16])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-                           "Memory layers fully supported only on CPU")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+    "Memory layers fully supported only on CPU",
+)
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
@@ -456,7 +593,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     assert mem_state.name == "var_id_667"
     # todo: Uncomment after fix 45611,
     #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
-    # assert mem_state.state.tensor_desc.precision == data_type
+    # Code: assert mem_state.state.tensor_desc.precision == data_type
 
     for i in range(1, 10):
         if mode == "set_init_memory_state":
@@ -478,8 +615,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), \
-            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
 def test_get_results(device):
@@ -507,7 +643,7 @@ def test_results_async_infer(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
@@ -520,10 +656,13 @@ def test_results_async_infer(device):
         np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
-                    reason="Device independent test")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
+    reason="Device independent test",
+)
 def test_infer_float16(device):
-    model = bytes(b"""<net name="add_model" version="10">
+    model = bytes(
+        b"""<net name="add_model" version="10">
     <layers>
     <layer id="0" name="x" type="Parameter" version="opset1">
         <data element_type="f16" shape="2,2,2"/>
@@ -584,15 +723,15 @@ def test_infer_float16(device):
 </net>""")
     core = Core()
     model = core.read_model(model=model)
-    p = PrePostProcessor(model)
-    p.input(0).tensor().set_element_type(Type.f16)
-    p.input(0).preprocess().convert_element_type(Type.f16)
-    p.input(1).tensor().set_element_type(Type.f16)
-    p.input(1).preprocess().convert_element_type(Type.f16)
-    p.output(0).tensor().set_element_type(Type.f16)
-    p.output(0).postprocess().convert_element_type(Type.f16)
+    ppp = PrePostProcessor(model)
+    ppp.input(0).tensor().set_element_type(Type.f16)
+    ppp.input(0).preprocess().convert_element_type(Type.f16)
+    ppp.input(1).tensor().set_element_type(Type.f16)
+    ppp.input(1).preprocess().convert_element_type(Type.f16)
+    ppp.output(0).tensor().set_element_type(Type.f16)
+    ppp.output(0).postprocess().convert_element_type(Type.f16)
 
-    model = p.build()
+    model = ppp.build()
     compiled = core.compile_model(model, device)
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
     request = compiled.create_infer_request()
@@ -648,14 +787,26 @@ def test_inputs_list_not_replaced(device):
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-def test_invalid_inputs_container(device):
+def test_inputs_tuple_not_replaced(device):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = (arr_1, arr_2)
+    inputs_copy = deepcopy(inputs)
+
+    res = request.infer(inputs)
+
+    assert np.array_equal(inputs, inputs_copy)
+    assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
+
+
+def test_invalid_inputs(device):
+    request, _, _ = create_simple_request_and_inputs(device)
+
+    inputs = "some_input"
 
     with pytest.raises(TypeError) as e:
         request.infer(inputs)
-    assert "Inputs should be either list or dict! Current type:" in str(e.value)
+    assert "Incompatible inputs of type:" in str(e.value)
 
 
 def test_infer_dynamic_model(device):
@@ -673,3 +824,7 @@ def test_infer_dynamic_model(device):
     shape2 = [1, 32]
     request.infer([np.random.normal(size=shape2)])
     assert request.get_input_tensor().shape == Shape(shape2)
+
+    shape3 = [1, 40]
+    request.infer(np.random.normal(size=shape3))
+    assert request.get_input_tensor().shape == Shape(shape3)

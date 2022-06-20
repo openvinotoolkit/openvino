@@ -11,7 +11,10 @@
 
 #include "transformations/utils/utils.hpp"
 
+#include "itt.hpp"
+
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
+    MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto input = ngraph::pattern::any_input();
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
     auto m_fc = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>({ input, weights }, [](ngraph::Output<ngraph::Node> output) {
@@ -65,9 +68,10 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         new_fc->set_friendly_name(add->get_friendly_name());
         ngraph::copy_runtime_info({fc, add}, new_ops);
         ngraph::replace_node(add, new_fc);
+        MATCHER_SCOPE_ENABLE(FullyConnectedBiasFusion);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, "FullyConnectedBiasFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, matcher_name);
     this->register_matcher(m, callback);
 }

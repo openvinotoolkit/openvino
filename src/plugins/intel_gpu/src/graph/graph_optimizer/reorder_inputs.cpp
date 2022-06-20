@@ -559,6 +559,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ weights_layout.data_type, preferred_format, weights_layout.size });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
+                p.get_or_create(reorder.first).recalc_output_layout(false);
             }
         }
     };
@@ -575,6 +576,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     layout{ weights_layout.data_type, preferred_format, weights_layout.size });
                 if (reorder.first) {
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
+                    p.get_or_create(reorder.first).recalc_output_layout(false);
                 }
             }
         }
@@ -582,14 +584,26 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // For supporting optimized onednn first conv, the input format from prev reorder to this conv is changed to a recommended format by onednn.
         auto& input = conv_node.input();
         auto input_layout = input.get_output_layout();
-        auto conv_format = conv_node.get_output_layout().format;
+        auto output_layout = conv_node.get_output_layout();
+        auto conv_format = output_layout.format;
+        auto group_size = conv_node.get_groups();
+        bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
         if (conv_node.impl_type == impl_types::onednn &&
-            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node)) {
+            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
             auto new_layout = input_layout;
-            if (new_layout.data_type == data_types::f16)
-                new_layout.format = format::bs_fs_yx_bsv8_fsv2;
-            else if (data_type_traits::is_i8_u8(new_layout.data_type))
-                new_layout.format = format::bs_fs_yx_bsv8_fsv4;
+            auto dims = new_layout.format.dimension();
+            if (new_layout.data_type == data_types::f16) {
+                if (dims == 5)
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
+                else
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
+            } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
+                if (dims == 5)
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
+                else
+                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
+            }
+            // TODO: handling other types for first conv
 
             if (new_layout == input_layout)
                 return;
@@ -617,8 +631,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         std::vector<std::tuple<__data_type, format, format>> errata = {
             {__data_type::i8_u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32},
             {__data_type::i8_u8, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv32},
+            {__data_type::i8_u8, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv32},
+            {__data_type::i8_u8, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv32},
             {__data_type::floating_point, format::b_fs_yx_fsv32, format::b_fs_yx_fsv16},
-            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16}};
+            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16},
+            {__data_type::floating_point, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv16},
+            {__data_type::floating_point, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16}};
         for (auto &e : errata) {
             auto prev_node = conv_node.get_dependencies().front();
             auto prev_layout = prev_node->get_output_layout();
@@ -688,6 +706,15 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto& weights = fc_node.weights();
         auto& input = fc_node.input();
         auto input_layout = input.get_output_layout();
+        // Change input data type of fully-connected node from i32 to f32
+        if (input_layout.data_type == data_types::i32) {
+            auto new_layout = input_layout;
+            new_layout.data_type = data_types::f32;
+            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            if (new_input.first) {
+               p.add_intermediate(new_input.first, fc_node, 0);
+            }
+        }
         // Change input data of fully-connected node from bx to bf
         if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
@@ -708,7 +735,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected);
-   }
+    }
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && fmt_map.count(n) != 0) {

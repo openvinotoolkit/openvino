@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
-            // Expected behavior
-            R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
-            R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 43794
             R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
@@ -23,12 +20,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 41462
-            R"(.*(SoftMaxLayerTest).*axis=0.*)",
-            // TODO: Issue: 43511
-            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
-            R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
-            R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
             // TODO: Issue: 46841
             R"(.*(QuantGroupConvBackpropData3D).*)",
 
@@ -74,11 +65,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
-            R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
-            // Issue connected with OV2.0
+            // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
-            // TODO: Issue: 67486
-            R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // TODO: Issue 69187
@@ -101,5 +89,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CompileModelCacheTestBase.*)",
             // Issue: 83014
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
+            // Issue: CVS-76980
+            R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
     };
 }

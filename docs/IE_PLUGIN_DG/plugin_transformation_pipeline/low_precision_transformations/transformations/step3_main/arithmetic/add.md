@@ -1,4 +1,4 @@
-# AddTransformation transformation {#openvino_docs_IE_DG_lpt_AddTransformation}
+# AddTransformation transformation {#openvino_docs_OV_UG_lpt_AddTransformation}
 
 ngraph::pass::low_precision::AddTransformation class represents the `Add` operation transformation.
 

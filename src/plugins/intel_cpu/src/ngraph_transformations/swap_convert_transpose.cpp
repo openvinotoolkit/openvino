@@ -8,9 +8,12 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "itt.hpp"
+
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose", 0);
 
 ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
+    MATCHER_SCOPE(SwapConvertTranspose);
     ngraph::element::TypeVector param_precisions{ ngraph::element::i8, ngraph::element::u8 };
     auto input_m = ngraph::pattern::wrap_type<ngraph::op::v0::Parameter>(ngraph::pattern::type_matches_any(param_precisions));
     auto convert_m = ngraph::pattern::wrap_type<ngraph::op::v0::Convert>({input_m}, ngraph::pattern::type_matches(ngraph::element::f32));
@@ -35,9 +38,10 @@ ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
         convertInputs[0] = newTranspose;
         auto newConvert = convert->clone_with_new_inputs(convertInputs);
         ngraph::replace_node(transpose, newConvert);
+        MATCHER_SCOPE_ENABLE(SwapConvertTranspose);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_m, "SwapConvertTranspose");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_m, matcher_name);
     this->register_matcher(m, callback);
 }

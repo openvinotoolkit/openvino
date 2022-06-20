@@ -4,11 +4,11 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include "conformance.hpp"
+#include "ov_api_conformance_helpers.hpp"
 
 namespace {
 using namespace ov::test::behavior;
+using namespace ov::test::conformance;
 using namespace ngraph;
 
 static const std::vector<ov::element::Type> ovElemTypesTemplate = {
@@ -30,11 +30,12 @@ static const std::vector<std::size_t> ovBatchSizesTemplate = {
         1, 2
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, CompileModelCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                          ::testing::Combine(
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(ov::test::conformance::targetDevice)),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
+                                 ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
 } // namespace

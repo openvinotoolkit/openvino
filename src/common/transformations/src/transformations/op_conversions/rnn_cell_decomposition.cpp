@@ -46,6 +46,7 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
         out->set_friendly_name(rnn_cell->get_friendly_name());
         ngraph::copy_runtime_info(rnn_cell, {Xt_W, Ht_R, add, i_t, out});
         ngraph::replace_node(rnn_cell, out);
+        MATCHER_SCOPE_ENABLE(RNNCellDecomposition);
         return true;
     };
 

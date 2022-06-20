@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9,12 +10,10 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino.pyopenvino import OVAny
-
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
-from openvino.runtime import Tensor
+from openvino.runtime import Tensor, OVAny
 from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
@@ -162,7 +161,7 @@ def test_broadcast_3():
 
 
 @pytest.mark.parametrize(
-    "destination_type, input_data",
+    ("destination_type", "input_data"),
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
 )
 def test_convert_to_bool(destination_type, input_data):
@@ -173,7 +172,7 @@ def test_convert_to_bool(destination_type, input_data):
 
 
 @pytest.mark.parametrize(
-    "destination_type, rand_range, in_dtype, expected_type",
+    ("destination_type", "rand_range", "in_dtype", "expected_type"),
     [
         pytest.param(np.float32, (-8, 8), np.int32, np.float32),
         pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
@@ -191,7 +190,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 
 
 @pytest.mark.parametrize(
-    "destination_type, expected_type",
+    ("destination_type", "expected_type"),
     [
         (np.int8, np.int8),
         (np.int16, np.int16),
@@ -205,7 +204,8 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 )
 def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(expected_type)
+    random_data = np.random.rand(2, 3, 4) * 16
+    input_data = (np.ceil(-8 + random_data)).astype(expected_type)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ops.convert, destination_type)
     assert np.allclose(result, expected)
@@ -213,7 +213,7 @@ def test_convert_to_int(destination_type, expected_type):
 
 
 @pytest.mark.parametrize(
-    "destination_type, expected_type",
+    ("destination_type", "expected_type"),
     [
         (np.uint8, np.uint8),
         (np.uint16, np.uint16),
@@ -235,15 +235,15 @@ def test_convert_to_uint(destination_type, expected_type):
 
 
 def test_bad_data_shape():
-    A = ops.parameter(shape=[2, 2], name="A", dtype=np.float32)
-    B = ops.parameter(shape=[2, 2], name="B")
-    model = A + B
+    param_a = ops.parameter(shape=[2, 2], name="A", dtype=np.float32)
+    param_b = ops.parameter(shape=[2, 2], name="B")
+    model = param_a + param_b
     runtime = get_runtime()
-    computation = runtime.computation(model, A, B)
+    computation = runtime.computation(model, param_a, param_b)
 
     value_a = np.array([[1, 2]], dtype=np.float32)
     value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-    with pytest.raises(UserInputError):
+    with pytest.raises(RuntimeError):
         computation(value_a, value_b)
 
 
@@ -270,7 +270,7 @@ def test_constant_get_data_floating_point(data_type):
 def test_constant_get_data_signed_integer(data_type):
     np.random.seed(133391)
     input_data = np.random.randint(
-        np.iinfo(data_type).min, np.iinfo(data_type).max, size=[2, 3, 4], dtype=data_type
+        np.iinfo(data_type).min, np.iinfo(data_type).max, size=[2, 3, 4], dtype=data_type,
     )
     node = ops.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
@@ -325,6 +325,30 @@ def test_set_argument():
     node_add.set_arguments([node1, node2])
     output = computation()
     assert np.allclose(data1 + data2, output)
+
+
+def test_clone_model():
+    # Create an original model
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
+    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+
+    # Make copies of it
+    model_copy1 = ov.utils.clone_model(model_original)
+    model_copy2 = model_original.clone()
+
+    # Make changes to the copied models' inputs
+    model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
+    model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
+
+    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
+    model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
+    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
+
+    assert original_model_shapes != model_copy1_shapes
+    assert original_model_shapes != model_copy2_shapes
+    assert model_copy1_shapes == model_copy2_shapes
 
 
 def test_result():
@@ -396,22 +420,22 @@ def test_node_input_values():
 
     assert np.equal(
         [input_node.get_shape() for input_node in node.input_values()],
-        shapes
+        shapes,
     ).all()
 
     assert np.equal(
         [node.input_value(i).get_shape() for i in range(node.get_input_size())],
-        shapes
+        shapes,
     ).all()
 
     assert np.allclose(
         [input_node.get_node().get_vector() for input_node in node.input_values()],
-        [data1, data2]
+        [data1, data2],
     )
 
     assert np.allclose(
         [node.input_value(i).get_node().get_vector() for i in range(node.get_input_size())],
-        [data1, data2]
+        [data1, data2],
     )
 
 
@@ -421,13 +445,13 @@ def test_node_input_tensor():
 
     node = ops.add(data1, data2)
 
-    inputTensor1 = node.get_input_tensor(0)
-    inputTensor2 = node.get_input_tensor(1)
+    input_tensor1 = node.get_input_tensor(0)
+    input_tensor2 = node.get_input_tensor(1)
 
-    assert(isinstance(inputTensor1, DescriptorTensor))
-    assert(isinstance(inputTensor2, DescriptorTensor))
-    assert np.equal(inputTensor1.get_shape(), data1.shape).all()
-    assert np.equal(inputTensor2.get_shape(), data2.shape).all()
+    assert(isinstance(input_tensor1, DescriptorTensor))
+    assert(isinstance(input_tensor2, DescriptorTensor))
+    assert np.equal(input_tensor1.get_shape(), data1.shape).all()
+    assert np.equal(input_tensor2.get_shape(), data2.shape).all()
 
 
 def test_node_evaluate():
@@ -443,13 +467,13 @@ def test_node_evaluate():
 
     node = ops.add(data1, data2)
 
-    inputTensor1 = Tensor(array=data1, shared_memory=True)
-    inputTensor2 = Tensor(array=data2, shared_memory=True)
-    inputsTensorVector = [inputTensor1, inputTensor2]
+    input_tensor1 = Tensor(array=data1, shared_memory=True)
+    input_tensor2 = Tensor(array=data2, shared_memory=True)
+    inputs_tensor_vector = [input_tensor1, input_tensor2]
 
-    outputTensorVector = [Tensor(array=output, shared_memory=True)]
-    assert node.evaluate(outputTensorVector, inputsTensorVector) is True
-    assert np.equal(outputTensorVector[0].data, expected_result).all()
+    output_tensor_vector = [Tensor(array=output, shared_memory=True)]
+    assert node.evaluate(output_tensor_vector, inputs_tensor_vector) is True
+    assert np.equal(output_tensor_vector[0].data, expected_result).all()
 
 
 def test_node_input():
@@ -468,7 +492,7 @@ def test_node_input():
         model.get_element_type(),
     ).all()
     assert np.equal(
-        [input_node.get_shape() for input_node in model_inputs], Shape(shape)
+        [input_node.get_shape() for input_node in model_inputs], Shape(shape),
     ).all()
     assert np.equal(
         [input_node.get_partial_shape() for input_node in model_inputs],
@@ -596,17 +620,17 @@ def test_strides_iteration_methods():
 
 def test_axis_vector_iteration_methods():
     data = np.array([1, 2, 3])
-    axisVector = AxisVector(data)
+    axis_vector = AxisVector(data)
 
-    assert len(axisVector) == data.size
-    assert np.equal(axisVector, data).all()
-    assert np.equal([axisVector[i] for i in range(data.size)], data).all()
+    assert len(axis_vector) == data.size
+    assert np.equal(axis_vector, data).all()
+    assert np.equal([axis_vector[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
-        axisVector[i] = data2[i]
+        axis_vector[i] = data2[i]
 
-    assert np.equal(axisVector, data2).all()
+    assert np.equal(axis_vector, data2).all()
 
 
 def test_coordinate_iteration_methods():
@@ -626,17 +650,17 @@ def test_coordinate_iteration_methods():
 
 def test_coordinate_diff_iteration_methods():
     data = np.array([1, 2, 3])
-    coordinateDiff = CoordinateDiff(data)
+    coordinate_diff = CoordinateDiff(data)
 
-    assert len(coordinateDiff) == data.size
-    assert np.equal(coordinateDiff, data).all()
-    assert np.equal([coordinateDiff[i] for i in range(data.size)], data).all()
+    assert len(coordinate_diff) == data.size
+    assert np.equal(coordinate_diff, data).all()
+    assert np.equal([coordinate_diff[i] for i in range(data.size)], data).all()
 
     data2 = np.array([5, 6, 7])
     for i in range(data2.size):
-        coordinateDiff[i] = data2[i]
+        coordinate_diff[i] = data2[i]
 
-    assert np.equal(coordinateDiff, data2).all()
+    assert np.equal(coordinate_diff, data2).all()
 
 
 def test_get_and_set_layout():

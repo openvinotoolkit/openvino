@@ -166,7 +166,7 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
         }
 
         reset_broacast_config(root);
-
+        MATCHER_SCOPE_ENABLE(InsertMoveBroadcast);
         return true;
     };
 

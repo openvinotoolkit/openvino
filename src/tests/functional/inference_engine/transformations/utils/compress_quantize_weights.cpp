@@ -62,7 +62,7 @@ class CompressQuantizeWeightsTests
             function_ref = std::make_shared<Function>(mul, ParameterVector{});
         }
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-        enable_accuracy_check();
+        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 };
 
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) 
         function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizer) {
@@ -133,7 +133,7 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointOptimizer) {
         function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsWithZeroPointOptimizer) {
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsWithZeroPointOptimiz
         function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
@@ -175,5 +175,5 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
     manager.register_pass<pass::ZeroPointOptimizer>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    enable_accuracy_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

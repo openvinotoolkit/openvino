@@ -9,7 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
+#include "itt.hpp"
+
 ov::intel_cpu::ReshapePRelu::ReshapePRelu() {
+    MATCHER_SCOPE(ReshapeFullyConnectedFusion);
     auto input_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto slope_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto prelu_m = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input_m, slope_m });
@@ -45,10 +48,10 @@ ov::intel_cpu::ReshapePRelu::ReshapePRelu() {
         ngraph::replace_node(prelu, new_prelu);
         new_prelu->set_friendly_name(prelu->get_friendly_name());
         ngraph::copy_runtime_info(prelu, new_prelu);
-
+        MATCHER_SCOPE_ENABLE(ReshapeFullyConnectedFusion);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu_m, "ReshapePRelu");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu_m, matcher_name);
     this->register_matcher(m, callback);
 }

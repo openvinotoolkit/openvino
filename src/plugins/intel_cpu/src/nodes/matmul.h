@@ -17,13 +17,13 @@ namespace node {
 
 class MatMul : public Node {
 public:
-    MatMul(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
-    MemoryDescPtr getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
     size_t getMaxBatch() const override;
@@ -33,12 +33,12 @@ public:
         return getOriginalInputsNumber();
     }
 
-    size_t getFusingAxis() const override {
+    int getFusingAxis() const override {
         return getOutputShapeAtPort(0).getRank() - 1;
     }
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
@@ -48,12 +48,12 @@ protected:
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    mkldnn::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
+    dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
     std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
 
     bool withBiases;
 
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool initWeights);
 
     std::string errorPrefix;
 
