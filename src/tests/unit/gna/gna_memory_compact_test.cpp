@@ -296,7 +296,6 @@ public:
         gnamem_t = std::make_shared<GNAMemoryTested>();
         gnamem = gnamem_t;
         graphCompiler.setGNAMemoryPtr(gnamem);
-        gnadevice.reset();
     }
     void Test() {
         gnamem_t->Test();

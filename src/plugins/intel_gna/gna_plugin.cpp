@@ -38,6 +38,10 @@
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "gna2_model_helper.hpp"
+#include "gna2_model_wrapper_factory.hpp"
+#include "model_worker_pool_impl.hpp"
+#include "model_worker_factory.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -107,8 +111,6 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
         return 0;
     }
 }
-
-constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 
 using namespace InferenceEngine;
 using namespace std;
@@ -356,6 +358,8 @@ void GNAPlugin::Init() {
     graphCompiler.setDNNPtr(dnn);
     graphCompiler.setGNAFlagsPtr(gnaFlags);
     graphCompiler.setInputsPtr(inputs_ptr_);
+
+    request_pool_ = std::make_shared<ModelWorkerPoolImpl>();
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -475,7 +479,7 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
     }
 }
 
-void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model) {
+void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFModel");
 
     // update inputs
@@ -653,14 +657,11 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
-void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(const CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
-    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
-    if (gnadevice) {
-        effectiveGnaCompileTarget = gnadevice->GetCompileTarget();
-    }
+    std::string effectiveGnaCompileTarget = effective_gna_compile_target();
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
@@ -1018,19 +1019,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         dnn->InitActiveList(NULL);
     }
 
-    gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
+    auto model_worker = create_model_worker_for_load_network(trivialTopology, is_fp32_mode_active());
+    request_pool_->add_model_worker(std::move(model_worker));
 
-    if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
-        // number of layer gets calculated inside that InitGNAStruct function
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
-    }
-
+    // initialize paraler requests model
     // creating same gna RW segment for parallel infer requests
     for (int i = 1; i != gnaFlags->num_requests; i++) {
-        gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
-        // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
-        // relocate rw pointers to new offset
         auto basePtr = reinterpret_cast<uint8_t*>(pParallelExecutionData) + rwSegmentSize * (i - 1);
 
         auto relocate = [basePtr, this](void *& ptr_out, void * ptr_in) {
@@ -1054,11 +1048,17 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             relocate(output.ptrs[i], output.ptrs[0]);
         }
 
-        for (int j = 0; j != std::get<0>(gnaModels.front())->obj.NumberOfOperations; j++) {
-            auto & gnaOperation = std::get<0>(gnaModels[i])->obj.Operations[j];
+        auto model_worker =
+            create_model_worker_for_load_network(trivialTopology, is_fp32_mode_active());
+        auto model = model_worker->model();
+
+        // relocating all operations data pointers
+        for (int j = 0; j != model->NumberOfOperations; j++) {
+            auto& gnaOperation = model->Operations[j];
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
         }
+        request_pool_->add_model_worker(std::move(model_worker));
     }
 
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
@@ -1130,20 +1130,68 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #ifdef PLOT
     dnn->WriteGraphWizModel("gna-blob.dot");
 #endif
-    createRequestConfigsForGnaModels();
 }
 
-void GNAPlugin::createRequestConfigsForGnaModels() {
-    if (!gnadevice || trivialTopology) {
-        gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
-        return;
+bool GNAPluginNS::GNAPlugin::is_fp32_mode_active() const {
+    return gnaFlags->sw_fp32;
+}
+
+std::string GNAPluginNS::GNAPlugin::effective_gna_compile_target() const {
+    if (gnadevice) {
+        return gnadevice->GetCompileTarget();
     }
-    for (auto& model : gnaModels) {
-        auto& gnaNnet = std::get<0>(model).get()->obj;
-        const auto modelId = gnadevice->createModel(gnaNnet);
-        const auto requestConfigId = gnadevice->createRequestConfig(modelId);
-        gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
+    return config.gnaCompileTarget;
+}
+std::shared_ptr<ModelWorker> GNAPlugin::create_model_worker_for_load_network(bool trivial, bool fp32_mode) {
+    return create_model_worker(create_model_wrapper_for_load_network(trivial), trivial, fp32_mode);
+}
+
+std::shared_ptr<ModelWorker> GNAPlugin::create_model_worker(std::shared_ptr<Gna2ModelWrapper> model_wrapper,
+                                                            bool trivial,
+                                                            bool fp32_mode) {
+    if (trivial) {
+        return ModelWorkerFactory::create_model_worker_trivial_topology(std::move(model_wrapper));
     }
+
+    if (fp32_mode) {
+        if (!dnn) {
+            THROW_GNA_EXCEPTION << "dnn is nullptr cannot run fp32 mode";
+        }
+        return ModelWorkerFactory::create_model_worker_fp32(std::move(model_wrapper), dnn);
+    }
+
+    // This shouldn't happend due the fact device is created when gnaFlags->sw_fp32 is false.
+    if (!gnadevice) {
+        THROW_GNA_EXCEPTION << "device is nullptr cannot run in device mode";
+    }
+    return ModelWorkerFactory::create_model_worker(std::move(model_wrapper), gnadevice, config.pluginGna2AccMode);
+}
+
+std::shared_ptr<Gna2ModelWrapper> GNAPlugin::create_model_wrapper_for_load_network(bool trivial) {
+    if (trivial) {
+        return Gna2ModelWrapperFactory::create_trivial();
+    }
+
+    if (!dnn) {
+        THROW_GNA_EXCEPTION << "dnn is nullptr cannot load network";
+    }
+
+    std::weak_ptr<GNAPluginNS::backend::AMIntelDNN> weak_dnn = dnn;
+    auto compile_target = effective_gna_compile_target();
+    auto initializer = [weak_dnn, compile_target](Gna2Model* model) {
+        if (auto dnn = weak_dnn.lock()) {
+            dnn->InitGNAStruct(model, compile_target);
+            return;
+        }
+        THROW_GNA_EXCEPTION << "dnn is nullptr";
+    };
+
+    return Gna2ModelWrapperFactory::create_initialized(std::move(initializer));
+}
+
+std::shared_ptr<Gna2ModelWrapper> GNAPluginNS::GNAPlugin::create_model_wrapper_for_import_network(
+    uint32_t number_of_operations) {
+    return Gna2ModelWrapperFactory::create_with_number_of_empty_operations(number_of_operations);
 }
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
@@ -1163,9 +1211,16 @@ void GNAPlugin::DumpXNNToFile() const {
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
+
+    if (request_pool_->empty()) {
+        THROW_GNA_EXCEPTION << "Cannot generate XNNDump for not exsisting model";
+    }
+
     std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
 
-    auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
+    auto model = const_cast<Gna2Model*>(request_pool_->first_worker().model());
+
+    auto const modelId = gnadevice->createModel(*model);
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
@@ -1191,32 +1246,32 @@ void GNAPlugin::DumpXNNToFile() const {
     gnadevice->releaseModel(modelId);
 }
 
-uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, InferenceEngine::BlobMap &result) {
-    auto& nnets = gnaRequestConfigToRequestIdMap;
-    auto freeNnet = std::find_if(std::begin(nnets), std::end(nnets), [](decltype(nnets.front()) & item) {
-        return std::get<1>(item) == -1;
-    });
+uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, InferenceEngine::BlobMap& result) {
+    auto free_worker = request_pool_->find_free_model_worker();
 
-    if (freeNnet == nnets.end()) {
+    if (free_worker == nullptr) {
         if (!graphCompiler.memory_connection.empty()) {
-            Wait(0);
-            freeNnet = nnets.begin();
+            Wait(request_pool_->first_worker().representing_index());
+            free_worker = request_pool_->find_free_model_worker();
+            if (free_worker == nullptr) {
+                THROW_GNA_EXCEPTION << "could not find free executable network for request" << std::endl;
+            }
         } else {
-            IE_THROW(RequestBusy)
-                               << "GNA executable network has max of "
-                               << static_cast<uint32_t >(gnaFlags->num_requests)
-                               << " parallel infer requests, please sync one of already running";
+            IE_THROW(RequestBusy) << "GNA executable network has max of "
+                                  << static_cast<uint32_t>(gnaFlags->num_requests)
+                                  << " parallel infer requests, please sync one of already running";
         }
     }
 
-    auto idx = static_cast<uint32_t>(std::distance(std::begin(nnets), freeNnet));
+    auto index = free_worker->representing_index();
 
     int inputNum = 0;
-    for (auto &input : inputs) {
+    for (auto& input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
         if (inputLayout != Layout::C && inputLayout != Layout::NC && inputLayout != Layout::CN &&
             inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
-            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was: "
+            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
+                                   "Layout::CHW. But was: "
                                 << input.second->getTensorDesc().getLayout();
         }
 
@@ -1229,44 +1284,48 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
         if (inputs_ptr_->at(input.first).ptrs.empty()) {
-            // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
+            // should not happen in user code however might happen if there any non executable network based integration
+            // of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for " << input.first << " not set";
         }
 
-        if (inputs_ptr_->at(input.first).ptrs[idx] == nullptr) {
-            // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
+        if (inputs_ptr_->at(input.first).ptrs[index] == nullptr) {
+            // should not happen in user code however might happen if there any non executable network based integration
+            // of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
-                                << idx << " not set";
+                                << index << " not set";
         }
         const auto inputOrientation = inputs_ptr_->at(input.first).orientation;
         if (inputOrientation == kDnnUnknownOrientation) {
-            // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
+            // should not happen in user code however might happen if there any non executable network based integration
+            // of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
 
         for (auto& output : outputs_.Get()) {
             if (output.orientation == kDnnUnknownOrientation) {
-                // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
+                // should not happen in user code however might happen if there any non executable network based
+                // integration of GNAPlugin instance
                 THROW_GNA_EXCEPTION << "network not loaded : output orientation not set";
             }
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto  importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
-        auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
-        auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
+        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
+        auto importedFrames = (is3D || is1D) ? 1 : dims[0];
+        auto targetGroups = is1D ? 1 : dims[0];  // TODO: no proper support for groups yet
 
-        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : (gnaFlags->input_low_precision ? 1 : 2);
-        auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
+        auto importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : (gnaFlags->input_low_precision ? 1 : 2);
+        auto importedBytes = importedElements * importedFrames * importedElementSizeBytes;
 
         if (inputs_ptr_->at(input.first).get_required_size() < importedBytes) {
             THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
-                                  << ", allocated size: " << inputs_ptr_->at(input.first).get_required_size()
-                                  << ", but input blob size: " << importedBytes;
+                                << ", allocated size: " << inputs_ptr_->at(input.first).get_required_size()
+                                << ", but input blob size: " << importedBytes;
         }
 
-        ImportFrames(inputs_ptr_->at(input.first).ptrs[idx],
-                     input.second->cbuffer().as<float *>(),
+        ImportFrames(inputs_ptr_->at(input.first).ptrs[index],
+                     input.second->cbuffer().as<float*>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? GNAPluginNS::kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
                      inputOrientation,
@@ -1280,31 +1339,28 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             size_t batchSize = (dims.size() > 1) ? dims[0] : 1;
             size_t elementsPerBatch = (dims.size() > 1) ? InferenceEngine::details::product(dims) / dims[0] : dims[0];
             size_t transposed_data_size = 0;
-            for (const auto &part_transposition_info : transpose_info->second) {
-                transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
+            for (const auto& part_transposition_info : transpose_info->second) {
+                transposed_data_size +=
+                    part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
             }
             if (elementsPerBatch != transposed_data_size) {
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
                                     << ") do not match input buffer length of " << elementsPerBatch;
             }
-            auto input_ptr = reinterpret_cast<uint8_t *>(inputs_ptr_->at(input.first).ptrs[idx]);
-            ConvertTensorFromNCHWToNHWC(gnadevice ? 2 : 4, batchSize, elementsPerBatch, input_ptr, true, transpose_info->second);
+            auto input_ptr = reinterpret_cast<uint8_t*>(inputs_ptr_->at(input.first).ptrs[index]);
+            ConvertTensorFromNCHWToNHWC(gnadevice ? 2 : 4,
+                                        batchSize,
+                                        elementsPerBatch,
+                                        input_ptr,
+                                        true,
+                                        transpose_info->second);
         }
         ++inputNum;
     }
-    // If there is no gnadevice infer using reference FP32 transforamtions
-    if (!gnadevice || trivialTopology) {
-        auto runtime = runtime::FP(dnn);
-        runtime.infer();
-        if (freeNnet != nnets.end()) {
-            std::get<1>(*freeNnet) = 1;
-        }
-    } else {
-        const auto reqConfigId = std::get<0>(*freeNnet);
-        if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
-            gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
-        std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
-    }
+
+    free_worker->enqueue_request();
+
+    free_worker->set_result(result);
 
 #ifdef PLOT
     dnn->BeginNewWrite(dnn_dump_write_index);
@@ -1313,52 +1369,56 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     }
     dnn_dump_write_index++;
 #endif
-    if (freeNnet != nnets.end()) {
-        // TODO: GNA2: Substitute properly when using GNA 2.0 Library setting and CPU
-        std::get<2>(*freeNnet) = result;
-    }
-    return idx;
+
+    return index;
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
+    return GNARequestWaitStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
-    auto& nnets = gnaRequestConfigToRequestIdMap;
-    // TODO: GNA2: check whether necessary
-    if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
-    // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
+GNARequestWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+    // TODO: GNA2: check whether
+    if (request_pool_->size() <= request_idx)
+        THROW_GNA_EXCEPTION << "Number of request worker[" << request_pool_->size()
+                            << "], requested request worker index[" << request_idx << "]";
 
-    if (gnadevice && !trivialTopology) {
-        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
-        if (waitStatus == GNA_REQUEST_ABORTED) {
-            std::get<1>(nnets[request_idx]) = -1;
-            return GNA_REQUEST_ABORTED;
-        }
-        if (waitStatus == GNA_REQUEST_PENDING) {
-            return GNA_REQUEST_PENDING;
-        }
+    auto& model_worker = request_pool_->model_worker(request_idx);
+
+    if (model_worker.is_free())
+        return GNARequestWaitStatus::kCompleted;
+
+    const auto wait_status = model_worker.wait(millisTimeout);
+
+    if (wait_status == GNARequestWaitStatus::kAborted) {
+        return GNARequestWaitStatus::kAborted;
+    }
+    if (wait_status == GNARequestWaitStatus::kPending) {
+        return GNARequestWaitStatus::kPending;
     }
 
-    std::get<1>(nnets[request_idx]) = -1;
-    auto &request = std::get<2>(nnets[request_idx]);
+    auto& request_result = model_worker.result();
+
 #ifdef PLOT
     if (dnn->num_components() != 0) {
         dnn->WriteInputAndOutputText();
     }
-    dnn->WriteInputAndOutputTextGNA(std::get<0>(gnaModels[request_idx])->obj);
+
+    // TODO test
+    dnn->WriteInputAndOutputTextGNA(*model_worker.model());
 #endif
-    int output_idx = 0;
-    for (auto && outputBlobIt : request) {
-        auto & outputBlob = outputBlobIt.second;
-        auto & outputDesc = outputs_.at(outputBlobIt.first);
-        if (outputBlob->getTensorDesc().getLayout() != Layout::C && outputBlob->getTensorDesc().getLayout() != Layout::NC &&
-            outputBlob->getTensorDesc().getLayout() != Layout::CN && outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
-            outputBlob->getTensorDesc().getLayout() != Layout::CHW && outputBlob->getTensorDesc().getLayout() != Layout::SCALAR) {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
-                << outputBlob->getTensorDesc().getLayout();
+    for (auto&& outputBlobIt : request_result) {
+        auto& outputBlob = outputBlobIt.second;
+        auto& outputDesc = outputs_.at(outputBlobIt.first);
+        if (outputBlob->getTensorDesc().getLayout() != Layout::C &&
+            outputBlob->getTensorDesc().getLayout() != Layout::NC &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CN &&
+            outputBlob->getTensorDesc().getLayout() != Layout::NCHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::CHW &&
+            outputBlob->getTensorDesc().getLayout() != Layout::SCALAR) {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or "
+                                   "Layout::CHW. But was "
+                                << outputBlob->getTensorDesc().getLayout();
         }
 
         auto dims = outputBlob->getTensorDesc().getDims();
@@ -1366,13 +1426,17 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto isScalar = outputBlob->getTensorDesc().getLayout() == Layout::SCALAR;
         auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
         auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
-        auto elementsPerBatch = isScalar ? 1 : (is1D ? dims.front() : InferenceEngine::details::product(++std::begin(dims), std::end(dims)));
+        auto elementsPerBatch =
+            isScalar ? 1
+                     : (is1D ? dims.front() : InferenceEngine::details::product(++std::begin(dims), std::end(dims)));
 
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
-        if (transpose_output_info != std::end(transpose_outputs_info) && FoundPartToTranspose(transpose_output_info->second)) {
+        if (transpose_output_info != std::end(transpose_outputs_info) &&
+            FoundPartToTranspose(transpose_output_info->second)) {
             size_t transposed_data_size = 0;
-            for (const auto &part_transposition_info : transpose_output_info->second) {
-                transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
+            for (const auto& part_transposition_info : transpose_output_info->second) {
+                transposed_data_size +=
+                    part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
             }
             if (elementsPerBatch != transposed_data_size) {
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
@@ -1387,15 +1451,15 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         }
 
         ExportScores(outputBlob->buffer(),
-                        outputDesc.ptrs[request_idx],
-                        outputDesc.orientation,
-                        batchSize,
-                        batchSize,
-                        elementsPerBatch,
-                        elementsPerBatch,
-                        elementsPerBatch,
-                        outputDesc.tensor_precision,
-                        outputDesc.model_precision);
+                     outputDesc.ptrs[request_idx],
+                     outputDesc.orientation,
+                     batchSize,
+                     batchSize,
+                     elementsPerBatch,
+                     elementsPerBatch,
+                     elementsPerBatch,
+                     outputDesc.tensor_precision,
+                     outputDesc.model_precision);
 
         if (gnadevice) {
 #ifdef PLOT
@@ -1423,20 +1487,25 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             }
 #endif
             switch (outputBlob->getTensorDesc().getPrecision()) {
-            case InferenceEngine::Precision::FP32 :
+            case InferenceEngine::Precision::FP32:
                 UnscaleAndCast(outputBlob->buffer().as<float*>(),
-                              outputBlob->buffer().as<int32_t*>(),
-                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                               outputBlob->buffer().as<int32_t*>(),
+                               elementsPerBatch,
+                               batchSize,
+                               outputDesc.scale_factor);
                 break;
 
-            case InferenceEngine::Precision::I32 :
+            case InferenceEngine::Precision::I32:
                 UnscaleAndCast(outputBlob->buffer().as<int32_t*>(),
-                              outputBlob->buffer().as<int32_t*>(),
-                              elementsPerBatch, batchSize, outputDesc.scale_factor);
+                               outputBlob->buffer().as<int32_t*>(),
+                               elementsPerBatch,
+                               batchSize,
+                               outputDesc.scale_factor);
                 break;
 
             default:
-                THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision() << std::endl;
+                THROW_GNA_EXCEPTION << "Unsupported target precision: " << outputBlob->getTensorDesc().getPrecision()
+                                    << std::endl;
                 break;
             }
 
@@ -1457,10 +1526,8 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             }
 #endif
         }
-
-        output_idx++;
     }
-    return GNA_REQUEST_COMPLETED;
+    return GNARequestWaitStatus::kCompleted;
 }
 
 void GNAPlugin::Reset() {
@@ -1551,9 +1618,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
 
     gnamem->commit();
-    gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
-    GNAModelSerial::MemoryType  mt;
-    auto serial = GNAModelSerial(&std::get<0>(gnaModels.back())->obj, mt);
+
+    auto model = create_model_wrapper_for_import_network(header.layersCount);
+    GNAModelSerial::MemoryType mt;
+    auto serial = GNAModelSerial(&model->object(), mt);
 
     serial.setHeader(header);
     serial.Import(basePtr,
@@ -1563,6 +1631,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             outputs_,
             transpose_inputs_info,
             transpose_outputs_info);
+
+    trivialTopology = (request_pool_->first_worker().model()->NumberOfOperations == 0);
+
+    request_pool_->add_model_worker(create_model_worker(model, trivialTopology, is_fp32_mode_active()));
 
     SetNetworkInputs();
     SetNetworkOutputs();
@@ -1616,8 +1688,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 #ifdef PLOT
     dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
-    trivialTopology = (std::get<0>(gnaModels.back())->obj.NumberOfOperations == 0);
-    createRequestConfigsForGnaModels();
     return {};
 }
 
@@ -1635,8 +1705,8 @@ void GNAPlugin::Export(std::ostream &outStream) {
     IE_ASSERT(!inputs_data_map_.empty());
     auto inputDims = inputs_data_map_.begin()->second->getTensorDesc().getDims();
 
-    Gna2Model* modelToSerial = &std::get<0>(gnaModels.front())->obj;
-    auto serial = GNAModelSerial(modelToSerial,
+    Gna2Model* model_to_serial = request_pool_->first_worker().model();
+    auto serial = GNAModelSerial(model_to_serial,
                                  *(inputs_ptr_),
                                  outputs_)
                     .SetInputRotation(transpose_inputs_info)

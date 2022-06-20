@@ -28,23 +28,17 @@
 #include "gna2-model-suecreek-header.h"
 
 #include "gna_device_allocation.hpp"
-
-enum GnaWaitStatus : int {
-    GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
-    GNA_REQUEST_ABORTED = 1,    // for QoS purposes
-    GNA_REQUEST_PENDING = 2     // for device busy purposes
-};
+#include "gna_device_interface.hpp"
 
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper {
+class GNADeviceHelper : public GNADevice {
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
         static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion() };
         return gnaLibraryVersion;
     }
-
     std::string modeOfOperation = "default";
     GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
@@ -54,6 +48,7 @@ class GNADeviceHelper {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
+    uint16_t max_layers_count = 1;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -76,32 +71,19 @@ class GNADeviceHelper {
 
 public:
     explicit GNADeviceHelper(std::string executionTargetIn = "",
-         std::string compileTargetIn = "",
-         bool swExactModeIn = false,
-         bool isPerformanceMeasuring = false,
-         bool deviceEmbedded = false,
-         int deviceVersionParsed = 0) :
-         swExactMode(swExactModeIn),
-         executionTarget(executionTargetIn),
-         compileTarget(compileTargetIn),
-         isPerformanceMeasuring(isPerformanceMeasuring),
-         nGnaDeviceIndex{selectGnaDevice()},
-         useDeviceEmbeddedExport(deviceEmbedded),
-         exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
-        open();
-        initGnaPerfCounters();
-
-        // check GNA Library version
-        const auto gnaLibVersion = GetGnaLibraryVersion();
-    }
+                             std::string compileTargetIn = "",
+                             bool swExactModeIn = false,
+                             bool isPerformanceMeasuring = false,
+                             bool deviceEmbedded = false,
+                             int deviceVersionParsed = 0);
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
     GNADeviceHelper& operator= (const GNADeviceHelper&) = delete;
-    ~GNADeviceHelper() {
-        if (deviceOpened) {
-            close();
-        }
-    }
+    GNADeviceHelper(GNADeviceHelper&&) = delete;
+    GNADeviceHelper& operator=(GNADeviceHelper&&) = delete;
+    ~GNADeviceHelper() override;
+
+    void init_max_layers_count();
 
     void enableDiagnostics();
 
@@ -119,7 +101,7 @@ public:
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t createModel(Gna2Model& gnaModel) const;
     void releaseModel(const uint32_t model_id);
-    uint32_t createRequestConfig(const uint32_t model_id);
+    uint32_t createRequestConfig(const uint32_t model_id) const;
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
     static bool isGnaHw(const Gna2DeviceVersion dev) {
@@ -134,7 +116,7 @@ public:
     bool enforceLegacyCnnNeeded() const;
     static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
-    GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
+    GNARequestWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
         Gna2ModelSueCreekHeader header;
@@ -149,7 +131,6 @@ public:
     void dumpXnnForDeviceVersion(const uint32_t modelId,
         std::ostream & outStream,
         Gna2DeviceVersion targetDeviceVersion);
-
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
         uint32_t input_size, uint32_t output_size,
         float inSF, float outSF);
@@ -167,7 +148,32 @@ public:
         return allAllocations;
     }
 
- private:
+    /**
+     * @see GNADevice::create_model()
+     */
+    uint32_t create_model(Gna2Model& gnaModel) const override;
+
+    /**
+     * @see GNADevice::create_request_config()
+     */
+    uint32_t create_request_config(const uint32_t model_id) const override;
+
+    /**
+     * @see GNADevice::max_layer_count()
+     */
+    uint32_t max_layer_count() const override;
+
+    /**
+     * @see GNADevice::enqueue_request()
+     */
+    uint32_t enqueue_request(const uint32_t requestConfigId, const Gna2AccelerationMode gna2AccelerationMode) override;
+
+    /**
+     * @see GNADevice::wait_for_reuqest()
+     */
+    GNARequestWaitStatus wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) override;
+
+private:
     void open();
 
     void close();
