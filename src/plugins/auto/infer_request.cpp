@@ -35,11 +35,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
 void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
             InferenceEngine::RemoteContext::Ptr ctx) {
     if (request_to_share_blobs_with) {
-        // borrow device-friendly blobs from the request
-        for (const auto &it : _networkInputs)
-            _inputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
-        for (const auto &it : _networkOutputs)
-            _outputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
+        // do not need to touch multi memory blobs
         return;
     }
     // Allocate all input blobs
@@ -88,8 +84,37 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
     }
 }
 
+void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
+    if (_sharedRequest)
+        _sharedRequest->SetBlob(name, blob);
+    else
+        IInferRequestInternal::SetBlob(name, blob);
+}
+
+void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
+    if (_sharedRequest)
+        _sharedRequest->SetBlob(name, blob, info);
+    else
+        IInferRequestInternal::SetBlob(name, blob, info);
+}
+
+InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
+    if (_sharedRequest)
+        return _sharedRequest->GetBlob(name);
+    else
+        return IInferRequestInternal::GetBlob(name);
+}
+
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
+    if (_sharedRequest)
+        return _sharedRequest->GetPerformanceCounts();
     return _perfMap;
+}
+
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> MultiDeviceInferRequest::QueryState() {
+    if (_sharedRequest)
+        return _sharedRequest->QueryState();
+    IE_THROW(NotImplemented);
 }
 
 void MultiDeviceInferRequest::InferImpl() {
