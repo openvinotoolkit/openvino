@@ -472,7 +472,7 @@ void GNAPlugin::UpdateOutputs(const std::vector<std::shared_ptr<const ov::Node>>
     }
 }
 
-void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model) {
+void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromFModel");
 
     // update inputs
@@ -650,7 +650,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
-void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(const CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
@@ -1135,8 +1135,31 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
         return;
     }
+
+    // split the model only for one infer request
+    if (gnaModels.size() == 1) {
+        auto model_holder = std::get<0>(gnaModels.front());
+        Gna2Model gna_model_full = model_holder->obj;
+        uint32_t ops_number = gna_model_full.NumberOfOperations;
+        uint16_t layers_limit = gnadevice->getLayerCountMax();
+        gnaModels.resize((ops_number + layers_limit - 1) / layers_limit);
+        for (int i = 0; i != gnaModels.size(); i++) {
+            size_t start_idx = layers_limit * i;
+            auto ops_batch  = ((i + 1) == gnaModels.size()) ? (ops_number - start_idx) : layers_limit;
+            gnaModels[i] = std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(ops_batch));
+            for (int j = 0; j != ops_batch; j++) {
+                // transferring operations from full model
+                dnn_ptr & gna_model_part = std::get<0>(gnaModels[i]);
+                CPPWrapper<Gna2Model>::moveOperation(&gna_model_part->obj.Operations[j], &gna_model_full.Operations[start_idx + j]);
+            }
+        }
+    }
+
     for (auto& model : gnaModels) {
         auto& gnaNnet = std::get<0>(model).get()->obj;
+        if (gnaNnet.NumberOfOperations > gnadevice->getLayerCountMax()) {
+            THROW_GNA_EXCEPTION << "The GNA model exceeds the maximal layers amount (" << gnadevice->getLayerCountMax() << ")";
+        }
         const auto modelId = gnadevice->createModel(gnaNnet);
         const auto requestConfigId = gnadevice->createRequestConfig(modelId);
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
@@ -1300,7 +1323,15 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         const auto reqConfigId = std::get<0>(*freeNnet);
         if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
             gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
-        std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
+
+        if (gnaFlags->num_requests == 1 && nnets.size() > 1) {
+            // propagate all subnetworks  if the model was splitted on several parts
+            for (int i = 0; i != gnaModels.size(); i++) {
+                std::get<1>(gnaRequestConfigToRequestIdMap[i]) = gnadevice->propagate(std::get<0>(gnaRequestConfigToRequestIdMap[i]), config.pluginGna2AccMode);
+            }
+        } else {
+            std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
+        }
     }
 
 #ifdef PLOT
@@ -1329,9 +1360,24 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice && !trivialTopology) {
-        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
-        if (waitStatus == GNA_REQUEST_ABORTED) {
+        GnaWaitStatus waitStatus = GNA_REQUEST_PENDING;
+        if (gnaFlags->num_requests > 1) {
+            waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
             std::get<1>(nnets[request_idx]) = -1;
+        } else {
+            for (auto &nnet : nnets) {
+                waitStatus = gnadevice->wait(std::get<1>(nnet), millisTimeout);
+                if (waitStatus == GNA_REQUEST_ABORTED) {
+                    std::get<1>(nnets[request_idx]) = -1;
+                    break;
+                }
+                if (waitStatus == GNA_REQUEST_PENDING) {
+                    break;
+                }
+            }
+        }
+
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             return GNA_REQUEST_ABORTED;
         }
         if (waitStatus == GNA_REQUEST_PENDING) {

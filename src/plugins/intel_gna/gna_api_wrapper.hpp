@@ -56,6 +56,14 @@ class CPPWrapper<Gna2Model> {
             obj.Operations[i].NumberOfParameters = 0;
         }
     }
+    static void moveOperation(Gna2Operation * dst, Gna2Operation * src) {
+        *dst = *src;
+        src->Type = Gna2OperationTypeNone;
+        src->Operands = nullptr;
+        src->NumberOfOperands = 0;
+        src->Parameters = nullptr;
+        src->NumberOfParameters = 0;
+    }
     ~CPPWrapper() {
         if (obj.Operations != nullptr) {
             for (uint32_t i = 0; i < obj.NumberOfOperations; i++) {

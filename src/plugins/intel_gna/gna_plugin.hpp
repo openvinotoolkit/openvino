@@ -82,7 +82,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     std::string GetName() const noexcept override;
     void SetName(const std::string & pluginName) noexcept override;
 
-    void LoadNetwork(InferenceEngine::CNNNetwork &network);
+    void LoadNetwork(const InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
@@ -205,7 +205,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
-    void UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model);
+    void UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator
