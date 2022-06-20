@@ -30,6 +30,12 @@ public:
         InterpolationMode mode = InterpolationMode::BILINEAR;
         // Specifies how the out-of-bounds coordinates should be handled: `zeros`, `border`, `reflection`
         PaddingMode padding_mode = PaddingMode::ZEROS;
+
+        Attributes() = default;
+        Attributes(bool align_corners, InterpolationMode mode, PaddingMode padding_mode)
+            : align_corners{align_corners},
+              mode{mode},
+              padding_mode{padding_mode} {}
     };
 
     GridSample() = default;
@@ -48,6 +54,11 @@ public:
     const Attributes& get_attributes() const {
         return m_attributes;
     }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
 
 private:
     Attributes m_attributes = {};

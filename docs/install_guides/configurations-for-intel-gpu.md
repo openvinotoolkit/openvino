@@ -12,14 +12,14 @@ This page introduces additional configurations for Intel® Processor Graphics (G
 
 ## Linux
 
-Once you have your OpenVINO installed, follow the steps to be able to work on GPU:
+If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow these steps to work with GPU:
 
 1. Go to the install_dependencies directory:
    ```sh
    cd <INSTALL_DIR>/install_dependencies/
    ```
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install, run this script:
+2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install it, run this script:
    ```sh
    sudo -E ./install_NEO_OCL_driver.sh
    ```
