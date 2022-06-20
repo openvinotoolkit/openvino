@@ -105,9 +105,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        // no performance mode setting for AUTO.
-        if (deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end()) {
-            // no properties specified for target device. setting tput as the default performance mode.
+        if (deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end() && tconfig.find(deviceName) != tconfig.end()) {
+            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties specified for target device.
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
         }
         return deviceConfig;
