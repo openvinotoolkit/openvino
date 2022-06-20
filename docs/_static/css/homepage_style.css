@@ -149,8 +149,9 @@ float: right;
 .HP_flow-arrow {
 	width: 60px;
 	height: 330px;
-	background: no-repeat url("_static/images/OV_flow_arrow.png");	
+	background: no-repeat url("../images/OV_flow_arrow.svg");	
 	background-position: center 55px;
+	background-size: 28px;
 }
 
 
