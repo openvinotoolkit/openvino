@@ -39,12 +39,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
 
 const std::vector<ov::AnyMap> cpu_plugin_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)},
      ov::hint::num_requests(2),
      ov::enable_profiling(false)}};
 const std::vector<ov::AnyMap> cpu_compileModel_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
      ov::hint::num_requests(10),
      ov::enable_profiling(true)}};
 

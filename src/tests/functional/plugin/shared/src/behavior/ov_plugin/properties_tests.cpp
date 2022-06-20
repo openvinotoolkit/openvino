@@ -50,7 +50,13 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
     AnyMap compileModelProperties;
     std::tie(device_name, properties, compileModelProperties) = obj.param;
     std::ostringstream result;
-    result << "device_name=" << device_name << "_setProperties_compileModelProperties_getProperties";
+    result << "device_name=" << device_name << "_";
+    if (!properties.empty()) {
+        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+    }
+    if (!compileModelProperties.empty()) {
+        result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
+    }
     return result.str();
 }
 
