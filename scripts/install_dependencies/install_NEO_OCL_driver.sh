@@ -140,16 +140,17 @@ _deploy_deb()
 }
 
 _install_user_mode_redhat()
-{   
-    CMDS=("dnf install --refresh -y intel-igc-opencl-1.0.9441-i643.el8.x86_64 \
-           intel-media-21.4.1-i643.el8.x86_64 \
-           level-zero-1.6.2-i643.el8.x86_64 \
-           intel-level-zero-gpu-1.2.21786-i643.el8.x86_64 \
-           intel-opencl-21.49.21786-i643.el8.x86_64 \
-           intel-igc-core-1.0.9441-i643.el8.x86_64 \
-           intel-ocloc-21.49.21786-i643.el8.x86_64 \
-           ocl-icd-2.2.12-1.el8.x86_64 \
-           intel-gmmlib-21.3.3-i643.el8.x86_64")
+{  
+    CMDS=("rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm" \
+          "dnf install --refresh -y \
+            intel-igc-opencl.x86_64 \
+            intel-media.x86_64 \
+            level-zero-devel.x86_64 \
+            intel-opencl.x86_64  \
+            intel-igc-core.x86_64 \
+            intel-ocloc.x86_64 \
+            intel-gmmlib.x86_64" \
+          "rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm" )	
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -371,7 +372,7 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
-        RHEL_MINOR_VERSION_SUPPORTED="[3-4]"
+        RHEL_MINOR_VERSION_SUPPORTED="[3-5]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8.3 or RHEL 8.4"
