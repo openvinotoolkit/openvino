@@ -26,14 +26,19 @@ Before you start the installation, check the supported operating systems and req
 
 Use a virtual environment to avoid dependency conflicts. 
 
-To create a virtual environment, use the following command:
+To create a virtual environment, use the following commands:
+
+On Windows:
 ```sh
-python -m pip install --user virtualenv 
 python -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
-`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+On Linux and macOS:
+```sh
+python3 -m venv openvino_env
+```
+
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -118,7 +123,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages.
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. 
 
 ### zsh: no matches found : openvino-dev[...]
 
@@ -141,9 +146,9 @@ To avoid such issues you can also disable globbing for PIP commands by defining 
 alias pip='noglob pip'
 ```
 
-### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
+<!--### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
+On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.-->
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
