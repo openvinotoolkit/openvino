@@ -1,4 +1,4 @@
-# Introduction to OpenVINO Deployment {#openvino_docs_deployment_guide_introduction}
+# Introduction to OpenVINO™ Deployment {#openvino_docs_deployment_guide_introduction}
 
 
 Once you have a model that meets both OpenVINO™ and your requirements, you can choose among several ways of deploying it with your application: 
