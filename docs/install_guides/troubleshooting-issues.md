@@ -18,7 +18,7 @@ PRC users might encounter errors while downloading sources via PIP during OpenVI
    pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
    ```
 
-* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: <!--updated-->
+* For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the installer, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
    ``` sh
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
