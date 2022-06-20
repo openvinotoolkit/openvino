@@ -4,7 +4,7 @@
 OpenVINO™ is not just one tool. It is part of an expansive ecosystem of utilities, frameworks, addons, etc. They all provide a comprehensive workflow for developing deep learning solutions. Learn more about each of them to reach the full potential of OpenVINO™.
 
 ### OpenVINO™ Model Server (OVMS)	   
-A scalable, high-performance solution for serving deep learning models optimized for Intel architectures. The server uses Inference Engine libraries as a backend and exposes gRPC and HTTP/REST interfaces for inference that are fully compatible with TensorFlow Serving.
+OpenVINO Model Server is a scalable, high-performance solution for serving deep learning models optimized for Intel® architectures. The server uses Inference Engine libraries as a backend and exposes gRPC and HTTP/REST interfaces for inference that are fully compatible with TensorFlow Serving.
 
 More resources:
 * [documentation](https://docs.openvino.ai/latest/openvino_docs_ovms.html)
