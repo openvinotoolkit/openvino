@@ -34,7 +34,7 @@ Minimize the inference-to-deployment workflow timing for neural models right in 
 
 DL Workbench enables you to get a detailed performance assessment, explore inference configurations, and obtain an optimized model ready to be deployed on various Intel® configurations, such as client and server CPU, Intel® Processor Graphics (GPU), Intel® Movidius™ Neural Compute Stick 2 (NCS 2), and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
-DL Workbench also provides the [JupyterLab environment](Jupyter_Notebooks.md) that helps you quick start with OpenVINO™ API and command-line interface (CLI). Follow the full OpenVINO workflow created for your model and learn about different toolkit components. 
+DL Workbench also provides the [JupyterLab environment](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Jupyter_Notebooks.html#doxid-workbench-docs-workbench-d-g-jupyter-notebooks) that helps you quick start with OpenVINO™ API and command-line interface (CLI). Follow the full OpenVINO workflow created for your model and learn about different toolkit components. 
 
 
 ## Video
