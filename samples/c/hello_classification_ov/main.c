@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
     ov_version_t version;
     CHECK_STATUS(ov_get_version(&version));
     printf("---- OpenVINO INFO----\n");
-    printf("description : %s \n", version.description);
-    printf("build number: %s \n", version.buildNumber);
+    printf("Description : %s \n", version.description);
+    printf("Build number: %s \n", version.buildNumber);
     ov_version_free(&version);
 
     // -------- Parsing and validation of input arguments --------
@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
     c_mat_t img;
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
-    ov_shape_t input_shape = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
+    ov_shape_t input_shape = {4, {1, (size_t)img.mat_height, (size_t)img.mat_width, 3}};
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
