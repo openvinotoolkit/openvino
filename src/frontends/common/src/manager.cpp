@@ -251,10 +251,10 @@ class FrontEndManagerHolder {
     std::mutex m_mutex;
     std::weak_ptr<FrontEndManager> m_manager;
 
+public:
     FrontEndManagerHolder(const FrontEndManagerHolder&) = delete;
     FrontEndManagerHolder& operator=(const FrontEndManagerHolder&) = delete;
 
-public:
     FrontEndManagerHolder() = default;
 
     FrontEndManager::Ptr get() {
