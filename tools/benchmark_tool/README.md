@@ -2,13 +2,13 @@
 
 This page demonstrates how to use the Benchmark Python Tool to estimate deep learning inference performance on supported devices.
 
-> **NOTE**: This page describes usage of the Python implementation of the Benchmark Tool. For the C++ implementation, refer to the [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have the same command interface and a similar backend.
+> **NOTE**: This page describes usage of the Python implementation of the Benchmark Tool. For the C++ implementation, refer to the [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have a similar command interface and backend.
 
 ## Basic Usage
 
 The Python benchmark_app is automatically installed when you install OpenVINO Runtime or OpenVINO Developer Tools using [PyPI](../../docs/install_guides/installing-openvino-pip.md) or [Anaconda Cloud](../../docs/install_guides/installing-openvino-conda.md). Before running `benchmark_app`, make sure the `openvino_env` virtual environment is activated, and navigate to the directory where your model is located.
 
-The benchmarking application works with OpenVINO models in IR format. You can use it with your own models or pre-trained [public](@ref omz_models_group_public) or [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which can be downloaded using the [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is converted to OpenVINO format (`model.xml` and `model.bin`) using the [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) tool. The application also works with models in ONNX format (`model.onnx`).
+The benchmarking application works with OpenVINO models in IR format (`model.xml` and `model.bin`) or ONNX format (`model.onnx`). You can use it with your own models or pre-trained [public](@ref omz_models_group_public) or [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which can be downloaded using the [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is converted to OpenVINO format using the [Model Optimizer](../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) tool or is in ONNX format.
 
 To run benchmarking with default options on a model, use the following command. 
 
