@@ -34,10 +34,12 @@ BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 class FrontEndManager;
 std::shared_ptr<FrontEndManager> get_frontend_manager();
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov
 
 namespace {
 

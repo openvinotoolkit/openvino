@@ -17,10 +17,12 @@
 
 using namespace std;
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 class FrontEndManager;
 std::shared_ptr<FrontEndManager> get_frontend_manager();
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov
 
 template <typename T>
 static inline string to_cpp_string(T value) {
