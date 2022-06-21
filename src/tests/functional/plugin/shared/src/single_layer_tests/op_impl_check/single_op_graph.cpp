@@ -368,14 +368,17 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ExtractIma
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::Eye> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::i64, {{1}, {1}, {1}, {3}});
-    const auto eye = std::make_shared<ov::op::v9::Eye>(params[0],
-                                                       params[1],
-                                                       params[2],
-                                                       params[3],
+    const auto rows = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {3});
+    const auto cols = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {4});
+    const auto diag = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
+    const auto batch = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {2, 2, 2});
+    const auto eye = std::make_shared<ov::op::v9::Eye>(rows,
+                                                       cols,
+                                                       diag,
+                                                       batch,
                                                        ov::element::f32);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye)};
-    return std::make_shared<ov::Model>(results, params, "Eye");
+    return std::make_shared<ov::Model>(results, ngraph::ParameterVector{}, "Eye");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::FakeQuantize> &node) {
