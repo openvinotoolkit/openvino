@@ -234,7 +234,7 @@ TEST_P(fc_int8_scale, basic) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
+        eltwise("scale", { "fc_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -250,7 +250,7 @@ TEST_P(fc_int8_scale, fp16_scale_out) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data", optional_data_type{ data_types::f16 }),
+        eltwise("scale", { "fc_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -309,7 +309,7 @@ TEST_P(fc_int8_scale_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
+        eltwise("scale", { "fc_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -340,7 +340,7 @@ TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
+        eltwise("scale", { "fc_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)

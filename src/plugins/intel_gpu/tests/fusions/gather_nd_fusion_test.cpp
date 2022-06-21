@@ -187,7 +187,7 @@ TEST_P(gather_nd_activation_scale_eltwise, basic) {
         data("eltwise_data", get_mem(get_output_layout(p))),
         gather_nd("gather_nd_prim", "input", "gather_nd_indices", input_rank, p.indices_rank, p.batch_dims),
         activation("activation", "gather_nd_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );

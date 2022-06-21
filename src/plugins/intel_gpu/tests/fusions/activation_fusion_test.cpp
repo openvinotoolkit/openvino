@@ -169,7 +169,7 @@ TEST_P(activation_scale_activation_quantize_u8, basic) {
         data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        scale("scale", "act", "scale_data"),
+        eltwise("scale", { "act", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("act2", "scale", activation_func::softsign),
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
@@ -189,7 +189,7 @@ TEST_P(activation_scale_activation_quantize_u8, per_channel) {
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        scale("scale", "act", "scale_data"),
+        eltwise("scale", { "act", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("act2", "scale", activation_func::softsign),
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
@@ -217,81 +217,4 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation_quantize_u8, :
     activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 5, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 5, "activation_ref" },
     activation_test_params{ CASE_ACTIVATION_3D_F32_2, 2, 5, "activation_ref" },
-}));
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_scale_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
-    activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref" },  // FIXME - accuracy bug
-}));
-
-class activation_scale_activation : public ActivationFusingTest {};
-TEST_P(activation_scale_activation, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::relu),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        scale("scale", "act", "scale_data"),
-        activation("act2", "scale", activation_func::exp),
-        reorder("reorder_bfyx", "act2", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-05f;
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
-    // InputDataType = FP32
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_opt" },
-
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_4, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_5, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_6, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_7, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_2, 2, 4, "activation_ref" },
-
-    // InputDataType = FP16
-    activation_test_params{ CASE_ACTIVATION_F16_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_F16_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_opt" },
-
-    activation_test_params{ CASE_ACTIVATION_F16_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_4, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_5, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_6, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_7, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_4, 2, 4, "activation_ref" },
-
-    // InputDataType = UINT8
-    activation_test_params{ CASE_ACTIVATION_U8_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_U8_2, 2, 4, "activation_ref" },
-
-    // InputDataType = INT8
-    activation_test_params{ CASE_ACTIVATION_I8_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_opt" },
-
-    activation_test_params{ CASE_ACTIVATION_I8_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_I8_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_ref" }
-}));
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_scale_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
-    activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
-    activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
 }));

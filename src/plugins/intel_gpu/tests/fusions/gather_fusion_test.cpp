@@ -143,7 +143,7 @@ TEST_P(gather_scale_activation, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
         activation("activation", "gather_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 

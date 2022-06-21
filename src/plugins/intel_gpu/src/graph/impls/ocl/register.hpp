@@ -53,7 +53,6 @@
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
@@ -142,7 +141,6 @@ REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);
-REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);
 REGISTER_OCL(scatter_nd_update);

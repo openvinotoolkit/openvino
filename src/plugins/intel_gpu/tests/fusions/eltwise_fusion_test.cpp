@@ -337,22 +337,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fp32_fsv4, ::testing::ValuesIn(std
 }));
 
 class eltwise_fp32_fused_prims : public EltwiseFusingTest {};
-TEST_P(eltwise_fp32_fused_prims, scale_activation) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        input_layout("input2", get_input_layout2(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
-        activation("activation", "scale", activation_func::abs),
-        reorder("out", "activation", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
 TEST_P(eltwise_fp32_fused_prims, eltwise_activation) {
     auto p = GetParam();
     create_topologies(
@@ -415,26 +399,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fp32_fused_prims, ::testing::Value
     eltwise_test_params{ CASE_ELTWISE_FP32_6, 3, 5 },
     eltwise_test_params{ CASE_ELTWISE_I8_4, 3, 5 },
     eltwise_test_params{ CASE_ELTWISE_U8_4, 3, 5 },
-}));
-
-class eltwise_fp32_scale : public EltwiseFusingTest {};
-TEST_P(eltwise_fp32_scale, 6d) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        input_layout("input2", get_input_layout2(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
-        reorder("out", "scale", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fp32_scale, ::testing::ValuesIn(std::vector<eltwise_test_params>{
-    eltwise_test_params{ CASE_ELTWISE_FP32_4, 3, 4 },
 }));
 
 class eltwise_fp16_byxf : public EltwiseFusingTest {};

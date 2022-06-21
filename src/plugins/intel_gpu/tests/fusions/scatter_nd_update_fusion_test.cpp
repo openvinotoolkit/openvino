@@ -248,7 +248,7 @@ TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.input_shape })),
         scatter_nd_update("scatter_nd_update_prim", "input", "scatter_nd_update_indices", "scatter_nd_update_updates", p.indices_rank),
         activation("activation", "scatter_nd_update_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.input_format, data_types::f32)
     );

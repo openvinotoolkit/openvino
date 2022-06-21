@@ -13,7 +13,6 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -452,109 +451,4 @@ TEST(memory_pool, shared_dep_two_output) {
     network network(*engine, topo, bo);
     auto outputs = network.execute();
     EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
-}
-
-TEST(memory_pool, non_opt_intermidate_opt_after) {
-    auto& engine = get_test_engine();
-    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
-    auto input_layout2 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
-
-    auto input_memory1 = engine.allocate_memory(input_layout1);
-    auto input_memory2 = engine.allocate_memory(input_layout2);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
-    auto data_memory = cldnn::data("scale_mem", scale_memory);
-
-    set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f });
-    set_values(input_memory2, { 5.0f, 6.0f, 7.0f, 8.0f });
-    set_values(scale_memory, { 1.0f });
-
-    auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
-    auto input = cldnn::input_layout("input1", input_layout1);
-    auto input2 = cldnn::input_layout("input2", input_layout2);
-    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, 0);
-    auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
-    auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
-    auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
-
-    auto topology = cldnn::topology(
-        input, input2,
-        concat,
-        reshape,
-        crop1, crop2,
-        eltwise1, eltwise2,
-        data_memory
-    );
-
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology, bo);
-    network.set_input_data("input1", input_memory1);
-    network.set_input_data("input2", input_memory2);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
-
-    auto out1 = outputs.at("elt1");
-    auto out2 = outputs.at("elt2");
-
-    cldnn::mem_lock<float> out1_ptr(out1.get_memory(), get_test_stream());
-    cldnn::mem_lock<float> out2_ptr(out2.get_memory(), get_test_stream());
-    EXPECT_EQ(out1_ptr[0], 1.0f);
-    EXPECT_EQ(out2_ptr[0], 2.0f);
-}
-
-TEST(memory_pool, add_mem_dep_test) {
-    auto& engine = get_test_engine();
-
-    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 2, 2, 2 });
-
-    auto input_memory1 = engine.allocate_memory(input_layout1);
-    auto scale_memory = engine.allocate_memory(layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 1, 1 }));
-    auto data_memory = cldnn::data("scale_mem", scale_memory);
-
-    set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f,
-        5.0f, 6.0f, 7.0f, 8.0f});
-    set_values(scale_memory, { 1.0f });
-
-    auto input = cldnn::input_layout("input1", input_layout1);
-    auto actv1 = cldnn::activation("input_activ1", "input1", activation_func::abs);
-    auto actv2 = cldnn::activation("input_activ2", "input1", activation_func::abs);
-    auto crop1 = cldnn::crop("crop1", "input_activ1", { 1, 1, 2, 2 }, { 0, 0, 0, 0 });
-    auto crop2 = cldnn::crop("crop2", "input_activ2", { 1, 1, 2, 2 }, { 0, 1, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
-    auto actv3 = cldnn::activation("out3", "elt1", activation_func::abs);
-    auto actv4 = cldnn::activation("out4", "elt2", activation_func::abs);
-
-    auto topology = cldnn::topology(
-        input,
-        crop1, crop2,
-        actv1, actv2,
-        eltwise1, eltwise2,
-        data_memory,
-        actv3, actv4
-    );
-
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
-    network.set_input_data("input1", input_memory1);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
-
-    auto out1 = outputs.at("out3");
-    auto out2 = outputs.at("out4");
-
-    cldnn::mem_lock<float> out1_ptr(out1.get_memory(), get_test_stream());
-    cldnn::mem_lock<float> out2_ptr(out2.get_memory(), get_test_stream());
-    EXPECT_EQ(out1_ptr[0], 1.0f);
-    EXPECT_EQ(out1_ptr[1], 2.0f);
-    EXPECT_EQ(out1_ptr[2], 3.0f);
-    EXPECT_EQ(out1_ptr[3], 4.0f);
-
-    EXPECT_EQ(out2_ptr[0], 5.0f);
-    EXPECT_EQ(out2_ptr[1], 6.0f);
-    EXPECT_EQ(out2_ptr[2], 7.0f);
-    EXPECT_EQ(out2_ptr[3], 8.0f);
 }

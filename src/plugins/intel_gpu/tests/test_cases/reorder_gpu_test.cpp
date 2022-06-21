@@ -1394,33 +1394,6 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     EXPECT_TRUE(outputs.at("r2").get_memory()->get_layout().format == format::yxfb);
 }
 
-TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
-{
-    auto& engine = get_test_engine();
-
-    memory::ptr in = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
-    set_values(in, { -1.0f, -1.0f });
-    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
-    set_values(scale_mem, { 2.0f });
-    topology tpl{
-        input_layout("in", in->get_layout()),
-        reorder("r1", "in", format::bfyx, data_types::f32),
-        activation("relu", "r1", activation_func::relu_negative_slope, { 0.01f, 0.0f }),
-        data("scale_data", scale_mem),
-        scale("output", "relu", "scale_data")
-    };
-
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-
-    network net(engine, tpl, opts);
-    net.set_input_data("in", in);
-    auto outputs = net.execute();
-    cldnn::mem_lock<float> out_ptr(outputs.begin()->second.get_memory(), get_test_stream());
-    EXPECT_FLOAT_EQ(out_ptr[0], -0.02f);
-    EXPECT_FLOAT_EQ(out_ptr[1], -0.02f);
-}
-
 TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
 {
     auto& engine = get_test_engine();

@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
 #include <sstream>
@@ -599,71 +598,5 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
         auto output = outputs.at(split_id).get_memory();
         cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
         check_feature_map<int64_t>(output_ptr.data(), input_vec, batch_num, feature_num, y_size, x_size, i, 1);
-    }
-}
-
-TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
-    //  Input      : 6x3x4x3
-    //  3 x Outputs: 6x1x4x3
-    //  Split params:
-    //  id: "out0", offsets: { 0, 0, 0, 0 }
-    //  id: "out1", offsets: { 0, 1, 0, 0 }
-    //  id: "out2", offsets: { 0, 2, 0, 0 }
-    //  Additional scale layer at the end
-
-    auto& engine = get_test_engine();
-
-    auto batch_num = 6;
-    auto feature_num = 3;
-    auto x_size = 4;
-    auto y_size = 3;
-
-    auto input = engine.allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
-    auto scale_input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_input2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("scale_input0", scale_input0->get_layout()));
-    topology.add(input_layout("scale_input1", scale_input1->get_layout()));
-    topology.add(input_layout("scale_input2", scale_input2->get_layout()));
-    topology.add(split("split", "input",
-    {
-        { "out0",{ 0, 0, 0, 0 } },
-        { "out1",{ 0, 1, 0, 0 } },
-        { "out2",{ 0, 2, 0, 0 } }
-    }));
-    topology.add(scale("scale0", "split:out0", "scale_input0"));
-    topology.add(scale("scale1", "split:out1", "scale_input1"));
-    topology.add(scale("scale2", "split:out2", "scale_input2"));
-
-    std::vector<float> scale_input_vec0 = { 1.f };
-    set_values(scale_input0, scale_input_vec0);
-    std::vector<float> scale_input_vec1 = { 2.f };
-    set_values(scale_input1, scale_input_vec1);
-    std::vector<float> scale_input_vec2 = { 3.f };
-    set_values(scale_input2, scale_input_vec2);
-
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
-    set_values(input, input_vec);
-
-    network network(engine, topology);
-
-    network.set_input_data("input", input);
-    network.set_input_data("scale_input0", scale_input0);
-    network.set_input_data("scale_input1", scale_input1);
-    network.set_input_data("scale_input2", scale_input2);
-
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(3));
-
-    for (unsigned int i = 0; i < 3; i++)
-    {
-        auto split_id = "scale" + std::to_string(i);
-        auto output = outputs.at(split_id).get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-        check_feature_map<float>(output_ptr.data(), input_vec, batch_num, feature_num, y_size, x_size, i, i + 1);
     }
 }

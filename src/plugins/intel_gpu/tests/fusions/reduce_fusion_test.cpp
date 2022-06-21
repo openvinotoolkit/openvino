@@ -234,7 +234,7 @@ TEST_P(reduce_scale_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_single_element_layout(p), -0.125f)),
         reduce("reduce", "input", p.reduce_mode, p.reduce_axes, p.keep_dims),
-        scale("scale", "reduce", "scale_data"),
+        eltwise("scale", { "reduce", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::cos),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
     );
@@ -249,7 +249,7 @@ TEST_P(reduce_scale_activation, per_channel) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -0.125f)),
         reduce("reduce", "input", p.reduce_mode, p.reduce_axes, p.keep_dims),
-        scale("scale", "reduce", "scale_data"),
+        eltwise("scale", { "reduce", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::cos),
         reorder("output_reorder", "activation", p.default_format, data_types::f32)
     );

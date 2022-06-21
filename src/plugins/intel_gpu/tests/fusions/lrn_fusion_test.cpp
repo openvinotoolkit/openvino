@@ -116,7 +116,7 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, basic) {
         data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
         quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        scale("scale", "quantize", "scale_data"),
+        eltwise("scale", { "quantize", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::exp),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );
@@ -142,7 +142,7 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, per_channel) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
         quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        scale("scale", "quantize", "scale_data"),
+        eltwise("scale", { "quantize", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::exp),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );
@@ -191,7 +191,7 @@ TEST_P(lrn_fp32_quantize_i8_scale_activation, basic) {
         data("out_hi", get_mem(get_single_element_layout(p),  127)),
         data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
+        eltwise("scale", { "lrn_norm", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::exp),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
         reorder("reorder", "quantize", p.default_format, data_types::f32)
@@ -234,7 +234,7 @@ TEST_P(lrn_fp32_scale_activation_quantize_u8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
+        eltwise("scale", { "lrn_norm", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::exp),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder", "quantize", p.default_format, data_types::f32)
@@ -270,7 +270,7 @@ TEST_P(lrn_fp16_scale_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
+        eltwise("scale", { "lrn_norm", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::exp),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );

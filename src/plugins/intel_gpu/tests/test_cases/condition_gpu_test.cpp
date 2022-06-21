@@ -11,7 +11,6 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include <cstddef>
@@ -41,58 +40,6 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& inp
         );
     }
     return branch;
-}
-
-TEST(DISABLED_condition_gpu, basic_equal_comp) {
-    auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-
-    topology branch_true = generate_simple_branch(true, "condi");
-    topology branch_false = generate_simple_branch(false, "condi");
-
-    topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-    topology.add(
-        input_layout("compare", compare->get_layout())
-    );
-    topology.add(
-        input_layout("scale_data", scale_mem->get_layout())
-    );
-    topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
-    );
-    topology.add(
-        scale("output", "condi", "scale_data")
-    );
-
-    network net(engine, topology, bs);
-    set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f });
-    set_values(scale_mem, { 10.0f });
-    net.set_input_data("input", input);
-    net.set_input_data("scale_data", scale_mem);
-
-    decltype(net.execute()) out;
-
-    //WHEN TRUE
-    set_values(compare, { 1.0f });
-    net.set_input_data("compare", compare);
-    out = net.execute();
-    auto out_data_true = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_true, {20.0f, 40.0f}));
-
-    //WHEN FALSE
-    set_values(compare, { 4.0f });
-    net.set_input_data("compare", compare);
-    out = net.execute();
-    auto out_data_false = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_false, { 15.0f, 35.0f }));
-
 }
 
 TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
@@ -374,100 +321,6 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
 
     auto out_data = outputs.at("condi2").get_memory();
     EXPECT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
-}
-
-TEST(DISABLED_condition_gpu, basic_nested_ifs) {
-
-    /*
-    <prims...>
-    <if 0>
-    <...>
-    <if 1>
-    <...>
-    <end_if 1>
-    <...>
-    <end_if 0>
-    <prims...>
-    */
-    auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
-    auto scale_5_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    set_values(scale_5_mem, { 5.0f });
-    auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    set_values(scale_10_mem, { 10.0f });
-
-    topology nested_true;
-    {
-        nested_true.add(scale("scale_5", "condi_nested", "scale_5_data"),
-            data("scale_5_data", scale_5_mem));
-    }
-    topology nested_false;
-    {
-        nested_false.add(scale("scale_10", "condi_nested", "scale_10_data"),
-            data("scale_10_data", scale_10_mem));
-    }
-
-    topology branch_true;
-    branch_true.add(
-        pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
-    );
-    branch_true.add(
-        input_layout("compare2", compare2->get_layout())
-    );
-
-    branch_true.add(
-        condition(
-        "condi_nested",
-        "pooling_when_true",
-        nested_true,
-        nested_false,
-        "compare2",
-        cond_functions::EQUAL)
-    );
-
-    topology branch_false;
-    branch_false.add(
-        pooling("pooling_when_false", "condi", cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
-    );
-
-    topology topology;
-    topology.add(
-        input_layout("input", input->get_layout())
-    );
-
-    topology.add(
-        input_layout("compare", compare->get_layout())
-    );
-
-    topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
-    );
-
-    std::vector<float> input_data = {
-        1.0f, 2.0f, 3.0f, 4.0f
-    };
-    std::vector<float> compare_data = {
-        1.0f
-    };
-    std::vector<float> compare_2_data = {
-        2.0f, 4.0f
-    };
-    set_values(input, input_data);
-    set_values(compare, compare_data);
-    set_values(compare2, compare_2_data);
-
-    network net(engine, topology, bs);
-    net.set_input_data("input", input);
-    net.set_input_data("compare", compare);
-    net.set_input_data("compare2", compare2);
-    auto outputs = net.execute();
-
-    auto out_data = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data, { 10.0f, 20.0f }));
 }
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {

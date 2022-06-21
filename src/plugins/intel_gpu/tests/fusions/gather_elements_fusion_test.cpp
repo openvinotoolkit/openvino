@@ -165,7 +165,7 @@ TEST_P(gather_elements_scale_activation, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
         activation("activation", "gather_elements_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -209,7 +209,7 @@ TEST_P(gather_elements_activation_scale_eltwise, basic) {
         data("eltwise_data", get_mem(get_output_layout(p))),
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
         activation("activation", "gather_elements_prim", activation_func::abs),
-        scale("scale", "activation", "scale_data"),
+        eltwise("scale", { "activation", "scale_data" }, eltwise_mode::prod, p.default_type),
         eltwise("eltwise", { "scale", "eltwise_data" }, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );

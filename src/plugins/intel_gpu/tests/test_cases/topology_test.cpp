@@ -10,7 +10,6 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -299,20 +298,6 @@ protected:
                 return true;
             }
         };
-        class scale_layer_type : public topology_layer_type
-        {
-            virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts)
-            {
-                // for now using just one set of params
-                // todo: randomize params
-                cldnn::primitive_id input_id = topology_generator::CreateLayerId();
-                input_layouts.push_back({ input_id, output_layout });
-                cldnn::primitive_id scale_params_id = id + "_scale_params";
-                AddRandomMemory(topology, scale_params_id, output_layout);
-                topology.add(cldnn::scale(id, input_id, scale_params_id, ""));
-                return true;
-            }
-        };
         class softmax_layer_type : public topology_layer_type
         {
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts)
@@ -456,7 +441,7 @@ std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_ty
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
-    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
+    // std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
     std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
     // Only add new types at the end
 };

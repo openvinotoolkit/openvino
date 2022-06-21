@@ -66,7 +66,6 @@ void register_implementations() {
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
-    REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
     REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(scatter_elements_update);

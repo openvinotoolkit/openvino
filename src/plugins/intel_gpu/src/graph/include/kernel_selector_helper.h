@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 

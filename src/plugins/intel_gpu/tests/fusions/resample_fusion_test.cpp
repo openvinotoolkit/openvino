@@ -145,7 +145,7 @@ TEST_P(resample_scale_activation_eltwise, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise_data", get_mem(get_output_layout(p), -10, 10)),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        scale("scale", "resample_prim", "scale_data"),
+        eltwise("scale", { "resample_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("activation", "scale", activation_func::abs),
         eltwise("eltwise", { "activation", "eltwise_data" }, eltwise_mode::sum),
         reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
@@ -260,11 +260,13 @@ TEST_P(resample_scale_concat, along_f) {
         resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
         data("scale1_scale", get_mem(get_per_channel_layout(p), -10, 10)),
         data("scale1_shift", get_mem(get_per_channel_layout(p), -10, 10)),
-        scale("scale1", "resample1", "scale1_scale", "scale1_shift"),
+        eltwise("scale1_", { "resample1", "scale1_scale" }, eltwise_mode::prod, p.default_type),
+        eltwise("scale1", { "scale1_", "scale1_shift" }, eltwise_mode::sum, p.default_type),
         resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
         data("scale2_scale", get_mem(get_per_channel_layout(p), -10, 10)),
         data("scale2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
-        scale("scale2", "resample2", "scale2_scale", "scale2_shift"),
+        eltwise("scale2_", { "resample2", "scale2_scale" }, eltwise_mode::prod, p.default_type),
+        eltwise("scale2", { "scale2_", "scale2_shift" }, eltwise_mode::sum, p.default_type),
         concatenation("concat", { "scale1", "scale2" }, 1),
         reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
     );

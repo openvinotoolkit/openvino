@@ -118,14 +118,6 @@ protected:
                     break;
                 }
 
-                case onednn_post_op_type::scale:
-                {
-                    auto scale_op_mem = instance.fused_memory(memory_offset);
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_op_mem->get_layout(), dnnl::memory::format_tag::a, true);
-                    args.insert({DNNL_ARG_ATTR_OUTPUT_SCALES, scale_op_mem->get_onednn_memory(desc)});
-                    break;
-                }
-
                 case onednn_post_op_type::sum:
                 case onednn_post_op_type::optimized_sum:
                 case onednn_post_op_type::optimized_eltwise_linear:
