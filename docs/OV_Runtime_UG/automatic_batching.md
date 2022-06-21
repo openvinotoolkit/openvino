@@ -1,6 +1,9 @@
 # Automatic Batching {#openvino_docs_OV_UG_Automatic_Batching}
 
-This article covers details in regards of Automatic Batching. Described here are general information alongside configuration and testing performance.
+The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, with no programming effort from the user.
+With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
+
+This article provides a preview of the new Automatic Batching function, including how it works, its configurations, and testing performance.
 
 ## (Automatic) Batching Execution
 
