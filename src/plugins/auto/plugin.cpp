@@ -288,7 +288,12 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         for (auto device : deviceList) {
             auto devCapabilities = GetCore()->GetMetric(device, ov::device::capabilities.name()).as<std::vector<std::string>>();
             capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
-            capabilities.erase(std::unique(capabilities.begin(), capabilities.end()), capabilities.end());
+        }
+        std::sort(capabilities.begin(), capabilities.end());
+        capabilities.resize(std::distance(capabilities.begin(), std::unique(capabilities.begin(), capabilities.end())));
+        auto delItem = std::find(capabilities.begin(), capabilities.end(), ov::device::capability::EXPORT_IMPORT);
+        if (delItem != capabilities.end()) {
+            capabilities.erase(delItem);
         }
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
