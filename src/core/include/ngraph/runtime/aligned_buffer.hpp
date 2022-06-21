@@ -27,6 +27,8 @@ public:
 
     AlignedBuffer(AlignedBuffer&& other);
     AlignedBuffer& operator=(AlignedBuffer&& other);
+    AlignedBuffer(const AlignedBuffer&) = delete;
+    AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
     size_t size() const {
         return m_byte_size;
@@ -53,10 +55,6 @@ public:
     explicit operator T*() {
         return get_ptr<T>();
     }
-
-private:
-    AlignedBuffer(const AlignedBuffer&) = delete;
-    AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
 protected:
     char* m_allocated_buffer;
