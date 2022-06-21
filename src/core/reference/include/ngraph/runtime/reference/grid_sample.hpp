@@ -226,7 +226,7 @@ void grid_sample(DATA_ET* output,
                  const ov::op::v9::GridSample::InterpolationMode interpolation_mode,
                  const ov::op::v9::GridSample::PaddingMode padding_mode) {
     assert(data_shape.size() == 4 && grid_shape.size() == 4);
-    assert(data_shape[0] == grid_shape[0] and grid_shape[3] == 2);
+    assert(data_shape[0] == grid_shape[0] && grid_shape[3] == 2);
 
     const auto N = data_shape[0];
     const auto C = data_shape[1];
@@ -271,16 +271,13 @@ void grid_sample(DATA_ET* output,
 
                     switch (interpolation_mode) {
                     case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
-                        out =
-                            bilinear<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
+                        out = bilinear(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::NEAREST:
-                        out =
-                            nearest<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
+                        out = nearest(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
-                        out =
-                            bicubic<DATA_ET, GRID_ET>(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
+                        out = bicubic(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                         break;
                     }
                 }
