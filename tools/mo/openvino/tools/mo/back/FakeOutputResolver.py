@@ -21,10 +21,7 @@ class FakeOutputResolver(BackReplacementPattern):
             name = fake_output.soft_get('name', fake_output.id)
 
             producer = fake_output.in_port(0).get_source().node
-            producer_outputs = 0
-            for port in producer.out_ports().values():
-                if not port.disconnected():
-                    producer_outputs += 1
+
             # At this stage we don't know the type of output, so we rely on MO transformation which updates the
             # Const type for elementwise operations in case of input data types mismatch
             add = create_op_with_const_inputs(graph, Add, {1: int64_array(0)}, {'can_be_fused': False})
