@@ -13,6 +13,7 @@ namespace MultiDevicePlugin {
 thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
+thread_local std::vector<SoExecNetwork> MultiSchedule::_passthroughHolder = {};
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
@@ -22,8 +23,10 @@ void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
     }
-    if (_multiSContext->_networksPerDevice.size() == 1)
+    if (_multiSContext->_networksPerDevice.size() == 1) {
         _passthroughExeNet = _multiSContext->_networksPerDevice.begin()->second;
+        _passthroughHolder.emplace_back(_passthroughExeNet);
+    }
 }
 
 Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {

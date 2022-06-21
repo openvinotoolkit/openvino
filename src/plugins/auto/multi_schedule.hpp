@@ -60,6 +60,7 @@ protected:
     Time                                                      _cpuHelpReleaseTime;
     unsigned int                                              _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
+    thread_local static std::vector<SoExecNetwork>            _passthroughHolder;
 };
 
 }  // namespace MultiDevicePlugin
