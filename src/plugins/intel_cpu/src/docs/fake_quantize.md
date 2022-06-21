@@ -80,9 +80,9 @@ $$
 in symetric quantization, Zi is choosen to be `levels/2`, thus we can increase the range a little by push il to be smaller number
 
 $$
-    (levels-1)/Z_i = -(ih - il)/il = 1 - ih/il \\
-    2(1-1/levels) = 1 - ih/il \\
-    il = -ih/(1 - 2/levels)
+   (levels-1)/Z_i = -(ih - il)/il = 1 - ih/il \\
+   2(1-1/levels) = 1 - ih/il \\
+   il = -ih/(1 - 2/levels)
 $$
 
 for example:
