@@ -47,7 +47,7 @@ Throughput is the amount of data an inferencing pipeline can process at once, an
 
 When benchmark_app is run with `-hint throughput`, it automatically sets the inference batch size to fill up all the memory available. It also maximizes the number of parallel inference requests to utilize all the threads available on the device.
 
-For more information on performance hints, see the [High-level Performance Hints](../../../docs/OV_Runtime_UG/performance_hints.md) page.
+For more information on performance hints, see the [High-level Performance Hints](../../../docs/OV_Runtime_UG/performance_hints.md) page. For more details on optimal runtime configurations and how they are automatically determined using performance hints, see [Runtime Inference Optimizations](../../../docs/optimization_guide/dldt_deployment_optimization_guide.md).
 
 
 ### Device
