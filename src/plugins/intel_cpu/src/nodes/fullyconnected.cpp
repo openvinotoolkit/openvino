@@ -409,6 +409,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
 
             if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
                 if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
+                    outputDataType == memory::data_type::u8 &&
                     std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
                     std::vector<float> outScales;
                     int mask = 1 << 1;

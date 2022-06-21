@@ -72,11 +72,13 @@ thus inputLow/inputHigh/outputLow/outputHigh is gently tuned from statistical re
 
 # Symetric quantization
 In symetric quantize: choose `il` to be `-ih` results in non-integer zero points (since levels is even number)
+
 $$
    Z_i = \frac{-il*(levels-1)}{ih - il} = (levels-1)/2
 $$
 
 in symetric quantization, Zi is choosen to be `levels/2`, thus we can increase the range a little by push il to be smaller number
+
 $$
     (levels-1)/Z_i = -(ih - il)/il = 1 - ih/il \\
     2(1-1/levels) = 1 - ih/il \\
@@ -91,6 +93,7 @@ I8 is better choice for symetric quantization beause we can also make zero-point
 $$
    q'_{U8} = clamp(round(x*\frac{1}{S_i} + 128), 0, 255)
 $$
+
 $$
    q'_{I8} = clamp(round(x*\frac{1}{S_i}), -128, 127)
 $$
@@ -118,6 +121,7 @@ To recognize a `Quantize-only FQ` that can be optimized with output-scales post-
  - Zi=0 (i.e. inputLow==0)
  - So=1
  - Zo=0
+
 $$
    q'_{U8} = clamp(round(x*\frac{1}{S_i}), 0, 255)
 $$
@@ -126,6 +130,7 @@ $$
  - Zi=128 (which can be optimized as output I8 with Zi=0)
  - So=1
  - Zout=128 (outputLow = -128)
+
 $$
    q'_{I8} = clamp(round(x*\frac{1}{S_i}), -128, 127)
 $$
