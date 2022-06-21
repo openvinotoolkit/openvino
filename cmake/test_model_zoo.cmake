@@ -108,7 +108,7 @@ if(ENABLE_TESTS)
 
         message(STATUS "pip version is ${pip3_version}")
         set(args --quiet)
-        if(pip3_version VERSION_GREATER 20.2.2 AND pip3_version VERSION_LESS 21.0.0)
+        if(pip3_version VERSION_GREATER 20.2.2 AND pip3_version VERSION_LESS 20.3.0)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
