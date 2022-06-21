@@ -112,7 +112,7 @@ For details, refer to the [Tensorflow Object Detection API models resizing techn
 ### How To Fix Non-Reshape-able Model
 
 Some operators which prevent normal shape propagation can be fixed. To do so you can:
-* see if the issue can be fixed via changing the values of some operators input. 
+* see if the issue can be fixed via changing the values of some operators' input. 
 For example, the most common problem of non-reshape-able models is a `Reshape` operator with hard-coded output shape.
 You can cut-off hard-coded 2nd input of `Reshape` and fill it in with relaxed values.
 For the following example on the picture, the Model Optimizer CLI should be:
