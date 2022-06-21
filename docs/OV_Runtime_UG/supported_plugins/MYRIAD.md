@@ -34,6 +34,37 @@ If the `KEY_VPU_MYRIAD_FORCE_RESET` option is set to `YES`, the plugin will rese
 
 Single device cannot be shared across multiple processes.
 
+## Intel® Movidius™ Myriad X firmwares from MDK R18
+
+By default OpenVINO Runtime MYRIAD plugin is linked to the Intel® Movidius™ Myriad X firmwares generated from MDK R17 release which are automatically downloaded in the install process. But it is also compatible with the Intel® Movidius™ Myriad X firmwares generated from MDK R18 release (latest firmwares version) which are available on [Intel RDC](https://cdrdv2.intel.com/v1/dl/getContent/730726?explicitVersion=true).
+
+The user have the possibility to download the Intel® Movidius™ Myriad X firmwares generated from MDK R18 relese from the source mentioned above and to manually replace the default firmwares in the directory where the OpenVINO Runtime was installed. The Intel® Movidius™ Myriad X firmwares consist in the following three files:
+
+| FileName              | Setups           |
+| :---                  | :---             |
+| `usb-ma2x8x.mvcmd`    | Used to boot the Intel Movidius Myriad X VPU devices over USB connection for all supported operating systems.                   |
+| `pcie-ma2x8x.mvcmd`   | Used to boot the Intel Movidius Myriad X VPU devices over PCIE connection for all supported operating systems excepting Windows. |
+| `pcie-ma2x8x.elf`     | Used to boot the Intel Movidius Myriad X VPU devices over PCIE connection for Windows operating systems.                     |
+
+Depending on the source used to install OpenVINO Runtime the paths to Intel® Movidius™ Myriad X firmwares are different.
+
+For OpenVINO installed from Intel® Distribution of OpenVINO™ Toolkit these files are located to the following paths:
+
+```
+<install-dir>/<openvino-version>/runtime/3rdparty/hddl/lib/mvnc/usb-ma2x8x.mvcmd
+<install-dir>/<openvino-version>/runtime/lib/intel64/usb-ma2x8x.mvcmd
+<install-dir>/<openvino-version>/runtime/lib/intel64/pcie-ma2x8x.mvcmd
+<install-dir>/<openvino-version>/runtime/lib/intel64/pcie-ma2x8x.elf
+```
+
+For OpenVINO Runtime installed from source code, the paths to Intel Movidius Myriad X OpenVINO firmwares are:
+
+```
+openvino/bin/intel64/<Release|Debug|RelWithDebInfo>/lib/usb-ma2x8x.mvcmd
+openvino/bin/intel64/<Release|Debug|RelWithDebInfo>/lib/pcie-ma2x8x.mvcmd
+openvino/bin/intel64/<Release|Debug|RelWithDebInfo>/lib/pcie-ma2x8x.elf
+```
+
 ## See Also
 
 * [Supported Devices](Supported_Devices.md)
