@@ -24,43 +24,41 @@ from ..conftest import (
     model_path,
     model_onnx_path,
     plugins_path,
-    read_image,
     get_model_with_template_extension,
 )
 
+from ..test_utils.test_utils import (
+    generate_image,
+    generate_relu_model,
+)
 
+
+plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
-plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
 def test_compact_api_xml():
-    img = read_image()
+    img = generate_image()
 
     model = compile_model(test_net_xml)
     assert isinstance(model, CompiledModel)
     results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 2
+    assert np.argmax(results[list(results)[0]]) == 9
 
 
 def test_compact_api_onnx():
-    img = read_image()
+    img = generate_image()
 
     model = compile_model(test_net_onnx)
     assert isinstance(model, CompiledModel)
     results = model.infer_new_request({"data": img})
-    assert np.argmax(results[list(results)[0]]) == 2
+    assert np.argmax(results[list(results)[0]]) == 9
 
 
 def test_core_class():
     input_shape = [1, 3, 4, 4]
-    param = ov.parameter(input_shape, np.float32, name="parameter")
-    relu = ov.relu(param, name="relu")
-    func = Model([relu], [param], "test")
-    func.get_ordered_ops()[2].friendly_name = "friendly"
-
-    core = Core()
-    model = core.compile_model(func, "CPU", {})
+    model = generate_relu_model(input_shape)
 
     request = model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
@@ -390,7 +388,7 @@ def test_read_model_from_buffer_no_weights(device):
 def test_infer_new_request_return_type(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
     arr = res[list(res)[0]][0]

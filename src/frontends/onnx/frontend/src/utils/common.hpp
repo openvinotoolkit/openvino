@@ -142,6 +142,14 @@ std::shared_ptr<default_opset::Constant> make_failsafe_constant(const ngraph::el
 /// \brief Checks the node's runtime info object and returns true if this node represents
 ///        a dummy failsafe node created instead of an incorrect node found in the original model
 bool is_failsafe_node(const std::shared_ptr<ov::Node>& node);
+
+/// \brief Marks an output of a node as "optimized out" meaning that during the import of an ONNX operation
+///        no OV nodes have been created and the ONNX operator returns its inputs as its outputs.
+///        This information is later used to add extra names to the tensors associated with such outputs.
+void mark_as_optimized_out(Output<ov::Node>& node_output);
+
+/// \brief Checks if a given output was marked as optimized out byt the function above.
+bool is_optimized_out(const Output<ov::Node>& node_output);
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
