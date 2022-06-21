@@ -9,7 +9,7 @@ from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class EyeExtractor(FrontExtractorOp):
-    op = '_npi_eye'
+    op = '_eye'
     enabled = True
 
     @classmethod
@@ -17,7 +17,7 @@ class EyeExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         num_rows = attrs.int("N")
         num_columns = attrs.int("M", num_rows)
-        if num_columns is None:
+        if num_columns is None or num_columns == 0:
             num_columns = num_rows
         diagonal_index = attrs.int("k", 0)
         out_type = attrs.dtype("dtype", np.float32)
