@@ -14,7 +14,9 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
-from ..conftest import model_path, read_image
+# TODO: reformat into absolute paths
+from ..conftest import model_path
+from ..test_utils.test_utils import generate_image
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -89,7 +91,7 @@ def test_get_profiling_info(device):
     model = core.read_model(test_net_xml, test_net_bin)
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
     tensor_name = compiled.input("data").any_name
     request.infer({tensor_name: img})
@@ -110,7 +112,7 @@ def test_tensor_setter(device):
     compiled_2 = core.compile_model(model=model, device_name=device)
     compiled_3 = core.compile_model(model=model, device_name=device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     request1 = compiled_1.create_infer_request()
@@ -152,7 +154,7 @@ def test_set_tensors(device):
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
 
-    data1 = read_image()
+    data1 = generate_image()
     tensor1 = Tensor(data1)
     data2 = np.ones(shape=(1, 10), dtype=np.float32)
     tensor2 = Tensor(data2)
@@ -281,7 +283,7 @@ def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
 
     request.start_async({0: img})
@@ -301,7 +303,7 @@ def test_start_async(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     jobs = 3
     requests = []
     for _ in range(jobs):
@@ -354,7 +356,7 @@ def test_infer_mixed_keys(device):
     core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     data2 = np.ones(shape=img.shape, dtype=np.float32)
@@ -362,7 +364,7 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 2
+    assert np.argmax(res[model.output()]) == 9
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -471,7 +473,7 @@ def test_infer_queue(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
@@ -508,7 +510,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     def callback(request, _):
         request.get_tensor("Unknown")
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(RuntimeError) as e:
@@ -530,7 +532,7 @@ def test_infer_queue_fail_on_py_model(device):
     def callback(request, _):
         request = request + 21
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(TypeError) as e:
@@ -641,7 +643,7 @@ def test_results_async_infer(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
