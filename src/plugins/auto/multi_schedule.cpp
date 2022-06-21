@@ -13,7 +13,7 @@ namespace MultiDevicePlugin {
 thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
-
+thread_local SoExecNetwork MultiSchedule::_passthroughExeNet = {};
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);

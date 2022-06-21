@@ -56,7 +56,7 @@ protected:
     mutable std::mutex                                        _mutex;
     std::atomic_size_t                                        _numRequestsCreated = {0};
     MultiScheduleContext::Ptr                                 _multiSContext;
-    SoExecNetwork                                             _passthroughExeNet;
+    static thread_local SoExecNetwork                         _passthroughExeNet;
     Time                                                      _cpuHelpReleaseTime;
     unsigned int                                              _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
