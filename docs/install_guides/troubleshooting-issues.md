@@ -2,9 +2,9 @@
 
 This page lists issues that you may encounter during the installation and configuration of OpenVINO™, as well as their possible solutions.
 
-## <a name="install-for-prc"></a>Errors with Installing via PIP for PRC Users
+## <a name="install-for-prc"></a>Errors with Installing via PIP for Users in China
 
-PRC users might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
+Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try one of the following options:
    
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
 

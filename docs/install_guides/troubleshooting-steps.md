@@ -86,4 +86,4 @@ Make sure that your firewall and network settings are configured correctly. For 
 
 @endsphinxdirective
 
-For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for PRC Users</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>. 
+For specific issues, see <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#install-for-prc">Errors with Installing via PIP for Users in China</a> and <a href="openvino_docs_get_started_guide_troubleshooting_issues.html#proxy-issues">proxy issues with installing OpenVINO on Linux from Docker</a>. 
