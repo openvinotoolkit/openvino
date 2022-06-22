@@ -8,14 +8,15 @@
 #include <onednn/dnnl.h>
 
 #include <cmath>
+#include <string>
+#include <thread>
+#include <vector>
+
 #include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <ngraph/opsets/opset7.hpp>
-#include <string>
-#include <thread>
-#include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
@@ -119,7 +120,7 @@ struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public jit_generator 
         }
         L(main_loop_end_label);
 
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
             Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
             Xbyak::Ymm ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
@@ -874,9 +875,9 @@ DFT::DFTJitExecutor::DFTJitExecutor(const DFTAttrs& interpAttrs) : DFTExecutor(i
 
     jdp.inverse = interpAttrs.inverse;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_common>(jdp));
-        fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_common>(jdp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>(jdp));
+        fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>(jdp));
     } else if (mayiuse(cpu::x64::avx2)) {
         dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>(jdp));
         fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>(jdp));
