@@ -232,7 +232,7 @@ struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public jit_generator 
             uni_vpshufd(reg_data_odd_2, reg_data_odd_1, 0b10110001);
             uni_vmulps(reg_data_odd_2, reg_data_odd_2, reg_twiddle_imag);
 
-            if (mayiuse(cpu::x64::avx512_common)) {
+            if (mayiuse(cpu::x64::avx512_core)) {
                 if (!jcp_.inverse) {
                     vfmaddsub213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
                 } else {
@@ -745,7 +745,7 @@ void DFT::DFTRefExecutor::fft(float* data, int64_t dataLength, bool inverse, boo
             twiddleImag *= -1;
         }
 
-        for (int64_t pair = 0; pair < blockSize / 2; pair += 2) {
+        for (size_t pair = 0; pair < blockSize / 2; pair += 2) {
             const float evenReal = curInpBufferPtr[pair];
             const float evenImag = curInpBufferPtr[pair + 1];
 
