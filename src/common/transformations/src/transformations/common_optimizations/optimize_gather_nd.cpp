@@ -8,6 +8,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <openvino/op/util/gather_nd_base.hpp>
 
 #include "itt.hpp"
@@ -22,12 +23,32 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!gather_nd_node)
             return false;
 
+        const auto gathernd_indices_node = gather_nd_node->input_value(0).get_node_shared_ptr();
+
+        // check if indices are constant
+        if (!ngraph::op::is_constant(gathernd_indices_node)) {
+            return false;
+        }
+
         // original GatherND indices shape
-        auto gathernd_indices_shape = gather_nd_node->input_value(1).get_shape();
+        const auto gathernd_indices_shape = gathernd_indices_node->get_shape();
 
         // last shape element for Gather op
-        auto last_gathernd_shape_element = gathernd_indices_shape[gathernd_indices_shape.size()-1];
-        auto new_shape_gather_node = std::make_shared<ngraph::opset8::Constant>(gather_nd_node->input_value(1).get_element_type(), Shape{last_gathernd_shape_element});
+        const auto n_dims = gathernd_indices_shape[gathernd_indices_shape.size()-1];
+
+        // TODO check if indices have just one meaningful dimension and all other dimensions of input have size 1
+        for (int i = 0; i < n_dims; i++) {
+            gathernd_indices_node->get_output_tensor
+        }
+        
+        const auto gathernd_input_shape = gather_nd_node->input_value(1).get_shape();
+        
+        // can this shape be dynamic?
+        const auto new_shape = 
+
+        //auto& gathernd_indices = gathernd_indices_node.get_tensor();
+
+        auto new_shape_gather_node = std::make_shared<ngraph::opset8::Constant>(gather_nd_node->input_value(1).get_element_type(), Shape{n_dims});
 
         // pop the last shape element
         gathernd_indices_shape.pop_back();
