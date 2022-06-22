@@ -276,11 +276,11 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             }
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
-            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
+            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE || value == PluginConfigParams::LOG_DEBUG) {
                 gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
             } else {
-                log << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
-                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
+                log << "Currently only LOG_LEVEL = LOG_WARNING, LOG_DEBUG and LOG_NONE are supported, not " << value;
+                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING, LOG_DEBUG and LOG_NONE are supported, not " << value;
             }
         } else {
             IE_THROW(NotFound)
