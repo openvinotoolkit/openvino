@@ -17,10 +17,6 @@ namespace node {
 
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
@@ -45,44 +41,29 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const 
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of ReverseSequence from opset1.";
 
-    if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1)
+    if (inputShapes.size() != 2  || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    src_dims = op->get_input_shape(REVERSESEQUENCE_DATA);
+    const auto dataRank = getInputShapeAtPort(REVERSESEQUENCE_DATA).getRank();
 
-    SizeVector seq_lengths_dims = op->get_input_shape(REVERSESEQUENCE_LENGTHS);
-    if (seq_lengths_dims.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect 2nd input rank: " << seq_lengths_dims.size();
+    if (dataRank < 2)
+        IE_THROW() << errorPrefix << " 'data' rank should be greater than or equal to 2";
 
-    SizeVector dst_dims = op->get_output_shape(0);
-    if (src_dims.size() != dst_dims.size())
-        IE_THROW() << errorPrefix << " has incorrect number of input/output sizes!";
+    if (getInputShapeAtPort(REVERSESEQUENCE_LENGTHS).getRank() != 1)
+        IE_THROW() << errorPrefix << " 'seq_lengths' should be 1D tensor";
 
-    for (size_t i = 0; i < dst_dims.size(); i++) {
-        if (src_dims[i] != dst_dims[i])
-            IE_THROW() << errorPrefix << " has incorrect number of input/output dimension!";
-    }
+    if (dataRank != getOutputShapeAtPort(0).getRank())
+        IE_THROW() << errorPrefix << " has input/output rank mismatch";
 
     seq_axis = revSeq->get_sequence_axis();
 
-    if (seq_axis < 0 || seq_axis >= static_cast<int>(src_dims.size()))
+    if (seq_axis < 0 || seq_axis >= static_cast<int>(dataRank))
         IE_THROW() << errorPrefix << " has incorrect 'seq_axis' parameters dimensions and axis number!";
 
     batch_axis = revSeq->get_batch_axis();
 
-    if (batch_axis < 0 || batch_axis >= static_cast<int>(src_dims.size()))
+    if (batch_axis < 0 || batch_axis >= static_cast<int>(dataRank))
         IE_THROW() << errorPrefix << " has incorrect 'batch_axis' parameters dimensions and axis number!";
-
-    if (seq_lengths_dims[0] != dst_dims[batch_axis])
-        IE_THROW() << errorPrefix << " has incorrect 'seq_lengths_dims' parameters dimension!";
-
-    srcStrides.resize(src_dims.size());
-    srcStrides[srcStrides.size() - 1] = 1;
-    for (int i = srcStrides.size() - 2; i >= 0; i--) {
-        srcStrides[i] = srcStrides[i + 1] * src_dims[i + 1];
-    }
-
-    work_amount_dst = srcStrides[0] * src_dims[0];
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {
@@ -99,88 +80,108 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ReverseSequence::execute(dnnl::stream strm) {
-    size_t i;
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+void ReverseSequence::prepareParams() {
+    const auto& dataMemPtr = getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr();
+    const auto& seqLengthsMemPtr = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr();
+    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()) {
-        case Precision::FP32: {
-            float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
-            for (i = 0; i < src_dims[batch_axis]; i++) {
-                if (static_cast<int32_t>(seq_lengths_data[i]) > static_cast<int>(src_dims[seq_axis])) {
-                    std::string errorMsg = "Incorrect input 'seq_lengths' values!";
-                    IE_THROW() << errorMsg;
-                }
-            }
+    if (!dataMemPtr || !dataMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated input memory of 'data'";
+    if (!seqLengthsMemPtr || !seqLengthsMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated input memory of 'seq_lengths'";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << errorPrefix << " has not allocated output memory";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << errorPrefix << " has unidentified preferable primitive descriptor";
 
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t i, start = 0, end = 0, src_idx = 0;
-                SizeVector counters(src_dims.size(), 0);
-                splitter(work_amount_dst, nthr, ithr, start, end);
-                for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
-                    counters[j] = i % src_dims[j];
-                    i /= src_dims[j];
-                }
+    const VectorDims& dataDims = dataMemPtr->getStaticDims();
+    const VectorDims& seqLengthsDims = seqLengthsMemPtr->getStaticDims();
+    const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
-                        size_t idx = counters[i];
-                        if (static_cast<int>(i) == seq_axis &&
-                            static_cast<int>(idx) < static_cast<int32_t>(seq_lengths_data[counters[batch_axis]])) {
-                            idx = static_cast<int32_t>(seq_lengths_data[counters[batch_axis]]) - idx - 1;
-                        }
-                        src_idx += idx * srcStrides[i];
-                    }
-                    dst_data[iwork] = src_data[src_idx];
-                    for (int j = src_dims.size() - 1; j >= 0; j--) {
-                        counters[j] = (counters[j] + 1) % src_dims[j];
-                        if (counters[j] != 0) break;
-                    }
-                }
-            });
-        }
-        break;
-        case Precision::I32: {
-            int32_t *seq_lengths_data = reinterpret_cast<int32_t *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
-            for (i = 0; i < src_dims[batch_axis]; i++) {
-                if (seq_lengths_data[i] > static_cast<int>(src_dims[seq_axis])) {
-                    std::string errorMsg = "Incorrect input 'seq_lengths' values!";
-                    IE_THROW() << errorMsg;
-                }
-            }
+    execPtr = std::make_shared<ReverseSequenceExecutor>(dataDims, seqLengthsDims, dstDims, batch_axis, seq_axis);
+}
 
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t i, start = 0, end = 0, src_idx = 0;
-                SizeVector counters(src_dims.size(), 0);
-                splitter(work_amount_dst, nthr, ithr, start, end);
-                for (int j = src_dims.size() - 1, i = start; j >= 0; j--) {
-                    counters[j] = i % src_dims[j];
-                    i /= src_dims[j];
-                }
+void ReverseSequence::executeDynamicImpl(dnnl::stream strm) {
+    execute(std::move(strm));
+}
 
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    for (i = 0, src_idx = 0; i < src_dims.size(); ++i) {
-                        size_t idx = counters[i];
-                        if (static_cast<int>(i) == seq_axis &&
-                            static_cast<int>(idx) < seq_lengths_data[counters[batch_axis]]) {
-                            idx = seq_lengths_data[counters[batch_axis]] - idx - 1;
-                        }
-                        src_idx += idx * srcStrides[i];
-                    }
-                    dst_data[iwork] = src_data[src_idx];
-                    for (int j = src_dims.size() - 1; j >= 0; j--) {
-                        counters[j] = (counters[j] + 1) % src_dims[j];
-                        if (counters[j] != 0) break;
-                    }
-                }
-            });
-        }
-        break;
-        default:
-            IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
+ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDims& dataDims,
+    const VectorDims& seqLengthsDims, const VectorDims& dstDims, int batchAxis, int seqAxis)
+        : batchAxis{batchAxis}
+        , seqAxis{seqAxis} {
+    for (size_t i = 0; i < dataDims.size(); ++i) {
+        if (dataDims[i] != dstDims[i])
+            IE_THROW() << "Input/output tensors dimensions mismatch";
     }
+
+    if (seqLengthsDims[0] != dataDims[batchAxis])
+        IE_THROW() << "'seq_lengths' dimension mismatch";
+
+    srcStrides.resize(dataDims.size());
+    srcStrides[srcStrides.size() - 1] = 1;
+    for (int i = srcStrides.size() - 2; i >= 0; --i) {
+        srcStrides[i] = srcStrides[i + 1] * dataDims[i + 1];
+    }
+
+    workAmountDst = srcStrides[0] * dataDims[0];
+}
+
+template<typename T>
+void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, MemoryPtr& dstMemPtr) {
+    const VectorDims& srcDims = dataMemPtr->getStaticDims();
+    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->GetPtr());
+    auto *dstData = reinterpret_cast<float *>(dstMemPtr->GetPtr());
+    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->GetPtr());
+
+    for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
+        if (static_cast<int32_t>(seqLengthsData[i]) > static_cast<int>(srcDims[seqAxis])) {
+            IE_THROW() << "Incorrect input 'seq_lengths' values!";
+        }
+    }
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t i, start = 0, end = 0, srcIdx = 0;
+        SizeVector counters(srcDims.size(), 0);
+        splitter(workAmountDst, nthr, ithr, start, end);
+        for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {
+            counters[j] = i % srcDims[j];
+            i /= srcDims[j];
+        }
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            for (i = 0, srcIdx = 0; i < srcDims.size(); ++i) {
+                size_t idx = counters[i];
+                if (static_cast<int>(i) == seqAxis &&
+                    static_cast<int>(idx) < static_cast<int32_t>(seqLengthsData[counters[batchAxis]])) {
+                    idx = static_cast<int32_t>(seqLengthsData[counters[batchAxis]]) - idx - 1;
+                }
+                srcIdx += idx * srcStrides[i];
+            }
+            dstData[iwork] = srcData[srcIdx];
+            for (int j = srcDims.size() - 1; j >= 0; --j) {
+                counters[j] = (counters[j] + 1) % srcDims[j];
+                if (counters[j] != 0) break;
+            }
+        }
+    });
+}
+
+void ReverseSequence::execute(dnnl::stream strm) {
+    if (!execPtr)
+        IE_THROW() << errorPrefix << " has no compiled executor";
+
+    const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
+    if (!one_of(precision, Precision::FP32, Precision::I32))
+        IE_THROW() << "ReverseSequence layer does not support " << precision  << " precision";
+
+    if (precision == Precision::FP32)
+        execPtr->exec<float>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr(),
+                             getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr(),
+                             getChildEdgeAt(0)->getMemoryPtr());
+    else
+        execPtr->exec<int32_t>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr(),
+                               getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr(),
+                               getChildEdgeAt(0)->getMemoryPtr());
 }
 
 bool ReverseSequence::created() const {
