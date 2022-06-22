@@ -842,8 +842,7 @@ void DFT::DFTExecutor::generateTwiddlesFFT(size_t n_complex) {
     if (twiddlesFFT.size() == 0) {
         twiddlesFFT.emplace_back(1.0f);   //  cos(0)
         twiddlesFFT.emplace_back(-0.0f);  // -sin(0)
-    }
-    else {
+    } else {
         for (size_t i = numBlocks; i < twiddlesFFT.size() / 2; i += numBlocks) {
             numBlocks *= 2;
         }
