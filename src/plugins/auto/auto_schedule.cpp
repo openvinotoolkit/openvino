@@ -321,7 +321,14 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
         _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
-        _passthroughHolder.emplace_back(_passthroughExeNet);
+        if (_passthroughHolder.size() != 0) {
+            for (auto& iter : _passthroughHolder) {
+                if (_passthroughExeNet._so.get() != iter.get())
+                    _passthroughHolder.emplace_back(_passthroughExeNet._so);
+            }
+        } else {
+            _passthroughHolder.emplace_back(_passthroughExeNet._so);
+        }
     }
     WaitFirstNetworkReady();
 }
