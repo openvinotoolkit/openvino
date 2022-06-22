@@ -142,7 +142,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
 elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
-    pkgs_python=(python3.8 python3.8-devel python3.8-setuptools python3.8-pip)
+    pkgs_python=(python38 python38-devel python38-setuptools python38-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config gflags-devel.i686 zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=()
