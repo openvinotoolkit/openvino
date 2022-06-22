@@ -23,28 +23,64 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!gather_nd_node)
             return false;
 
-        const auto gathernd_indices_node = gather_nd_node->input_value(0).get_node_shared_ptr();
-
-        // check if indices are constant
-        if (!ngraph::op::is_constant(gathernd_indices_node)) {
+        const auto original_indices = gather_nd_node->get_input_source_output(1);
+        const auto const_indices_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(original_indices.get_node_shared_ptr());
+        if (!const_indices_node) 
             return false;
-        }
 
-        // original GatherND indices shape
-        const auto gathernd_indices_shape = gathernd_indices_node->get_shape();
+        const auto& const_indices_values = const_indices_node->cast_vector<int64_t>();
+        if (const_indices_values.size() == 0)
+            return false;
+
+        const auto data = gather_nd_node->get_input_source_output(0);
+        const auto data_shape = data.get_shape();
+
+        const auto original_indices_shape = original_indices.get_shape();
+        const auto n_dims = original_indices_shape[original_indices_shape.size()-1];
+
+        // check if indices have just one meaningful dimension and all other dimensions of input have size 1
+        // for each dimension
+        int meaningful_dims_count = 0;
+        for (int i = 0; i < n_dims; i++) {
+            std::vector<int64_t> dim;
+
+            // get the column values
+            int64_t column_element_counter = i;
+            while (column_element_counter <= const_indices_values.size()) {
+                dim.push_back(const_indices_values[i]);
+                column_element_counter += n_dims;
+            }
+
+            // check if dimension is meaningful (has non-zeros)
+            if (std::count(dim.cbegin(), dim.cend(), 0) != dim.size()) {
+
+                // if is not meaningful, make sure its shape is 1
+                if (data_shape[i] != 1)
+                    return false;
+            }
+            else {
+                ++meaningful_dims_count;
+            }
+
+            if (meaningful_dims_count > 1)
+                return false;
+        }
+        
+
+        //const auto gathernd_indices_node = gather_nd_node->input_value(0).get_node_shared_ptr();
+
+        //const auto gathernd_indices_shape = gathernd_indices_node->get_shape();
+        //const auto& gathernd_indices_tensor = gathernd_indices_node->get_output_tensor(0);
 
         // last shape element for Gather op
-        const auto n_dims = gathernd_indices_shape[gathernd_indices_shape.size()-1];
+        //const auto n_dims = gathernd_indices_shape[gathernd_indices_shape.size()-1];
 
-        // TODO check if indices have just one meaningful dimension and all other dimensions of input have size 1
-        for (int i = 0; i < n_dims; i++) {
-            gathernd_indices_node->get_output_tensor
-        }
         
-        const auto gathernd_input_shape = gather_nd_node->input_value(1).get_shape();
+        
+        //const auto gathernd_input_shape = gather_nd_node->input_value(1).get_shape();
         
         // can this shape be dynamic?
-        const auto new_shape = 
+        //const auto new_shape = 
 
         //auto& gathernd_indices = gathernd_indices_node.get_tensor();
 
