@@ -33,6 +33,7 @@
 #define LOG_WARNING(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", nullptr, __VA_ARGS__)
 #define LOG_ERROR(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::ERROR, "ERROR", nullptr, __VA_ARGS__)
 
+// To use macro LOG_XXX_TAG, need to implement GetLogTag() which returns log tag, the type of log tag is string
 #define LOG_DEBUG_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", GetLogTag().c_str(), __VA_ARGS__)
 #define LOG_INFO_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", GetLogTag().c_str(), __VA_ARGS__)
 #define LOG_WARNING_TAG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", GetLogTag().c_str(), __VA_ARGS__)

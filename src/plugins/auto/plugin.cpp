@@ -314,7 +314,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (modelPath.empty() && network.getFunction() == nullptr) {
         IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
-    _LogTag = GetName() + "PLUGIN";
+    // to use plugin's name as the log tag
+    _LogTag = GetName();
     auto fullConfig = mergeConfigs(_config, config);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
@@ -407,7 +408,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         });
     if (configIter != fullConfig.end() && configIter->second == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
         configIter->second = InferenceEngine::PluginConfigParams::THROUGHPUT;
-        _LogTag = "AUTOPLUGIN";
+        _LogTag = "AUTO";
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
     }
     if (priorities == fullConfig.end()) {
