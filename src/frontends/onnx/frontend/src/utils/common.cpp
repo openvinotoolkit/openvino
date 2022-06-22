@@ -129,6 +129,17 @@ bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
     return rt_info.find(FAILSAFE_NODE) != rt_info.end();
 }
 
+const std::string OPTIMIZED_OUT_NODE = "OPTIMIZED_OUT_NODE";
+
+void mark_as_optimized_out(Output<ov::Node>& node_output) {
+    node_output.get_rt_info()[OPTIMIZED_OUT_NODE] = true;
+}
+
+bool is_optimized_out(const Output<ov::Node>& node_output) {
+    const auto& rt_info = node_output.get_rt_info();
+    return rt_info.find(OPTIMIZED_OUT_NODE) != rt_info.end();
+}
+
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9,17 +10,6 @@ from openvino.runtime import Type
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
-
-
-def model_path(is_myriad=False):
-    path_to_repo = os.environ["MODELS_PATH"]
-    if not is_myriad:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.bin")
-    else:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.bin")
-    return (test_xml, test_bin)
 
 
 def test_output_replace(device):

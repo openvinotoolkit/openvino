@@ -120,6 +120,7 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
 
         ngraph::copy_runtime_info(as_node_vector(outputs_to_replace), normalize_l2);
         ngraph::replace_node(m.get_match_root(), normalize_l2);
+        MATCHER_SCOPE_ENABLE(NormalizeL2Fusion);
         return true;
     };
 
