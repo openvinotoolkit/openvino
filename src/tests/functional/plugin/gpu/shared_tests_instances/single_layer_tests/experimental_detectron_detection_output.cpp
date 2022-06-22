@@ -44,7 +44,7 @@ const std::vector<std::vector<float>> deltas_weights = {{10.0f, 10.0f, 5.0f, 5.0
 
 const std::vector<std::vector<InputShape>> inputShapes = {
     // inputRois / inputDeltas / inputScores / inputImInfos
-    static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
+    static_shapes_to_test_representation({{1, 4}, {1, 8}, {1, 2}, {1, 3}}),
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,

@@ -45,7 +45,8 @@ std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
              attributes.class_agnostic_box_regression,
              attributes.deltas_weights,
              netPrecision,
-             targetName, id) = obj.param;
+             targetName,
+             id) = obj.param;
 
     std::ostringstream result;
 
@@ -118,37 +119,10 @@ template <typename T>
 std::vector<ov::Tensor> generateInputTensors() {
     const auto netPrecision = ov::element::from<T>();
     std::vector<ov::Tensor> inputTensors = {
-        // 16 x 4 = 64
-        ov::test::utils::create_tensor<T>(
-            netPrecision,
-            Shape{16, 4},
-            getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f,
-                          1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f})),
-        // 16 x 8
-        ov::test::utils::create_tensor<T>(
-            netPrecision,
-            Shape{16, 8},
-            getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 5.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f})),
-        // 16 x 2 = 32
-        ov::test::utils::create_tensor<T>(
-            netPrecision,
-            Shape{16, 2},
-            getValues<T>({0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.8f, 0.9f, 0.5f,
-                          0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
-                          0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f})),
-        // 1 x 3 = 3
-        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 3}, getValues<T>({16.0f, 12.0f, 1.0f}))};
+        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 4}, getValues<T>({1.0f, 1.0f, 10.0f, 10.0f})),
+        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 8}, getValues<T>({0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f})),
+        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 2}, getValues<T>({0.8f, 0.9f})),
+        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 3}, getValues<T>({12.34f, 56.78f, 1.0f}))};
 
     return inputTensors;
 }

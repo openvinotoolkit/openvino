@@ -178,39 +178,25 @@ std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetect
         std::vector<ExperimentalDetectronDetectionOutputParams<T>>(
             500,
             {
-                0.01f,        // score_threshold
+                0.01f,                       // score_threshold
                 0.2f,                        // nms_threshold
                 2.0f,                        // max_delta_log_wh
                 2,                           // num_classes
-                1,                         // post_nms_count
+                1,                           // post_nms_count
                 1,                           // max_detections_per_image
                 true,                        // class_agnostic_box_regression
                 {10.0f, 10.0f, 5.0f, 5.0f},  // deltas_weights
-                16,                          // roi count
+                1,                          // roi count
 
-                // boxes
-                getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f,
-                              1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
+                getValues<T>({1.0f, 1.0f, 10.0f, 10.0f}),  // boxes
 
-                getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 5.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                              1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f}),
+                getValues<T>({0.0f, 0.0f, 0.0f, 0.0f}),  // deltas
 
-                getValues<T>({0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.8f, 0.9f, 0.5f,
-                              0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
-                              0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}),
+                getValues<T>({0.8f, 0.9f}),  // scores
 
-                getValues<T>({16.0f, 12.0f, 1.0f}),
-                getValues<T>({0.0f, 0.892986298f, 10.1070137f, 12.1070137f}),
+                getValues<T>({16.0f, 12.0f, 1.0f}),  // image info
+
+                getValues<T>({1.0f, 1.0f, 10.0f, 10.0f}),
                 std::vector<int32_t>{1},
                 getValues<T>({0.9f}),
             });
