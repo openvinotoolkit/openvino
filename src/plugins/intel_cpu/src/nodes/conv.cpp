@@ -312,9 +312,6 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
 }
 
 const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))
-        return Node::getPrimitivesPriority();
-
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::brgconv_avx512_amx_1x1,
@@ -517,7 +514,7 @@ void Convolution::getSupportedDescriptors() {
             auto outputShape = getOutputShapeAtPort(0);
 
             if (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
-                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
                 createDescriptor({ in_candidate }, { out_candidate });
@@ -548,7 +545,7 @@ void Convolution::getSupportedDescriptors() {
 
             if ((inputDataType != memory::data_type::bf16 && isNspcAvailable()) ||
                     (one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
-                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))) {
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
                 createDescriptor({ in_candidate }, { out_candidate });
