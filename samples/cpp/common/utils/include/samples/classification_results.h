@@ -148,19 +148,30 @@ public:
             std::cout << std::endl << std::endl;
             printHeader();
 
-            for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
+            for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) 
+            {
                 std::cout.precision(7);
                 // Getting probability for resulting class
                 const auto index = _results.at(id) + image_id * (_outTensor.get_size() / _batchSize);
-                const auto result = _outTensor.data<const float>()[index];
-
-                std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
-                std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
-
-                if (!_labels.empty()) {
-                    std::cout << " " + _labels[_results.at(id)];
+            
+                ov::element::Type output_type = _outTensor.get_element_type();
+                // Repeated code!! Boo! 
+                if (output_type == ov::element::f16)
+                {
+                    const auto result = _outTensor.data<ov::float16>()[index];
+                    std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
+                    std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
                 }
-                std::cout << std::endl;
+                else if (output_type == ov::element::f32)
+                {
+                    const auto result2 = _outTensor.data<const float>()[index];
+                    std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
+                    std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result2;
+                }
+                 if (!_labels.empty()) {
+                        std::cout << " " + _labels[_results.at(id)];
+                  }
+                 std::cout << std::endl;
             }
             std::cout << std::endl;
         }

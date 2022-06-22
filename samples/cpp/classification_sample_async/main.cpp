@@ -84,37 +84,62 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
-        std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
-        printInputAndOutputsInfo(*model);
+        bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
 
-        OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
-        OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
+        ov::CompiledModel compiledModel;
+        const ov::Layout tensor_layout{ "NHWC" }; 
 
-        // -------- Step 3. Configure preprocessing --------
-        const ov::Layout tensor_layout{"NHWC"};
+        if (!isNetworkCompiled)
+        {
+            std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
+            printInputAndOutputsInfo(*model);
 
-        ov::preprocess::PrePostProcessor ppp(model);
-        // 1) input() with no args assumes a model has a single input
-        ov::preprocess::InputInfo& input_info = ppp.input();
-        // 2) Set input tensor information:
-        // - precision of tensor is supposed to be 'u8'
-        // - layout of data is 'NHWC'
-        input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
-        // 3) Here we suppose model has 'NCHW' layout for input
-        input_info.model().set_layout("NCHW");
-        // 4) output() with no args assumes a model has a single result
-        // - output() with no args assumes a model has a single result
-        // - precision of tensor is supposed to be 'f32'
-        ppp.output().tensor().set_element_type(ov::element::f32);
+            OPENVINO_ASSERT(model->inputs().size() == 1, "Sample supports models with 1 input only");
+            OPENVINO_ASSERT(model->outputs().size() == 1, "Sample supports models with 1 output only");
 
-        // 5) Once the build() method is called, the pre(post)processing steps
-        // for layout and precision conversions are inserted automatically
-        model = ppp.build();
+            // -------- Step 3. Configure preprocessing --------
+            ov::preprocess::PrePostProcessor ppp(model);
+            // 1) input() with no args assumes a model has a single input
+            ov::preprocess::InputInfo& input_info = ppp.input();
+            // 2) Set input tensor information:
+            // - precision of tensor is supposed to be 'u8'
+            // - layout of data is 'NHWC'
+            input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
+            // 3) Here we suppose model has 'NCHW' layout for input
+            input_info.model().set_layout("NCHW");
+            // 4) output() with no args assumes a model has a single result
+            // - output() with no args assumes a model has a single result
+            // - precision of tensor is supposed to be 'f32'
+            ppp.output().tensor().set_element_type(ov::element::f32);
 
+            // 5) Once the build() method is called, the pre(post)processing steps
+            // for layout and precision conversions are inserted automatically
+            model = ppp.build();
+
+            // -------- Step 6. Loading model to the device --------
+            slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
+            
+            compiledModel = core.compile_model(model, FLAGS_d);
+        }
+        else
+        {
+            std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
+            if (!modelStream.is_open()) {
+                throw std::runtime_error("Cannot open model file " + FLAGS_m);
+            }
+            compiledModel = core.import_model(modelStream, FLAGS_d, {});
+            modelStream.close();
+
+            // The following is needed to achieve accuracy. 
+            if (FLAGS_d == "VPUX")
+                compiledModel.input().get_tensor().set_partial_shape({ 1,224,224,3 });
+        }
+        
         // -------- Step 4. read input images --------
         slog::info << "Read input images" << slog::endl;
 
-        ov::Shape input_shape = model->input().get_shape();
+        ov::Shape input_shape = compiledModel.input().get_shape();
+        
         const size_t width = input_shape[ov::layout::width_idx(tensor_layout)];
         const size_t height = input_shape[ov::layout::height_idx(tensor_layout)];
 
@@ -128,6 +153,7 @@ int main(int argc, char* argv[]) {
             }
             // Collect image data
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
+            
             if (data != nullptr) {
                 images_data.push_back(data);
                 valid_image_names.push_back(i);
@@ -149,16 +175,43 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 7. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
-        ov::InferRequest infer_request = compiled_model.create_infer_request();
+        ov::InferRequest infer_request = compiledModel.create_infer_request();
 
         // -------- Step 8. Combine multiple input images as batch --------
         ov::Tensor input_tensor = infer_request.get_input_tensor();
+        ov::element::Type input_type = input_tensor.get_element_type();
 
+        ov::Tensor output_tensor = infer_request.get_output_tensor();
+        ov::element::Type output_type = output_tensor.get_element_type();
+
+        if (isNetworkCompiled)
+        {
+            slog::info << "\tinputs " << slog::endl;
+            slog::info << "\t\tinput type: " << input_type << slog::endl;
+            slog::info << "\t\tinput shape: " << input_tensor.get_shape() << slog::endl;
+            slog::info << "\toutputs " << slog::endl;
+            slog::info << "\t\toutput type: " << output_type << slog::endl;
+            slog::info << "\t\toutput shape: " << output_tensor.get_shape() << slog::endl;
+        }
         for (size_t image_id = 0; image_id < images_data.size(); ++image_id) {
-            const size_t image_size = shape_size(model->input().get_shape()) / batchSize;
-            std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
+            const size_t image_size = shape_size(compiledModel.input().get_shape()) / batchSize;
+
+            switch (input_type) {
+                case ov::element::f16:
+                {
+                    ov::float16* pInputTensor = input_tensor.data<ov::float16>() + image_id * (image_size);
+                    unsigned char* pInputImage = images_data[image_id].get();
+                    for (int ti = 0; ti < image_size; ti++)
+                        pInputTensor[ti] = pInputImage[ti];
+                }
+                    break;
+                case ov::element::u8:
+                default:
+                    std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
                         images_data[image_id].get(),
-                        image_size);
+                        image_size);                
+            } 
+            
         }
 
         // -------- Step 9. Do asynchronous inference --------
