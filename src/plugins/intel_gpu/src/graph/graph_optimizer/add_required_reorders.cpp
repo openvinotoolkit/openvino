@@ -177,6 +177,7 @@ void add_required_reorders::run(program& p) {
             if (max_in_dims == 5) {
                 preffered_layout_formats = {
                     cldnn::format::bfzyx,
+                    cldnn::format::bzyxf,
                 };
             } else if (max_in_dims == 4) {
                 preffered_layout_formats = {

@@ -956,7 +956,8 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
+                    (is_type<convolution>() && data_type_traits::is_i8_u8(output_layout.data_type))) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
