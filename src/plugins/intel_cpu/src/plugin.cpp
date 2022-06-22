@@ -798,16 +798,19 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
-        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
-            std::cout << "DenormalsOptMode is set to ON." << std::endl;
-            flush_to_zero(true);
-            denormals_as_zero(true);
-        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
-            std::cout << "DenormalsOptMode is set to OFF." << std::endl;
-            flush_to_zero(false);
-            denormals_as_zero(false);
-        }
-        std::cout << "DenormalsOptMode is not explicitly set and keep." << std::endl;
+        std::cout << "DenormalsOptMode is set to ON." << std::endl;
+        flush_to_zero(true);
+        denormals_as_zero(true);
+        // if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+        //     std::cout << "DenormalsOptMode is set to ON." << std::endl;
+        //     flush_to_zero(true);
+        //     denormals_as_zero(true);
+        // } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+        //     std::cout << "DenormalsOptMode is set to OFF." << std::endl;
+        //     flush_to_zero(false);
+        //     denormals_as_zero(false);
+        // }
+        // std::cout << "DenormalsOptMode is not explicitly set and keep." << std::endl;
     }
 
     return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());
