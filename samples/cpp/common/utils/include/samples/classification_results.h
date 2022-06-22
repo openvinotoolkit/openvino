@@ -155,7 +155,6 @@ public:
                 const auto index = _results.at(id) + image_id * (_outTensor.get_size() / _batchSize);
             
                 ov::element::Type output_type = _outTensor.get_element_type();
-                // Repeated code!! Boo! 
                 if (output_type == ov::element::f16)
                 {
                     const auto result = _outTensor.data<ov::float16>()[index];
