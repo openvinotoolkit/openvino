@@ -390,10 +390,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 break;
             }
 
-            // case onednn_post_op_type::scale:
-            // {
-            //     break;
-            // }
+            case onednn_post_op_type::scale:
+            {
+                break;
+            }
 
             case onednn_post_op_type::sum:
             {
@@ -922,10 +922,9 @@ void program_node::init_onednn_primitive_attributes() {
                 if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
                 if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
-                    // int mask = in.count() > 1 ? 2 : 0;
-                    // attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    // update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                    IE_THROW() << "[Debugging Log]: scale should not be used?";
+                    int mask = in.count() > 1 ? 2 : 0;
+                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 } else {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
@@ -952,23 +951,9 @@ void program_node::init_onednn_primitive_attributes() {
                             if (idx == 0 && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
                                 is_type<convolution>() &&
                                 !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
-                                // int mask = in_scale.count() > 1 ? 2 : 0;
-                                // attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                                // update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                                IE_THROW() << "[Debugging Log]: scale should not be used? TODO: ues eltwise?";
-                                /*
-                        if (q_node.get_need_post_scale()) {
-                            if (q_node.get_per_tensor_output_scale()) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear,
-                        q_node.get_output_scale_val(), 0.0f);
-                                update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-                            } else {
-                                auto out_scale = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale,
-                        dnnl::memory::format_tag::ab, true); post_ops.append_binary(dnnl::algorithm::binary_mul,
-                        out_scale_desc); update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
-                            }
-                        }*/
+                                int mask = in_scale.count() > 1 ? 2 : 0;
+                                attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                             } else {
                                 dnnl::memory::desc in_scale_desc =
                                     onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
@@ -1076,10 +1061,9 @@ void program_node::init_onednn_primitive_attributes() {
                             if (idx == 0 && !q_node.get_need_clamp() && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
                                 is_type<convolution>() &&
                                 !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
-                                // int mask = in_scale.count() > 1 ? 2 : 0;
-                                // attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                                // update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                                IE_THROW() << "[Debugging Log]: scale should not be used?";
+                                int mask = in_scale.count() > 1 ? 2 : 0;
+                                attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                             } else {
                                 dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
