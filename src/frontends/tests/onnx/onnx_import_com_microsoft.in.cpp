@@ -855,3 +855,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
     test_case.add_expected_output<float>(Shape{2, 2, 2, 9, 2}, present);
     test_case.run_with_tolerance_as_fp(1e-6);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gelu) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/gelu.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    std::vector<float> input = {23., -177., -83., 225., 94.,   103.,
+                                74., 86.,   140., 127., -147., -249.};
+
+    std::vector<float> output = {23., 0.,  0.,   225., 94., 103.,
+                                 74., 86., 140., 127., 0.,  0.};
+
+    test_case.add_input<float>(Shape{3, 4}, input);
+    test_case.add_expected_output<float>(Shape{3, 4}, output);
+    test_case.run_with_tolerance_as_fp(1e-6);
+}
