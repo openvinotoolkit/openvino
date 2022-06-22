@@ -23,7 +23,7 @@ Furthermore, to customize your OpenVINO Docker image, use the [Docker CI Framewo
     - using the advanced [Local Distribution](local-distribution.md) approach;
     - using [a static version of OpenVINO Runtime linked to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries).
 
-The table below shows which distribution type can be used, depending on a target operating system:
+The table below shows which distribution type can be used for what target operating system:
 
 | Distribution type | Operating systems |
 |------- ---------- | ----------------- |
@@ -32,21 +32,23 @@ The table below shows which distribution type can be used, depending on a target
 | Docker images | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
 | PyPi (pip package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operating systems |
-| [Local distribution](local-distribution.md) | All operating systems |
-| [Build OpenVINO statically and link into the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
+| [Local Distribution](local-distribution.md) | All operating systems |
+| [Build OpenVINO statically and link to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
 
-Depending on the distribution type, the granularity of OpenVINO packages may vary. For example, PyPi distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local distribution](local-distribution.md) is a more configurable type - providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
+## Granularity of Major Distribution Types
+
+The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local Distribution](local-distribution.md) is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
 ![deployment_simplified]
 
-- The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs: OpenVINO API 2.0, both Inference Engine and nGraph APIs (being combined as of API 2.0). For C language applications `openvino_c` is additionally required for distribution.
-- The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero execution](../hetero_execution.md) or [Multi-Device execution](../multi_device.md).
-- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats like OpenVINO IR, ONNX or PaddlePaddle.
+- The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs, including both API 2.0 and the previous Inference Engine and nGraph APIs. For C language applications, `openvino_c` is additionally required for distribution.
+- The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching the `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero Execution](../hetero_execution.md) and [Multi-Device Execution](../multi_device.md).
+- The "optional" plugin libraries like `openvino_ir_frontend` (matching `openvino_.+_frontend`) are used to provide capabilities to read models of different file formats such as OpenVINO IR, ONNX, and PaddlePaddle.
 
-The "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
+Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
 
-The information above covers granularity aspects of most distribution types. More detailed information is required and provided in the [Local Distribution](local-distribution.md).
+Building local distribution will require more detailed information, and you will find it in the dedicated [Local Distribution](local-distribution.md) article.
 
-> **NOTE**: Depending on target OpenVINO devices, provide proper configuration of deployed machines, using the [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), the [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), the [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md) or the [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
+> **NOTE**: Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md), [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
 
 [deployment_simplified]: ../../img/deployment_simplified.png
