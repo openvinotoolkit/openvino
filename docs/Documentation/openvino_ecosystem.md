@@ -1,7 +1,7 @@
 # OpenVINO™ Ecosystem Overview {#openvino_ecosystem}
 
 
-OpenVINO™ is not just one tool. It is part of an expansive ecosystem of utilities, frameworks, addons, etc. They all provide a comprehensive workflow for developing deep learning solutions. Learn more about each of them to reach the full potential of OpenVINO™.
+OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
 
 ### OpenVINO™ Model Server (OVMS)	   
 OpenVINO Model Server is a scalable, high-performance solution for serving deep learning models optimized for Intel® architectures. The server uses Inference Engine libraries as a backend and exposes gRPC and HTTP/REST interfaces for inference that are fully compatible with TensorFlow Serving.
@@ -16,6 +16,7 @@ More resources:
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
 
 More resources:
+* [Documentation](@ref docs_nncf_introduction)
 * [GitHub](https://github.com/openvinotoolkit/nncf)
 * [PyPI](https://pypi.org/project/nncf/)
 
@@ -28,7 +29,7 @@ More resources:
 
 
 ### OpenVINO™ integration with TensorFlow (OVTF)
-A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
+A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
 
 More resources:
 * [documentation](https://github.com/openvinotoolkit/openvino_tensorflow)	 
@@ -36,14 +37,14 @@ More resources:
 * [GitHub](https://github.com/openvinotoolkit/openvino_tensorflow)
 
 ### DL Streamer		
-A streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines.
+A streaming media analytics framework, based on the GStreamer multimedia framework, for creating complex media analytics pipelines.
 
 More resources:
 * [documentation on GitHub](https://openvinotoolkit.github.io/dlstreamer_gst/)
 * [installation Guide on GitHub](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 
 ### DL Workbench
-An alternative, web-based version of OpenVINO designed to make production of pre-trained deep learning models significantly easier. Its feature set differs slightly from that of its older, command-line interface brother. The easiest way to see how it works is to use [Intel® DevCloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html).
+A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyse, optimize, and build your pre-trained models. You can do all that by visiting [Intel® DevCloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench on-line.
 
 More resources:
 * [documentation](dl_workbench_overview.md)
