@@ -28,6 +28,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::affinity, "affinity");
+    wrap_property_RW(m_properties, ov::denormals_optimization, "denormals_optimization");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
