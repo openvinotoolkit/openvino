@@ -30,8 +30,11 @@ Batching is a straightforward way of leveraging the compute power of GPU and sav
 @endsphinxtabset
 
 
-> **NOTE**: Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by `ov::hint::PerformanceMode::THROUGHPUT`. To do that, set `ov::hint::allow_auto_batching` to **false** in addition to the `ov::hint::performance_mode`, as shown below:
+To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as `BATCH:GPU`.
 
+### Disabling Automatic Batching
+
+Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by `ov::hint::PerformanceMode::THROUGHPUT`. To do that, set `ov::hint::allow_auto_batching` to **false** in addition to the `ov::hint::performance_mode`, as shown below:
 
 @sphinxtabset
 
@@ -50,7 +53,13 @@ Batching is a straightforward way of leveraging the compute power of GPU and sav
 @endsphinxtabset
 
 
-To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as `BATCH:GPU`.
+## Configuring Automatic Batching
+Following the OpenVINO naming convention, the *batching* device is assigned the label of *BATCH*. The configuration options are as follows:
+
+| Parameter name     | Parameter description      |             Examples                                                      |
+| :---               | :---                  |:-----------------------------------------------------------------------------|
+| `AUTO_BATCH_DEVICE` | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | `BATCH:GPU` triggers the automatic batch size selection. `BATCH:GPU(4)` directly specifies the batch size.     |
+| `AUTO_BATCH_TIMEOUT` | The timeout value, in ms. (1000 by default) |  You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly). For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process).     |
 
 ## Automatic Batch Size Selection
 
@@ -118,14 +127,6 @@ The following are limitations of the current implementations:
  - When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
  - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
 
- 
-## Configuring Automatic Batching
-Following the OpenVINO naming convention, the *batching* device is assigned the label of *BATCH*. The configuration options are as follows:
-
-| Parameter name     | Parameter description      | Default            |             Examples                                                      |
-| :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
-| `AUTO_BATCH_DEVICE` | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | N/A | `BATCH:GPU` triggers the automatic batch size selection. `BATCH:GPU(4)` directly specifies the batch size.     |
-| `AUTO_BATCH_TIMEOUT` | The timeout value, in ms. | 1000 |  You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly). For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process).     |
 
 ## Testing Performance with Benchmark_app
 The `benchmark_app` sample, that has both [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the performance of Automatic Batching:
