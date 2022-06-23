@@ -94,7 +94,7 @@ Once the script has successfully completed, the deployment package is generated 
 
 @endsphinxdirective
 
-### Run Standard CLI Mode
+### Running Deployment Manager in Standard CLI Mode
 
 @sphinxdirective
 
