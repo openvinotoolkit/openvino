@@ -138,7 +138,17 @@ The `benchmark_app` sample, that has both [C++](../../samples/cpp/benchmark_app/
     - This example also applies to CPU or any other device that generally supports batch execution.
     - Note that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. `-d "BATCH:GPU(16)"` in this example.
 
-Note that Benchmark_app performs a warm-up run of a _single_ request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
+Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
+
+  ```
+  [ INFO ] First inference took 1000.18ms 
+  ```
+This value also exposed as the final execution statistics on the `benchmark_app` exit: 
+  ```
+  [ INFO ] Latency: 
+  [ INFO ] 	Max:      1000.18 ms
+  ```
+This is NOT the actual latency of the batched execution, so please refer to other metrics in the same log, e.g. "Median" or "Average" execution. 
 
 ### Additional Resources
 [Supported Devices](supported_plugins/Supported_Devices.md)
