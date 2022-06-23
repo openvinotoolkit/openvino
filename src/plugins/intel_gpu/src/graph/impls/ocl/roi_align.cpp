@@ -1,13 +1,19 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "roi_align_inst.h"
+
+// We have problem with includes when ENABLE_ONEDNN_FOR_GPU is OFF,
+// "impl_types" enum is not accessible if "implementation_map.hpp" is included first
+// so, a "fix" for now is to turn off clang-format for these include
+// clang-format off
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
+// clang-format on
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "roi_align/roi_align_kernel_selector.h"
 #include "roi_align/roi_align_kernel_ref.h"
+#include "roi_align/roi_align_kernel_selector.h"
+#include "roi_align_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -15,11 +21,23 @@ namespace ocl {
 namespace {
 kernel_selector::pool_type from(roi_align::PoolingMode mode) {
     switch (mode) {
-        case roi_align::PoolingMode::Max:
-            return kernel_selector::pool_type::MAX;
-        default:
-        case roi_align::PoolingMode::Avg:
-            return kernel_selector::pool_type::AVG;
+    case roi_align::PoolingMode::Max:
+        return kernel_selector::pool_type::MAX;
+    default:
+    case roi_align::PoolingMode::Avg:
+        return kernel_selector::pool_type::AVG;
+    }
+}
+
+kernel_selector::roi_aligned_mode from(roi_align::AlignedMode mode) {
+    switch (mode) {
+    case roi_align::AlignedMode::Half_pixel_for_nn:
+        return kernel_selector::roi_aligned_mode::Half_pixel_for_nn;
+    case roi_align::AlignedMode::Half_pixel:
+        return kernel_selector::roi_aligned_mode::Half_pixel;
+    default:
+    case roi_align::AlignedMode::Asymmetric:
+        return kernel_selector::roi_aligned_mode::Asymmetric;
     }
 }
 }  // namespace
@@ -35,8 +53,8 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<roi_align>& instance, int32_t) const override {
         kernel_arguments_data args;
-        args.inputs = { instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory() };
-        args.outputs = { instance.output_memory_ptr() };
+        args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory()};
+        args.outputs = {instance.output_memory_ptr()};
 
         return args;
     }
@@ -67,10 +85,10 @@ public:
         auto roi_align_optional_params =
             get_default_optional_params<kernel_selector::roi_align_optional_params>(arg.get_program());
 
-        const auto roi_bfyx = convert_data_tensor(rois_layout);
-        roi_align_params.inputs.push_back(roi_bfyx.FlattenFeatureAndSpatials());
+        roi_align_params.inputs.push_back(convert_data_tensor(rois_layout));
         roi_align_params.inputs.push_back(convert_data_tensor(batches_layout));
-        roi_align_params.mode = from(primitive->mode);
+        roi_align_params.pooling_mode = from(primitive->pooling_mode);
+        roi_align_params.aligned_mode = from(primitive->aligned_mode);
         roi_align_params.sampling_ratio = primitive->sampling_ratio;
         roi_align_params.spatial_scale = primitive->spatial_scale;
 
@@ -91,11 +109,42 @@ public:
 namespace detail {
 
 attach_roi_align_impl::attach_roi_align_impl() {
-    implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create,
-                                       {
-                                           std::make_tuple(data_types::f16, format::bfyx),
-                                           std::make_tuple(data_types::f32, format::bfyx),
-                                       });
+    implementation_map<roi_align>::add(impl_types::ocl,
+                                       roi_align_impl::create,
+                                       {std::make_tuple(data_types::u8, format::bfyx),
+                                        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+                                        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+
+                                        std::make_tuple(data_types::i8, format::bfyx),
+                                        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+                                        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+
+                                        std::make_tuple(data_types::i32, format::bfyx),
+                                        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
+                                        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
+                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
+                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
+                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
+
+                                        std::make_tuple(data_types::f16, format::bfyx),
+                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+
+                                        std::make_tuple(data_types::f32, format::bfyx),
+                                        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
 }
 
 }  // namespace detail
