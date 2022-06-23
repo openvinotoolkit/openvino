@@ -17,6 +17,13 @@
 
 using namespace std;
 
+namespace ov {
+namespace frontend {
+class FrontEndManager;
+std::shared_ptr<FrontEndManager> get_frontend_manager();
+}  // namespace frontend
+}  // namespace ov
+
 template <typename T>
 static inline string to_cpp_string(T value) {
     string rc;
@@ -50,6 +57,7 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
     constructor_validate_and_infer_types();
+    m_femgr = ov::frontend::get_frontend_manager();
 }
 
 ov::op::v0::Constant::Constant(const element::Type& type,
@@ -193,6 +201,7 @@ ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type
       m_shape(shape) {
     allocate_buffer(memset_allocation);
     constructor_validate_and_infer_types();
+    m_femgr = ov::frontend::get_frontend_manager();
 }
 
 void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
@@ -214,6 +223,7 @@ ov::op::v0::Constant::Constant(const Constant& other) {
     m_data = other.m_data;
     update_identical_flags(other.m_all_elements_bitwise_identical_checked, other.m_all_elements_bitwise_identical);
     constructor_validate_and_infer_types();
+    m_femgr = ov::frontend::get_frontend_manager();
 }
 
 ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
@@ -225,9 +235,14 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
     m_data = other.m_data;
     update_identical_flags(other.m_all_elements_bitwise_identical_checked, other.m_all_elements_bitwise_identical);
     constructor_validate_and_infer_types();
+    m_femgr = ov::frontend::get_frontend_manager();
 }
 
-ov::op::v0::Constant::~Constant() = default;
+ov::op::v0::Constant::~Constant() {
+    // guarantee m_data is released before femgr
+    m_data = nullptr;
+    m_femgr = nullptr;
+}
 
 string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     string rc;

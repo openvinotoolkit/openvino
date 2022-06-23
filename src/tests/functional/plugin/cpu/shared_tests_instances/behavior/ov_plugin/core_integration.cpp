@@ -77,6 +77,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
+        ::testing::Values("AUTO", "GPU"));
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
         ::testing::Values("MULTI", "AUTO"));
 
