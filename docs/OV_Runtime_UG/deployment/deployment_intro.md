@@ -16,11 +16,11 @@ Once the [OpenVINO™ application development](../integrate_with_your_applicatio
 - Set a dependency on the existing prebuilt packages, also called "centralized distribution":
     - using Debian / RPM packages - a recommended way for Linux operating systems;
     - using PIP package manager on PyPI - the default approach for Python-based applications;
-    - using Docker images - if the application should be deployed as a Docker image, use a pre-built OpenVINO™ Runtime Docker image as a base image in the Dockerfile for the application container image. For more information about OpenVINO Docker images, refer to the installation guides [for Linux from Docker](../../install_guides/installing-openvino-docker-linux.md) and [for Windows from Docker](../../install_guides/installing-openvino-docker-windows.md). 
+    - using Docker images - if the application should be deployed as a Docker image, use a pre-built OpenVINO™ Runtime Docker image as a base image in the Dockerfile for the application container image. For more information about OpenVINO Docker images, refer to [Installing OpenVINO on Linux from Docker](../../install_guides/installing-openvino-docker-linux.md) and [Installing OpenVINO on Windows from Docker](../../install_guides/installing-openvino-docker-windows.md). 
 Furthermore, to customize your OpenVINO Docker image, use the [Docker CI Framework](https://github.com/openvinotoolkit/docker_ci) to generate a Dockerfile and built the image. 
 - Grab a necessary functionality of OpenVINO together with your application, also called "local distribution":
     - using [OpenVINO Deployment Manager](deployment-manager-tool.md) - providing a convenient way for creating a distribution package;
-    - using the advanced [Local Distribution](local-distribution.md) approach;
+    - using the advanced [local distribution](local-distribution.md) approach;
     - using [a static version of OpenVINO Runtime linked to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries).
 
 The table below shows which distribution type can be used for what target operating system:
@@ -30,14 +30,14 @@ The table below shows which distribution type can be used for what target operat
 | Debian packages | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit |
 | RMP packages | Red Hat Enterprise Linux 8, 64-bit |
 | Docker images | Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit; Windows Server Core base LTSC 2019, 64-bit; Windows 10, version 20H2, 64-bit |
-| PyPi (pip package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
+| PyPI (PIP package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operating systems |
-| [Local Distribution](local-distribution.md) | All operating systems |
+| [Local distribution](local-distribution.md) | All operating systems |
 | [Build OpenVINO statically and link to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
 
 ## Granularity of Major Distribution Types
 
-The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [Local Distribution](local-distribution.md) is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
+The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [local distribution](local-distribution.md) is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
 ![deployment_simplified]
 
@@ -47,7 +47,7 @@ The granularity of OpenVINO packages may vary for different distribution types. 
 
 Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.
 
-Building local distribution will require more detailed information, and you will find it in the dedicated [Local Distribution](local-distribution.md) article.
+Building a local distribution will require more detailed information, and you will find it in the dedicated [Libraries for Local Distribution](local-distribution.md) article.
 
 > **NOTE**: Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md), [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
 

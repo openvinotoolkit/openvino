@@ -135,9 +135,10 @@ The `benchmark_app` sample, that has both [C++](../../samples/cpp/benchmark_app/
     - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
  -  or override the automatically deduced batch size as well:
     - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+    - This example also applies to CPU or any other device that generally supports batch execution.
     - Note that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. `-d "BATCH:GPU(16)"` in this example.
 
-The last example also applies to CPU or any other device that generally supports batch execution.  
+Note that Benchmark_app performs a warm-up run of a _single_ request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
 
 ### Additional Resources
 [Supported Devices](supported_plugins/Supported_Devices.md)

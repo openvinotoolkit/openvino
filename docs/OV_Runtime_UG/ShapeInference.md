@@ -92,7 +92,7 @@ Shape collision during shape propagation may be a sign that a new shape does not
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-* [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value.
+* The [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value.
 * [MatMul](../ops/matrix/MatMul_1.md) operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics.
 
 Model structure and logic should not change significantly after model reshaping.
