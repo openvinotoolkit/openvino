@@ -167,10 +167,10 @@ public:
                     std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
                     std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result2;
                 }
-                 if (!_labels.empty()) {
-                        std::cout << " " + _labels[_results.at(id)];
-                  }
-                 std::cout << std::endl;
+                if (!_labels.empty()) {
+                    std::cout << " " + _labels[_results.at(id)];
+                }
+                std::cout << std::endl;
             }
             std::cout << std::endl;
         }
