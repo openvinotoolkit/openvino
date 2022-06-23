@@ -72,10 +72,10 @@ By default, the benchmarking app will run for a predefined duration, repeatedly 
 The more iterations a model runs, the better the statistics will be for determing average latency and throughput.
 
 ### Inputs
-The benchmark tool runs benchmarking on user-provided input data (images or binary files). Use `-i <PATH_TO_INPUT>` to specify the path to an image, binary file, folder of images, or folder of binary files. For example, to run benchmarking on an image named `test1.jpg`, use:
+The benchmark tool runs benchmarking on user-provided input images in `.jpg`, `.bmp`, or `.png` format. Use `-i <PATH_TO_INPUT>` to specify the path to an image, or folder of images. For example, to run benchmarking on an image named `test1.jpg`, use:
 
 ```
-benchmark_app -m model.xml -i test1.jpg
+./benchmark_app -m model.xml -i test1.jpg
 ```
 
 The tool will repeatedly loop through the provided inputs and run inferencing on them for the specified amount of time or number of iterations. If the `-i` flag is not used, the tool will automatically generate random data to fit the input shape of the model. 
