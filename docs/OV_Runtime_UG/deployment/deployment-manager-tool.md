@@ -10,7 +10,6 @@ To use the Deployment Manager tool, the following requirements need to be met:
 * Intel® Distribution of OpenVINO™ toolkit is installed. See the [Installation Guide](../../install_guides/installing-openvino-overview.md) for instructions on different operating systems.
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
    * **For GPU**, see [Configurations for Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md).
-     * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md) section
      * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
      * Steps for [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md)
      * Steps for [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
