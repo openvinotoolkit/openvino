@@ -225,6 +225,18 @@ public:
     std::shared_ptr<IExecutableNetworkInternal> getPointerToExecutableNetworkInternal() const;
 
     /**
+     * @brief      Sets the pointer to executable network internal.
+     * @note       Needed to correctly handle ownership between objects.
+     * @param[in]  exeNetwork  The executable network
+     */
+    void setPointerToSo(const std::shared_ptr<void>& so);
+
+    /**
+     * @brief      Returns the pointer to executable network internal.
+     * @returns    The executable network
+     */
+    std::shared_ptr<void> getPointerToSo() const;
+    /**
      * @brief   Gets the pointer to userData.
      * @return  Pointer to user data
      */
@@ -338,6 +350,7 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
+    std::shared_ptr<void> _so;
     Callback _callback;  //!< A callback
 
 private:

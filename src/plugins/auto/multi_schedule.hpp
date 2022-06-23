@@ -60,7 +60,6 @@ protected:
     Time                                                      _cpuHelpReleaseTime;
     unsigned int                                              _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
-    static std::vector<std::shared_ptr<void>>                 _passthroughHolder;
 };
 
 }  // namespace MultiDevicePlugin

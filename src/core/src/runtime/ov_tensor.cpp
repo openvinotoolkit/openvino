@@ -103,6 +103,10 @@ Shape Tensor::get_shape() const {
     OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
 }
 
+void Tensor::set_additional_so(const std::shared_ptr<void>& so) {
+    _addSo = so;
+}
+
 Strides Tensor::get_strides() const {
     OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
                     "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",

@@ -13,7 +13,6 @@ namespace MultiDevicePlugin {
 thread_local WorkerInferRequest* MultiSchedule::_thisWorkerInferRequest = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
-std::vector<std::shared_ptr<void>> MultiSchedule::_passthroughHolder = {};
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
@@ -23,14 +22,8 @@ void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
         auto& network = networkValue.second;
         GenerateWorkers(device, network);
     }
-    if (_passthroughHolder.size() != 0) {
-        for (auto& iter : _passthroughHolder) {
-            if (_passthroughExeNet._so.get() != iter.get())
-                _passthroughHolder.emplace_back(_passthroughExeNet._so);
-        }
-    } else {
-        _passthroughHolder.emplace_back(_passthroughExeNet._so);
-    }
+    if (_multiSContext->_networksPerDevice.size() == 1)
+        _passthroughExeNet = _multiSContext->_networksPerDevice.begin()->second;
 }
 
 Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
@@ -309,6 +302,8 @@ IInferPtr MultiSchedule::CreateInferRequest() {
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
+    if (_passthroughExeNet)
+        syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
                                                execNetwork->_callbackExecutor);

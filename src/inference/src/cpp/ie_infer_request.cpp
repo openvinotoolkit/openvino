@@ -365,11 +365,14 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         name,
                         "'");
         auto blob = _impl->GetBlob(name);
-        return {blob, _so};
+        Tensor tensor = {blob, _so};
+        tensor.set_additional_so(_impl->getPointerToSo());
+        return tensor;
     });
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
+    std::cout << "_so in get tensor is " << _so.get() << ", and use count is " << _so.use_count() << std::endl;
     return get_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()));
 }
 

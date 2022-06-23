@@ -321,14 +321,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
         _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
-        if (_passthroughHolder.size() != 0) {
-            for (auto& iter : _passthroughHolder) {
-                if (_passthroughExeNet._so.get() != iter.get())
-                    _passthroughHolder.emplace_back(_passthroughExeNet._so);
-            }
-        } else {
-            _passthroughHolder.emplace_back(_passthroughExeNet._so);
-        }
     }
     WaitFirstNetworkReady();
 }
@@ -555,6 +547,10 @@ IInferPtr AutoSchedule::CreateInferRequest() {
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
+    if (_passthroughExeNet) {
+        std::cout << "changed!" << std::endl;
+        syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
+    }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
                                                execNetwork->_callbackExecutor);
