@@ -7,6 +7,7 @@
 #include<cstdlib>
 #include<algorithm>
 #include<cstring>
+#include<climits>
 #include<iomanip>
 #include<stdint.h>
 #include<stdexcept>
