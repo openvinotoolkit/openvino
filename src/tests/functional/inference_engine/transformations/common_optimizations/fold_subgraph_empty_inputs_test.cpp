@@ -182,12 +182,10 @@ TEST_F(TransformationTestsF, FoldLoopEmptySkipNonEmptyInputs) {
 TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 0, 1});
     auto X_add = std::make_shared<Add>(X, X);
-    auto Y = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
     auto Z = std::make_shared<Parameter>(element::f32, Shape{2, 0, 1});
     auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
 
     auto Xt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    auto Yt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     auto Zt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
 
     auto then_op = std::make_shared<Add>(Zt, Zt);
@@ -204,11 +202,10 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         auto if_op = std::make_shared<If>(cond);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
-        if_op->set_input(X_add, Xt, Xe);
-        if_op->set_input(Y, Yt, nullptr);
+        if_op->set_input(X_add, nullptr, Xe);
         if_op->set_input(Z, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
+        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Z});
 
         manager.register_pass<pass::FoldSubgraphEmptyInputs>();
     }
@@ -223,6 +220,6 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         const auto Z_folded = std::make_shared<Constant>(Z->get_element_type(), Z->get_shape());
         if_op->set_input(Z_folded, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{Y});
+        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{});
     }
 }
