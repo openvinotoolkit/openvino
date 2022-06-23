@@ -541,7 +541,7 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
-    int max_num_iter = trip_count_check->getStatus();
+     int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
@@ -692,7 +692,8 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
             auto newDims = newShape.getDims();
             nullifyUndefinedDims(newDims);
 
-            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
+            const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
+            const auto desc = getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims, hasZeroDims);
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {

@@ -66,6 +66,7 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
@@ -99,6 +100,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
