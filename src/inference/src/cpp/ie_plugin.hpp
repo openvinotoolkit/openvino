@@ -238,8 +238,6 @@ public:
         OV_PLUGIN_CALL_STATEMENT({
             if (ov::supported_properties == name) {
                 try {
-                    std::cout << "in get_property, count is " << _so.use_count() << ", so address "
-                              << _so.get() << std::endl;
                     return {_ptr->GetMetric(name, arguments), _so};
                 } catch (ie::Exception&) {
                     std::vector<ov::PropertyName> supported_properties;
