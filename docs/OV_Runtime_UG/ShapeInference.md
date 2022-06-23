@@ -30,9 +30,9 @@ In order to change the batch dimension of the model, [set the ov::Layout](@ref d
 
 @snippet snippets/ShapeInference.cpp set_batch
 
-The `ov::set_batch` method is a high level API of the `ov::Model::reshape` functionality, so all information about the `ov::Model::reshape` method implications are applicable for the `ov::set_batch` too, including the troubleshooting section.
+The `ov::set_batch` method is a high level API of the `ov::Model::reshape` functionality, so all information about the `ov::Model::reshape` method implications are applicable for `ov::set_batch` too, including the troubleshooting section.
 
-Once the input shape of the `ov::Model` is set, call the `ov::Core::compile_model` method to get an `ov::CompiledModel` object for inference with updated shapes.
+Once the input shape of `ov::Model` is set, call the `ov::Core::compile_model` method to get an `ov::CompiledModel` object for inference with updated shapes.
 
 There are other approaches to change model input shapes during the stage of [IR generation](@ref when_to_specify_input_shapes) or [ov::Model creation](../OV_Runtime_UG/model_representation.md).
 
@@ -126,7 +126,7 @@ Since the `Reshape` operator has `0` and `-1` as specific values (see the meanin
 ![batch_relaxed](./img/batch_relaxation.png)
 
 * transform the model during Model Optimizer conversion on the back phase. For more information, see the [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
-* transform OpenVINO Model during the runtime. For more information, see the [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
+* transform OpenVINO Model during the runtime. For more information, see [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
 * modify the original model with the help of the original framework.
 
 ### Extensibility
@@ -279,8 +279,8 @@ Since the `Reshape` operator has `0` and `-1` as specific values (see the meanin
 
 ![batch_relaxed](./img/batch_relaxation.png)
 
-* transform the model during Model Optimizer conversion on the back phase. See the [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
-* transform OpenVINO Model during the runtime. See the [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
+* transform the model during Model Optimizer conversion on the back phase. See [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+* transform OpenVINO Model during the runtime. See [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
 * modify the original model with the help of the original framework.
 
 ### Extensibility
