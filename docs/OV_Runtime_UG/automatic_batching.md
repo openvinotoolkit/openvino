@@ -148,7 +148,7 @@ This value also exposed as the final execution statistics on the `benchmark_app`
   [ INFO ] Latency: 
   [ INFO ] 	Max:      1000.18 ms
   ```
-This is NOT the actual latency of the batched execution, so please refer to other metrics in the same log, e.g. "Median" or "Average" execution. 
+This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution. 
 
 ### Additional Resources
 [Supported Devices](supported_plugins/Supported_Devices.md)
