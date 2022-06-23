@@ -100,13 +100,17 @@ private:
         virtual ~DFTExecutor() = default;
 
     private:
-        virtual void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const = 0;
         void dftNd(float* output,
                    const VectorDims& outputShape,
                    const VectorDims& outputStrides,
                    std::vector<int32_t> axes,
                    bool inverse) const;
 
+        virtual float* fft(float* inBuffer,
+                         float* outBuffer,
+                         int64_t dataLength,
+                         bool inverse,
+                         bool parallelize = false) const = 0;
         virtual void naiveDFT(float* data, size_t dataLength, bool inverse) const = 0;
 
         std::vector<float> generateTwiddlesDFT(size_t n_complex) const;
@@ -122,7 +126,11 @@ private:
     public:
         DFTJitExecutor(const DFTAttrs& interpAttrs);
 
-        void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const override;
+        float* fft(float* inBuffer,
+                 float* outBuffer,
+                 int64_t dataLength,
+                 bool inverse,
+                 bool parallelize = false) const override;
         void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
 
     private:
@@ -134,7 +142,11 @@ private:
     public:
         DFTRefExecutor(const DFTAttrs& interpAttrs) : DFTExecutor(interpAttrs) {}
 
-        void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const override;
+        float* fft(float* inBuffer,
+                 float* outBuffer,
+                 int64_t dataLength,
+                 bool inverse,
+                 bool parallelize = false) const override;
         void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
     };
 

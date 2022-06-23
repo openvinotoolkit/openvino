@@ -653,7 +653,12 @@ void DFT::DFTExecutor::exec(const float* src,
     if (inputRank == 2) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
-            fft(dst, nComplex * 2, inverse, true);
+            std::vector<float> outputData(nComplex * 2);
+            const auto* outPtr = fft(dst, outputData.data(), nComplex * 2, inverse, true);
+
+            if (outPtr != dst) {
+                cpu_memcpy(dst, outPtr, nComplex * 2 * sizeof(float));
+            }
         } else {
             naiveDFT(dst, nComplex * 2, inverse);
         }
@@ -679,7 +684,7 @@ void DFT::DFTExecutor::dftNd(float* output,
             size_t parallelDimIndex = lastDimIndex == currentAxis ? lastDimIndex - 1 : lastDimIndex;
             do {
                 parallel_for(iterationRange[parallelDimIndex], [&](size_t dim) {
-                    std::vector<float> gatheredData(outputLen);
+                    std::vector<float> gatheredData(outputLen * 2);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
 
@@ -689,13 +694,9 @@ void DFT::DFTExecutor::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    fft(gatheredData.data(), outputLen, inverse);
-                    applyBufferND(gatheredData.data(),
-                                  output,
-                                  currentAxis,
-                                  parallelIterationCounter,
-                                  outputShape,
-                                  outputStrides);
+                    const auto* bufferPtr =
+                        fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse);
+                    applyBufferND(bufferPtr, output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
                 });
                 iterationCounter[parallelDimIndex] = iterationRange[parallelDimIndex] - 1;
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
@@ -716,53 +717,47 @@ void DFT::DFTExecutor::dftNd(float* output,
 }
 
 /* Cooley Tukey implementation of FFT */
-void DFT::DFTRefExecutor::fft(float* data, int64_t dataLength, bool inverse, bool parallelize) const {
+float* DFT::DFTRefExecutor::fft(float* inBuffer,
+                                float* outBuffer,
+                                int64_t dataLength,
+                                bool inverse,
+                                bool parallelize) const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
-    std::vector<float> bufferVector(dataLength * 2, 0);
-    float* buffer = bufferVector.data();
-    cpu_memcpy(buffer, data, dataLength * sizeof(float));
-
     size_t nComplex = dataLength / 2;
-    float* inBufferStart = buffer + dataLength;
-    float* outBufferStart = buffer;
 
-    auto blockIteration = [&](const size_t numBlocks,
-                               const size_t block,
-                               const size_t blockSize,
-                               const size_t nextIterationBlockSize) {
-        float* curInpBufferPtr = inBufferStart + block * blockSize;
-        float* curOutBufferPtr = outBufferStart + block * nextIterationBlockSize;
-        float twiddleReal = twiddlesFFT[(numBlocks + block - 1) * 2];
-        float twiddleImag = twiddlesFFT[(numBlocks + block) * 2 - 1];
+    auto blockIteration =
+        [&](const size_t numBlocks, const size_t block, const size_t blockSize, const size_t nextIterationBlockSize) {
+            float* curInpBufferPtr = inBuffer + block * blockSize;
+            float* curOutBufferPtr = outBuffer + block * nextIterationBlockSize;
+            float twiddleReal = twiddlesFFT[(numBlocks + block - 1) * 2];
+            float twiddleImag = twiddlesFFT[(numBlocks + block) * 2 - 1];
 
-        if (inverse) {
-            twiddleImag *= -1;
-        }
+            if (inverse) {
+                twiddleImag *= -1;
+            }
 
-        for (size_t pair = 0; pair < blockSize / 2; pair += 2) {
-            const float evenReal = curInpBufferPtr[pair];
-            const float evenImag = curInpBufferPtr[pair + 1];
+            for (size_t pair = 0; pair < blockSize / 2; pair += 2) {
+                const float evenReal = curInpBufferPtr[pair];
+                const float evenImag = curInpBufferPtr[pair + 1];
 
-            const float oddReal = curInpBufferPtr[(blockSize / 2 + pair)];
-            const float oddImag = curInpBufferPtr[(blockSize / 2 + pair) + 1];
+                const float oddReal = curInpBufferPtr[(blockSize / 2 + pair)];
+                const float oddImag = curInpBufferPtr[(blockSize / 2 + pair) + 1];
 
-            const float twiddledOddReal = getRealFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
-            const float twiddledOddImag = getImaginaryFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
+                const float twiddledOddReal = getRealFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
+                const float twiddledOddImag = getImaginaryFromComplexProd(twiddleReal, twiddleImag, oddReal, oddImag);
 
-            curOutBufferPtr[pair] = evenReal + twiddledOddReal;
-            curOutBufferPtr[pair + 1] = evenImag + twiddledOddImag;
+                curOutBufferPtr[pair] = evenReal + twiddledOddReal;
+                curOutBufferPtr[pair + 1] = evenImag + twiddledOddImag;
 
-            curOutBufferPtr[nComplex + pair] = evenReal - twiddledOddReal;
-            curOutBufferPtr[nComplex + pair + 1] = evenImag - twiddledOddImag;
-        }
-    };
+                curOutBufferPtr[nComplex + pair] = evenReal - twiddledOddReal;
+                curOutBufferPtr[nComplex + pair + 1] = evenImag - twiddledOddImag;
+            }
+        };
 
     size_t blockSize;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
-        std::swap(inBufferStart, outBufferStart);
-
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
         if (parallelize && blockSize >= 4 * elementsPerCacheLine) {
@@ -774,14 +769,16 @@ void DFT::DFTRefExecutor::fft(float* data, int64_t dataLength, bool inverse, boo
                 blockIteration(numBlocks, block, blockSize, nextIterationBlockSize);
             }
         }
+
+        std::swap(inBuffer, outBuffer);
+    }
+    if (inverse) {
+        for (int64_t k = 0; k < dataLength; k++) {
+            inBuffer[k] /= nComplex;
+        }
     }
 
-    for (int64_t k = 0; k < dataLength; k++) {
-        if (inverse) {
-            outBufferStart[k] /= nComplex;
-        }
-        data[k] = outBufferStart[k];
-    }
+    return inBuffer;
 }
 
 void DFT::DFTRefExecutor::naiveDFT(float* data, size_t dataLength, bool inverse) const {
@@ -889,38 +886,32 @@ DFT::DFTJitExecutor::DFTJitExecutor(const DFTAttrs& interpAttrs) : DFTExecutor(i
         fftKernel->create_ker();
 }
 
-void DFT::DFTJitExecutor::fft(float* data, int64_t dataLength, bool inverse, bool parallelize) const {
+float* DFT::DFTJitExecutor::fft(float* inBuffer,
+                                float* outBuffer,
+                                int64_t dataLength,
+                                bool inverse,
+                                bool parallelize) const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
-    std::vector<float> bufferVector(dataLength * 2, 0);
-    float* buffer = bufferVector.data();
-    cpu_memcpy(buffer, data, dataLength * sizeof(float));
-
     size_t nComplex = dataLength / 2;
-    float* inBufferStart = buffer + dataLength;
-    float* outBufferStart = buffer;
 
-    auto blockIteration = [&](const size_t block,
-                              const size_t numBlocks,
-                              const size_t blockSize,
-                              const size_t nextIterationBlockSize) {
-        auto arg = jit_args_fft();
+    auto blockIteration =
+        [&](const size_t block, const size_t numBlocks, const size_t blockSize, const size_t nextIterationBlockSize) {
+            auto arg = jit_args_fft();
 
-        arg.src = inBufferStart + block * nextIterationBlockSize * 2;
-        arg.dst = outBufferStart + block * nextIterationBlockSize;
-        arg.twiddles = &twiddlesFFT[(numBlocks + block - 1) * 2];
-        arg.num_blocks = numBlocks;
-        arg.work_amount = nextIterationBlockSize;
-        arg.n_complex = nComplex;
+            arg.src = inBuffer + block * nextIterationBlockSize * 2;
+            arg.dst = outBuffer + block * nextIterationBlockSize;
+            arg.twiddles = &twiddlesFFT[(numBlocks + block - 1) * 2];
+            arg.num_blocks = numBlocks;
+            arg.work_amount = nextIterationBlockSize;
+            arg.n_complex = nComplex;
 
-        (*fftKernel)(&arg);
-    };
+            (*fftKernel)(&arg);
+        };
 
     size_t blockSize;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
-        std::swap(inBufferStart, outBufferStart);
-
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
         if (parallelize && blockSize >= 4 * elementsPerCacheLine) {
@@ -930,14 +921,17 @@ void DFT::DFTJitExecutor::fft(float* data, int64_t dataLength, bool inverse, boo
         } else {
             blockIteration(0, numBlocks, blockSize, nextIterationBlockSize);
         }
+
+        std::swap(inBuffer, outBuffer);
     }
 
-    for (int64_t k = 0; k < dataLength; k++) {
-        if (inverse) {
-            outBufferStart[k] /= nComplex;
+    if (inverse) {
+        for (int64_t k = 0; k < dataLength; k++) {
+            inBuffer[k] /= nComplex;
         }
-        data[k] = outBufferStart[k];
     }
+
+    return inBuffer;
 }
 
 void DFT::DFTJitExecutor::naiveDFT(float* data, size_t dataLength, bool inverse) const {
