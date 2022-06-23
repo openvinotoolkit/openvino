@@ -419,6 +419,7 @@ DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Weigh
     }
 
     inverse = std::dynamic_pointer_cast<ngraph::opset7::DFT>(op) == nullptr;
+    lastInverse = !inverse;
 }
 
 void DFT::getSupportedDescriptors() {}
@@ -958,7 +959,7 @@ bool DFT::created() const {
 }
 
 bool DFT::needPrepareParams() const {
-    return inputShapesModified() || true;
+    return lastInverse != inverse;
 }
 
 void DFT::prepareParams() {
@@ -979,6 +980,8 @@ void DFT::prepareParams() {
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
+
+    lastInverse = inverse;
 }
 
 void DFT::createPrimitive() {

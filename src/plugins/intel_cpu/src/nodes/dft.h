@@ -156,7 +156,9 @@ private:
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
     static constexpr float PI = 3.141592653589793238462643f;
+
     bool inverse;
+    bool lastInverse;
 };
 
 }  // namespace node
