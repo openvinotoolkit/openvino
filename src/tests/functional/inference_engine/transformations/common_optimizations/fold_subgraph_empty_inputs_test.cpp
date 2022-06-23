@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
     }
 }
 
-TEST_F(TransformationTestsF, FoldLoopEmptySkipConstants) {
+TEST_F(TransformationTestsF, FoldLoopSkipEmptyConstants) {
     auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
     auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
 
@@ -156,7 +156,30 @@ TEST_F(TransformationTestsF, FoldLoopEmptySkipConstants) {
     manager.register_pass<pass::FoldSubgraphEmptyInputs>();
 }
 
-TEST_F(TransformationTestsF, FoldLoopEmptySkipNonEmptyInputs) {
+TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
+
+    auto a = std::make_shared<Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
+    auto a_add = std::make_shared<Add>(a, a);
+    auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 0});
+
+    auto mul = std::make_shared<Multiply>(ai, ai);
+    auto abs = std::make_shared<Abs>(mul);
+
+    auto body = std::make_shared<Model>(OutputVector{condition, abs}, ParameterVector{ai});
+    auto loop = std::make_shared<Loop>(trip_count, condition);
+    loop->set_special_body_ports({-1, 0});
+    loop->set_function(body);
+    loop->set_invariant_input(ai, a_add);
+
+    auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
+    function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
+
+    manager.register_pass<pass::FoldSubgraphEmptyInputs>();
+}
+
+TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
     auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
     auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
 

@@ -35,29 +35,29 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                 if (std::dynamic_pointer_cast<opset8::Constant>(input.get_node_shared_ptr())) {
                     return false;
                 }
+                // skip non-static shapes
                 const auto& in_shape = input.get_partial_shape();
-                if (in_shape.rank().is_static()) {
-                    return std::any_of(std::begin(in_shape), std::end(in_shape), [input](const ov::Dimension& dim) {
-                        if (dim.is_static() && dim.get_length() == 0) {
-                            return true;
-                        }
-                        return false;
-                    });
+                if (in_shape.is_dynamic()) {
+                    return false;
                 }
+                return std::any_of(std::begin(in_shape), std::end(in_shape), [input](const ov::Dimension& dim) {
+                    if (dim.is_static() && dim.get_length() == 0) {
+                        return true;
+                    }
+                    return false;
+                });
                 return false;
             });
 
         bool transformation_applied = false;
         for (const auto& input : empty_inputs) {
-            if (input.get_partial_shape().is_static()) {
-                const ov::Output<ov::Node> const_empty_replacement =
-                    std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
-                std::replace(std::begin(multi_subgraph_op_inputs),
-                             std::end(multi_subgraph_op_inputs),
-                             input,
-                             const_empty_replacement);
-                transformation_applied = true;
-            }
+            const ov::Output<ov::Node> const_empty_replacement =
+                std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
+            std::replace(std::begin(multi_subgraph_op_inputs),
+                         std::end(multi_subgraph_op_inputs),
+                         input,
+                         const_empty_replacement);
+            transformation_applied = true;
         }
 
         if (transformation_applied) {
