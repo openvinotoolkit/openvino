@@ -190,7 +190,7 @@ Now, the package is extracted to the destination directory. The following files 
    * `setupvars.sh` — a copy of `setupvars.sh`.
    * `runtime` — contains the OpenVINO runtime binary files.
    * `install_dependencies` — a snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-   * `<user_data>` — the directory with the user data (IRs, datasets, etc.) specified while configuring the package.
+   * `<user_data>` — the directory with the user data (OpenVINO IR, model, dataset, etc.) specified while configuring the package.
 
 3. On a target Linux system, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, install additional dependencies by running the `install_openvino_dependencies.sh` script:
 
