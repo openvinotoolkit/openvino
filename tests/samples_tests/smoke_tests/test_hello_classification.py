@@ -28,13 +28,13 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'd': ['CPU'],
-                                       'sample_type': ['C++', 'C']},
+                                       'sample_type': ['C++', 'C', 'C2.0']},
                            use_device=['d'])
 
 test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
                                                'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                                'd': ['CPU'],
-                                               'sample_type': ['C++', 'C']},
+                                               'sample_type': ['C++', 'C', 'C2.0']},
                                    use_device=['d'])
 
 
