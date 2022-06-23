@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+
 #include <string>
 
 namespace ov {
@@ -61,7 +62,7 @@ struct jit_uni_fft_kernel {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
@@ -86,15 +87,26 @@ private:
     public:
         DFTExecutor(const DFTAttrs&) {}
 
-        virtual void exec(const float* src, float* dst, size_t inputRank, std::vector<int32_t> axes, VectorDims inputShape,
-            VectorDims outputShape, VectorDims inputStrides, VectorDims outputStrides, bool inverse);
+        virtual void exec(const float* src,
+                          float* dst,
+                          size_t inputRank,
+                          std::vector<int32_t> axes,
+                          VectorDims inputShape,
+                          VectorDims outputShape,
+                          VectorDims inputStrides,
+                          VectorDims outputStrides,
+                          bool inverse);
 
         virtual ~DFTExecutor() = default;
 
     private:
-        void dftNd(float* output, const VectorDims& outputShape, const VectorDims& outputStrides, std::vector<int32_t> axes, bool inverse) const;
-
         virtual void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const = 0;
+        void dftNd(float* output,
+                   const VectorDims& outputShape,
+                   const VectorDims& outputStrides,
+                   std::vector<int32_t> axes,
+                   bool inverse) const;
+
         virtual void naiveDFT(float* data, size_t dataLength, bool inverse) const = 0;
 
         std::vector<float> generateTwiddlesDFT(size_t n_complex) const;
@@ -120,8 +132,7 @@ private:
 
     class DFTRefExecutor : public DFTExecutor {
     public:
-        DFTRefExecutor(const DFTAttrs& interpAttrs)
-            : DFTExecutor(interpAttrs) {}
+        DFTRefExecutor(const DFTAttrs& interpAttrs) : DFTExecutor(interpAttrs) {}
 
         void fft(float* data, int64_t dataLength, bool inverse, bool parallelize = false) const override;
         void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
@@ -136,6 +147,6 @@ private:
     bool inverse;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

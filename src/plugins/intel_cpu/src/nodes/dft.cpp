@@ -210,7 +210,7 @@ struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public jit_generator 
         ker_ = (decltype(ker_))jit_ker();
     }
 
-    template<typename T>
+    template <typename T>
     void loop_process(int step) {
         T reg_data_odd_1 = T(vmm_data_odd_1.getIdx());
         T reg_data_odd_2 = T(vmm_data_odd_2.getIdx());
@@ -643,12 +643,7 @@ void DFT::DFTExecutor::exec(const float* src,
     }
 
     if (inputShape != outputShape) {
-        copyDataToOutputWithSignalSize(src,
-                                       inputShape,
-                                       inputStrides,
-                                       dst,
-                                       outputShape,
-                                       outputStrides);
+        copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
         auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
