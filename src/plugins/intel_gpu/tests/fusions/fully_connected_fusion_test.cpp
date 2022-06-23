@@ -98,7 +98,7 @@ class FullyConnectedFusingTestOneDNN : public BaseFusingTest<fully_connected_tes
 public:
     void execute(fully_connected_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -391,7 +391,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_inputs_fused_fp32_sum, ::testing::
     // OneDNN has issue with small shapes - ticket 7064
     // fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 4 },
     // fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
-    // fails with 'Invalid input shapes'
-    // fully_connected_test_params{ CASE_FC_U8S8_3D_4, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_4, 2, 4 },
 }));
 #endif

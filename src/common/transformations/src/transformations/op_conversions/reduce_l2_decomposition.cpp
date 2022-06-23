@@ -35,6 +35,7 @@ ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
         sqrt->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l2_node, {sqrt, reduce_sum, square, const_2});
         ngraph::replace_node(m.get_match_root(), sqrt);
+        MATCHER_SCOPE_ENABLE(ReduceL2Decomposition);
         return true;
     };
 

@@ -17,6 +17,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     Program& p,
     const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronDetectionOutput>& op) {
     p.ValidateInputs(op, {4});
+
     if (op->get_output_size() != 3) {
         IE_THROW() << "ExperimentalDetectronDetectionOutput requires 3 outputs";
     }
@@ -56,6 +57,11 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     p.AddPrimitive(mutable_prim_w2);
     inputs.push_back(mutable_id_w2);
 
+    const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
+    if (inputs.size() != expectedPrimInputCount) {
+        IE_THROW() << "experimental_detectron_detection_output primitive requires 6 inputs";
+    }
+
     const cldnn::experimental_detectron_detection_output prim{layer_name,
                                                               inputs[0],
                                                               inputs[1],
@@ -65,9 +71,9 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                               inputs[5],  // output scores
                                                               attrs.score_threshold,
                                                               attrs.nms_threshold,
-                                                              attrs.num_classes,
-                                                              attrs.post_nms_count,
-                                                              attrs.max_detections_per_image,
+                                                              static_cast<int>(attrs.num_classes),
+                                                              static_cast<int>(attrs.post_nms_count),
+                                                              static_cast<int>(attrs.max_detections_per_image),
                                                               attrs.class_agnostic_box_regression,
                                                               attrs.max_delta_log_wh,
                                                               attrs.deltas_weights,

@@ -138,6 +138,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -148,7 +154,13 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i64):
-        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f32, ET>(op, outputs, inputs);
@@ -162,6 +174,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -173,6 +191,48 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     default:
         return false;

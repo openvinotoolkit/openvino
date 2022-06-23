@@ -21,6 +21,22 @@ namespace cldnn {
 struct experimental_detectron_detection_output : public primitive_base<experimental_detectron_detection_output> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_detection_output)
 
+    /// @brief Constructs experimental_detectron_detection_output primitive
+    /// @param id This primitive id
+    /// @param input_rois input rois
+    /// @param input_deltas input deltas
+    /// @param input_scores input scores
+    /// @param input_im_info image info
+    /// @param output_classes ROI scores
+    /// @param output_scores  minimum box width and height
+    /// @param score_threshold a threshold to consider only detections whose score are larger than the threshold
+    /// @param nms_threshold a threshold to be used in the NMS stage
+    /// @param num_classes the number of detected classes
+    /// @param post_nms_count the maximum number of detections per class
+    /// @param max_detections_per_image the maximum number of detections per image
+    /// @param class_agnostic_box_regression specifies whether to delete background classes or not
+    /// @param max_delta_log_wh the maximum delta of logarithms for width and height
+    /// @param deltas_weights the weights for bounding boxes sizes deltas
     experimental_detectron_detection_output(const primitive_id& id,
                                             const primitive_id& input_rois,
                                             const primitive_id& input_deltas,
@@ -30,9 +46,9 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             const primitive_id& output_scores,
                                             float score_threshold,
                                             float nms_threshold,
-                                            int64_t num_classes,
-                                            int64_t post_nms_count,
-                                            size_t max_detections_per_image,
+                                            int num_classes,
+                                            int post_nms_count,
+                                            int max_detections_per_image,
                                             bool class_agnostic_box_regression,
                                             float max_delta_log_wh,
                                             std::vector<float> deltas_weights,
@@ -57,9 +73,9 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     primitive_id output_scores;
     float score_threshold;
     float nms_threshold;
-    int64_t num_classes;
-    int64_t post_nms_count;
-    size_t max_detections_per_image;
+    int num_classes;
+    int post_nms_count;
+    int max_detections_per_image;
     bool class_agnostic_box_regression;
     float max_delta_log_wh;
     std::vector<float> deltas_weights;

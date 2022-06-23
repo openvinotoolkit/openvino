@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -206,7 +207,7 @@ def multiclass_nms(
         keep_top_k: Optional[int] = -1,
         background_class: Optional[int] = -1,
         nms_eta: Optional[float] = 1.0,
-        normalized: Optional[bool] = True
+        normalized: Optional[bool] = True,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -248,7 +249,87 @@ def multiclass_nms(
         "keep_top_k": keep_top_k,
         "background_class": background_class,
         "nms_eta": nms_eta,
-        "normalized": normalized
+        "normalized": normalized,
     }
 
     return _get_node_factory_opset9().create("MulticlassNms", inputs, attributes)
+
+
+@nameable_op
+def generate_proposals(
+    im_info: NodeInput,
+    anchors: NodeInput,
+    deltas: NodeInput,
+    scores: NodeInput,
+    min_size: float,
+    nms_threshold: float,
+    pre_nms_count: int,
+    post_nms_count: int,
+    normalized: bool = True,
+    nms_eta: float = 1.0,
+    roi_num_type: str = "i64",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GenerateProposals operation.
+
+    :param im_info: Input with image info.
+    :param anchors: Input anchors.
+    :param deltas: Input deltas.
+    :param scores: Input scores.
+    :param min_size: Specifies minimum box width and height.
+    :param nms_threshold: Specifies threshold to be used in the NMS stage.
+    :param pre_nms_count: Specifies number of top-n proposals before NMS.
+    :param post_nms_count: Specifies number of top-n proposals after NMS.
+    :param normalized: Specifies whether proposal bboxes are normalized or not. Optional attribute, default value is `True`.
+    :param nms_eta: Specifies eta parameter for adaptive NMS., must be in range `[0.0, 1.0]`. Optional attribute, default value is `1.0`.
+    :param roi_num_type: Specifies the element type of the third output `rpnroisnum`. Optional attribute, range of values: `i64` (default) or `i32`.
+    :param name: The optional name for the output node.
+    :return: New node performing GenerateProposals operation.
+    """
+    inputs = as_nodes(im_info, anchors, deltas, scores)
+
+    attributes = {
+        "min_size": min_size,
+        "nms_threshold": nms_threshold,
+        "pre_nms_count": pre_nms_count,
+        "post_nms_count": post_nms_count,
+        "normalized": normalized,
+        "nms_eta": nms_eta,
+        "roi_num_type": roi_num_type,
+    }
+
+    return _get_node_factory_opset9().create("GenerateProposals", inputs, attributes)
+
+
+def grid_sample(
+        data: NodeInput,
+        grid: NodeInput,
+        attributes: dict,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GridSample operation.
+
+    :param data: The input image.
+    :param grid: Grid values (normalized input coordinates).
+    :param attributes: A dictionary containing GridSample's attributes.
+    :param name: Optional name of the node.
+
+    Available attributes:
+
+    * align_corners A flag which specifies whether to align the grid extrema values
+                    with the borders or center points of the input tensor's border pixels.
+                    Range of values: true, false
+                    Default value: false
+                    Required: no
+    * mode          Specifies the type of interpolation.
+                    Range of values: bilinear, bicubic, nearest
+                    Default value: bilinear
+                    Required: no
+    * padding_mode  Specifies how the out-of-bounds coordinates should be handled.
+                    Range of values: zeros, border, reflection
+                    Default value: zeros
+                    Required: no
+
+    :return: A new GridSample node.
+    """
+    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)

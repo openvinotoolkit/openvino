@@ -80,9 +80,9 @@ public:
         return getDesc().hasDefinedMaxSize();
     }
 
-private:
     std::string name() const;
 
+private:
     std::weak_ptr<Node> parent;
     std::weak_ptr<Node> child;
     int parent_port;
@@ -101,10 +101,12 @@ private:
     const MemoryDesc& getDesc() const;
     bool enforceReorder();
 
+    void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
+
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
-    bool inPlace(LOOK look = LOOK_BOTH);
+    bool inPlace(LOOK look = LOOK_BOTH) const;
     void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
 
     friend class Graph;

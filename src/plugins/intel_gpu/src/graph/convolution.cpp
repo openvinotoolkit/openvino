@@ -182,6 +182,8 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                     out_fmt = format::b_fs_yx_fsv32;
                 else if (input_layout.format == format::bs_fs_yx_bsv32_fsv16)
                     out_fmt = format::bs_fs_yx_bsv32_fsv32;
+                else if (input_layout.format == format::b_fs_yx_fsv2)
+                    out_fmt = format::b_fs_yx_fsv32;
             } else if (is_3d) {
                 if (input_layout.format == format::b_fs_zyx_fsv16)
                     out_fmt = format::b_fs_zyx_fsv32;

@@ -58,8 +58,6 @@ constexpr int kBufferCount = 5;
 
 constexpr int kOutputIdx = 0;
 
-constexpr int kRoiCountScalarIdx = 0;
-
 JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
     const experimental_detectron_detection_output_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
@@ -75,6 +73,8 @@ JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
         MakeJitConstant("DELTA_WEIGHT_Y", params.deltas_weights[1]),
         MakeJitConstant("DELTA_WEIGHT_LOG_W", params.deltas_weights[2]),
         MakeJitConstant("DELTA_WEIGHT_LOG_H", params.deltas_weights[3]),
+
+        MakeJitConstant("ROI_COUNT", params.inputs[kScoresInputIdx].Batch().v),
 
         MakeJitConstant("OUTPUT_INDICES_TYPE", "INPUT4_TYPE"),
     });
@@ -133,12 +133,6 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareNmsClassWiseKernel(
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedScoresBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxAreasBufferIdx});
-    const auto roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    ScalarDescriptor s;
-    s.t = ScalarDescriptor::Types::UINT32;
-    s.v.u32 = roi_count;
-    kernel.params.scalars.push_back(s);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, kRoiCountScalarIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
 }
@@ -159,7 +153,7 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
     clKernelData& kernel) const {
     PrepareKernelCommon(params,
                         options,
-                        {params.max_detections_per_image, 1, 1},
+                        {static_cast<size_t>(params.max_detections_per_image), 1, 1},
                         "EDDO_STAGE_3_COPY_OUTPUT",
                         3,
                         kernel);
@@ -167,12 +161,6 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
-    const auto roi_count = params.inputs[kScoresInputIdx].Batch().v;
-    ScalarDescriptor s;
-    s.t = ScalarDescriptor::Types::UINT32;
-    s.v.u32 = roi_count;
-    kernel.params.scalars.push_back(s);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, kRoiCountScalarIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputClassesInputIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputScoresInputIdx});

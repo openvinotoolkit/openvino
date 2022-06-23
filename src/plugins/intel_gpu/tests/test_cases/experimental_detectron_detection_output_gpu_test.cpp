@@ -39,9 +39,9 @@ struct ExperimentalDetectronDetectionOutputParams {
     float score_threshold;
     float nms_threshold;
     float max_delta_log_wh;
-    int64_t num_classes;
-    int64_t post_nms_count;
-    size_t max_detections_per_image;
+    int num_classes;
+    int post_nms_count;
+    int max_detections_per_image;
     bool class_agnostic_box_regression;
     std::vector<float> deltas_weights;
 

@@ -247,18 +247,17 @@ KERNEL(eddo_ref_stage_1)
 (const __global INPUT_TYPE* refined_scores,
  const __global INPUT_TYPE* refined_boxes,
  const __global INPUT_TYPE* refined_box_areas,
- uint roi_count,
  __global ScoreClassIndex* score_class_index_map,
  __global uint* detection_count) {
     size_t total_detections_num = 0;
     // FIXME: figure out how to parallelize this!!!
     for (int class_idx = 0; class_idx < NUM_CLASSES; ++class_idx) {
         FUNC_CALL(nms_cf)
-        (&refined_scores[roi_count * class_idx],
-         &refined_boxes[roi_count * 4 * class_idx],
-         &refined_box_areas[roi_count * class_idx],
+        (&refined_scores[ROI_COUNT * class_idx],
+         &refined_boxes[ROI_COUNT * 4 * class_idx],
+         &refined_box_areas[ROI_COUNT * class_idx],
          class_idx,
-         roi_count,
+         ROI_COUNT,
          &score_class_index_map[total_detections_num],
          detection_count);
         total_detections_num += *detection_count;
@@ -286,7 +285,6 @@ KERNEL(eddo_ref_stage_3)
 (const __global ScoreClassIndex* score_class_index_map,
  const __global uint* detection_count,
  const __global INPUT_TYPE* refined_boxes,
- uint roi_count,
  __global OUTPUT_TYPE* output_boxes,
  __global OUTPUT_INDICES_TYPE* output_classes,
  __global OUTPUT_TYPE* output_scores) {
@@ -296,7 +294,7 @@ KERNEL(eddo_ref_stage_3)
         OUTPUT_TYPE score = score_class_index_map[i].score;
         OUTPUT_INDICES_TYPE cls = score_class_index_map[i].class_idx;
         OUTPUT_INDICES_TYPE idx = score_class_index_map[i].box_idx;
-        vstore4(vload4(roi_count * cls + idx, refined_boxes), i, output_boxes);
+        vstore4(vload4(ROI_COUNT * cls + idx, refined_boxes), i, output_boxes);
         output_scores[i] = score;
         output_classes[i] = cls;
     } else {

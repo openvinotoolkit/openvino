@@ -13,26 +13,31 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-const std::vector<float> score_threshold = {0.01000000074505806f};
+const std::vector<ov::test::ElementType> netPrecisions = {
+    ov::element::Type_t::f16,
+    ov::element::Type_t::f32,
+};
 
-const std::vector<float> nms_threshold = {0.2f};
+const std::vector<float> score_threshold = {0.01f, 0.8f};
 
-//// specifies maximal delta of logarithms for width and height
-const std::vector<float> max_delta_log_wh = {2.0f};
+const std::vector<float> nms_threshold = {0.2f, 0.5f};
+
+// specifies maximal delta of logarithms for width and height
+const std::vector<float> max_delta_log_wh = {2.0f, 5.0f};
 
 // specifies number of detected classes
 const std::vector<int64_t> num_classes = {2};
 
 // specifies maximal number of detections per class
-const std::vector<int64_t> post_nms_count = {500};
+const std::vector<int64_t> post_nms_count = {5, 25};
 
 // specifies maximual number of detections per image
-const std::vector<size_t> max_detections_per_image = {5};
+const std::vector<size_t> max_detections_per_image = {5, 25};
 
 // a flag specifies whether to delete background classes or not
 // `true`  means background classes should be deleted,
 // `false` means background classes shouldn't be deleted.
-const std::vector<bool> class_agnostic_box_regression = {true};
+const std::vector<bool> class_agnostic_box_regression = {true, false};
 
 // specifies deltas of weights
 const std::vector<std::vector<float>> deltas_weights = {{10.0f, 10.0f, 5.0f, 5.0f}};
@@ -53,8 +58,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::ValuesIn(max_detections_per_image),
                                             ::testing::ValuesIn(class_agnostic_box_regression),
                                             ::testing::ValuesIn(deltas_weights),
-                                            ::testing::Values(ov::element::Type_t::f32),
+                                            ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
+
 
 }  // namespace
