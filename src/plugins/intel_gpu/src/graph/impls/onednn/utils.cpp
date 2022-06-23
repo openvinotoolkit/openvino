@@ -147,7 +147,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
-int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc&& desc) {
+int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
