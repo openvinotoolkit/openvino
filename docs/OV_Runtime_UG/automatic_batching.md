@@ -7,7 +7,6 @@ This article provides a preview of the new Automatic Batching function, includin
 
 ## Enabling/Disabling Automatic Batching
 
-
 Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To obtain corresponding performance improvements, the application **must be running many inference requests simultaneously**. 
 Auto-batching can also be used via a particular *virtual* device.       
 
@@ -137,7 +136,7 @@ The `benchmark_app` sample, that has both [C++](../../samples/cpp/benchmark_app/
  -  or override the automatically deduced batch size as well:
     - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
     - This example also applies to CPU or any other device that generally supports batch execution.
-    - Note that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. `-d "BATCH:GPU(16)"` in this example.
+    - Keep in mind that some shell versions (e.g. `bash`) may require adding quotes around complex device names, i.e. `-d "BATCH:GPU(16)"` in this example.
 
 Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
 
