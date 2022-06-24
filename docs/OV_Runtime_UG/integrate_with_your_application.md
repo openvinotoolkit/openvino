@@ -247,7 +247,6 @@ The example uses CMake for project configuration.
    @snippet snippets/CMakeLists.txt cmake:integration_example
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
-
 > **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable will not be configured properly to pass `find_package` calls.
 
 ```sh
