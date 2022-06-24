@@ -143,6 +143,11 @@ public:
         add_extension(args...);
     }
 
+    /// \brief Get frontend library pointer.
+    ///
+    /// \return const std::shared_ptr<void>& to shared library pointer.
+    const std::shared_ptr<void>& get_library() const;
+
 protected:
     virtual bool supported_impl(const std::vector<ov::Any>& variants) const;
 

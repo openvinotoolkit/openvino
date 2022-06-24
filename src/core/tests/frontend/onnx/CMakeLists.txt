@@ -4,8 +4,7 @@
 
 set(TARGET_NAME "onnx_frontend_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
@@ -27,4 +26,5 @@ add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 add_dependencies(${TARGET_NAME} test_model_zoo)
 
 add_subdirectory(standalone_build)
+add_subdirectory(lib)
 add_dependencies(${TARGET_NAME} onnx_fe_standalone_build_test)

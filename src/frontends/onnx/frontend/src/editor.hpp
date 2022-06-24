@@ -31,9 +31,15 @@ public:
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
     /// \param model_path Path to the file containing the model.
-    ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions = {});
+    /// \param extensions Holder of ONNX front end extensinos. Default {}.
+    /// \param shared_obj Pointer to frontend library. Default nullptr.
+    ONNXModelEditor(const std::string& model_path,
+                    frontend::ExtensionHolder extensions = {},
+                    std::shared_ptr<void> shared_obj = nullptr);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions = {});
+    ONNXModelEditor(const std::wstring& model_path,
+                    frontend::ExtensionHolder extensions = {},
+                    std::shared_ptr<void> shared_obj = nullptr);
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -42,9 +48,14 @@ public:
     /// \param model_stream The stream containing the model.
     /// \param model_path Path to the file containing the model. This information can be used
     ///                   for ONNX external weights feature support.
+    /// \param extensions Holder of ONNX front end extensinos. Default {}.
+    /// \param shared_obj Pointer to frontend library. Default nullptr.
     ONNXModelEditor(std::istream& model_stream,
                     const std::string& path = "",
-                    frontend::ExtensionHolder extensions = {});
+                    frontend::ExtensionHolder extensions = {},
+                    std::shared_ptr<void> shared_obj = nullptr);
+
+    ~ONNXModelEditor() = default;
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -296,6 +307,7 @@ public:
 private:
     void update_mapper_if_needed() const;
 
+    std::shared_ptr<void> m_shared_object;
     frontend::ExtensionHolder m_extensions;
     const std::string m_model_path;
 

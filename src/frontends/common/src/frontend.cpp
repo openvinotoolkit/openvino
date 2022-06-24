@@ -108,3 +108,7 @@ std::string FrontEnd::get_name() const {
     }
     FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name();)
 }
+
+const std::shared_ptr<void>& FrontEnd::get_library() const {
+    return m_shared_object;
+}

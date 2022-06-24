@@ -15,23 +15,41 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::string& path,
+                       std::shared_ptr<void> shared_object,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions), std::move(shared_object))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::wstring& path,
+                       std::shared_ptr<void> shared_object,
+                       frontend::ExtensionHolder extensions)
+    : InputModel(ov::util::wstring_to_string(path), std::move(extensions), std::move(shared_object), ) {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream,
+                       std::shared_ptr<void> shared_object,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream,
+                                                              "",
+                                                              std::move(extensions),
+                                                              std::move(shared_object))} {}
 
-InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::string& path,
+                       std::shared_ptr<void> shared_object,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream,
+                                                              path,
+                                                              std::move(extensions),
+                                                              std::move(shared_object))} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(extensions)) {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::wstring& path,
+                       std::shared_ptr<void> shared_object,
+                       frontend::ExtensionHolder extensions)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(shared_object), std::move(extensions)) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {

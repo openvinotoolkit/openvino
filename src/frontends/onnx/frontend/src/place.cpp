@@ -9,14 +9,16 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
+Place::Place(std::shared_ptr<onnx_editor::ONNXModelEditor> editor) : m_editor{std::move(editor)} {}
+
 PlaceInputEdge::PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_edge{edge},
-      m_editor{std::move(editor)},
+    : Place(std::move(editor)),
+      m_edge{edge},
       m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
 
 PlaceInputEdge::PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_edge{std::move(edge)},
-      m_editor{std::move(editor)},
+    : Place(std::move(editor)),
+      m_edge{std::move(edge)},
       m_initial_source_tensor_name{m_editor->get_source_tensor_name(m_edge)} {}
 
 void PlaceInputEdge::check_if_valid() const {
@@ -78,14 +80,14 @@ ov::frontend::Place::Ptr PlaceInputEdge::get_producing_port() const {
 
 PlaceOutputEdge::PlaceOutputEdge(const onnx_editor::OutputEdge& edge,
                                  std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_edge{edge},
-      m_editor{std::move(editor)},
+    : Place(std::move(editor)),
+      m_edge{edge},
       m_initial_target_tensor_name{m_editor->get_target_tensor_name(edge)} {}
 
 PlaceOutputEdge::PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_edge{std::move(edge)},
-      m_editor{std::move(editor)},
-      m_initial_target_tensor_name{m_editor->get_target_tensor_name(m_edge)} {}
+    : Place(std::move(editor)),
+      m_edge{std::move(edge)},
+      m_initial_target_tensor_name{m_editor->get_target_tensor_name(edge)} {}
 
 void PlaceOutputEdge::check_if_valid() const {
     bool is_valid_place = m_editor->get_target_tensor_name(m_edge) == m_initial_target_tensor_name;
@@ -146,12 +148,12 @@ std::vector<ov::frontend::Place::Ptr> PlaceOutputEdge::get_consuming_operations(
 }
 
 PlaceTensor::PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_name{name},
-      m_editor{std::move(editor)} {}
+    : Place(editor),
+      m_name{name} {}
 
 PlaceTensor::PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_name{std::move(name)},
-      m_editor{std::move(editor)} {}
+    : Place(editor),
+      m_name{std::move(name)} {}
 
 std::vector<std::string> PlaceTensor::get_names() const {
     return {m_name};
@@ -229,13 +231,13 @@ void PlaceTensor::set_name_for_dimension(size_t shape_dim_index, const std::stri
 }
 
 PlaceOp::PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_node{node},
-      m_editor{std::move(editor)},
+    : Place(std::move(editor)),
+      m_node{node},
       m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
 
 PlaceOp::PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
-    : m_node{std::move(node)},
-      m_editor{std::move(editor)},
+    : Place(std::move(editor)),
+      m_node{std::move(node)},
       m_initial_first_output{m_editor->get_output_ports(m_node).at(0)} {}
 
 void PlaceOp::check_if_valid() const {

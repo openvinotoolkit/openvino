@@ -13,6 +13,18 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
+/// \brief Place common part of onnx frontend places.
+class Place : public ov::frontend::Place {
+public:
+    explicit Place(std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+
+protected:
+    /// \brief editor holds dependency of onnx frontend library.
+    ///
+    /// Will extend library lifetime till last instance of Place exists.
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
+
 class PlaceInputEdge : public Place {
 public:
     PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
@@ -35,7 +47,6 @@ public:
 
 private:
     onnx_editor::InputEdge m_edge;
-    const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
     std::string m_initial_source_tensor_name;
 };
 
@@ -61,7 +72,6 @@ public:
 
 private:
     onnx_editor::OutputEdge m_edge;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
     std::string m_initial_target_tensor_name;
 };
 
@@ -86,7 +96,6 @@ public:
 
 private:
     std::string m_name;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 
 class PlaceOp : public Place {
@@ -132,7 +141,6 @@ public:
 
 private:
     onnx_editor::EditorNode m_node;
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
     std::string m_initial_first_output;
 };
 

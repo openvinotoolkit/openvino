@@ -15,17 +15,25 @@ namespace frontend {
 namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
+    // The members of ov::frontend::InputModel are not used in this class and initialized with default values.
+    // TODO: Refactor InputModle class to not waste memory.
 public:
-    InputModel(const std::string& path, ExtensionHolder extensions = {});
+    InputModel(const std::string& path, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     InputModel(const std::wstring& path, ExtensionHolder extensions = {});
 #endif
-    InputModel(std::istream& model_stream, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
-    InputModel(std::istream& model_stream, const std::string& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::string& path,
+               std::shared_ptr<void> shared_object,
+               ExtensionHolder extensions = {});
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModel(std::istream& model_stream, const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(std::istream& model_stream,
+               const std::wstring& path,
+               std::shared_ptr<void> shared_object,
+               ExtensionHolder extensions = {});
 #endif
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;

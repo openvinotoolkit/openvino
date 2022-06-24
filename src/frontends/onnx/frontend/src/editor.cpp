@@ -232,27 +232,32 @@ struct onnx_editor::ONNXModelEditor::Impl {
 #endif
 };
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
+                                              frontend::ExtensionHolder extensions,
+                                              std::shared_ptr<void> shared_object)
     : m_model_path{model_path},
       m_extensions{std::move(extensions)},
+      m_shared_object{std::move(shared_object)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
-    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
-      m_extensions{std::move(extensions)},
-      m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
-                  delete impl;
-              }} {}
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
+                                              frontend::ExtensionHolder extensions,
+                                              std::shared_ptr<void> shared_object))
+    : ONNXModelEditor(ngraph::file_util::wstring_to_string(model_path),
+
+                      std::move(extensions),std::move(shared_object)) {}
 #endif
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                               const std::string& model_path,
-                                              frontend::ExtensionHolder extensions)
+                                              frontend::ExtensionHolder extensions,
+                                              std::shared_ptr<void> shared_object)
     : m_model_path{model_path},
       m_extensions{std::move(extensions)},
+      m_shared_object{std::move(shared_object)},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
