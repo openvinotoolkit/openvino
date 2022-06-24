@@ -78,7 +78,7 @@ namespace {
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
 std::set<std::string> MultiDeviceInferencePlugin::_availableDevices =
-    std::set<std::string>{"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO"};
+    std::set<std::string>{"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "ARM"};
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
