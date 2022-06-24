@@ -578,6 +578,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
         auto res = _networkWithoutBatch->CreateInferRequest();
         res->setPointerToExecutableNetworkInternal(shared_from_this());
         res->setPointerToSo(_networkWithoutBatch._so);
+        _so = _networkWithoutBatch._so;
         return res;
     }
     // trying to create the new API request first

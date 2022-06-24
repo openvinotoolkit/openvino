@@ -405,7 +405,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         multiNetworkConfig.insert(*priorities);
     }
-
+    auto multiSContext = std::make_shared<MultiScheduleContext>();
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
@@ -413,8 +413,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end())
+            if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::NO) {
+                multiSContext->_batchingDisabled = true;
                 p.config.insert({tmpiter->first, tmpiter->second});
+            }
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
@@ -455,7 +457,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-    auto multiSContext = std::make_shared<MultiScheduleContext>();
     multiSContext->_devicePriorities = metaDevices;
     multiSContext->_devicePrioritiesInitial = metaDevices;
     multiSContext->_networksPerDevice = executableNetworkPerDevice;

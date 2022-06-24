@@ -225,15 +225,15 @@ public:
     std::shared_ptr<IExecutableNetworkInternal> getPointerToExecutableNetworkInternal() const;
 
     /**
-     * @brief      Sets the pointer to executable network internal.
+     * @brief      Sets the pointer to so when needed.
      * @note       Needed to correctly handle ownership between objects.
-     * @param[in]  exeNetwork  The executable network
+     * @param[in]  so The library so
      */
     void setPointerToSo(const std::shared_ptr<void>& so);
 
     /**
-     * @brief      Returns the pointer to executable network internal.
-     * @returns    The executable network
+     * @brief      Returns the pointer to sp.
+     * @returns    The library
      */
     std::shared_ptr<void> getPointerToSo() const;
     /**
@@ -350,6 +350,10 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
+    /**
+     * @brief A shared pointer to loaded library
+     * @note Needed to correctly handle ownership between objects.
+     */
     std::shared_ptr<void> _so;
     Callback _callback;  //!< A callback
 

@@ -36,7 +36,7 @@ class OPENVINO_API Tensor {
 protected:
     std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
     std::shared_ptr<void> _so;                     //!< Reference to dynamically loaded library
-    std::shared_ptr<void> _addSo;                     //!< Reference to additional loaded library in virual plugin
+    std::shared_ptr<void> _addSo;                  //!< Reference to additional loaded library in virual plugin
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
@@ -45,7 +45,12 @@ protected:
      * destroyed.
      */
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so);
-
+    /**
+     * @brief Set additional so dependency for tensor, need to correctly handle the ownership
+     * @note For cases in virtual plugin
+     * @param so A shared pointer to library
+     */
+    void set_additional_so(const std::shared_ptr<void>& so);
     friend class ov::Core;
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
@@ -121,12 +126,6 @@ public:
      */
     void set_shape(const ov::Shape& shape);
 
-    /**
-     * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
-     * @note Memory allocation may happen
-     * @param shape A new shape
-     */
-    void set_additional_so(const std::shared_ptr<void>& so);
     /**
      * @return A tensor element type
      */

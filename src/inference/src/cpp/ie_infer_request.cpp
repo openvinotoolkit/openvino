@@ -372,7 +372,6 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
-    std::cout << "_so in get tensor is " << _so.get() << ", and use count is " << _so.use_count() << std::endl;
     return get_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()));
 }
 

@@ -576,8 +576,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferRequestInternal::getPointerToE
     return _exeNetwork;
 }
 
-void IInferRequestInternal::setPointerToSo(
-    const std::shared_ptr<void>& so) {
+void IInferRequestInternal::setPointerToSo(const std::shared_ptr<void>& so) {
     _so = so;
 }
 
