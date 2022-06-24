@@ -68,6 +68,12 @@ class GNADeviceHelper {
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 
+    bool debugLogEnabled = false;
+    uint64_t debugLogIndexRequestEnqueue = 0;
+    uint64_t debugLogIndexRequestWait = 0;
+    static constexpr const char* kDumpExt = ".bin";
+    static constexpr const char* kDumpDelimiter = ".";
+
 public:
     explicit GNADeviceHelper(std::string executionTargetIn = "",
          std::string compileTargetIn = "",
@@ -96,6 +102,15 @@ public:
             close();
         }
     }
+
+    void enableDiagnostics();
+
+    /**
+     * @brief Dump raw memory of each GNA allocation to files
+     * @param idx index to be appended to the file name
+     * @param infix File name would a form of <idx><tagName><kDumpDelimiter><infix><kDumpExt>
+     */
+    void dumpAllAllocations(uint64_t idx, const std::string& infix) const;
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);

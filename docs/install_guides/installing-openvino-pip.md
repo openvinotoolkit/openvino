@@ -22,9 +22,9 @@ For system requirements and troubleshooting, see the [OpenVINO™ Runtime](https
 
 ### Step 1. Set Up Python Virtual Environment
 
-To avoid dependency conflicts, use a virtual environment. 
+Use a virtual environment to avoid dependency conflicts. 
 
-Use the following command to create a virtual environment:
+To create a virtual environment, use the following command:
 
 @sphinxdirective
 

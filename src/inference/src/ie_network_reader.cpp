@@ -440,11 +440,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::frontend::FrontEndManager& get_frontend_manager() {
-    static ov::frontend::FrontEndManager manager;
-    return manager;
-}
-
 std::vector<ov::Extension::Ptr> wrap_old_extensions(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
     std::vector<ov::Extension::Ptr> extensions;
     for (const auto& ext : exts) {
@@ -488,7 +483,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
 
     // Try to load with FrontEndManager
-    auto& manager = get_frontend_manager();
+    auto manager = ov::frontend::get_frontend_manager();
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
@@ -503,7 +498,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         params.emplace_back(weights_path);
     }
 
-    FE = manager.load_by_model(params);
+    FE = manager->load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
         if (!exts.empty())
@@ -518,7 +513,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     std::string FEs;
-    for (const auto& fe_name : manager.get_available_front_ends())
+    for (const auto& fe_name : manager->get_available_front_ends())
         FEs += fe_name + " ";
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
@@ -555,7 +550,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 #endif  // ENABLE_IR_V7_READER
 
     // Try to load with FrontEndManager
-    auto& manager = get_frontend_manager();
+    auto manager = ov::frontend::get_frontend_manager();
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
@@ -567,7 +562,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         params.emplace_back(weights_buffer);
     }
 
-    FE = manager.load_by_model(params);
+    FE = manager->load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
         if (!exts.empty())
