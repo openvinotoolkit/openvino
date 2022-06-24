@@ -41,15 +41,10 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                     return false;
                 }
                 return std::any_of(std::begin(in_shape), std::end(in_shape), [input](const ov::Dimension& dim) {
-                    if (dim.is_static() && dim.get_length() == 0) {
-                        return true;
-                    }
-                    return false;
+                    return dim.is_static() && dim.get_length() == 0;
                 });
-                return false;
             });
 
-        bool transformation_applied = false;
         for (const auto& input : empty_inputs) {
             const ov::Output<ov::Node> const_empty_replacement =
                 std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
@@ -57,10 +52,9 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                          std::end(multi_subgraph_op_inputs),
                          input,
                          const_empty_replacement);
-            transformation_applied = true;
         }
 
-        if (transformation_applied) {
+        if (empty_inputs.size()) {
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
             return true;
         }

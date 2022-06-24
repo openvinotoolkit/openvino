@@ -541,7 +541,7 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
-     int max_num_iter = trip_count_check->getStatus();
+    int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
