@@ -255,7 +255,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     };
     if (name == ov::supported_properties) {
         std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
-                                                    RO_property(ov::device::full_name.name())
+                                                    RO_property(ov::device::full_name.name()),
+                                                    RO_property(ov::device::capabilities.name())
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::hint::model_priority.name()),
@@ -276,10 +277,25 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
+    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+        auto deviceList = GetCore()->GetAvailableDevices();
+        std::vector<std::string> capabilities;
+        for (auto device : deviceList) {
+            auto devCapabilities = GetCore()->GetMetric(device, ov::device::capabilities.name()).as<std::vector<std::string>>();
+            capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
+        }
+        std::sort(capabilities.begin(), capabilities.end());
+        capabilities.resize(std::distance(capabilities.begin(), std::unique(capabilities.begin(), capabilities.end())));
+        auto delItem = std::find(capabilities.begin(), capabilities.end(), ov::device::capability::EXPORT_IMPORT);
+        if (delItem != capabilities.end()) {
+            capabilities.erase(delItem);
+        }
+        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
