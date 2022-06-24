@@ -18,7 +18,7 @@
 > * [For macOS](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-## Use OpenVINO™ Runtime API to Implement Inference Pipeline
+## Using OpenVINO™ Runtime API to Implement Inference Pipeline
 
 This section provides step-by-step instructions to implement a typical inference pipeline with the OpenVINO™ Runtime C++ or Python API:
 
