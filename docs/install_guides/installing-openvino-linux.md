@@ -198,46 +198,17 @@ Developing in C++:
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-@sphinxdirective
-
-.. dropdown:: Troubleshooting
-
-   PRC developers might encounter pip errors during Intel® Distribution of OpenVINO™ installation. To resolve the issues, try one of the following options:
-   
-   * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
-
-   .. code-block:: sh
-
-      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
-
-   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
-   
-   * If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running ``requirements.txt`` with the following command:
-
-   .. code-block:: sh
-
-      pip install -r <INSTALL_DIR>/tools/requirements.txt
-
-@endsphinxdirective
+## Additional Resources
 
 @sphinxdirective
-
-.. dropdown:: Additional Resources
       
-   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
-   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
 
-<!---
-   To learn more about converting models from specific frameworks, go to:  
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your Appache MXNet Model <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->   
-   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
