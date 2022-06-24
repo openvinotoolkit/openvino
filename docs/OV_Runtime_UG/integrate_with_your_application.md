@@ -254,6 +254,7 @@ cmake ../project
 cmake --build .
 ```
 
+> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable will not be configured properly to pass `find_package` calls.
 You can also specify additional build options, e.g., to build a CMake project on Windows with a specific build tools. For details, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
 
 
