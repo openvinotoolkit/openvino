@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
-> **NOTE**: Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
+Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
 > * [For Windows 10](../install_guides/installing-openvino-windows.md)
 > * [For Linux](../install_guides/installing-openvino-linux.md)
 > * [For macOS](../install_guides/installing-openvino-macos.md)
