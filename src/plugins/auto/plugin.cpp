@@ -444,6 +444,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 });
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
             }
+            exec_net->SetConfig({{"PERF_COUNT", "YES"}});
             std::unique_lock<std::mutex> lock{load_mutex};
             executableNetworkPerDevice.insert({deviceName, exec_net});
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
@@ -466,7 +467,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
-            } catch (...) {
+            } catch (Exception& ex) {
+                LOG_DEBUG("[AUTOPLUGIN] Error while parsing KEY_PERF_COUNT. %s", ex.what());
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that

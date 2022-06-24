@@ -177,6 +177,7 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
     std::vector<std::shared_ptr<const ov::Node>> _results;
+    std::map<std::string, InferenceEngine::Parameter> _config; //!< Holds compilation parameters like PERFORMANCE_HINT and PERF_COUNT
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

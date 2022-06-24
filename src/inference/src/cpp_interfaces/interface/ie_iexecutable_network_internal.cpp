@@ -91,12 +91,17 @@ void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInfer
     _plugin = plugin;
 }
 
-void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
-    IE_THROW(NotImplemented);
+void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>& config) {
+    _config = config;
 }
 
-Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
-    IE_THROW(NotImplemented);
+Parameter IExecutableNetworkInternal::GetConfig(const std::string& key) const {
+    const auto it = _config.find(key);
+    if (it != _config.end()) {
+        return it->second;
+    }
+
+    IE_THROW(NotFound) << key <<" not found in the IExecutableNetworkInternal config";
 }
 
 Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {

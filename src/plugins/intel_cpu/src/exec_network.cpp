@@ -247,7 +247,7 @@ Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
 
 /**
  * Only legacy parameters are supported.
- * No RW peroperties supported for new API.
+ * No RW properties supported for new API.
  * All the RO properties are covered with GetMetric() method and
  * GetConfig() is not expected to be called by new API with params from new configuration API.
  */
