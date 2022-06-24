@@ -30,7 +30,7 @@ struct GnaAllocation {
         isTagSet = true;
         tag = in;
     }
-    bool isTag(Gna2MemoryTag in) {
+    bool isTag(Gna2MemoryTag in) const {
         return isTagSet && in == tag;
     }
     std::string GetTagName() const {
