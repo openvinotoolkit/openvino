@@ -137,7 +137,7 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 @endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
-For more details, refer to [OpenVINO™ Model representation](model_representation.md) article.
+For more details, refer to the [OpenVINO™ Model representation](model_representation.md) article.
 
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
