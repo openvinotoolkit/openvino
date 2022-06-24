@@ -143,13 +143,13 @@ _install_user_mode_redhat()
 {  
     CMDS=("rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm" \
           "dnf install --refresh -y \
-            intel-igc-opencl.x86_64 \
-            intel-media.x86_64 \
-            level-zero-devel.x86_64 \
-            intel-opencl.x86_64  \
-            intel-igc-core.x86_64 \
-            intel-ocloc.x86_64 \
-            intel-gmmlib.x86_64" \
+            intel-igc-opencl-1.0.10409-i699.3.el8.x86_64 \
+            intel-media-22.2.2-i699.3.el8.x86_64 \
+            install level-zero-1.7.9-i699.3.el8.x86_64 \
+            intel-opencl-22.10.22597-i699.3.el8.x86_64  \
+            intel-igc-core-1.0.10409-i699.3.el8.x86_64 \
+            intel-ocloc-22.10.22597-i699.3.el8.x86_64 \
+            intel-gmmlib-22.0.3-i699.3.el8.x86_64" \
           "rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm" )	
 
     for cmd in "${CMDS[@]}"; do
