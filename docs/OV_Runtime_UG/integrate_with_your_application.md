@@ -227,7 +227,7 @@ Go over the output tensors and process the inference results.
 
 @endsphinxtabset
 
-## Link and Build Your C++ Application with OpenVINO™ Runtime
+## Linking and Building Your C++ Application with OpenVINO™ Runtime
 
 The example uses CMake for project configuration.
 
