@@ -147,7 +147,7 @@ To learn how to change the device configuration, read the [Query device properti
 
 The `ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. For more details see the [InferRequest detailed documentation](./ov_infer_request.md). 
 
-Create an infer request, using the following code:
+Use the following code to create an inference request:
 
 @sphinxtabset
 
