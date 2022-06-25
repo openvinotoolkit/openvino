@@ -7,7 +7,9 @@
 #include "ie_parallel.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#    include <tbb/task_scheduler_init.h>
+#    if (TBB_INTERFACE_VERSION < 12000)
+#        include <tbb/task_scheduler_init.h>
+#    endif
 #endif
 
 #include <memory>
@@ -38,7 +40,9 @@ private:
     mutable std::mutex tbbMutex;
     bool tbbThreadsCreated = false;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    if (TBB_INTERFACE_VERSION < 12000)
     std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
+#    endif
 #endif
 };
 
@@ -52,6 +56,7 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     std::lock_guard<std::mutex> guard(tbbMutex);
     tbbTerminateFlag = flag;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    if (TBB_INTERFACE_VERSION < 12000)
     if (tbbTerminateFlag) {
         if (!tbbTaskScheduler) {
             tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
@@ -59,6 +64,7 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     } else {
         tbbTaskScheduler = nullptr;
     }
+#    endif
 #endif
 }
 
@@ -71,16 +77,13 @@ void ExecutorManagerImpl::resetTbb() {
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        try {
-            if (tbbTaskScheduler && tbbThreadsCreated) {
-                tbbTaskScheduler->terminate();
-            }
-            tbbThreadsCreated = false;
-            tbbTaskScheduler = nullptr;
-        } catch (std::exception& e) {
-            tbbTaskScheduler = nullptr;
-            IE_THROW() << e.what();
+#    if (TBB_INTERFACE_VERSION < 12000)
+        if (tbbTaskScheduler && tbbThreadsCreated) {
+            tbbTaskScheduler->terminate();
         }
+        tbbThreadsCreated = false;
+        tbbTaskScheduler = nullptr;
+#    endif
 #endif
         tbbTerminateFlag = false;
     }
