@@ -65,7 +65,8 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    static void CheckConfig(const std::map<std::string, std::string>& config, AutoScheduleContext::Ptr& context,
+    static void CheckConfig(const std::map<std::string, std::string>& config,
+                            AutoScheduleContext::Ptr& context,
                             std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
@@ -73,6 +74,7 @@ private:
                                                 InferenceEngine::CNNNetwork network);
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
+    static std::set<std::string> _availableDevices;
 };
 
 }  // namespace MultiDevicePlugin
