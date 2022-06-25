@@ -5,10 +5,10 @@
 #include "transformations/common_optimizations/optimize_gather_nd.hpp"
 
 #include <memory>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/op/util/op_types.hpp>
 #include <openvino/op/util/gather_nd_base.hpp>
 
 #include "itt.hpp"
@@ -24,7 +24,8 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             return false;
         }
         const auto original_indices = gather_nd_node->get_input_source_output(1);
-        const auto const_indices_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(original_indices.get_node_shared_ptr());
+        const auto const_indices_node =
+            std::dynamic_pointer_cast<ngraph::opset8::Constant>(original_indices.get_node_shared_ptr());
         if (!const_indices_node) {
             return false;
         }
@@ -36,7 +37,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         const auto data_shape = data.get_shape();
 
         const auto original_indices_shape = original_indices.get_shape();
-        const auto n_dims = original_indices_shape[original_indices_shape.size()-1];
+        const auto n_dims = original_indices_shape[original_indices_shape.size() - 1];
         std::vector<int64_t> meaningful_dim;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         int meaningful_dims_count = 0;
@@ -55,8 +56,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
                 if (data_shape[i] != 1) {
                     return false;
                 }
-            }
-            else {
+            } else {
                 // if it is meaningful, check if it is the only one
                 ++meaningful_dims_count;
                 std::copy(dim.begin(), dim.end(), std::back_inserter(meaningful_dim));
@@ -70,19 +70,22 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         new_shape_vec.insert(new_shape_vec.begin(), -1);
 
         // reshape the tensor for Gather node
-        auto new_shape_node = op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{new_shape_vec.size()}, new_shape_vec);
-        auto reshape_node = std::make_shared<ngraph::opset8::Reshape>(gather_nd_node->input_value(0), new_shape_node, true);
+        auto new_shape_node =
+            op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{new_shape_vec.size()}, new_shape_vec);
+        auto reshape_node =
+            std::make_shared<ngraph::opset8::Reshape>(gather_nd_node->input_value(0), new_shape_node, true);
         // gather the final values
-        auto new_indices_node = op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{meaningful_dim.size()}, meaningful_dim);
-        auto gather_node =
-            std::make_shared<ngraph::opset8::Gather>(reshape_node,
-                                        new_indices_node,
-                                        op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0}));
+        auto new_indices_node =
+            op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{meaningful_dim.size()}, meaningful_dim);
+        auto gather_node = std::make_shared<ngraph::opset8::Gather>(
+            reshape_node,
+            new_indices_node,
+            op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0}));
 
         gather_node->set_friendly_name(gather_nd_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_nd_node, {reshape_node, gather_node});
         ngraph::replace_node(gather_nd_node, gather_node);
-        
+
         return true;
     };
 
