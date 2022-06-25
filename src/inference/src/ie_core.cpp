@@ -127,14 +127,27 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    for (auto&& property : properties) {
-        auto parsed = parseDeviceNameIntoConfig(property.first);
+    for (auto item = result.begin(); item != result.end();) {
+        auto parsed = parseDeviceNameIntoConfig(item->first);
+        if (!item->second.is<ov::AnyMap>()) {
+            item++;
+            continue;
+        }
         if (device.find(parsed._deviceName) != std::string::npos) {
-            if (property.second.is<ov::AnyMap>()) {
-                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
-                    result[sub_property.first] = sub_property.second;
-                }
+            // 1. flatten the scondary property for target device
+            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+                // 1.1 1st level property overides 2nd level property
+                if (result.find(sub_property.first) != result.end())
+                    continue;
+                result[sub_property.first] = sub_property.second;
             }
+            item = result.erase(item);
+        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
+            // 2. remove the secondary property setting for other hard ware device
+            item = result.erase(item);
+        } else {
+            // 3. keep the secondary property for the other virtual devices
+            item++;
         }
     }
     return result;
