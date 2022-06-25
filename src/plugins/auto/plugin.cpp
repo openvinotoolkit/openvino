@@ -444,7 +444,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 });
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
             }
-            exec_net->SetConfig({{"PERF_COUNT", "YES"}});
+            exec_net->SetConfig(deviceConfig);
             std::unique_lock<std::mutex> lock{load_mutex};
             executableNetworkPerDevice.insert({deviceName, exec_net});
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
