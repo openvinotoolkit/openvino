@@ -77,6 +77,8 @@ namespace {
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
+std::set<std::string> MultiDeviceInferencePlugin::_availableDevices =
+    std::set<std::string>{"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
@@ -255,7 +257,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
     };
     if (name == ov::supported_properties) {
         std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
-                                                    RO_property(ov::device::full_name.name())
+                                                    RO_property(ov::device::full_name.name()),
+                                                    RO_property(ov::device::capabilities.name())
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::hint::model_priority.name()),
@@ -276,10 +279,25 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
+    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+        auto deviceList = GetCore()->GetAvailableDevices();
+        std::vector<std::string> capabilities;
+        for (auto device : deviceList) {
+            auto devCapabilities = GetCore()->GetMetric(device, ov::device::capabilities.name()).as<std::vector<std::string>>();
+            capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
+        }
+        std::sort(capabilities.begin(), capabilities.end());
+        capabilities.resize(std::distance(capabilities.begin(), std::unique(capabilities.begin(), capabilities.end())));
+        auto delItem = std::find(capabilities.begin(), capabilities.end(), ov::device::capability::EXPORT_IMPORT);
+        if (delItem != capabilities.end()) {
+            capabilities.erase(delItem);
+        }
+        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else {
@@ -323,7 +341,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
     bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-
     // if workMode is AUTO
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
@@ -332,9 +349,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
         auto autoSContext = std::make_shared<AutoScheduleContext>();
         std::map<std::string, std::string> filterConfig;
+        auto strDevices = GetDeviceList(fullConfig);
+        // keep the secondary priorities when the config key is one of the available hardware devices
         CheckConfig(fullConfig, autoSContext, filterConfig);
         // filter the device that supports filter configure
-        auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
         if (supportDevicesByConfig.size() == 0) {
@@ -427,8 +445,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (tmpiter != fullConfig.end())
                 p.config.insert({tmpiter->first, tmpiter->second});
-            const auto &deviceName = p.deviceName;
-            const auto &deviceConfig = p.config;
+            const auto& deviceName = p.deviceName;
+            const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
             if (modelPath.empty()) {
                 exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
@@ -766,9 +784,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 }
 
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
-        AutoScheduleContext::Ptr& context, std::map<std::string, std::string>& filterConfig) {
+                                             AutoScheduleContext::Ptr& context,
+                                             std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
-
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
         if (kvp.first == ov::enable_profiling) {
@@ -837,7 +855,12 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
                 context->_performanceHint = kvp.second;
             }
-        } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
+        } else if (_availableDevices.end() !=
+                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+            // keep secondary prperties for HW or virtual device
+            continue;
+        } else if (supported_configKeys.end() ==
+                   std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;
