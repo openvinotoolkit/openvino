@@ -72,8 +72,10 @@ private:
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
                                                 InferenceEngine::CNNNetwork network);
+    std::string GetLogTag() const noexcept;
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
+    std::string _LogTag;
     static std::set<std::string> _availableDevices;
 };
 
