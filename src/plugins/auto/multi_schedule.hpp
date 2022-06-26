@@ -47,6 +47,7 @@ protected:
     virtual void GenerateWorkers(const std::string& device, const IE::SoExecutableNetworkInternal& executableNetwork);
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
     virtual bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "");
+    std::string GetLogTag() const noexcept;
 
 protected:
     IE::ThreadSafeQueue<IE::Task>                             _inferPipelineTasks;
@@ -60,6 +61,7 @@ protected:
     Time                                                      _cpuHelpReleaseTime;
     unsigned int                                              _cpuHelpInferCount = 0;
     double                                                    _cpuHelpFps = 0.0;
+    std::string                                               _LogTag;
 };
 
 }  // namespace MultiDevicePlugin

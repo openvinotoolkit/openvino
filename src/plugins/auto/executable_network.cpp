@@ -42,4 +42,8 @@ void ExecutableNetwork::SetExeNetworkForContext() {
         _sContext->_executableNetwork = shared_from_this();
     });
 }
+
+std::string ExecutableNetwork::GetLogTag() const noexcept {
+    return _sContext->_LogTag;
+}
 }  // namespace MultiDevicePlugin

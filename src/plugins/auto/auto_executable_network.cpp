@@ -80,7 +80,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                     _autoSContext->_core->GetConfig(deviceInfo.deviceName,
                         CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
             } catch (...) {
-                LOG_DEBUG("[AUTOPLUGIN]GetMetric:%s for %s", "PERF_HINT config not supported",
+                LOG_DEBUG_TAG("GetMetric:%s for %s", "PERF_HINT config not supported",
                     deviceInfo.deviceName.c_str());
             }
             const auto& mode = deviceInfo.config.find(CONFIG_KEY(PERFORMANCE_HINT));
@@ -96,16 +96,16 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                             options).as<std::tuple<unsigned int, unsigned int>>();
                     upperBoundStreamsNum = std::get<1>(rangeOfStreams);
                 } catch (const IE::Exception& iie) {
-                    LOG_DEBUG("[AUTOPLUGIN] GetMetric RANGE_FOR_STREAMS failed");
+                    LOG_DEBUG_TAG("GetMetric RANGE_FOR_STREAMS failed");
                 }
                 if (!_autoSContext->_batchingDisabled) {
                     try {
                         optimalBatchSize = _autoSContext->_core->GetMetric(deviceInfo.deviceName,
                                 METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
-                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "optimal batch size",
+                        LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size",
                             optimalBatchSize);
                     } catch (...) {
-                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
+                        LOG_DEBUG_TAG("BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
                     }
                 }
                 if (optimalBatchSize > 1) {
@@ -123,13 +123,13 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                             requests = static_cast<unsigned int>
                                 (IE::PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
                         }
-                        LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "user requested size", requests);
+                        LOG_DEBUG_TAG("BATCHING:%s:%ld", "user requested size", requests);
                         if (!requests) { // no limitations from user
                             requests = optimalBatchSize * upperBoundStreamsNum * 2;
-                            LOG_DEBUG("[AUTOPLUGIN]BATCHING:%s:%ld", "deduced size:", requests);
+                            LOG_DEBUG_TAG("BATCHING:%s:%ld", "deduced size:", requests);
                         }
                     } catch (const IE::Exception& iie) {
-                        LOG_WARNING("[AUTOPLUGIN]deduce optimal infer requset num for auto-batch failed :%s",
+                        LOG_WARNING_TAG("deduce optimal infer requset num for auto-batch failed :%s",
                             iie.what());
                     }
                     real = (std::max)(requests, optimalBatchSize);
