@@ -29,7 +29,6 @@ enum class KernelType {
     ACTIVATION,
     SOFT_MAX,
     ELTWISE,
-    SCALE,
     REORDER,
     RESHAPE,
     PERMUTE,

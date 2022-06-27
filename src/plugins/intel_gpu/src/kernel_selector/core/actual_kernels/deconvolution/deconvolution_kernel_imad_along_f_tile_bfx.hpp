@@ -28,7 +28,6 @@ protected:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::ELTWISE,
-            FusedOpType::SCALE,
             FusedOpType::QUANTIZE
         };
     }
