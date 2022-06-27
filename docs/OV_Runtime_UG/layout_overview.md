@@ -150,4 +150,4 @@ A layout can be converted to a string in the advanced syntax format. It can be u
 
 ## See also
 
-* API Reference: `<code>ov::Layout</code> C++ class 
+* API Reference: <code>ov::Layout</code> C++ class 
