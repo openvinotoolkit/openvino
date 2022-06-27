@@ -55,7 +55,7 @@
     <output>
         <port id="0">
             <dim>1</dim>
-            <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 48 -->
+            <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 56 -->
             <dim>50</dim>
             <dim>50</dim>
         </port>
@@ -90,7 +90,7 @@
     <output>
         <port id="0">
             <dim>1</dim>
-            <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 48 -->
+            <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 56 -->
             <dim>50</dim>
             <dim>50</dim>
         </port>
