@@ -75,6 +75,9 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
     }, 10000);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 // tested function: RegisterPlugin
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     InferenceEngine::Core ie;
@@ -86,9 +89,6 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
         ie.UnregisterPlugin(deviceName);
     }, 4000);
 }
-
-// TODO: CVS-68982
-#ifndef OPENVINO_STATIC_LIBRARY
 
 // tested function: RegisterPlugins
 TEST_F(CoreThreadingTests, RegisterPlugins) {
