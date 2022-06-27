@@ -20,6 +20,7 @@
 namespace InferenceEngine {
 class Blob;
 }  // namespace InferenceEngine
+
 namespace ov {
 
 class Core;
@@ -45,12 +46,14 @@ protected:
      * destroyed.
      */
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::shared_ptr<void>& so);
+
     /**
      * @brief Set additional so dependency for tensor, need to correctly handle the ownership
      * @note For cases in virtual plugin
      * @param so A shared pointer to library
      */
     void set_additional_so(const std::shared_ptr<void>& so);
+
     friend class ov::Core;
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
