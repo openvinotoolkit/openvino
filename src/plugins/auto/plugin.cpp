@@ -443,8 +443,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::NO) {
-                multiSContext->_batchingDisabled = true;
+            if (tmpiter != fullConfig.end()) {
+                if (tmpiter->second == PluginConfigParams::NO)
+                    multiSContext->_batchingDisabled = true;
                 p.config.insert({tmpiter->first, tmpiter->second});
             }
             const auto& deviceName = p.deviceName;
