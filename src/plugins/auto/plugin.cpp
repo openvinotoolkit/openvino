@@ -446,6 +446,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::NO) {
                 multiSContext->_batchingDisabled = true;
                 p.config.insert({tmpiter->first, tmpiter->second});
+            }
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
