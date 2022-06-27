@@ -143,30 +143,38 @@ OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
    - Model can be visualized to image from the xDot format:
 
-    @sphinxtabset
+        @sphinxtabset
 
-    @sphinxtab{C++}
+        @sphinxtab{C++}
 
-    @snippet docs/snippets/ov_model_snippets.cpp ov:visualize
+        @snippet docs/snippets/ov_model_snippets.cpp ov:visualize
 
-    @endsphinxtab
+        @endsphinxtab
 
-    @sphinxtab{Python}
+        @sphinxtab{Python}
 
-    @snippet docs/snippets/ov_model_snippets.py ov:visualize
+        @snippet docs/snippets/ov_model_snippets.py ov:visualize
 
-    @endsphinxtab
+        @endsphinxtab
 
-@endsphinxtabset
+        @endsphinxtabset
 
-    `ov::pass::VisualizeTree` can be parametrized via environment variables:
+    
+        `ov::pass::VisualizeTree` can be parametrized via environment variables:
 
         OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
+
         OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
+
         OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
+
         OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
+
         OV_VISUALIZE_TREE_IO=1                  - print I/O ports
+
         OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
+
+
 
    - Also model can be serialized to IR:
 
