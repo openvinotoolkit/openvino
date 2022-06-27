@@ -117,7 +117,7 @@ class Computation(object):
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         if self.network_cache.get(str(input_shapes)) is None:
-            function = self.function
+            function = self.function.clone()
             self.network_cache[str(input_shapes)] = function
         else:
             function = self.network_cache[str(input_shapes)]
