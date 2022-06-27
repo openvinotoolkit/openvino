@@ -101,7 +101,7 @@ If a number of dimensions is not important, an ellipsis `...` can be used to spe
 
 A layout has some pre-defined dimension names, widely used in a computer vision:
 - `N`/`Batch` - batch size
-- `C`/`Channels` - channels dimension
+- `C`/`Channels` - channels
 - `D`/`Depth` - depth
 - `H`/`Height` - height
 - `W`/`Width` - width
