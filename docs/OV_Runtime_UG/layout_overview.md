@@ -6,18 +6,19 @@ In general, with the `NCHW` layout, it is easier to understand what the `{8, 3, 
 
 The concept of layout helps you (and your application) to understand what each particular dimension of input/output tensor means. For example, if your input has the `{1, 3, 720, 1280}` shape and the `NCHW` layout, it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720`, and `W(width) = 1280`. Without the layout information, the `{1, 3, 720, 1280}` tuple does not give any idea to your application on what these numbers mean and how to resize the input image to fit the expectations of the model.
 
+With the `NCHW` layout, it is easier to understand what the `{8, 3, 224, 224}` model shape means. Without the layout, it is just a 4-dimensional tensor.
 
-Below is a list of cases where input/output layout is significant:
+Below is a list of cases where input/output layout is important:
  - Performing model modification:
-    - Applying the [preprocessing](./preprocessing_overview.md) steps, like subtracting means, dividing by scales, resizing an image, converting `RGB`<->`BGR`.
+    - Applying the [preprocessing](./preprocessing_overview.md) steps, such as subtracting means, dividing by scales, resizing an image, and converting `RGB`<->`BGR`.
     - Setting/getting a batch for a model.
- - Doing the same operations, used during model conversion phase. For more information, refer to the [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
- - Improving readability of a model input and output.
+ - Doing the same operations as used during the model conversion phase. For more information, refer to the [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
+ - Improving the readability of a model input and output.
 
-## Layout Syntax
+## Syntax of Layout
 
 ### Short Syntax
-The easiest way is to fully specify each dimension with one letter of the alphabet.
+The easiest way is to fully specify each dimension with one alphabet letter.
 
 @sphinxtabset
 
@@ -35,7 +36,7 @@ The easiest way is to fully specify each dimension with one letter of the alphab
 
 @endsphinxtabset
 
-This assigns `N` to the first dimension, `C` to the second, `H` to the third and `W` to fourth.
+This assigns `N` to the first dimension, `C` to the second, `H` to the third, and `W` to the fourth.
 
 ### Advanced Syntax
 Advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
