@@ -2,8 +2,8 @@ ir_version: 3
 producer_name: "ONNX Importer"
 graph {
   node {
-    input: "value0"
-    input: "value1"
+    input: "in_a"
+    input: "in_b"
     output: "output"
     op_type: "Concat"
     attribute {
@@ -12,9 +12,9 @@ graph {
       type: INT
     }
   }
-  name: "test_concat_1d_axis_0"
+  name: "test_concat_empty_initializer"
   input {
-    name: "value0"
+    name: "in_a"
     type {
       tensor_type {
         elem_type: 7
@@ -29,10 +29,11 @@ graph {
   initializer {
     dims: 0
     data_type: 7
-    name: "value1"
+    name: "in_b"
+    raw_data: ""
   }
   input {
-    name: "value1"
+    name: "in_b"
     type {
       tensor_type {
         elem_type: 7
