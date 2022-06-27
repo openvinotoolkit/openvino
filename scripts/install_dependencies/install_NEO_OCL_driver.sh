@@ -269,6 +269,15 @@ _download_packages_ubuntu()
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-opencl-icd_21.48.21782_amd64.deb
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-level-zero-gpu_1.2.21782_amd64.deb
     ;;
+    "22.10.22597")
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/intel-gmmlib_22.0.2_amd64.deb
+        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.10409/intel-igc-core_1.0.10409_amd64.deb
+        curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.10409/intel-igc-opencl_1.0.10409_amd64.deb
+	curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/intel-opencl-icd-dbgsym_22.10.22597_amd64.ddeb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/intel-opencl-icd_22.10.22597_amd64.deb
+	curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/intel-level-zero-gpu-dbgsym_1.3.22597_amd64.ddeb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/intel-level-zero-gpu_1.3.22597_amd64.deb
+    ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
         exit $EXIT_WRONG_ARG
@@ -285,6 +294,10 @@ _verify_checksum_ubuntu()
     "21.48.21782")
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/ww48.sum
         sha256sum -c ww48.sum
+    ;;
+    "22.10.22597")
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/22.10.22597/ww10.sum
+        sha256sum -c ww10.sum
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
@@ -386,7 +399,7 @@ _check_distro_version()
         if [[ $UBUNTU_VERSION == '18.04' ]]; then
             INSTALL_DRIVER_VERSION='21.38.21026'
         elif [[ $UBUNTU_VERSION == '20.04' ]]; then
-            INSTALL_DRIVER_VERSION='21.48.21782'
+            INSTALL_DRIVER_VERSION='22.10.22597'
         else
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
