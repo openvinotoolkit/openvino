@@ -18,7 +18,11 @@ namespace set_1 {
 OutputVector concat(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
-    return {std::make_shared<default_opset::Concat>(inputs, axis)};
+    OutputVector valid_inputs;
+    std::copy_if(inputs.begin(), inputs.end(), std::back_inserter(valid_inputs), [](ov::Output<ov::Node>& in) -> bool {
+        return !(in.get_partial_shape().same_scheme(PartialShape(Shape{})));
+    });
+    return {std::make_shared<default_opset::Concat>(valid_inputs, axis)};
 }
 
 }  // namespace set_1
