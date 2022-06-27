@@ -39,7 +39,7 @@ The easiest way is to fully specify each dimension with one alphabet letter.
 This assigns `N` to the first dimension, `C` to the second, `H` to the third, and `W` to the fourth.
 
 ### Advanced Syntax
-Advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
+The advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
 
 @sphinxtabset
 
