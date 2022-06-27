@@ -101,7 +101,7 @@ If a number of dimensions is not important, an ellipsis `...` can be used to spe
 
 A layout has some pre-defined dimension names, widely used in a computer vision:
 - `N`/`Batch` - batch size
-- `C`/`Channels` - channels dimension
+- `C`/`Channels` - channels
 - `D`/`Depth` - depth
 - `H`/`Height` - height
 - `W`/`Width` - width
@@ -126,11 +126,11 @@ These names are used in [PreProcessing API](./preprocessing_overview.md) and the
 
 ### Equality
 
-Layout names are case-insensitive, which means that `Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")`.
+Layout names are case-insensitive, which means that `Layout("NCHW")` = `Layout("nChW") = `Layout("[N,c,H,w]")`.
 
 ### Dump Layout
 
-A layout can be converted to a string in advanced syntax format. It can be useful for debugging and serialization purposes.
+A layout can be converted to a string in the advanced syntax format. It can be useful for debugging and serialization purposes.
 
 @sphinxtabset
 
@@ -150,4 +150,4 @@ A layout can be converted to a string in advanced syntax format. It can be usefu
 
 ## See also
 
-* `ov::Layout` C++ class documentation
+* API Reference: `<code>ov::Layout</code> C++ class 
