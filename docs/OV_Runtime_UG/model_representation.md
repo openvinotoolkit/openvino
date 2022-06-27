@@ -32,7 +32,9 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 @endsphinxtabset
 
-OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The `ov::element::Type` is used for data types.
+For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
+
+OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The `ov::element::Type` is used for data types. See the section below for representation of shapes.
 
 ## Representation of Shapes
 
