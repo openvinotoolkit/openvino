@@ -829,11 +829,13 @@ def test_infer_dynamic_model(device):
     request.infer(np.random.normal(size=shape3))
     assert request.get_input_tensor().shape == Shape(shape3)
 
+
 def test_array_like_input_request(device):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:
             self.data = array
+
         def __array__(self):
             return np.array(self.data)
 
@@ -849,11 +851,13 @@ def test_array_like_input_request(device):
     res_list = request.infer(model_input_list)
     assert np.array_equal(res_list[request.model_outputs[0]], np.abs(input_data))
 
+
 def test_array_like_input_async(device):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:
             self.data = array
+
         def __array__(self):
             return np.array(self.data)
 
@@ -870,13 +874,15 @@ def test_array_like_input_async(device):
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
 
+
 def test_array_like_input_async_infer_queue(device):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
-        def __init__(self, array = [-2, -1, 0, 1]) -> None:
+        def __init__(self, array) -> None:
             self.data = array
+
         def __array__(self):
-            return np.array(self.data).astype(np.float32)
+            return np.array(self.data)
 
     jobs = 8
     ov_type = Type.f32
@@ -893,16 +899,16 @@ def test_array_like_input_async_infer_queue(device):
 
     # Test single array-like object in AsyncInferQueue.start_async()
     infer_queue_object = AsyncInferQueue(compiled_model, jobs)
-    for i in range(jobs):
-        infer_queue_object.start_async(model_input_object, i)
+    for _i in range(jobs):
+        infer_queue_object.start_async(model_input_object)
     infer_queue_object.wait_all()
     for i in range(jobs):
         assert np.array_equal(infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
 
     # Test list of array-like objects in AsyncInferQueue.start_async()
     infer_queue_list = AsyncInferQueue(compiled_model, jobs)
-    for i in range(jobs):
+    for _i in range(jobs):
         infer_queue_list.start_async(model_input_list)
     infer_queue_list.wait_all()
     for i in range(jobs):
-        assert(np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data)))
+        assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))

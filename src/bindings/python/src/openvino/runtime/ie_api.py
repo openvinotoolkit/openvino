@@ -128,7 +128,7 @@ class InferRequest(InferRequestBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with __array__ attribute
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
@@ -186,7 +186,7 @@ class InferRequest(InferRequestBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with __array__ attribute
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
@@ -308,7 +308,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
-        (3) array-like object with __array__ attribute
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
