@@ -100,6 +100,19 @@ class ReverseInputChannelsTest(unittest.TestCase):
         ReverseChannelsPropagationUp.lift_up_through_eltwise(node, reverse_channels)
         self.check_graph_attrs(graph, ['placeholder1', 'placeholder2'])
 
+    def test_lift_up_through_eltwise_broadcast(self):
+        graph = build_graph(nodes, [*connect('placeholder1', '0:mul'), *connect('placeholder2', '1:mul'),
+                                    *connect('mul', 'reverse_channels'), *connect('reverse_channels', 'result')])
+        self.set_graph_attrs(graph, ['placeholder1', 'placeholder2'])
+        placeholder_node = Node(graph, 'placeholder2')
+        placeholder_node.out_port(0).data.set_shape([])
+
+        node = Node(graph, 'mul')
+        reverse_channels = Node(graph, 'reverse_channels')
+
+        ReverseChannelsPropagationUp.lift_up_through_eltwise(node, reverse_channels)
+        self.check_graph_attrs(graph, ['placeholder1', 'placeholder2'])
+
     def test_lift_up_through_pad(self):
         graph = build_graph(nodes2, [*connect('placeholder', '0:mul'), *connect('mul_const', '1:mul'),
                                      *connect('mul', '0:pad'), *connect('pad_const_1', '1:pad'),
