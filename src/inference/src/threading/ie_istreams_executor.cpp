@@ -215,7 +215,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // by default the latency case uses (faster) Big cores only, depending on the compute ratio
         const bool bLatencyCaseBigOnly =
-            num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
+            num_big_cores_phys >= (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
         // selecting the preferred core type
         streamExecutorConfig._threadPreferredCoreType =
             bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG
