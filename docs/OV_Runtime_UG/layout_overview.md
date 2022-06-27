@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In a nutshell, with the `NCHW` layout it is easier to understand what model `{8, 3, 224, 224}` shape means. Without the layout it is just a 4-dimensional tensor.
+In general, with the `NCHW` layout, it is easier to understand what the `{8, 3, 224, 224}` model shape means. Without the layout, it is just a 4-dimensional tensor.
 
 
 Concept of a layout helps you (and your application) to understand what does each particular dimension of input/output tensor mean. For example, if your input has the `{1, 3, 720, 1280}` shape and `NCHW` layout - it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720` and `W(width) = 1280`. Without the layout information, the `{1, 3, 720, 1280}` tuple does not give any idea to your application what these numbers mean and how to resize the input image to fit the expectations of the model.
