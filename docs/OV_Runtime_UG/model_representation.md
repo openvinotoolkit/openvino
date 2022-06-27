@@ -137,7 +137,7 @@ The following code creates a model with several outputs:
 
 @endsphinxtabset
 
-## Model Debug Capabilities
+## Model Debugging Capabilities
 
 OpenVINO™ provides several debug capabilities:
    - To receive additional messages about applied model modifications, rebuild the OpenVINO™ Runtime library with the `-DENABLE_OPENVINO_DEBUG=ON` option.
