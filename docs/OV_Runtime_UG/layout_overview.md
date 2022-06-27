@@ -59,7 +59,7 @@ The advanced syntax allows assigning a word to a dimension. To do this, wrap a l
 
 
 ### Partially Defined Layout
-If some dimension is not important, its name can be set to `?`.
+If a certain dimension is not important, its name can be set to `?`.
 
 @sphinxtabset
 
@@ -79,7 +79,7 @@ If some dimension is not important, its name can be set to `?`.
 
 
 ### Dynamic Layout
-If a number of dimensions is not important, an ellipsis `...` can be used to specify varying number of dimensions.
+If several dimensions are not important, an ellipsis `...` can be used to specify those dimensions.
 
 @sphinxtabset
 
@@ -99,14 +99,14 @@ If a number of dimensions is not important, an ellipsis `...` can be used to spe
 
 ### Predefined Names
 
-A layout has some pre-defined dimension names, widely used in a computer vision:
+A layout has some pre-defined dimension names, widely used in computer vision:
 - `N`/`Batch` - batch size
 - `C`/`Channels` - channels
 - `D`/`Depth` - depth
 - `H`/`Height` - height
 - `W`/`Width` - width
 
-These names are used in [PreProcessing API](./preprocessing_overview.md) and there is a set of helper functions to get appropriate dimension index from a layout.
+These names are used in [PreProcessing API](./preprocessing_overview.md). There is a set of helper functions to get appropriate dimension index from a layout.
 
 @sphinxtabset
 
