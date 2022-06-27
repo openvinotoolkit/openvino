@@ -126,7 +126,7 @@ These names are used in [PreProcessing API](./preprocessing_overview.md) and the
 
 ### Equality
 
-Layout names are case-insensitive, which means that `Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")`.
+Layout names are case-insensitive, which means that `Layout("NCHW")` = `Layout("nChW") = `Layout("[N,c,H,w]")`.
 
 ### Dump Layout
 
