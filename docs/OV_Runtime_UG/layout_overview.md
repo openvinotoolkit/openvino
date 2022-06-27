@@ -130,7 +130,7 @@ Layout names are case-insensitive, which means that `Layout("NCHW") == Layout("n
 
 ### Dump Layout
 
-A layout can be converted to a string in advanced syntax format. It can be useful for debugging and serialization purposes.
+A layout can be converted to a string in the advanced syntax format. It can be useful for debugging and serialization purposes.
 
 @sphinxtabset
 
