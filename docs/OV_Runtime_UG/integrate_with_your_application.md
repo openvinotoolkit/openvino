@@ -12,19 +12,13 @@
 
 @endsphinxdirective
 
-Before start using OpenVINO™ Runtime, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
-> * [For Windows 10](../install_guides/installing-openvino-windows.md)
-> * [For Linux](../install_guides/installing-openvino-linux.md)
-> * [For macOS](../install_guides/installing-openvino-macos.md)
-> * To build an open source version, use the [OpenVINO™ Runtime Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-## Using OpenVINO™ Runtime API to Implement Inference Pipeline
+Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO Runtime](../install_guides/installing-openvino-runtime.md) and set environment variables (run `<INSTALL_DIR>/setupvars.sh` for Linux or `setupvars.bat` for Windows, otherwise, the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls).
 
-This section provides step-by-step instructions to implement a typical inference pipeline with the OpenVINO™ Runtime C++ or Python API:
 
 ![ie_api_use_cpp]
 
-### Step 1. Create OpenVINO™ Runtime Core 
+## Step 1. Create OpenVINO™ Runtime Core 
 
 Include next files to work with OpenVINO™ Runtime:
 
@@ -62,7 +56,7 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 @endsphinxtabset
 
-### Step 2. Compile the Model
+## Step 2. Compile the Model
 
 `ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
 
@@ -137,17 +131,15 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 @endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
-For more details, refer to the [OpenVINO™ Model representation](model_representation.md) article.
+For more details please read article about [OpenVINO™ Model representation](model_representation.md).
 
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
 To learn how to change the device configuration, read the [Query device properties](./supported_plugins/config_properties.md) article.
 
-### Step 3. Create an Inference Request
+## Step 3. Create an Inference Request
 
-The `ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. For more details, see the [InferRequest detailed documentation](./ov_infer_request.md).
-
-Use the following code to create an inference request:
+`ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
 
 @sphinxtabset
 
@@ -165,7 +157,7 @@ Use the following code to create an inference request:
 
 @endsphinxtabset
 
-### Step 4. Set Inputs
+## Step 4. Set Inputs
 
 You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
 
@@ -185,9 +177,9 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 @endsphinxtabset
 
-### Step 5. Start Inference
+## Step 5. Start Inference
 
-OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve the overall application frame-rate, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
+OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate: instead of waiting for inference to complete, the app can keep working on the host while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
 
 @sphinxtabset
 
@@ -207,7 +199,7 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
 
-### Step 6. Process the Inference Results 
+## Step 6. Process the Inference Results 
 
 Go over the output tensors and process the inference results.
 
@@ -227,11 +219,13 @@ Go over the output tensors and process the inference results.
 
 @endsphinxtabset
 
-## Linking and Building Your C++ Application with OpenVINO™ Runtime
+## Step 7. Link and Build Your Application with OpenVINO™ Runtime (example)
 
-The example uses CMake for project configuration.
+This step may differ for different projects. In this example, a C++ application is used, together with CMake for project configuration.
 
-1. **Create a structure** for the project:
+For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+
+### Create a structure for the project:
    ``` sh
    project/
        ├── CMakeLists.txt  - CMake file to build
@@ -242,7 +236,7 @@ The example uses CMake for project configuration.
        ...      
    ```
 
-2. **Include OpenVINO™ Runtime libraries** in `project/CMakeLists.txt`
+### Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`
 
    @snippet snippets/CMakeLists.txt cmake:integration_example
 
@@ -253,15 +247,6 @@ cd build/
 cmake ../project
 cmake --build .
 ```
-
-> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable will not be configured properly to pass `find_package` calls.
-You can also specify additional build options, e.g., to build a CMake project on Windows with a specific build tools. For details, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
-
-## Run Your Application
-
-Congratulations, you have made your first application with OpenVINO™ toolkit, now you may run it.
-
-This page showed how to implement a typical inference pipeline with OpenVINO. See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 
 ## Additional Resources
 
