@@ -1,6 +1,5 @@
 # Layout API Overview {#openvino_docs_OV_UG_Layout_Overview}
 
-## Introduction
 
 In general, with the `NCHW` layout, it is easier to understand what the `{8, 3, 224, 224}` model shape means. Without the layout, it is just a 4-dimensional tensor.
 
