@@ -45,16 +45,15 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                 });
             });
 
-        for (const auto& input : empty_inputs) {
-            const ov::Output<ov::Node> const_empty_replacement =
-                std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
-            std::replace(std::begin(multi_subgraph_op_inputs),
-                         std::end(multi_subgraph_op_inputs),
-                         input,
-                         const_empty_replacement);
-        }
-
         if (empty_inputs.size()) {
+            for (const auto& input : empty_inputs) {
+                const ov::Output<ov::Node> const_empty_replacement =
+                    std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
+                std::replace(std::begin(multi_subgraph_op_inputs),
+                             std::end(multi_subgraph_op_inputs),
+                             input,
+                             const_empty_replacement);
+            }
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
             return true;
         }
