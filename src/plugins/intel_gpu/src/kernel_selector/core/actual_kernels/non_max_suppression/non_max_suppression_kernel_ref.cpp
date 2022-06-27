@@ -151,8 +151,9 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
 
     const auto& input = params.inputs[1];
     if (idx == 0) {
-        dispatchData.gws = {input.Batch().v, input.Feature().v, params.engineInfo.maxWorkGroupSize};
-        dispatchData.lws = {1, 1, params.engineInfo.maxWorkGroupSize};
+        const size_t boxesGroupSize = std::min(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
+        dispatchData.gws = {input.Batch().v, input.Feature().v, boxesGroupSize};
+        dispatchData.lws = {1, 1, boxesGroupSize};
     } else if (idx == 1) {
         const size_t kSplitNum = 16;
         dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
