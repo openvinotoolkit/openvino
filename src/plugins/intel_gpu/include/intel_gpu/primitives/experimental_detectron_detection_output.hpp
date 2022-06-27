@@ -67,10 +67,10 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!output_classes.empty())
+        //if (!output_classes.empty())
             ret.emplace_back(output_classes);
 
-        if (!output_scores.empty())
+        //if (!output_scores.empty())
             ret.emplace_back(output_scores);
 
         return ret;

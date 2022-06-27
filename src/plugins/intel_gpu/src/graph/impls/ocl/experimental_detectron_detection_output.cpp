@@ -31,6 +31,21 @@ protected:
     }
 
 public:
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            experimental_detectron_detection_output_inst& instance) override {
+        // clear output buffer
+        std::vector<event::ptr> tmp_events(events);
+        auto& stream = instance.get_network().get_stream();
+        //tmp_events.push_back(instance.output_memory().fill(stream));
+        tmp_events.push_back(instance.output_classes_memory()->fill(stream));
+        tmp_events.push_back(instance.output_scores_memory()->fill(stream));
+
+        instance.output_classes_memory()->fill(stream)->wait();
+        instance.output_scores_memory()->fill(stream)->wait();
+
+        return parent::execute_impl(tmp_events, instance);
+    }
+
     static primitive_impl* create(const experimental_detectron_detection_output_node& arg) {
         auto params = get_default_params<kernel_selector::experimental_detectron_detection_output_params>(arg);
         auto optional_params =
