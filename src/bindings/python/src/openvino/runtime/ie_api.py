@@ -112,7 +112,7 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer(self, inputs: Any = None) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -135,7 +135,7 @@ class InferRequest(InferRequestBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
@@ -167,7 +167,7 @@ class InferRequest(InferRequestBase):
 
     def start_async(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         userdata: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
@@ -193,7 +193,7 @@ class InferRequest(InferRequestBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
         """
@@ -293,7 +293,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
     def start_async(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         userdata: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
@@ -316,7 +316,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors of the next available InferRequest.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
