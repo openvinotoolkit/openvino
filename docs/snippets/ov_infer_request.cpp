@@ -68,6 +68,7 @@ infer_request.set_tensor("tensor_name2", tensor2);
 //! [get_set_tensor]
 
 {
+if (model == nullptr) __builtin_unreachable();
 //! [get_set_tensor_by_port]
 auto input_port = model->input(0);
 auto output_port = model->output("tensor_name");

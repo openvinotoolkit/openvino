@@ -109,6 +109,7 @@ void visualize_example(const std::shared_ptr<ov::Model>& m) {
 
 void model_inputs() {
 std::shared_ptr<ov::Model> model;
+if (model == nullptr) __builtin_unreachable();
 //! [all_inputs_ouputs]
 /* Take information about all topology inputs */
 auto inputs = model->inputs();
