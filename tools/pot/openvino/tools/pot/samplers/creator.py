@@ -8,13 +8,14 @@ from openvino.tools.pot.samplers.batch_sampler import BatchSampler
 from openvino.tools.pot.samplers.index_sampler import IndexSampler
 
 
-def create_sampler(engine, samples, shuffle_data=False, seed=0):
+def create_sampler(engine, samples, shuffle_data=False, seed=0, batch_size=1):
     """ Helper function to create the most common samplers. Suits for the most algorithms
     :param engine: instance of engine class
     :param samples: a list of dataset indices or a number of samples to draw from dataset
     :param shuffle_data: a boolean flag. If it's True and samples param is a number then
      subset indices will be choice randomly
     :param seed: a number for initialization of the random number generator
+    :param batch_size: a number for batch_size for IEEngine
     :return instance of Sampler class suitable to passed engine
     """
 
@@ -28,4 +29,4 @@ def create_sampler(engine, samples, shuffle_data=False, seed=0):
     if isinstance(engine, ACEngine):
         return IndexSampler(subset_indices=samples)
 
-    return BatchSampler(engine.data_loader, subset_indices=samples)
+    return BatchSampler(engine.data_loader, batch_size=batch_size, subset_indices=samples)
