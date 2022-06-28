@@ -247,8 +247,8 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
                                               frontend::ExtensionHolder extensions,
                                               std::shared_ptr<void> shared_object))
     : ONNXModelEditor(ngraph::file_util::wstring_to_string(model_path),
-
-                      std::move(extensions),std::move(shared_object)) {}
+                      std::move(extensions),
+                      std::move(shared_object)) {}
 #endif
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,

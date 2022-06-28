@@ -28,7 +28,9 @@ def make_onnx_model(model_name: str) -> None:
 
 @pytest.fixture(scope="module", params=["onnx"])
 def frontend_model(request):
-    """Fixture return frontend name and test model parameters:
+    """Fixture return frontend name and test model parameters.
+
+    Model parameters:
        - model name
 
     If frontend name no in the supported frontends then tests will be skipped.
@@ -47,6 +49,7 @@ def frontend_model(request):
 
 def test_delete_place_as_last(frontend_model):
     """Place object must be deleted as last to check if it keep dependency on frontend library.
+
     Verify issue CVS-82282.
     """
     frontend, model = frontend_model
@@ -64,6 +67,7 @@ def test_delete_place_as_last(frontend_model):
 
 def test_delete_model_as_last(frontend_model):
     """Model object must be deleted as last to check if it keep dependency on frontend library.
+
     Verify issue CVS-82282.
     """
     frontend, model = frontend_model
