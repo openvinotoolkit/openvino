@@ -12,18 +12,10 @@
 
 namespace ov {
 namespace util {
-std::shared_ptr<void> load_shared_object(const char* path) {
-    auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
-                                                   if (shared_object != nullptr) {
-                                                       if (0 != dlclose(shared_object)) {
-                                                           std::cerr << "dlclose failed";
-                                                           if (auto error = dlerror()) {
-                                                               std::cerr << ": " << error;
-                                                           }
-                                                           std::cerr << std::endl;
-                                                       }
-                                                   }
-                                               }};
+
+std::shared_ptr<void> load_shared_object(const char* path, std::function<void(void*)> sh_object_closer) {
+    auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), sh_object_closer};
+
     if (!shared_object) {
         std::stringstream ss;
         ss << "Cannot load library '" << path;
@@ -36,8 +28,8 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<void> load_shared_object(const wchar_t* path) {
-    return load_shared_object(ov::util::wstring_to_string(path).c_str());
+std::shared_ptr<void> load_shared_object(const wchar_t* path, std::function<void(void*)> sh_object_closer) {
+    return load_shared_object(ov::util::wstring_to_string(path).c_str(), sh_object_closer);
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -56,5 +48,18 @@ void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_
     }
     return procAddr;
 }
+
+void SharedObjectCloser::operator()(void* shared_object) const {
+    if (shared_object) {
+        if (0 != dlclose(shared_object)) {
+            std::cerr << "t dlclose failed";
+            if (auto error = dlerror()) {
+                std::cerr << ": " << error;
+            }
+            std::cerr << std::endl;
+        }
+    }
+}
+
 }  // namespace util
 }  // namespace ov

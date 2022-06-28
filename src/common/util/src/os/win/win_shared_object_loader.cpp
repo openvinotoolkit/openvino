@@ -73,7 +73,7 @@
 
 namespace ov {
 namespace util {
-std::shared_ptr<void> load_shared_object(const char* path) {
+std::shared_ptr<void> load_shared_object(const char* path, std::function<void(void*)> sh_object_closer) {
     void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
@@ -118,13 +118,11 @@ std::shared_ptr<void> load_shared_object(const char* path) {
         ss << "Cannot load library '" << path << "': " << GetLastError() << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         throw std::runtime_error(ss.str());
     }
-    return {shared_object, [](void* shared_object) {
-                FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
-            }};
+    return {shared_object, sh_object_closer};
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<void> load_shared_object(const wchar_t* path) {
+std::shared_ptr<void> load_shared_object(const wchar_t* path, std::function<void(void*)> sh_object_closer) {
     void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
@@ -165,9 +163,7 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         throw std::runtime_error(ss.str());
     }
-    return {shared_object, [](void* shared_object) {
-                FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
-            }};
+    return {shared_object, sh_object_closer};
 }
 #endif
 
@@ -186,5 +182,10 @@ void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_
     }
     return procAddr;
 }
+
+void SharedObjectCloser::operator()(void* shared_object) const {
+    FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+}
+
 }  // namespace util
 }  // namespace ov
