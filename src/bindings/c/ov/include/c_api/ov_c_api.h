@@ -270,6 +270,21 @@ typedef enum {
 } ov_element_type_e;
 
 /**
+ * @struct ov_ColorFormat_e
+ */
+typedef enum {
+    UNDEFINE = 0,      //!< Undefined color format
+    NV12_SINGLE_PLANE,  // Image in NV12 format as single tensor
+    NV12_TWO_PLANES,    // Image in NV12 format represented as separate tensors for Y and UV planes.
+    I420_SINGLE_PLANE,  // Image in I420 (YUV) format as single tensor
+    I420_THREE_PLANES,  // Image in I420 format represented as separate tensors for Y, U and V planes.
+    RGB,
+    BGR,
+    RGBX,               // Image in RGBX interleaved format (4 channels)
+    BGRX                // Image in BGRX interleaved format (4 channels)
+}ov_ColorFormat_e;
+
+/**
  * @struct ov_layout_t
  */
 typedef char ov_layout_t[MAX_DIMENSION];
@@ -790,6 +805,39 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_resize(ov_preprocess_input_proce
  */
 OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_element_type(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                                         const ov_element_type_e element_type);
+
+/**
+ * @brief Set ov_preprocess_input_tensor_info_t color format.
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param colorFormat The enumerate of colorFormat
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                        const ov_ColorFormat_e colorFormat);
+
+/**
+ * @brief Set ov_preprocess_input_tensor_info_t spatial_static_shape.
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param input_height The height of input
+ * @param input_width The width of input
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_spatial_static_shape(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+                                                        const size_t input_height, const size_t input_width);
+
+/**
+ * @brief Convert ov_preprocess_input_process_steps_t element type.
+ * @param preprocess_input_steps A pointer to the ov_preprocess_input_process_steps_t.
+ * @param element_type preprocess input element type.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_input_convert_element_type(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
+                                                        const ov_element_type_e element_type);
+
+/**
+ * @brief Convert ov_preprocess_input_process_steps_t color.
+ * @param preprocess_input_steps A pointer to the ov_preprocess_input_process_steps_t.
+ * @param colorFormat The enumerate of colorFormat.
+ */
+OPENVINO_C_API(ov_status_e) ov_preprocess_input_convert_color(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
+                                                        const ov_ColorFormat_e colorFormat);
 
 /**
  * @brief Helper function to reuse element type and shape from user's created tensor. 

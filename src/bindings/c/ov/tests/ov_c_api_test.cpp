@@ -595,6 +595,140 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
     ov_core_free(core);
 }
 
+TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_preprocess_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ASSERT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ASSERT_NE(nullptr, input_info);
+
+    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ASSERT_NE(nullptr, input_tensor_info);
+
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_ColorFormat_e::NV12_SINGLE_PLANE));
+
+    ov_preprocess_input_tensor_info_free(input_tensor_info);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_preprocess_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ASSERT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ASSERT_NE(nullptr, input_info);
+
+    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ASSERT_NE(nullptr, input_tensor_info);
+
+    size_t input_height = 500;
+    size_t input_width = 500;
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+
+    ov_preprocess_input_tensor_info_free(input_tensor_info);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_input_convert_element_type) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_preprocess_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ASSERT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ASSERT_NE(nullptr, input_info);
+
+    ov_preprocess_input_process_steps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ASSERT_NE(nullptr, input_process);
+
+    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ASSERT_NE(nullptr, input_tensor_info);
+
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::U8));
+    OV_ASSERT_OK(ov_preprocess_input_convert_element_type(input_process, ov_element_type_e::F32));
+
+    ov_preprocess_input_tensor_info_free(input_tensor_info);
+    ov_preprocess_input_process_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_input_convert_color) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_preprocess_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ASSERT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ASSERT_NE(nullptr, input_info);
+
+    ov_preprocess_input_process_steps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ASSERT_NE(nullptr, input_process);
+
+    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ASSERT_NE(nullptr, input_tensor_info);
+
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_ColorFormat_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(ov_preprocess_input_convert_color(input_process, ov_ColorFormat_e::BGR));
+
+    ov_preprocess_input_tensor_info_free(input_tensor_info);
+    ov_preprocess_input_process_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST(ov_preprocess, ov_preprocess_get_output_info) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
