@@ -70,7 +70,7 @@ Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.h
 
    .. image:: ../img/NEO_check_agreement.png
 
-   Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output: 
+   Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command-line output: 
 
    .. code-block:: sh
 
@@ -91,7 +91,7 @@ Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.h
 
 .. tab:: Windows
 
-   This section will help you check if you require driver installation. Install the recommended version or higher.
+   This section will help to verify if driver installation is required. (Install the recommended version or higher.)
 
    If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
    `Download and install the recommended version`_ . 

@@ -65,4 +65,4 @@ You are done installing your device driver and are ready to use your Intel® Vis
 
 For advanced configuration steps for your IEI Mustang-V100-MX8 accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](configurations-for-iei-card.md).
 
-After configuration is done, you are ready to go to <a href="openvino_docs_install_guides_installing_openvino_windows.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+After finishing the configuration, you are ready to go to <a href="openvino_docs_install_guides_installing_openvino_windows.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
