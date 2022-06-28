@@ -5179,3 +5179,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_grid_sample) {
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/concat_empty_init.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
+    test_case.add_expected_output<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
+    test_case.run();
+}
