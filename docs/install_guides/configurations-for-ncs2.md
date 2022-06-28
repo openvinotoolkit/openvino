@@ -15,7 +15,7 @@
 
 .. tab:: Linux
 
-   Once you have your Intel® Distribution of OpenVINO™ toolkit installed, follow the steps below to be able to work on NCS2:
+   After installing Intel® Distribution of OpenVINO™ toolkit, follow the steps below to be able to work on NCS2:
 
    1. Go to the `install_dependencies` directory:
 
