@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validdata) {
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
@@ -68,7 +68,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validdata) {
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
@@ -115,7 +115,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validdata) {
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 

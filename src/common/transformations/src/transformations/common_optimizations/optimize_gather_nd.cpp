@@ -41,23 +41,55 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         std::vector<int64_t> meaningful_dim;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         int meaningful_dims_count = 0;
+
+        std::cout << std::endl;
+        std::cout << "Original indices: ";
+        for (auto const& i: const_indices_values) {
+            std::cout << i << ", ";
+        }
+        std::cout << std::endl << "n_dims: " << n_dims << std::endl;
+
+        std::cout << std::endl;
         for (int i = 0; i < n_dims; i++) {
             std::vector<int64_t> dim;
 
             // get the column values
             int64_t column_element_counter = i;
-            while (column_element_counter <= const_indices_values.size()) {
-                dim.push_back(const_indices_values[i]);
+            while (column_element_counter < const_indices_values.size()) {
+                dim.push_back(const_indices_values[column_element_counter]);
+                std::cout << "Pushing i=" << column_element_counter << " with value " << const_indices_values[column_element_counter] << std::endl;
                 column_element_counter += n_dims;
             }
+
+            std::cout << std::endl;
+            std::cout << "Column " << i << ": ";
+            for (auto const& j: dim) {
+                std::cout << j << ", ";
+            }
+            std::cout << std::endl;
+
             // check if dimension is meaningful (has non-zeros)
             if (std::count(dim.cbegin(), dim.cend(), 0) == dim.size()) {
+
+                std::cout << std::endl;
+                std::cout << "Non-meaningful dim: ";
+                for (auto const& i: dim) {
+                    std::cout << i << ", ";
+                }
+                std::cout << std::endl;
+
                 // if is not meaningful, make sure input tensor's shape is 1
                 if (data_shape[i] != 1) {
                     return false;
                 }
             } else {
                 // if it is meaningful, check if it is the only one
+                std::cout << std::endl;
+                std::cout << "Meaningful dim: ";
+                for (auto const& i: dim) {
+                    std::cout << i << ", ";
+                }
+                std::cout << std::endl;
                 ++meaningful_dims_count;
                 std::copy(dim.begin(), dim.end(), std::back_inserter(meaningful_dim));
             }
@@ -75,8 +107,9 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         auto reshape_node =
             std::make_shared<ngraph::opset8::Reshape>(gather_nd_node->input_value(0), new_shape_node, true);
         // gather the final values
+        auto new_indices_shape = (meaningful_dim.size() > 1) ? Shape{meaningful_dim.size()} : Shape{};
         auto new_indices_node =
-            op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{meaningful_dim.size()}, meaningful_dim);
+            op::v0::Constant::create<int64_t>(element::Type_t::i64, new_indices_shape, meaningful_dim);
         auto gather_node = std::make_shared<ngraph::opset8::Gather>(
             reshape_node,
             new_indices_node,
