@@ -77,12 +77,67 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
+        ::testing::Values("AUTO", "GPU"));
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
         ::testing::Values("MULTI", "AUTO"));
 
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
+
+const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
+    {ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(false),
+                            ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::enable_profiling(true),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
@@ -144,14 +199,20 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
 
 #if (defined(__APPLE__) || defined(_WIN32))
     auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto defaultBindThreadParameter = numaNodes.size() > 1 ? ov::Affinity::NUMA : ov::Affinity::NONE;
+    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto defaultBindThreadParameter = ov::Affinity::NONE;
+    if (coreTypes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
+    } else if (numaNodes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::NUMA;
+    }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
 #endif
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
 
-    const ov::Affinity affinity = ov::Affinity::HYBRID_AWARE;
+    const ov::Affinity affinity = defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(affinity, value);
@@ -169,7 +230,7 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
-    ASSERT_EQ(precision, forcedPrecision);
+    ASSERT_EQ(value, forcedPrecision);
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {
@@ -194,9 +255,22 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("CPU"));
 
 // IE Class Load network
+INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU"),
+                                            ::testing::ValuesIn(configsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("MULTI"),
+                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("AUTO"),
+                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
         ::testing::Values("CPU"));
 } // namespace
-

@@ -44,6 +44,7 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
                                    pattern_to_output.at(exp).get_node_shared_ptr()},
                                   softplus);
         ngraph::replace_node(m.get_match_root(), softplus);
+        MATCHER_SCOPE_ENABLE(SoftPlusFusion);
         return true;
     };
 

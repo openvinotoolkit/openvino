@@ -55,6 +55,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
+        MATCHER_SCOPE_ENABLE(AddMultiplyFusion);
         return true;
     };
 
@@ -89,6 +90,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
+        MATCHER_SCOPE_ENABLE(AddAddFusion);
         return true;
     };
 
@@ -124,6 +126,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
+        MATCHER_SCOPE_ENABLE(MultiplyMultiplyFusion);
         return true;
     };
 

@@ -243,6 +243,49 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
     }, numIterations, numThreads);
 }
 
+// tested function: single IECore LoadNetwork accuracy
+TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore) {
+    InferenceEngine::Core ie;
+    std::atomic<unsigned int> counter{0u};
+
+    SetupNetworks();
+
+    ie.SetConfig(config, deviceName);
+
+    runParallel([&] () {
+        auto value = counter++;
+        auto network = networks[value % networks.size()];
+
+        InferenceEngine::BlobMap blobs;
+        for (const auto & info : network.getInputsInfo()) {
+            auto input = FuncTestUtils::createAndFillBlobFloatNormalDistribution(
+                info.second->getTensorDesc(), 0.0f, 0.2f, 7235346);
+            blobs[info.first] = input;
+        }
+
+        auto getOutputBlob = [&](InferenceEngine::Core & core) {
+            auto exec = core.LoadNetwork(network, deviceName);
+            auto req = exec.CreateInferRequest();
+            req.SetInput(blobs);
+
+            auto info = network.getOutputsInfo();
+            auto outputInfo = info.begin();
+            auto blob = make_blob_with_precision(outputInfo->second->getTensorDesc());
+            blob->allocate();
+            req.SetBlob(outputInfo->first, blob);
+
+            req.Infer();
+            return blob;
+        };
+
+        auto outputActual = getOutputBlob(ie);
+
+        // compare actual value using the same Core
+        auto outputRef = getOutputBlob(ie);
+        FuncTestUtils::compareBlobs(outputActual, outputRef);
+    }, numIterations, numThreads);
+}
+
 // tested function: LoadNetwork accuracy
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
     InferenceEngine::Core ie;
@@ -287,6 +330,20 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
 
             FuncTestUtils::compareBlobs(outputActual, outputRef);
         }
+    }, numIterations, numThreads);
+}
+
+// tested function: single IECore ReadNetwork, SetConfig, LoadNetwork, AddExtension
+TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_SingleIECore) {
+    std::atomic<unsigned int> counter{0u};
+    InferenceEngine::Core ie;
+
+    SetupNetworks();
+
+    runParallel([&] () {
+        auto value = counter++;
+        ie.SetConfig(config, deviceName);
+        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
     }, numIterations, numThreads);
 }
 

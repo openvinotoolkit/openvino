@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -77,31 +78,31 @@ def test_dimension_comparisons():
     assert not d2.compatible(d1)
     assert not d2.same_scheme(d1)
 
-    d = Dimension("?")
-    assert d == Dimension()
+    dim = Dimension("?")
+    assert dim == Dimension()
 
-    d = Dimension("1")
-    assert d == Dimension(1)
+    dim = Dimension("1")
+    assert dim == Dimension(1)
 
-    d = Dimension("..10")
-    assert d == Dimension(-1, 10)
+    dim = Dimension("..10")
+    assert dim == Dimension(-1, 10)
 
-    d = Dimension("10..")
-    assert d == Dimension(10, -1)
+    dim = Dimension("10..")
+    assert dim == Dimension(10, -1)
 
-    d = Dimension("5..10")
-    assert d == Dimension(5, 10)
+    dim = Dimension("5..10")
+    assert dim == Dimension(5, 10)
 
     with pytest.raises(RuntimeError) as e:
-        d = Dimension("C")
+        dim = Dimension("C")
     assert 'Cannot parse dimension: "C"' in str(e.value)
 
     with pytest.raises(RuntimeError) as e:
-        d = Dimension("?..5")
+        dim = Dimension("?..5")
     assert 'Cannot parse min bound: "?"' in str(e.value)
 
     with pytest.raises(RuntimeError) as e:
-        d = Dimension("5..?")
+        dim = Dimension("5..?")
     assert 'Cannot parse max bound: "?"' in str(e.value)
 
 
@@ -169,25 +170,39 @@ def test_partial_shape():
     assert repr(ps) == "<PartialShape: {?,?}>"
 
     shape_list = [(1, 10), [2, 5], 4, Dimension(2), "..10"]
-    ref_ps = PartialShape([Dimension(1, 10), Dimension(2, 5), Dimension(4), Dimension(2), Dimension(-1, 10)])
+    ref_ps = PartialShape(
+        [
+            Dimension(1, 10),
+            Dimension(2, 5),
+            Dimension(4),
+            Dimension(2),
+            Dimension(-1, 10),
+        ],
+    )
     assert PartialShape(shape_list) == ref_ps
     assert PartialShape(tuple(shape_list)) == ref_ps
 
     with pytest.raises(TypeError) as e:
         PartialShape([(1, 2, 3)])
-    assert "Two elements are expected in tuple(lower, upper) " \
-           "for dynamic dimension, but 3 elements were given." in str(e.value)
+    assert (
+        "Two elements are expected in tuple(lower, upper) "
+        "for dynamic dimension, but 3 elements were given." in str(e.value)
+    )
 
     with pytest.raises(TypeError) as e:
         PartialShape([("?", "?")])
-    assert "Incorrect pair of types (<class 'str'>, <class 'str'>) " \
-           "for dynamic dimension, ints are expected." in str(e.value)
+    assert (
+        "Incorrect pair of types (<class 'str'>, <class 'str'>) "
+        "for dynamic dimension, ints are expected." in str(e.value)
+    )
 
     with pytest.raises(TypeError) as e:
         PartialShape([range(10)])
-    assert "Incorrect type <class 'range'> for dimension. Expected types are: " \
-           "int, str, openvino.runtime.Dimension, list/tuple with lower " \
-           "and upper values for dynamic dimension." in str(e.value)
+    assert (
+        "Incorrect type <class 'range'> for dimension. Expected types are: "
+        "int, str, openvino.runtime.Dimension, list/tuple with lower "
+        "and upper values for dynamic dimension." in str(e.value)
+    )
 
     ps = PartialShape("...")
     assert ps == PartialShape.dynamic()
@@ -301,10 +316,13 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Model: 'simple_dyn_shapes_graph'\ninputs[" + \
-                             "\n<ConstOutput: names[A] shape{?,2} type: f32>," +\
-                             "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]" + \
-                             "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
+    assert (
+        repr(function)
+        == "<Model: 'simple_dyn_shapes_graph'\ninputs["
+        + "\n<ConstOutput: names[A] shape{?,2} type: f32>,"
+        + "\n<ConstOutput: names[B] shape{?,2} type: f32>\n]"
+        + "\noutputs[\n<ConstOutput: names[] shape{?,2} type: f32>\n]>"
+    )
 
     ops = function.get_ordered_ops()
     for op in ops:
@@ -314,10 +332,10 @@ def test_repr_dynamic_shape():
 def test_discrete_type_info():
     data_shape = [6, 12, 10, 24]
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
-    k = np.int32(3)
+    k_val = np.int32(3)
     axis = np.int32(1)
-    n1 = ov.topk(data_parameter, k, axis, "max", "value")
-    n2 = ov.topk(data_parameter, k, axis, "max", "value")
+    n1 = ov.topk(data_parameter, k_val, axis, "max", "value")
+    n2 = ov.topk(data_parameter, k_val, axis, "max", "value")
     n3 = ov.sin(0.2)
 
     assert n1.type_info.name == "TopK"

@@ -38,6 +38,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         ngraph::copy_runtime_info(hswish_node,
                                   {add_constant, add, relu, min_constant, min, mul_first, mul_constant, mul_second});
         ngraph::replace_node(m.get_match_root(), mul_second);
+        MATCHER_SCOPE_ENABLE(HSwishDecomposition);
         return true;
     };
 

@@ -108,7 +108,7 @@ ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
             },
             space_to_batch);
         replace_node(reshape_or_trans_after, space_to_batch);
-
+        MATCHER_SCOPE_ENABLE(SpaceToBatchFusion);
         return true;
     };
 

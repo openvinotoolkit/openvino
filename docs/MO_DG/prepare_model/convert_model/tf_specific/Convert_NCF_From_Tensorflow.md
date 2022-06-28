@@ -1,12 +1,12 @@
-# Convert TensorFlow Neural Collaborative Filtering Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
+# Converting a TensorFlow Neural Collaborative Filtering Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow}
 
-This tutorial explains how to convert Neural Collaborative Filtering (NCF) model to Intermediate Representation (IR).
+This tutorial explains how to convert Neural Collaborative Filtering (NCF) model to the OpenVINO Intermediate Representation.
 
 [Public TensorFlow NCF model](https://github.com/tensorflow/models/tree/master/official/recommendation) does not contain pre-trained weights. To convert this model to the IR:
  1. Use [the instructions](https://github.com/tensorflow/models/tree/master/official/recommendation#train-and-evaluate-model) from this repository to train the model.
- 2. Freeze the inference graph you get on previous step in `model_dir` following
-the instructions from the Freezing Custom Models in Python* section of
-[Converting a TensorFlow* Model](../Convert_Model_From_TensorFlow.md).
+ 2. Freeze the inference graph you get in the previous step in `model_dir`, following
+the instructions from the **Freezing Custom Models in Python** section of the
+[Converting a TensorFlow Model](../Convert_Model_From_TensorFlow.md) guide.
 Run the following commands:
 ```python
 import tensorflow as tf
@@ -22,13 +22,13 @@ graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
 ```
 where `rating/BiasAdd` is an output node.
 
- 3. Convert the model to the IR.If you look at your frozen model, you can see that
+ 3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
 it has one input that is split into four `ResourceGather` layers. (Click image to zoom in.)
 
 ![NCF model beginning](../../../img/NCF_start.png)
 
- But as the Model Optimizer does not support such data feeding, you should skip it. Cut
-the edges incoming in `ResourceGather`s port 1:
+ However, as the Model Optimizer does not support such data feeding, you should skip it. Cut
+the edges incoming in `ResourceGather` port 1:
 ```sh
  mo --input_model inference_graph.pb                    \
 --input 1:embedding/embedding_lookup,1:embedding_1/embedding_lookup, \

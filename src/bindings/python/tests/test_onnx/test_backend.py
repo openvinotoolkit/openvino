@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,7 +9,6 @@ from tests import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_issue_33488,
-    xfail_issue_33538,
     xfail_issue_33581,
     xfail_issue_33589,
     xfail_issue_33595,
@@ -45,12 +45,10 @@ from tests import (
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
-    xfail_issue_81974,
     xfail_issue_81976,
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
-    xfail_issue_82040,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -63,15 +61,16 @@ def expect_fail(test_case_path, xfail):  # type: (str) -> None
         xfail(getattr(module, test_name))
     else:
         logging.getLogger().warning(
-            "Could not mark test as XFAIL, not found: %s", test_case_path
+            "Could not mark test as XFAIL, not found: %s", test_case_path,
         )
 
 
 OpenVinoTestBackend.backend_name = BACKEND_NAME
 
-# This is a pytest magic variable to load extra plugins
-# Uncomment the line below to enable the ONNX compatibility report
-# pytest_plugins = "onnx.backend.test.report",
+"""This is a pytest magic variable to load extra plugins
+Uncomment the line below to enable the ONNX compatibility report
+pytest_plugins = "onnx.backend.test.report",
+"""
 
 # import all test cases at global scope to make them visible to python.unittest
 backend_test = onnx.backend.test.BackendTest(OpenVinoTestBackend, __name__)
@@ -197,11 +196,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-    ),
-    (
-        xfail_issue_33538,
-        "OnnxBackendNodeModelTest.test_scan_sum_cpu",
-        "OnnxBackendNodeModelTest.test_scan9_sum_cpu",
     ),
     (
         xfail_issue_33581,
@@ -374,17 +368,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
     ),
     (
-        xfail_issue_81974,
-        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_border_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_nearest_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_reflection_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_zeros_padding_cpu",
-    ),
-    (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
@@ -415,12 +398,8 @@ tests_expected_to_fail = [
         xfail_issue_82039,
         "OnnxBackendNodeModelTest.test_identity_opt_cpu",
     ),
-    (
-        xfail_issue_82040,
-        "OnnxBackendNodeModelTest.test_roialign_aligned_true_cpu",
-    ),
 ]
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
-        expect_fail("{}".format(test_case), test_group[0])
+        expect_fail(f"{test_case}", test_group[0])

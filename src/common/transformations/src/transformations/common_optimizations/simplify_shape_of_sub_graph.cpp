@@ -63,6 +63,7 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     auto concat_label = ngraph::pattern::wrap_type<ngraph::opset1::Concat>(pattern::rank_equals(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(GroupedGatherElimination);
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeVector new_ops;
@@ -234,7 +235,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
 
         const auto concat_axis = concat->get_axis();
-        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+        OPENVINO_ASSERT(concat_axis == 0 || concat_axis == -1, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||

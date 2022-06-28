@@ -52,7 +52,6 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
 }
 
 void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path) {
-    transform::expand_onnx_functions(model_proto);
     transform::fixup_legacy_operators(model_proto);
     transform::update_external_data_paths(model_proto, model_path);
 }
@@ -91,7 +90,7 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
                                             const std::string& model_path,
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto, model_path);
-    Graph graph{model_proto, extensions};
+    Graph graph{model_proto, std::move(extensions)};
     return graph.convert();
 }
 

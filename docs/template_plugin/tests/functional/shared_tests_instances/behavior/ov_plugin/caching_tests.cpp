@@ -20,6 +20,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsTemplate),
                                     ::testing::ValuesIn(batchSizesTemplate),
-                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 } // namespace
