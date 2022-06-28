@@ -47,7 +47,7 @@ Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.h
 
 .. tab:: Linux
 
-   Once you have your OpenVINO installed, follow the steps to be able to work on GPU:
+   After installing OpenVINO, follow the steps below to be able to work on GPU:
 
    1. Go to the install_dependencies directory:
 
