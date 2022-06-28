@@ -58,7 +58,7 @@ size_t bfloat16::size() const {
 
 bfloat16::operator float() const {
     uint32_t tmp = 0;
-    uint32_t *ptmp = &tmp;
+    uint32_t* ptmp = &tmp;
     *ptmp = (static_cast<uint32_t>(m_value) << 16);
     const float* f = reinterpret_cast<const float*>(ptmp);
     return *f;
