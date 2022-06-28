@@ -76,6 +76,16 @@ else()
             FetchContent_Populate(ext_protobuf)
             set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
             set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
+            # Pass flag CMAKE_CXX_FLAGS_RELEASE (in release build type) to the check_cxx_source_compiles()
+            # otherwise the Protobuf will require linking libatomic library which can't be installed on the system
+            # The check_cxx_source_compiles gets only CMAKE_CXX_FLAGS as a default,
+            # the rest flags has to be pass by CMAKE_REQUIRED_FLAGS
+            string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+            if (NOT BUILD_TYPE STREQUAL debug)
+                set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+            endif()
+
             add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
         endif()
     else()
@@ -99,29 +109,6 @@ else()
 
         if (CMAKE_COMPILER_IS_GNUCXX)
             set(Protobuf_GNUCXX_Compile_Flags "-Wno-stringop-overflow -Wno-inconsistent-missing-override")
-        endif()
-
-        # We need to link with libatomic on systems that do not have builtin atomics, or
-        # don't have builtin support for 8 byte atomics
-        set(protobuf_LINK_LIBATOMIC false)
-        if (NOT MSVC)
-            include(CheckCXXSourceCompiles)
-            set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-            set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} -std=c++11)
-            check_cxx_source_compiles("
-                #include <atomic>
-                int main() {
-                return std::atomic<int64_t>{};
-                }
-            " protobuf_HAVE_BUILTIN_ATOMICS)
-            if (NOT protobuf_HAVE_BUILTIN_ATOMICS)
-                set(protobuf_LINK_LIBATOMIC true)
-            endif (NOT protobuf_HAVE_BUILTIN_ATOMICS)
-            set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
-        endif (NOT MSVC)
-
-        if (protobuf_LINK_LIBATOMIC)
-            target_link_libraries(${Protobuf_LIBRARIES} atomic)
         endif()
 
         set_target_properties(${_proto_libs} PROPERTIES
