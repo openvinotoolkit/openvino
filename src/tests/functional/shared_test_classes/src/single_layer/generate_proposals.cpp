@@ -16,8 +16,9 @@ std::ostream& operator <<(
         const ov::op::v9::GenerateProposals::Attributes& attributes) {
     ss << "score_threshold=" << attributes.min_size << "_";
     ss << "nms_threshold=" << attributes.nms_threshold << "_";
-    ss << "max_delta_log_wh=" << attributes.post_nms_count << "_";
-    ss << "num_classes=" << attributes.pre_nms_count;
+    ss << "post_nms_count=" << attributes.post_nms_count << "_";
+    ss << "pre_nms_count=" << attributes.pre_nms_count;
+    ss << "normalized=" << attributes.normalized;
     return ss;
 }
 } // namespace
@@ -36,6 +37,7 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
         attributes.nms_threshold,
         attributes.post_nms_count,
         attributes.pre_nms_count,
+        attributes.normalized,
         inputTensors,
         netPrecision,
         roiNumPrecision,
@@ -70,6 +72,7 @@ void GenerateProposalsLayerTest::SetUp() {
         attributes.nms_threshold,
         attributes.post_nms_count,
         attributes.pre_nms_count,
+        attributes.normalized,
         inputTensors,
         netPrecision,
         roiNumPrecision,
@@ -77,6 +80,15 @@ void GenerateProposalsLayerTest::SetUp() {
 
     inType = outType = netPrecision;
     targetDevice = targetName;
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        attributes.static_output = true;
+
+        if (netPrecision == element::Type_t::f16) {
+            abs_threshold = 0.2;
+        } else {
+            abs_threshold = 0.00009;
+        }
+    }
 
     init_input_shapes(inputShapes);
 
@@ -97,7 +109,7 @@ void GenerateProposalsLayerTest::SetUp() {
 }
 
 void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    auto inputTensors = std::get<5>(GetParam());
+    auto inputTensors = std::get<6>(GetParam());
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
