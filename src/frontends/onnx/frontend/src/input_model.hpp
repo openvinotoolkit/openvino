@@ -20,7 +20,7 @@ class InputModel : public ov::frontend::InputModel {
 public:
     InputModel(const std::string& path, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, ExtensionHolder extensions = {});
+    InputModel(const std::wstring& path, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
 #endif
     InputModel(std::istream& model_stream, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
