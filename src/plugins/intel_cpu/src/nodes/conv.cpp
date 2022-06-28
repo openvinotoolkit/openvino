@@ -471,6 +471,12 @@ void Convolution::getSupportedDescriptors() {
             auto inputShape = getInputShapeAtPort(0);
             auto outputShape = getOutputShapeAtPort(0);
 
+            bool isBrgConvPrioritized = false;
+            if (!implPriorities.empty()) {
+                if ((implPriorities[0] & impl_desc_type::brgconv) == impl_desc_type::brgconv)
+                    isBrgConvPrioritized = true;
+            }
+
             if (one_of(inputDataType, memory::data_type::bf16) &&
                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
@@ -502,6 +508,7 @@ void Convolution::getSupportedDescriptors() {
             createDescriptor({ in_candidate }, { out_candidate });
 
             if ((inputDataType != memory::data_type::bf16 && isNspcAvailable()) ||
+                    isBrgConvPrioritized ||
                     (one_of(inputDataType, memory::data_type::bf16) &&
                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx))) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
