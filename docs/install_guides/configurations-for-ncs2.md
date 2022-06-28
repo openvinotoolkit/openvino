@@ -44,13 +44,13 @@
 
    Log out and log in for it to take effect.
 
-   2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
+   2. If you did not modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
 
    .. code-block:: sh
 
       source /opt/intel/openvino_2022/setupvars.sh
    
-   3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
+   3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules by running the `install_NCS_udev_rules.sh` script:
 
    .. code-block:: sh
 
@@ -60,13 +60,13 @@
 
    5. (Optional) If you want to compile and run the Image Classification sample to verify the OpenVINO™ toolkit installation, follow the next steps.
 
-   a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
+   a. Navigate to a directory where you have write access and create a samples build directory. This example uses a directory named `build`:
 
    .. code-block:: sh
 
       mkdir build && cd build
 
-   b. Build the Hello Classification Sample:
+   b. Build the *Hello Classification* Sample:
 
    .. code-block:: sh
 
@@ -76,7 +76,7 @@
 
       make -j2 hello_classification
 
-   c. Download the pre-trained `squeezenet1.1` image classification model with the Model Downloader or copy it from the host machine:
+   c. Download the pre-trained `squeezenet1.1` image classification model with Model Downloader or copy it from the host machine:
 
    .. code-block:: sh
 
