@@ -13,19 +13,19 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template <typename T, typename T_IND, cldnn::format::type fmt>
+template <typename TD, typename TI, cldnn::format::type fmt>
 struct TypesWithFormat {
-    using DataType = T;
-    using IndexType = T_IND;
+    using DataType = TD;
+    using IndexType = TI;
     static const cldnn::format::type format = fmt;
 };
 
 template <typename Types>
 struct roi_align_test : public testing::Test {
-    using T = typename Types::DataType;
-    using T_IND = typename Types::IndexType;
-    const data_types device_data_type = type_to_data_type<T>::value;
-    const data_types device_ind_type = type_to_data_type<T_IND>::value;
+    using TD = typename Types::DataType;
+    using TI = typename Types::IndexType;
+    const data_types device_data_type = type_to_data_type<TD>::value;
+    const data_types device_ind_type = type_to_data_type<TI>::value;
     const cldnn::format::type blocked_format = Types::format;
     const cldnn::format::type plain_format = format::bfyx;
 
@@ -34,25 +34,27 @@ struct roi_align_test : public testing::Test {
     const int sampling_ratio{2};
     const float spatial_scale{1};
 
-    const std::vector<T> input_data = {
-        T(0.f), T(1.f), T(8.f),  T(5.f),  T(5.f),  T(2.f), T(0.f),  T(7.f), T(7.f),  T(10.f), T(4.f),  T(5.f),  T(9.f),
-        T(0.f), T(0.f), T(5.f),  T(7.f),  T(0.f),  T(4.f), T(0.f),  T(4.f), T(7.f),  T(6.f),  T(10.f), T(9.f),  T(5.f),
-        T(1.f), T(7.f), T(4.f),  T(7.f),  T(10.f), T(8.f), T(2.f),  T(0.f), T(8.f),  T(3.f),  T(6.f),  T(8.f),  T(10.f),
-        T(4.f), T(2.f), T(10.f), T(7.f),  T(8.f),  T(7.f), T(0.f),  T(6.f), T(9.f),  T(2.f),  T(4.f),  T(8.f),  T(5.f),
-        T(2.f), T(3.f), T(3.f),  T(1.f),  T(5.f),  T(9.f), T(10.f), T(0.f), T(9.f),  T(5.f),  T(5.f),  T(3.f),  T(10.f),
-        T(5.f), T(2.f), T(0.f),  T(10.f), T(0.f),  T(5.f), T(4.f),  T(3.f), T(10.f), T(5.f),  T(5.f),  T(10.f), T(0.f),
-        T(8.f), T(8.f), T(9.f),  T(1.f),  T(0.f),  T(7.f), T(9.f),  T(6.f), T(8.f),  T(7.f),  T(10.f), T(9.f),  T(2.f),
-        T(3.f), T(3.f), T(5.f),  T(6.f),  T(9.f),  T(4.f), T(9.f),  T(2.f), T(4.f),  T(5.f),  T(5.f),  T(3.f),  T(1.f),
-        T(1.f), T(6.f), T(8.f),  T(0.f),  T(5.f),  T(5.f), T(10.f), T(8.f), T(6.f),  T(9.f),  T(6.f),  T(9.f),  T(1.f),
-        T(2.f), T(7.f), T(1.f),  T(1.f),  T(3.f),  T(0.f), T(4.f),  T(0.f), T(7.f),  T(10.f), T(2.f)};
-    const std::vector<T> coords_data = {T(2.f), T(2.f), T(4.f), T(4.f), T(2.f), T(2.f), T(4.f), T(4.f)};
-    const std::vector<T_IND> roi_data = {0, 1};
+    const std::vector<TD> input_data = {
+        TD(0.f),  TD(1.f),  TD(8.f),  TD(5.f),  TD(5.f), TD(2.f),  TD(0.f), TD(7.f),  TD(7.f),  TD(10.f), TD(4.f),
+        TD(5.f),  TD(9.f),  TD(0.f),  TD(0.f),  TD(5.f), TD(7.f),  TD(0.f), TD(4.f),  TD(0.f),  TD(4.f),  TD(7.f),
+        TD(6.f),  TD(10.f), TD(9.f),  TD(5.f),  TD(1.f), TD(7.f),  TD(4.f), TD(7.f),  TD(10.f), TD(8.f),  TD(2.f),
+        TD(0.f),  TD(8.f),  TD(3.f),  TD(6.f),  TD(8.f), TD(10.f), TD(4.f), TD(2.f),  TD(10.f), TD(7.f),  TD(8.f),
+        TD(7.f),  TD(0.f),  TD(6.f),  TD(9.f),  TD(2.f), TD(4.f),  TD(8.f), TD(5.f),  TD(2.f),  TD(3.f),  TD(3.f),
+        TD(1.f),  TD(5.f),  TD(9.f),  TD(10.f), TD(0.f), TD(9.f),  TD(5.f), TD(5.f),  TD(3.f),  TD(10.f), TD(5.f),
+        TD(2.f),  TD(0.f),  TD(10.f), TD(0.f),  TD(5.f), TD(4.f),  TD(3.f), TD(10.f), TD(5.f),  TD(5.f),  TD(10.f),
+        TD(0.f),  TD(8.f),  TD(8.f),  TD(9.f),  TD(1.f), TD(0.f),  TD(7.f), TD(9.f),  TD(6.f),  TD(8.f),  TD(7.f),
+        TD(10.f), TD(9.f),  TD(2.f),  TD(3.f),  TD(3.f), TD(5.f),  TD(6.f), TD(9.f),  TD(4.f),  TD(9.f),  TD(2.f),
+        TD(4.f),  TD(5.f),  TD(5.f),  TD(3.f),  TD(1.f), TD(1.f),  TD(6.f), TD(8.f),  TD(0.f),  TD(5.f),  TD(5.f),
+        TD(10.f), TD(8.f),  TD(6.f),  TD(9.f),  TD(6.f), TD(9.f),  TD(1.f), TD(2.f),  TD(7.f),  TD(1.f),  TD(1.f),
+        TD(3.f),  TD(0.f),  TD(4.f),  TD(0.f),  TD(7.f), TD(10.f), TD(2.f)};
+    const std::vector<TD> coords_data = {TD(2.f), TD(2.f), TD(4.f), TD(4.f), TD(2.f), TD(2.f), TD(4.f), TD(4.f)};
+    const std::vector<TI> roi_data = {0, 1};
 
     const layout input_lt = layout(device_data_type, plain_format, {2, 1, 8, 8});
     const layout coords_lt = layout(device_data_type, plain_format, {2, 4, 1, 1});
     const layout roi_lt = layout(device_ind_type, plain_format, {2, 1, 1, 1});
 
-    memory::ptr get_memory(engine& engine, const layout& lt, const std::vector<T>& data) const {
+    memory::ptr get_memory(engine& engine, const layout& lt, const std::vector<TD>& data) const {
         auto mem = engine.allocate_memory(lt);
         tests::set_values(mem, data);
         return mem;
@@ -64,7 +66,7 @@ struct roi_align_test : public testing::Test {
         return mem;
     }
 
-    void execute(const std::vector<T>& expected_output,
+    void execute(const std::vector<TD>& expected_output,
                  roi_align::PoolingMode pooling_mode,
                  roi_align::AlignedMode aligned_mode) const {
         auto& engine = get_test_engine();
@@ -98,7 +100,7 @@ struct roi_align_test : public testing::Test {
         auto outputs = network.execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<TD> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), expected_output.size());
         for (uint32_t i = 0; i < expected_output.size(); ++i) {
@@ -155,21 +157,22 @@ using roi_align_test_types = testing::Types<TypesWithFormat<half_t, uint8_t, for
 TYPED_TEST_SUITE(roi_align_test, roi_align_test_types);
 
 TYPED_TEST(roi_align_test, avg_asymmetric) {
-    using T = typename TypeParam::DataType;
-    const std::vector<T> expected_output{T(3.f), T(3.75f), T(4.75f), T(5.f), T(3.f), T(5.5f), T(2.75f), T(3.75f)};
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD>
+        expected_output{TD(3.f), TD(3.75f), TD(4.75f), TD(5.f), TD(3.f), TD(5.5f), TD(2.75f), TD(3.75f)};
     this->execute(expected_output, roi_align::PoolingMode::Avg, roi_align::AlignedMode::Asymmetric);
 }
 
 TYPED_TEST(roi_align_test, avg_half_pixel_for_nn) {
-    using T = typename TypeParam::DataType;
-    const std::vector<T> expected_output =
-        {T(3.14f), T(2.16f), T(2.86f), T(5.03f), T(1.83f), T(5.84f), T(2.77f), T(3.44f)};
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD> expected_output =
+        {TD(3.14f), TD(2.16f), TD(2.86f), TD(5.03f), TD(1.83f), TD(5.84f), TD(2.77f), TD(3.44f)};
     this->execute(expected_output, roi_align::PoolingMode::Avg, roi_align::AlignedMode::Half_pixel_for_nn);
 }
 
 TYPED_TEST(roi_align_test, max_half_pixel) {
-    using T = typename TypeParam::DataType;
-    const std::vector<T> expected_output =
-        {T(4.375f), T(4.9375f), T(5.6875f), T(5.625f), T(4.625f), T(7.125f), T(3.3125f), T(4.3125f)};
+    using TD = typename TypeParam::DataType;
+    const std::vector<TD> expected_output =
+        {TD(4.375f), TD(4.9375f), TD(5.6875f), TD(5.625f), TD(4.625f), TD(7.125f), TD(3.3125f), TD(4.3125f)};
     this->execute(expected_output, roi_align::PoolingMode::Max, roi_align::AlignedMode::Half_pixel);
 }

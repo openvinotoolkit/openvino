@@ -7,7 +7,7 @@
 
 namespace kernel_selector {
 
-enum class roi_aligned_mode : uint32_t { Asymmetric, Half_pixel_for_nn, Half_pixel };
+enum class roi_aligned_mode : uint32_t { ASYMMETRIC, HALF_PIXEL_FOR_NN, HALF_PIXEL };
 
 struct roi_align_params : public base_params {
     roi_align_params() : base_params{KernelType::ROI_ALIGN} {}
@@ -15,7 +15,7 @@ struct roi_align_params : public base_params {
     int sampling_ratio = 0;
     float spatial_scale = 1.f;
     PoolType pooling_mode = PoolType::MAX;
-    roi_aligned_mode aligned_mode = roi_aligned_mode::Asymmetric;
+    roi_aligned_mode aligned_mode = roi_aligned_mode::ASYMMETRIC;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

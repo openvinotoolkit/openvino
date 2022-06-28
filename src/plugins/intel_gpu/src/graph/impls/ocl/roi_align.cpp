@@ -32,12 +32,12 @@ kernel_selector::pool_type from(roi_align::PoolingMode mode) {
 kernel_selector::roi_aligned_mode from(roi_align::AlignedMode mode) {
     switch (mode) {
     case roi_align::AlignedMode::Half_pixel_for_nn:
-        return kernel_selector::roi_aligned_mode::Half_pixel_for_nn;
+        return kernel_selector::roi_aligned_mode::HALF_PIXEL_FOR_NN;
     case roi_align::AlignedMode::Half_pixel:
-        return kernel_selector::roi_aligned_mode::Half_pixel;
+        return kernel_selector::roi_aligned_mode::HALF_PIXEL;
     default:
     case roi_align::AlignedMode::Asymmetric:
-        return kernel_selector::roi_aligned_mode::Asymmetric;
+        return kernel_selector::roi_aligned_mode::ASYMMETRIC;
     }
 }
 }  // namespace

@@ -33,3 +33,13 @@
         }                                                               \
         return first;                                                   \
     }
+
+#if OUTPUT_TYPE_SIZE == 2 //f16
+#define ZERO_FP 0.h
+#define HALF_ONE_FP 0.5h
+#define ONE_FP 1.h
+#else
+#define ZERO_FP 0.f
+#define HALF_ONE_FP 0.5f
+#define ONE_FP 1.f
+#endif

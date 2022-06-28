@@ -87,15 +87,15 @@ JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) 
         jit.AddConstant(MakeJitConstant("AVG_POOL", true));
     }
 
-    if (params.aligned_mode == roi_aligned_mode::Asymmetric) {
+    if (params.aligned_mode == roi_aligned_mode::ASYMMETRIC) {
         jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
         jit.AddConstant(MakeJitConstant("OFFSET_DST", 0.f));
         jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0));
-    } else if (params.aligned_mode == roi_aligned_mode::Half_pixel_for_nn) {
+    } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL_FOR_NN) {
         jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
         jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5));
         jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
-    } else if (params.aligned_mode == roi_aligned_mode::Half_pixel) {
+    } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL) {
         jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5));
         jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5));
         jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
