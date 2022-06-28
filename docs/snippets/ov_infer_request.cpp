@@ -8,7 +8,7 @@
 
 int main() {
 ov::Core core;
-std::shared_ptr<ov::Model> model;
+std::shared_ptr<ov::Model> model = core.read_model("model.xml");
 ov::CompiledModel compiled_model;
 
 //! [create_infer_request]
@@ -68,7 +68,6 @@ infer_request.set_tensor("tensor_name2", tensor2);
 //! [get_set_tensor]
 
 {
-if (model == nullptr) __builtin_unreachable();
 //! [get_set_tensor_by_port]
 auto input_port = model->input(0);
 auto output_port = model->output("tensor_name");
