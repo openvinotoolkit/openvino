@@ -232,7 +232,7 @@ public:
     void setPointerToSo(const std::shared_ptr<void>& so);
 
     /**
-     * @brief      Returns the pointer to sp.
+     * @brief      Returns the pointer to so.
      * @returns    The library
      */
     std::shared_ptr<void> getPointerToSo() const;
