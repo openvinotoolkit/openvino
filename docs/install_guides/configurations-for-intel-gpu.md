@@ -86,7 +86,7 @@ Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.h
    
    .. _Khronos OpenCL™ API Headers: https://github.com/KhronosGroup/OpenCL-Headers.git
 
-   You've completed all required configuration steps to perform inference on processor graphics. 
+   You have completed all required configuration steps to perform inference on processor graphics. 
    Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 .. tab:: Windows
