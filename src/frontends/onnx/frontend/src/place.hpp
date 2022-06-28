@@ -25,10 +25,10 @@ protected:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 
-class PlaceInputEdge : public Place {
+class InputEdgePlace : public Place {
 public:
-    PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceInputEdge(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    InputEdgePlace(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    InputEdgePlace(onnx_editor::InputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // internal usage
     onnx_editor::InputEdge get_input_edge() const;
@@ -50,10 +50,10 @@ private:
     std::string m_initial_source_tensor_name;
 };
 
-class PlaceOutputEdge : public Place {
+class OutputEdgePlace : public Place {
 public:
-    PlaceOutputEdge(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOutputEdge(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    OutputEdgePlace(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    OutputEdgePlace(onnx_editor::OutputEdge&& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // internal usage
     onnx_editor::OutputEdge get_output_edge() const;
@@ -75,10 +75,10 @@ private:
     std::string m_initial_target_tensor_name;
 };
 
-class PlaceTensor : public Place {
+class TensorPlace : public Place {
 public:
-    PlaceTensor(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceTensor(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    TensorPlace(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    TensorPlace(std::string&& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
     // external usage
     std::vector<std::string> get_names() const override;
@@ -98,10 +98,10 @@ private:
     std::string m_name;
 };
 
-class PlaceOp : public Place {
+class OpPlace : public Place {
 public:
-    PlaceOp(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
-    PlaceOp(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    OpPlace(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    OpPlace(onnx_editor::EditorNode&& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
     std::vector<std::string> get_names() const override;
 
     // internal usage
