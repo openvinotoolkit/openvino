@@ -66,10 +66,6 @@ public:
                       });
     }
 
-    void set_callback(callback_t callback) {
-        m_callback = std::move(callback);
-    }
-
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input) const {
         if (get_axis() >= input.get_partial_shape().size())
@@ -149,10 +145,6 @@ private:
     // true - means that current RIC attribute is an initial attribute and belongs to real RIC output
     // false - means that current RIC attribute is temporary and need only for propagation
     bool m_is_initial;
-
-    // Callback specifies the action for RIC materialization for given input port.
-    // In most cases it should insert Gather operation for the input.
-    std::function<void(Input<Node>, const Attribute&)> m_callback = [](Input<Node>, const Attribute&) {};
 };
 
 namespace {
@@ -652,7 +644,7 @@ class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>();
+        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>(pattern::has_static_rank());
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();
@@ -671,10 +663,7 @@ public:
             // Check that all RIC attrs can be merged and then merge them
 
             auto ric = attrs[0];
-            auto rank = root->get_output_partial_shape(0).rank();
-            if (rank.is_dynamic())
-                return false;
-            auto data_rank = rank.get_length();
+            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
 
             for (const auto& item : attrs) {
                 if (ric.can_be_merged_with(item)) {
@@ -727,7 +716,7 @@ class PassThrough : public ngraph::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root = pattern::wrap_type<opset8::Convert>();
+        auto pattern_root = pattern::wrap_type<opset8::Convert>(pattern::has_static_rank());
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
             const auto& output = root->output(0);
@@ -743,10 +732,7 @@ public:
             }
 
             auto ric = attrs[0];
-            auto rank = root->get_output_partial_shape(0).rank();
-            if (rank.is_dynamic())
-                return false;
-            auto data_rank = rank.get_length();
+            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
 
             for (const auto& item : attrs) {
                 if (ric.can_be_merged_with(item)) {
