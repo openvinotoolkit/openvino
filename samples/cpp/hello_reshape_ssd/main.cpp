@@ -8,7 +8,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
-#include "ngraph/ngraph.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 #include "format_reader_ptr.h"
 #include "samples/args_helper.hpp"
@@ -51,9 +51,9 @@ int main(int argc, char* argv[]) {
 
         // SSD has an additional post-processing DetectionOutput layer that simplifies output filtering,
         // try to find it.
-        ov::NodeVector ops = model->get_ops();
-        auto it = std::find_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> node) {
-            return node->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static();
+        const ov::NodeVector ops = model->get_ops();
+        const auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return node->get_type_info() == ov::opset8::DetectionOutput::get_type_info_static();
         });
         if (it == ops.end()) {
             throw std::logic_error("model does not contain DetectionOutput layer");
