@@ -145,19 +145,12 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_python=(python38 python38-devel python38-setuptools python38-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
     pkgs_myriad=()
-    if subscription-manager status | grep -q "Overall Status: Current" ; then
-      echo OS is subscribed
-      pkgs_opencv_opt=(
-        gstreamer1
-        gstreamer1-plugins-bad-free
-        gstreamer1-plugins-good
-        gstreamer1-plugins-ugly-free
-      )
-    else
-      echo OS is not subscribed, skipping gstreamer
-      pkgs_opencv_opt=()
-    fi
-
+    pkgs_opencv_opt=(
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-1.16.1-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.x86_64.rpm
+    )
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 else
