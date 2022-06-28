@@ -274,7 +274,7 @@ function addPagination(query, selectedVersion, currentPage, previousPage, nextPa
     for(var i = 0; i < pageList.length; i++) {
         $page = $('<a>', {
           'class': 'gs-cursor-page',
-          'href': 'search.html?page=' + pageList[i] + '&query=' + query + '&version=' + selectedVersion
+          'href': 'search.html?page=' + pageList[i] + '&query=' + query + '&version=' + selectedVersion,
           'text': pageList[i]
         });
         if (currentPage === pageList[i]) {
