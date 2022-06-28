@@ -115,12 +115,26 @@ void shape_infer(const GenerateProposals* op, const std::vector<T>& input_shapes
                               scores_shape[1]);
     }
 
-    output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
-    output_shapes[1] = ov::PartialShape::dynamic(1);
-    if (im_info_shape_rank.is_static()) {
-        output_shapes[2] = ov::PartialShape({im_info_shape[0]});
+    if (op->get_attrs().static_output) {
+        NODE_VALIDATION_CHECK(op,
+                              im_info_shape_rank.is_static(),
+                              "im_info shape must be static to infer static output shapes");
+
+        const auto num_batches = im_info_shape[0];
+        const Dimension post_nms_count = op->get_attrs().post_nms_count;
+        const auto first_dimension = num_batches * post_nms_count;
+
+        output_shapes[0] = ov::PartialShape({first_dimension, 4});
+        output_shapes[1] = ov::PartialShape({first_dimension});
+        output_shapes[2] = ov::PartialShape({num_batches});
     } else {
-        output_shapes[2] = ov::PartialShape::dynamic(1);
+        output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
+        output_shapes[1] = ov::PartialShape::dynamic(1);
+        if (im_info_shape_rank.is_static()) {
+            output_shapes[2] = ov::PartialShape({im_info_shape[0]});
+        } else {
+            output_shapes[2] = ov::PartialShape::dynamic(1);
+        }
     }
 }
 
