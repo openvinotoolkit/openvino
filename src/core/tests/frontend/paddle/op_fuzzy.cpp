@@ -266,6 +266,7 @@ static const std::vector<std::string> models{
     std::string("nearest_downsample_false_1"),
     std::string("nearest_upsample_false_0"),
     std::string("nearest_upsample_false_1"),
+    std::string("not_equal"),
     std::string("pad3d_test1"),
     std::string("pad3d_test2"),
     std::string("pad3d_test3"),
