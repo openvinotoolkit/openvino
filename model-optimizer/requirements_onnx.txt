@@ -1,3 +1,4 @@
+protobuf>=3.15,<4.0.0
 onnx>=1.8.1
 networkx~=2.5
 numpy>=1.16.6,<1.20
