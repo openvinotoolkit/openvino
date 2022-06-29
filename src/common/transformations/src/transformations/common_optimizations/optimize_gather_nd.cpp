@@ -33,18 +33,16 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!const_indices_node) {
             return false;
         }
-        const auto& const_indices_values = const_indices_node->cast_vector<int64_t>();
+        const auto const_indices_values = const_indices_node->cast_vector<int64_t>();
         if (const_indices_values.size() == 0) {
             return false;
         }
         const auto data = gather_nd_node->get_input_source_output(0);
-        const auto data_shape = data.get_partial_shape();
+        const auto& data_shape = data.get_partial_shape();
         if (data_shape.is_dynamic()) {
             return false;
         }
-
-        const auto original_indices_shape = original_indices.get_shape();
-        const auto n_dims = original_indices_shape[original_indices_shape.size() - 1];
+        const auto n_dims = original_indices.get_shape().back();
         std::vector<int64_t> meaningful_indices;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         for (int i = 0; i < n_dims; i++) {
