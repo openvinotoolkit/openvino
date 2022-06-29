@@ -29,7 +29,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!const_indices_node) {
             return false;
         }
-        const auto& const_indices_values = const_indices_node->cast_vector<int64_t>();
+        const auto const_indices_values = const_indices_node->cast_vector<int64_t>();
         if (const_indices_values.size() == 0) {
             return false;
         }
