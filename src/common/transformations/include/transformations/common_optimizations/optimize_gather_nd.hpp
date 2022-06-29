@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
-#include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
@@ -18,7 +15,7 @@ class TRANSFORMATIONS_API OptimizerGatherND;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Optimizing GatherND by replacing it with Reshape and Gather
+ * @brief Optimize GatherND by replacing it with Reshape and Gather
  */
 class ov::pass::OptimizerGatherND : public ngraph::pass::MatcherPass {
 public:

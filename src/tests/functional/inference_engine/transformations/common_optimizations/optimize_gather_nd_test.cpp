@@ -122,3 +122,16 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validdata) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
 }
+
+/* TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validdata_batchdims) {
+    {
+        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {0, 1, 0, 0});
+        auto batch_dims = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
+        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
+
+        auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices, batch_dims);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
+
+        manager.register_pass<ov::pass::OptimizerGatherND>();
+    }
+} */

@@ -37,6 +37,7 @@
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
+#include <transformations/common_optimizations/optimize_gather_nd.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
