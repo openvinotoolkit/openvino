@@ -146,10 +146,39 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libtheora-1.1.1-21.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/opus-1.3-0.4.beta.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/orc-0.4.28-3.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libglvnd-gles-1.3.4-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
+        http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/libvisual-0.4.0-25.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/liba52-0.7.4-32.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdread-5.0.3-9.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libXv-1.0.11-7.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/taglib-1.11.1-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mpg123-libs-1.25.10-2.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/lame-libs-3.100-6.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/BaseOS/x86_64/os/Packages/libgudev-232-4.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libv4l-1.14.2-3.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/speex-1.2.0-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libraw1394-2.1.2-5.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libsrtp-1.5.4-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libvpx-1.7.0-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/wavpack-5.1.0-15.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libiec61883-1.2.0-18.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libshout-2.2.2-19.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/twolame-libs-0.3.13-12.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libavc1394-0.5.4-7.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdv-1.0.0-27.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libdvdnav-5.0.3-8.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/webrtc-audio-processing-0.3-9.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-base-1.16.1-2.el8.x86_64.rpm
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-1.16.1-2.el8.x86_64.rpm
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.x86_64.rpm
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.x86_64.rpm
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.x86_64.rpm
+        https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/soundtouch-2.0.0-3.el8.x86_64.rpm
     )
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
