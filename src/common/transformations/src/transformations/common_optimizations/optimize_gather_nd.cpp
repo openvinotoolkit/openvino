@@ -15,8 +15,9 @@
 
 ov::pass::OptimizerGatherND::OptimizerGatherND() {
     MATCHER_SCOPE(OptimizerGatherND);
+    auto indices = pattern::wrap_type<op::v0::Constant>();
     auto gather_nd =
-        pattern::wrap_type<ov::op::util::GatherNDBase>({pattern::any_input(), pattern::wrap_type<op::v0::Constant>()});
+        pattern::wrap_type<ov::op::util::GatherNDBase>({pattern::any_input(), indices});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto gather_nd_node = std::dynamic_pointer_cast<ov::op::util::GatherNDBase>(m.get_match_root());
@@ -38,10 +39,11 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             return false;
         }
         const auto data = gather_nd_node->get_input_source_output(0);
-        const auto& data_shape = data.get_partial_shape();
-        if (data_shape.is_dynamic()) {
+        const auto& data_partial_shape = data.get_partial_shape();
+        if (data_partial_shape.is_dynamic()) {
             return false;
         }
+        const auto& data_shape = data_partial_shape.get_shape();
         const auto n_dims = original_indices.get_shape().back();
         std::vector<int64_t> meaningful_indices;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
