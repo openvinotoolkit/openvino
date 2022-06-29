@@ -145,7 +145,7 @@ _install_user_mode_redhat()
           "dnf install --refresh -y \
             intel-igc-opencl-1.0.10409-i699.3.el8.x86_64 \
             intel-media-22.2.2-i699.3.el8.x86_64 \
-            install level-zero-1.7.9-i699.3.el8.x86_64 \
+            level-zero-1.7.9-i699.3.el8.x86_64 \
             intel-opencl-22.10.22597-i699.3.el8.x86_64  \
             intel-igc-core-1.0.10409-i699.3.el8.x86_64 \
             intel-ocloc-22.10.22597-i699.3.el8.x86_64 \
