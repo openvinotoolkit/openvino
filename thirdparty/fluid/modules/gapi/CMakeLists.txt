@@ -28,15 +28,6 @@ ocv_add_module(gapi
       python
 )
 
-if((${CMAKE_SYSTEM_NAME} MATCHES "Linux") AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11.2))
-  add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/opencv2/gapi/util/variant.hpp
-  COMMAND patch
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/opencv2/gapi/util/variant.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/opencv2/gapi/util/variant.hpp.patch
-  )
-endif()
-
 if(MSVC)
   if(MSVC_VERSION LESS 1910)
     # Disable obsolete warning C4503 popping up on MSVC << 15 2017
