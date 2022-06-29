@@ -16,13 +16,26 @@ using namespace ov::test::subgraph;
 
 namespace {
 
+class ThresholdReadIRTest : public ReadIRTest {
+protected:
+    void SetUp() override {
+        ReadIRTest::SetUp();
+        abs_threshold = 1.0001;
+    }
+};
+
+TEST_P(ThresholdReadIRTest, CpuReadIR) {
+    run();
+}
+
 INSTANTIATE_TEST_SUITE_P(conformance,
-                         ReadIRTest,
+                         ThresholdReadIRTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(getModelPaths(IRFolderPaths)),
                                  ::testing::Values(targetDevice),
                                  ::testing::Values(pluginConfig)),
-                         ReadIRTest::getTestCaseName);
+                         ThresholdReadIRTest::getTestCaseName);
+
 }  // namespace
 
 }  // namespace op
