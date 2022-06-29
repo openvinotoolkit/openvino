@@ -34,7 +34,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             return false;
         }
         const auto data = gather_nd_node->get_input_source_output(0);
-        const auto data_shape = data.get_shape();
+        const auto& data_shape = data.get_shape();
 
         const auto original_indices_shape = original_indices.get_shape();
         const auto n_dims = original_indices_shape[original_indices_shape.size() - 1];
