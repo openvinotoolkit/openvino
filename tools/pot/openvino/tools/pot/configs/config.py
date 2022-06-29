@@ -247,7 +247,7 @@ class Config(Dict):
                 'shuffle_data': None,
                 'seed': None,
             },
-            'Ranger': {
+            'RangeSupervision': {
                 'stat_subset_size': None,
                 'shuffle_data': None,
                 'seed': None,
