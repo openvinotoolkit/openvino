@@ -36,13 +36,14 @@ public:
     std::vector<std::string> dump_layers;        // Dump intermediate buffers of specified layers only
     std::string dry_run_path;       // Dry run and serialize execution graph into the specified path
     int dump_layers_dst_only;       // Dump only output of layers
+    int dump_layers_result;         // Dump result layers
     int dump_layers_limit_batch;    // Limit the size of batch to dump
     int base_batch_for_memory_estimation; // Base batch size to be used in memory estimation
     std::vector<std::string> after_proc; // Start inference after the listed processes
     int serialize_compile;          // Serialize creating primitives and compiling kernels
     std::string forced_impl_type; // Force implementation type either ocl or onednn
     static const debug_configuration *get_instance();
-    bool is_dumped_layer(const std::string& layerName) const;
+    bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
 };
 
 }  // namespace cldnn
