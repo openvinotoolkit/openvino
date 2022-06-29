@@ -13,9 +13,9 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template <typename T, cldnn::format::type l>
+template <typename DataType, cldnn::format::type l>
 struct TypeWithLayoutFormat {
-    using Type = T;
+    using Type = DataType;
     static const cldnn::format::type layout = l;
 };
 
@@ -52,40 +52,42 @@ struct non_max_suppression_basic : public testing::Test {
     //   0      1     1     0.2    -- iou 0.72
     //   1      1     1     0.2    -- iou 0.29
     //   1      1     0     0.1    -- iou 0.43
-    using T = typename TypeWithLayout::Type;
+    using DataType = typename TypeWithLayout::Type;
     const int batch_size = 2;
     const int classes_num = 2;
     const int boxes_num = 3;
     const int selected_indices_num = 6;
 
-    const std::vector<T> boxes_data = {
-        T(0.f), T(0.f), T(10.f), T(10.f), T(0.f), T(2.f), T(9.f), T(10.f), T(5.f), T(1.f), T(10.f), T(10.f),
-
-        T(5.f), T(0.f), T(10.f), T(5.f),  T(0.f), T(0.f), T(5.f), T(5.f),  T(2.f), T(0.f), T(9.f),  T(4.f),
+    const std::vector<DataType> boxes_data = {
+        DataType(0.f), DataType(0.f),  DataType(10.f), DataType(10.f), DataType(0.f),  DataType(2.f),
+        DataType(9.f), DataType(10.f), DataType(5.f),  DataType(1.f),  DataType(10.f), DataType(10.f),
+        DataType(5.f), DataType(0.f),  DataType(10.f), DataType(5.f),  DataType(0.f),  DataType(0.f),
+        DataType(5.f), DataType(5.f),  DataType(2.f),  DataType(0.f),  DataType(9.f),  DataType(4.f),
     };
 
-    const std::vector<T> scores_data = {
-        T(0.3f),
-        T(0.7f),
-        T(0.9f),
-        T(0.9f),
-        T(0.2f),
-        T(0.75f),
-        T(0.25f),
-        T(0.5f),
-        T(0.8f),
-        T(0.1f),
-        T(0.2f),
-        T(0.3f),
+    const std::vector<DataType> scores_data = {
+        DataType(0.3f),
+        DataType(0.7f),
+        DataType(0.9f),
+        DataType(0.9f),
+        DataType(0.2f),
+        DataType(0.75f),
+        DataType(0.25f),
+        DataType(0.5f),
+        DataType(0.8f),
+        DataType(0.1f),
+        DataType(0.2f),
+        DataType(0.3f),
     };
 
-    const layout boxes_layout =
-        layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(batch_size), feature(boxes_num), spatial(1, 4)));
-    const layout scores_layout = layout(type_to_data_type<T>::value,
+    const layout boxes_layout = layout(type_to_data_type<DataType>::value,
+                                       format::bfyx,
+                                       tensor(batch(batch_size), feature(boxes_num), spatial(1, 4)));
+    const layout scores_layout = layout(type_to_data_type<DataType>::value,
                                         format::bfyx,
                                         tensor(batch(batch_size), feature(classes_num), spatial(1, boxes_num)));
     const layout selected_scores_layout =
-        layout(type_to_data_type<T>::value, format::bfyx, tensor(batch(selected_indices_num), feature(3)));
+        layout(type_to_data_type<DataType>::value, format::bfyx, tensor(batch(selected_indices_num), feature(3)));
     const layout valid_outputs_layout = layout(cldnn::data_types::i32, format::bfyx, tensor(batch(1)));
 
     memory::ptr get_boxes_memory(engine& engine) {
@@ -112,7 +114,7 @@ struct non_max_suppression_basic : public testing::Test {
 
     static const format::type layout_format = TypeWithLayout::layout;
 
-    static const data_types data_type = type_to_data_type<T>::value;
+    static const data_types data_type = type_to_data_type<DataType>::value;
 
     const int pad = -1;
 };
