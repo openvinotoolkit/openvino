@@ -73,6 +73,7 @@
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
@@ -160,6 +161,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
+
+        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
         precisions_array convert_precision_list {
                 {ngraph::element::f64, ngraph::element::f32},
