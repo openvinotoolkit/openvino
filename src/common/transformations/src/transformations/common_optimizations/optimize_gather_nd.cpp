@@ -17,8 +17,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
     MATCHER_SCOPE(OptimizerGatherND);
     auto indices = pattern::wrap_type<op::v0::Constant>();
     auto data = pattern::any_input();
-    auto gather_nd =
-        pattern::wrap_type<ov::op::util::GatherNDBase>({data, indices});
+    auto gather_nd = pattern::wrap_type<ov::op::util::GatherNDBase>({data, indices});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto gather_nd_node = std::dynamic_pointer_cast<ov::op::util::GatherNDBase>(m.get_match_root());
@@ -30,7 +29,8 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             return false;
         }
         const auto& pattern_to_output = m.get_pattern_value_map();
-        const auto indicies_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(indices).get_node_shared_ptr());
+        const auto indicies_input =
+            std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(indices).get_node_shared_ptr());
         if (!indicies_input) {
             return false;
         }
@@ -94,4 +94,3 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(gather_nd, matcher_name);
     register_matcher(m, callback);
 }
- 
