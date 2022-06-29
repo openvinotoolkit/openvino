@@ -146,6 +146,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
+    common_fusions->add_matcher<ov::pass::OptimizerGatherND>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();

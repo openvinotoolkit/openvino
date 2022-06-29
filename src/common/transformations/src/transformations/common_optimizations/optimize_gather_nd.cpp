@@ -16,8 +16,9 @@
 ov::pass::OptimizerGatherND::OptimizerGatherND() {
     MATCHER_SCOPE(OptimizerGatherND);
     auto indices = pattern::wrap_type<op::v0::Constant>();
+    auto data = pattern::any_input();
     auto gather_nd =
-        pattern::wrap_type<ov::op::util::GatherNDBase>({pattern::any_input(), indices});
+        pattern::wrap_type<ov::op::util::GatherNDBase>({data, indices});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto gather_nd_node = std::dynamic_pointer_cast<ov::op::util::GatherNDBase>(m.get_match_root());
@@ -28,23 +29,22 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (batch_dims != 0) {
             return false;
         }
-        const auto original_indices = gather_nd_node->get_input_source_output(1);
-        const auto const_indices_node =
-            std::dynamic_pointer_cast<ngraph::opset8::Constant>(original_indices.get_node_shared_ptr());
-        if (!const_indices_node) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto indicies_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(indices).get_node_shared_ptr());
+        if (!indicies_input) {
             return false;
         }
-        const auto const_indices_values = const_indices_node->cast_vector<int64_t>();
+        const auto const_indices_values = indicies_input->cast_vector<int64_t>();
         if (const_indices_values.size() == 0) {
             return false;
         }
-        const auto data = gather_nd_node->get_input_source_output(0);
-        const auto& data_partial_shape = data.get_partial_shape();
+        const auto data_input = pattern_to_output.at(data);
+        const auto& data_partial_shape = data_input.get_partial_shape();
         if (data_partial_shape.is_dynamic()) {
             return false;
         }
         const auto& data_shape = data_partial_shape.get_shape();
-        const auto n_dims = original_indices.get_shape().back();
+        const auto n_dims = indicies_input->get_shape().back();
         std::vector<int64_t> meaningful_indices;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         for (int i = 0; i < n_dims; i++) {
