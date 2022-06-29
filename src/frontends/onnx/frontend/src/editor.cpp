@@ -246,9 +246,12 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
                                               frontend::ExtensionHolder extensions,
                                               std::shared_ptr<void> shared_object)
-    : ONNXModelEditor(ngraph::file_util::wstring_to_string(model_path),
-                      std::move(extensions),
-                      std::move(shared_object)) {}
+    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
+      m_extensions{std::move(extensions)},
+      m_shared_object{std::move(shared_object)},
+      m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
+                  delete impl;
+              }} {}
 #endif
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,

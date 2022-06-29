@@ -11,8 +11,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes openvi
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_ONNX_MODELS_DIRNAME=\"${TEST_ONNX_MODELS_DIRNAME}/\")
 target_compile_definitions(${TARGET_NAME} PRIVATE -D MANIFEST=\"${MANIFEST}\")
 
-add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
-add_dependencies(${TARGET_NAME} test_model_zoo)
+add_dependencies(${TARGET_NAME} openvino_onnx_frontend test_model_zoo)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

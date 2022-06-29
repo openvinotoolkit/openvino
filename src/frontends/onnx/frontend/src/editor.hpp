@@ -55,8 +55,6 @@ public:
                     frontend::ExtensionHolder extensions = {},
                     std::shared_ptr<void> shared_obj = nullptr);
 
-    ~ONNXModelEditor() = default;
-
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
     ///

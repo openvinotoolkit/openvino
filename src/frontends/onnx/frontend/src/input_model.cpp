@@ -24,7 +24,7 @@ InputModel::InputModel(const std::string& path,
 InputModel::InputModel(const std::wstring& path,
                        std::shared_ptr<void> shared_object,
                        frontend::ExtensionHolder extensions)
-    : InputModel(ov::util::wstring_to_string(path), std::move(shared_object), std::move(extensions)) {}
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions), std::move(shared_object))} {}
 #endif
 
 InputModel::InputModel(std::istream& model_stream,
