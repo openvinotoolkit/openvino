@@ -700,8 +700,8 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (int i = 1; i <= dilations.size(); i++) {
-        defConvAttr.dilation.push_back(dilations[dilations.size() - i] - 1);
+    for (int i = 0; i < dilations.size(); i++) {
+        defConvAttr.dilation.push_back(dilations[i] - 1);
     }
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
