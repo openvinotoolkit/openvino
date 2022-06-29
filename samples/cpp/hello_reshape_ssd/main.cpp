@@ -8,7 +8,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 #include "format_reader_ptr.h"
 #include "samples/args_helper.hpp"
@@ -53,7 +53,8 @@ int main(int argc, char* argv[]) {
         // try to find it.
         const ov::NodeVector ops = model->get_ops();
         const auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-            return node->get_type_info() == ov::opset8::DetectionOutput::get_type_info_static();
+            return std::string{node->get_type_name()} ==
+                   std::string{ov::opset9::DetectionOutput::get_type_info_static().name};
         });
         if (it == ops.end()) {
             throw std::logic_error("model does not contain DetectionOutput layer");
