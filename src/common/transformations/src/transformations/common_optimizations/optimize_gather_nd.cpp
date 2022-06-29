@@ -36,8 +36,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         const auto data = gather_nd_node->get_input_source_output(0);
         const auto& data_shape = data.get_shape();
 
-        const auto original_indices_shape = original_indices.get_shape();
-        const auto n_dims = original_indices_shape[original_indices_shape.size() - 1];
+        const auto n_dims = original_indices.get_shape().back();
         std::vector<int64_t> meaningful_dim;
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         for (int i = 0; i < n_dims; i++) {
