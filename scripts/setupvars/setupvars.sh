@@ -51,7 +51,7 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
     fi
-    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
     export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
 fi
 
