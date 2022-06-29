@@ -694,7 +694,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             auto& node = _program->get_node(inst->id());
             const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name)) {
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }
