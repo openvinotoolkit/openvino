@@ -189,7 +189,12 @@ enum ReductionType {
 
 enum class DFTOpType {
     FORWARD,
-    INVERSE
+    INVERSE,
+};
+
+enum class DFTOpMode {
+    COMPLEX,
+    REAL,
 };
 
 enum class InputLayerType {

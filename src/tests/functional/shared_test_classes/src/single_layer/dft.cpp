@@ -12,8 +12,9 @@ std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams
     std::vector<int64_t> axes;
     std::vector<int64_t> signalSize;
     ngraph::helpers::DFTOpType opType;
+    ngraph::helpers::DFTOpMode opMode;
     std::string targetDevice;
-    std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = obj.param;
+    std::tie(inputShapes, inputPrecision, axes, signalSize, opType, opMode, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -21,6 +22,7 @@ std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams
     result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
     result << "SignalSize=" << CommonTestUtils::vec2str(signalSize) << "_";
     result << "Inverse=" << (opType == ngraph::helpers::DFTOpType::INVERSE) << "_";
+    result << "Real=" << (opMode == ngraph::helpers::DFTOpMode::REAL) << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -31,14 +33,15 @@ void DFTLayerTest::SetUp() {
     std::vector<int64_t> axes;
     std::vector<int64_t> signalSize;
     ngraph::helpers::DFTOpType opType;
-    std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = this->GetParam();
+    ngraph::helpers::DFTOpMode opMode;
+    std::tie(inputShapes, inputPrecision, axes, signalSize, opType, opMode, targetDevice) = this->GetParam();
     auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     ngraph::ParameterVector paramVector;
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto dft = ngraph::builder::makeDFT(paramOuts[0], axes, signalSize, opType);
+    auto dft = ngraph::builder::makeDFT(paramOuts[0], axes, signalSize, opType, opMode);
 
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(dft)};

@@ -8,58 +8,124 @@
 
 namespace {
 
-const std::vector<ngraph::helpers::DFTOpType> opTypes = {ngraph::helpers::DFTOpType::FORWARD,
-                                                         ngraph::helpers::DFTOpType::INVERSE};
-const std::vector<InferenceEngine::Precision> inputPrecision = {InferenceEngine::Precision::FP32,
-                                                                InferenceEngine::Precision::FP16};
+const std::vector<ngraph::helpers::DFTOpType> opTypes = {
+    ngraph::helpers::DFTOpType::FORWARD,
+    ngraph::helpers::DFTOpType::INVERSE,
+};
+
+const std::vector<ngraph::helpers::DFTOpMode> opModes = {
+    ngraph::helpers::DFTOpMode::COMPLEX,
+    ngraph::helpers::DFTOpMode::REAL,
+};
+
+const std::vector<InferenceEngine::Precision> inputPrecisions = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
+};
+
 const auto combine = [](const std::vector<InferenceEngine::SizeVector>& inputShapes,
                         const std::vector<std::vector<int64_t>>& axes,
                         const std::vector<std::vector<int64_t>>& signalSizes) {
     return testing::Combine(testing::ValuesIn(inputShapes),
-                            testing::ValuesIn(inputPrecision),
+                            testing::ValuesIn(inputPrecisions),
                             testing::ValuesIn(axes),
                             testing::ValuesIn(signalSizes),
                             testing::ValuesIn(opTypes),
+                            testing::ValuesIn(opModes),
                             testing::Values(CommonTestUtils::DEVICE_GPU));
 };
 
 using namespace LayerTestsDefinitions;
 
+// RDFT can support 1d
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_1d_real,
+                         DFTLayerTest,
+                         testing::Combine(testing::Values(InferenceEngine::SizeVector{10}),
+                                          testing::ValuesIn(inputPrecisions),
+                                          testing::Values(std::vector<int64_t>{0}),
+                                          testing::Values(std::vector<int64_t>{}),
+                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ngraph::helpers::DFTOpMode::REAL),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         DFTLayerTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,
                          DFTLayerTest,
-                         combine({{10, 2}, {1, 2}},  // input shapes
-                                 {{0}, {-1}},        // axes
-                                 {{}, {5}}),         // signal sizes
+                         combine({{10, 2}},    // input shapes
+                                 {{0}, {-1}},  // axes
+                                 {{}, {5}}),   // signal sizes
                          DFTLayerTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_3d,
                          DFTLayerTest,
-                         combine({{10, 4, 2}, {1, 17, 2}},  // input shapes
-                                 {{0, 1}, {-1, -2}},        // axes
-                                 {{}, {5, 2}}),             // signal sizes
+                         combine({{10, 4, 2}},        // input shapes
+                                 {{0, 1}, {-1, -2}},  // axes
+                                 {{}, {5, 2}}),       // signal sizes
                          DFTLayerTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d,
                          DFTLayerTest,
-                         combine({{10, 4, 8, 2}, {1, 17, 12, 2}},  // input shapes
-                                 {{0, 1, 2}, {-1, -2, -3}},        // axes
-                                 {{}, {5, 2, 5}}),                 // signal sizes
+                         combine({{10, 4, 8, 2}},            // input shapes
+                                 {{0, 1, 2}, {-1, -2, -3}},  // axes
+                                 {{}, {5, 2, 5}}),           // signal sizes
                          DFTLayerTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d,
                          DFTLayerTest,
-                         combine({{10, 4, 8, 2, 2}, {1, 17, 12, 1, 2}},  // input shapes
-                                 {{0, 1, 2, 3}, {-1, -2, -3, -4}},       // axes
-                                 {{}, {5, 2, 5, 20}}),                   // signal sizes
+                         combine({{10, 4, 8, 2, 2}},                // input shapes
+                                 {{0, 1, 2, 3}, {-1, -2, -3, -4}},  // axes
+                                 {{}, {5, 2, 5, 20}}),              // signal sizes
                          DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d,
+
+// RDFT can support last axis
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d_real_last_axis,
                          DFTLayerTest,
-                         combine({{10, 4, 8, 2, 5, 2}, {1, 17, 12, 1, 7, 2}},  // input shapes
-                                 {{0, 1, 2, 3, 4}, {-1, -2, -3, -4, -5}},      // axes
-                                 {{}, {5, 2, 5, 20, 10}}),                     // signal sizes
+                         testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5}),
+                                          testing::ValuesIn(inputPrecisions),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{
+                                              {{0, 1, 2, 3, 4}, {-1, -2, -3, -4, -5}}}),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD),
+                                          testing::Values(ngraph::helpers::DFTOpMode::REAL),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
                          DFTLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_zero,
+
+// DFT, IDFT and IRDFT can support 6d
+INSTANTIATE_TEST_SUITE_P(
+    smoke_DFT_6d_complex,
+    DFTLayerTest,
+    testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
+                     testing::ValuesIn(inputPrecisions),
+                     testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}, {-1, -2, -3, -4, -5}}}),
+                     testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                     testing::Values(ngraph::helpers::DFTOpType::FORWARD, ngraph::helpers::DFTOpType::INVERSE),
+                     testing::Values(ngraph::helpers::DFTOpMode::COMPLEX),
+                     testing::Values(CommonTestUtils::DEVICE_GPU)),
+    DFTLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_real,
                          DFTLayerTest,
-                         combine({{10, 4, 8, 2, 5, 2}, {1, 17, 12, 1, 7, 2}},  // input shapes
-                                 {{}},                                         // axes
-                                 {{}}),                                        // signal sizes
+                         testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
+                                          testing::ValuesIn(inputPrecisions),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{
+                                              {{0, 1, 2, 3, 4}, {-1, -2, -3, -4, -5}}}),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                                          testing::Values(ngraph::helpers::DFTOpType::INVERSE),
+                                          testing::Values(ngraph::helpers::DFTOpMode::REAL),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         DFTLayerTest::getTestCaseName);
+
+// DFT and IDFT can support empty axes
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_complex_empty_axes,
+                         DFTLayerTest,
+                         testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
+                                          testing::ValuesIn(inputPrecisions),
+                                          testing::Values(std::vector<int64_t>{}),
+                                          testing::Values(std::vector<int64_t>{}),
+                                          testing::Values(ngraph::helpers::DFTOpType::FORWARD,
+                                                          ngraph::helpers::DFTOpType::INVERSE),
+                                          testing::Values(ngraph::helpers::DFTOpMode::COMPLEX),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
                          DFTLayerTest::getTestCaseName);
 
 }  // namespace

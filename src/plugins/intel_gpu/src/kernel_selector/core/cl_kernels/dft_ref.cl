@@ -6,16 +6,14 @@
 
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
-#define real(a)                     ((a).s0)
-#define imag(a)                     ((a).s1)
-#define cmult(a, b)                 ((cfloat)(real(a) * real(b) - imag(a) * imag(b), real(a) * imag(b) + imag(a) * real(b)))
-#define crmult(a, b)                ((cfloat)(real(a) * (b), imag(a) * (b)))
-#define cadd(a, b)                  ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
-#define expi(x)                     ((cfloat)(cos(x), sin(x)))
-#define expmi(x)                    ((cfloat)(cos(x), -sin(x)))
-#define cload(p, offset, pitch)     ((cfloat)((p)[offset], (p)[(offset) + (pitch)]))
-#define cstore(p, offset, pitch, x) ((p)[offset] = real(x), (p)[(offset) + (pitch)] = imag(x))
-#define czero()                     ((cfloat)(0))
+#define real(a)      ((a).s0)
+#define imag(a)      ((a).s1)
+#define cmult(a, b)  ((cfloat)(real(a) * real(b) - imag(a) * imag(b), real(a) * imag(b) + imag(a) * real(b)))
+#define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
+#define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
+#define expi(x)      ((cfloat)(cos(x), sin(x)))
+#define expmi(x)     ((cfloat)(cos(x), -sin(x)))
+#define czero()      ((cfloat)(0))
 
 // TODO: pregenerate e{r,i} array on host in macro. maybe it could be done with kernel which runs once?
 KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) {
@@ -23,105 +21,132 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
 
-    const uint x = 0;
-    const uint y = dim0;
+    uint y = dim0;
 #if OUTPUT_DIMS == 4
-#    define ORDER   b, f, y, x
-#    define ORDER_K kb, kf, ky, x
-    const uint f = dim1;
-    const uint b = dim2;
+#    define ORDER_REAL b, f, y, 0
+#    define ORDER_IMAG b, f, y, 1
+    uint f = dim1;
+    uint b = dim2;
 #elif OUTPUT_DIMS == 5
-#    define ORDER   b, f, z, y, x
-#    define ORDER_K kb, kf, kz, ky, x
-    const uint z = dim1;
-    const uint f = dim2 % OUTPUT_FEATURE_NUM;
-    const uint b = dim2 / OUTPUT_FEATURE_NUM;
+#    define ORDER_REAL b, f, z, y, 0
+#    define ORDER_IMAG b, f, z, y, 1
+    uint z = dim1;
+    uint f = dim2 % OUTPUT_FEATURE_NUM;
+    uint b = dim2 / OUTPUT_FEATURE_NUM;
 #elif OUTPUT_DIMS == 6
-#    define ORDER   b, f, w, z, y, x
-#    define ORDER_K kb, kf, kw, kz, ky, x
-    const uint z = dim1 % OUTPUT_SIZE_Z;
-    const uint w = dim1 / OUTPUT_SIZE_Z;
-    const uint f = dim2 % OUTPUT_FEATURE_NUM;
-    const uint b = dim2 / OUTPUT_FEATURE_NUM;
+#    define ORDER_REAL b, f, w, z, y, 0
+#    define ORDER_IMAG b, f, w, z, y, 1
+    uint z = dim1 % OUTPUT_SIZE_Z;
+    uint w = dim1 / OUTPUT_SIZE_Z;
+    uint f = dim2 % OUTPUT_FEATURE_NUM;
+    uint b = dim2 / OUTPUT_FEATURE_NUM;
+#endif
+
+    const uint output_real_index = GET_INDEX(OUTPUT, ORDER_REAL);
+#if !defined(REAL_DFT) || !defined(INVERSE_DFT_MULTIPLIER)
+    const uint output_imag_index = GET_INDEX(OUTPUT, ORDER_IMAG);
 #endif
 
     // TODO: use OUTPUT_TYPE for intermediate calculations?
     // We don't use it for now as we will lose a lot of precision for f16 and tests won't pass
+#if defined(REAL_DFT) && defined(INVERSE_DFT_MULTIPLIER)
+    float Y = 0;
+#else
     cfloat Y = czero();
+#endif
     const float PI2 = M_PI_F * 2;
 
 #ifdef AXIS_Y
-    const float ay = PI2 * y / OUTPUT_SIZE_Y;
+    const float ay = PI2 * y / SIGNAL_SIZE_Y;
 #endif
 #ifdef AXIS_Z
-    const float az = PI2 * z / OUTPUT_SIZE_Z;
+    const float az = PI2 * z / SIGNAL_SIZE_Z;
 #endif
 #ifdef AXIS_W
-    const float aw = PI2 * w / OUTPUT_SIZE_W;
+    const float aw = PI2 * w / SIGNAL_SIZE_W;
 #endif
 #ifdef AXIS_FEATURE
-    const float af = PI2 * f / OUTPUT_FEATURE_NUM;
+    const float af = PI2 * f / SIGNAL_SIZE_FEATURE;
 #endif
 #ifdef AXIS_BATCH
-    const float ab = PI2 * b / OUTPUT_BATCH_NUM;
+    const float ab = PI2 * b / SIGNAL_SIZE_BATCH;
 #endif
 
 #ifdef AXIS_BATCH
-    for (uint kb = 0; kb < AXIS_BATCH; ++kb)
-#else
-#    define kb b
+    for (b = 0; b < AXIS_BATCH; ++b)
 #endif
 #ifdef AXIS_FEATURE
-        for (uint kf = 0; kf < AXIS_FEATURE; ++kf)
-#else
-#    define kf f
+        for (f = 0; f < AXIS_FEATURE; ++f)
 #endif
 #ifdef AXIS_W
-            for (uint kw = 0; kw < AXIS_W; ++kw)
-#else
-#    define kw w
+            for (w = 0; w < AXIS_W; ++w)
 #endif
 #ifdef AXIS_Z
-                for (uint kz = 0; kz < AXIS_Z; ++kz)
-#else
-#    define kz z
+                for (z = 0; z < AXIS_Z; ++z)
 #endif
 #ifdef AXIS_Y
-                    for (uint ky = 0; ky < AXIS_Y; ++ky)
-#else
-#    define ky y
+                    for (y = 0; y < AXIS_Y; ++y)
 #endif
                     {
                         float a = 0;
 #ifdef AXIS_Y
-                        a += ay * ky;
+                        a += ay * y;
 #endif
 #ifdef AXIS_Z
-                        a += az * kz;
+                        a += az * z;
 #endif
 #ifdef AXIS_W
-                        a += aw * kw;
+                        a += aw * w;
 #endif
 #ifdef AXIS_FEATURE
-                        a += af * kf;
+                        a += af * f;
 #endif
 #ifdef AXIS_BATCH
-                        a += ab * kb;
+                        a += ab * b;
 #endif
-                        const cfloat X = cload(data, GET_INDEX(INPUT0, ORDER_K), INPUT0_X_PITCH);
-#ifdef INVERSE_DFT_MULTIPLIER
-                        const cfloat E = expi(a);
+                        const uint input_real_index = GET_INDEX(INPUT0, ORDER_REAL);
+// clang-format off
+#if defined(REAL_DFT) && !defined(INVERSE_DFT_MULTIPLIER)
+                        const float X = data[input_real_index];
 #else
-        const cfloat E = expmi(a);
+                        const uint input_imag_index = GET_INDEX(INPUT0, ORDER_IMAG);
+                        const cfloat X = (cfloat)(data[input_real_index], data[input_imag_index]);
 #endif
-                        Y = cadd(Y, cmult(X, E));
-                    }
 
 #ifdef INVERSE_DFT_MULTIPLIER
-    Y = crmult(Y, INVERSE_DFT_MULTIPLIER);
+// No need to calculate E for IRDFT case, as we will calculate manually later
+#    ifndef REAL_DFT
+                        const cfloat E = expi(a);
+#    endif
+#else
+                        const cfloat E = expmi(a);
 #endif
 
-    cstore(output, GET_INDEX(OUTPUT, ORDER), OUTPUT_X_PITCH, Y);
+#ifdef REAL_DFT
+#    ifdef INVERSE_DFT_MULTIPLIER
+                        Y += real(X) * cos(a) - imag(X) * sin(a);
+#    else
+                        Y = cadd(Y, crmult(E, X));
+#    endif
+#else
+                        Y = cadd(Y, cmult(X, E));
+#endif
+                    }
+// clang-format on
+#ifdef INVERSE_DFT_MULTIPLIER
+#    ifdef REAL_DFT
+    Y *= INVERSE_DFT_MULTIPLIER;
+#    else
+    Y = crmult(Y, INVERSE_DFT_MULTIPLIER);
+#    endif
+#endif
+
+#if defined(REAL_DFT) && defined(INVERSE_DFT_MULTIPLIER)
+    output[output_real_index] = Y;
+#else
+    output[output_real_index] = real(Y);
+    output[output_imag_index] = imag(Y);
+#endif
 }
 
 #undef real
@@ -135,5 +160,5 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
 #undef cstore
 #undef czero
 #undef GET_INDEX
-#undef ORDER
-#undef ORDER_K
+#undef ORDER_REAL
+#undef ORDER_IMAG

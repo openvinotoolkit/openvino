@@ -30,4 +30,6 @@ public:
     static std::string to_string(const dft_node& node);
 };
 
+using dft_inst = typed_primitive_inst<dft>;
+
 }  // namespace cldnn

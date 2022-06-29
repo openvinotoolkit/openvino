@@ -18,6 +18,7 @@ typedef std::tuple<
         std::vector<int64_t>,  // Axes
         std::vector<int64_t>,  // Signal size
         ngraph::helpers::DFTOpType,
+        ngraph::helpers::DFTOpMode,
         std::string> DFTParams;   // Device name
 
 class DFTLayerTest : public testing::WithParamInterface<DFTParams>, virtual public LayerTestsUtils::LayerTestsCommon {

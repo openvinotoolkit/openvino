@@ -26,9 +26,33 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         auto primitive = arg.get_primitive();
         params.axes = primitive->axes;
-        if (primitive->kind == dft_kind::inverse) {
-            params.kind = kernel_selector::dft_params::inverse;
+
+        if (primitive->signal_size.empty()) {
+            params.signal_size = std::vector<int64_t>(params.axes.size(), -1);
+        } else {
+            params.signal_size = primitive->signal_size;
         }
+
+        if (primitive->kind == dft_kind::inverse) {
+            params.kind = kernel_selector::dft_params::Kind::inverse;
+        }
+        if (primitive->mode == dft_mode::real) {
+            params.mode = kernel_selector::dft_params::Mode::real;
+        }
+
+        // Extend input layout for RDFT case to make input rank match output rank
+        if (primitive->kind == dft_kind::forward && primitive->mode == dft_mode::real) {
+            auto input_layout = arg.input().get_output_layout();
+            auto output_layout = arg.get_output_layout();
+            // No need to extend layout for input that has less than 4 dimensions
+            if (input_layout.get_rank() != output_layout.get_rank()) {
+                auto new_dims = input_layout.get_dims();
+                new_dims.push_back(1);
+                auto new_fmt = format::get_preserved_blocked_format(new_dims.size(), input_layout.format);
+                params.inputs[0] = convert_data_tensor({input_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
+            }
+        }
+
         auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
@@ -49,11 +73,40 @@ attach_dft_impl::attach_dft_impl() {
     implementation_map<dft>::add(impl_types::ocl,
                                  dft_impl::create,
                                  {
+                                     // f16
                                      std::make_tuple(data_types::f16, format::bfyx),
+                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+
                                      std::make_tuple(data_types::f16, format::bfzyx),
+                                     std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+                                     std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
+                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+
                                      std::make_tuple(data_types::f16, format::bfwzyx),
+
+                                     // f32
                                      std::make_tuple(data_types::f32, format::bfyx),
+                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+
                                      std::make_tuple(data_types::f32, format::bfzyx),
+                                     std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+                                     std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
+                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
+                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+
                                      std::make_tuple(data_types::f32, format::bfwzyx),
                                  });
 }
