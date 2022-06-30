@@ -1032,7 +1032,7 @@ TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultProper
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
-    ov::Any value;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
     ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
 }
@@ -1041,7 +1041,7 @@ TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefa
     ov::Core ie = createCoreWithTemplate();
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
-    ov::Any value;
+    ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
     ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
 }
