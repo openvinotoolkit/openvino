@@ -1168,15 +1168,18 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
-                isFakeQuantizationWithScale = isFakeQuantizationWithScale && ol != 0 && oh != 0 && (il / ol - ih / oh < 0.1f);
+                isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
+                                              (abs(ol / (oh - ol) - il / (ih - il)) < 0.001f);
             }
 
             if (isFakeQuantizationWithScale) {
                 for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                     float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+                    float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+                    float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
-                    fqScales.push_back(1 / (il / ol));
+                    fqScales.push_back(1 / ((ih - il) / (oh - ol)));
                 }
             }
 
