@@ -1712,6 +1712,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+    }
+
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
     return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
 }
