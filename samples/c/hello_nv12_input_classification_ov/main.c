@@ -142,7 +142,7 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
     } else {
         goto error;
     }
-    error:
+error:
     printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
            "actual: %s\n",
            size_str);
@@ -240,8 +240,8 @@ int main(int argc, char** argv) {
         goto err;
     }
 
-    char * input_tensor_name;
-    char * output_tensor_name;
+    char* input_tensor_name;
+    char* output_tensor_name;
     CHECK_STATUS(ov_node_get_tensor_name(&input_nodes, 0, &input_tensor_name));
     CHECK_STATUS(ov_node_get_tensor_name(&output_nodes, 0, &output_tensor_name));
 
@@ -258,7 +258,8 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, U8));
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+    CHECK_STATUS(
+            ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
     // 3) Pre-processing steps:
     //    a) Convert to 'float'. This is to have color conversion more accurate
