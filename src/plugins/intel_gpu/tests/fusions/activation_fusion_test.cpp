@@ -295,3 +295,24 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::
     activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
 }));
+
+class activation_eltwise : public ActivationFusingTest {};
+TEST_P(activation_eltwise, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        activation("act", "input", activation_func::abs),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 10.0f)),
+        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+#define CASE_ACTIVATION_4D_F32_0 { 1, 2, 3, 2, 3, 2 }, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise, ::testing::ValuesIn(std::vector<activation_test_params>{
+    // InputDataType = FP32
+    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_opt" }
+}));
