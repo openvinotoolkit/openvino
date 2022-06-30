@@ -34,8 +34,8 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug:${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
     else
         export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
     fi
@@ -43,7 +43,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     HDDL_UNITE_DIR=$INSTALLDIR/runtime/3rdparty/hddl_unite
 
     if [ -e "$HDDL_UNITE_DIR" ]; then
-        export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
     fi
 fi
 
@@ -56,7 +56,7 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
 fi
 
 if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
-    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
 fi
 
 # OpenCV environment
