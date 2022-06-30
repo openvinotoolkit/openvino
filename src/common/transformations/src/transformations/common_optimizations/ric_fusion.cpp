@@ -644,13 +644,15 @@ class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>(pattern::has_static_rank());
+        auto pattern_root =
+            pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>(pattern::has_static_rank());
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();
             const auto& output = root->output(0);
-
             auto inputs = output.get_target_inputs();
+
+            // Check if an output of matched root is consumed as input labeled with reverse_input_channel_index
             std::vector<ric_attr::Attribute> attrs;
             for (const auto& input : inputs) {
                 if (ric_attr::has(input)) {
@@ -660,11 +662,11 @@ public:
                 }
             }
 
-            // Check that all RIC attrs can be merged and then merge them
+            if (attrs.empty())
+                return false;
 
+            // Check that all RIC attrs from consumers can be merged and then merge them
             auto ric = attrs[0];
-            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
-
             for (const auto& item : attrs) {
                 if (ric.can_be_merged_with(item)) {
                     ric.merge_with(item);
@@ -673,9 +675,10 @@ public:
                 }
             }
 
+            auto data_rank = root->get_output_partial_shape(0).rank().get_length();
             for (const auto& input : root->inputs()) {
-                auto const_output = input.get_source_output();
-                const auto& shape = const_output.get_partial_shape();
+                auto output = input.get_source_output();
+                const auto& shape = output.get_partial_shape();
                 if (shape.rank().is_dynamic())
                     return false;
                 const int64_t& shape_rank = shape.rank().get_length();
@@ -712,10 +715,10 @@ public:
     }
 };
 
-class PassThrough : public ngraph::pass::MatcherPass {
+class ConvertPassThrough : public ngraph::pass::MatcherPass {
 public:
-    PassThrough() {
-        MATCHER_SCOPE(PassThrough);
+    ConvertPassThrough() {
+        MATCHER_SCOPE(ConvertPassThrough);
         auto pattern_root = pattern::wrap_type<opset8::Convert>(pattern::has_static_rank());
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
@@ -746,15 +749,14 @@ public:
             const auto& shape = const_output.get_partial_shape();
             if (shape.rank().is_dynamic())
                 return false;
-            const int64_t& shape_rank = shape.rank().get_length();
 
+            const int64_t& shape_rank = shape.rank().get_length();
             const int64_t& new_axis = ric.get_axis() - (data_rank - shape_rank);
 
             // finally, insert RIC
-
             ric.set_axis(new_axis);
             ric_attr::set(input, ric);
-            MATCHER_SCOPE_ENABLE(PassThrough);
+            MATCHER_SCOPE_ENABLE(ConvertPassThrough);
             return true;
         };
 
@@ -830,9 +832,10 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     ric_prop->add_matcher<prop::PassThrough>();
     ric_prop->add_matcher<prop::Unsupported>();
 
+    // Handle quantized weights case (dequantize sub-graph is on the weights path)
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
     ric_back_prop->add_matcher<back_prop::Binary>();
-    ric_back_prop->add_matcher<back_prop::PassThrough>();
+    ric_back_prop->add_matcher<back_prop::ConvertPassThrough>();
     ric_back_prop->add_matcher<back_prop::Constant>();
     ric_back_prop->add_matcher<back_prop::Unsupported>();
     // TODO: validate attributes by request
