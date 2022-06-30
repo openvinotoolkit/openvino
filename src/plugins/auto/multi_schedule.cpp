@@ -304,7 +304,14 @@ IInferPtr MultiSchedule::CreateInferRequest() {
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
     if (_passthroughExeNet) {
-        if (_multiSContext->_batchingDisabled)
+        std::string perfmode;
+        try {
+            perfmode = _passthroughExeNet->GetConfig(
+                                CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
+        } catch(...) {
+            LOG_INFO("query perf hint from passthrough network failed");
+        }
+        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
         else
             syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
