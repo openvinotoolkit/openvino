@@ -182,13 +182,19 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                     out_fmt = format::b_fs_yx_fsv32;
                 else if (input_layout.format == format::bs_fs_yx_bsv32_fsv16)
                     out_fmt = format::bs_fs_yx_bsv32_fsv32;
-                else if (input_layout.format == format::b_fs_yx_fsv2)
+                else if ((input_layout.format == format::b_fs_yx_fsv2) || (input_layout.format == format::b_fs_yx_fsv4))
                     out_fmt = format::b_fs_yx_fsv32;
+                else if ((input_layout.format == format::bs_fs_yx_bsv8_fsv2) || (input_layout.format == format::bs_fs_yx_bsv8_fsv4))
+                    out_fmt = input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
             } else if (is_3d) {
                 if (input_layout.format == format::b_fs_zyx_fsv16)
                     out_fmt = format::b_fs_zyx_fsv32;
                 else if (input_layout.format == format::bs_fs_zyx_bsv32_fsv16)
                     out_fmt = format::bs_fs_zyx_bsv32_fsv32;
+                else if ((input_layout.format == format::b_fs_zyx_fsv2) || (input_layout.format == format::b_fs_zyx_fsv4))
+                    out_fmt = format::b_fs_zyx_fsv32;
+                else if ((input_layout.format == format::bs_fs_zyx_bsv8_fsv2) || (input_layout.format == format::bs_fs_zyx_bsv8_fsv4))
+                    out_fmt = input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
             }
         } else if (data_type_traits::is_floating_point(output_type)) {
             if (is_2d) {
@@ -196,6 +202,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                     out_fmt = format::b_fs_yx_fsv16;
                 else if (input_layout.format == format::bs_fs_yx_bsv32_fsv32)
                     out_fmt = format::bs_fs_yx_bsv32_fsv16;
+                else if ((input_layout.format == format::b_fs_yx_fsv2) || (input_layout.format == format::b_fs_yx_fsv4))
+                    out_fmt = format::b_fs_yx_fsv16;
+                else if ((input_layout.format == format::bs_fs_yx_bsv8_fsv2) || (input_layout.format == format::bs_fs_yx_bsv8_fsv4))
+                    out_fmt = input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
             } else if (is_3d) {
                 if (input_layout.format == format::b_fs_zyx_fsv32)
                     out_fmt = format::b_fs_zyx_fsv16;
