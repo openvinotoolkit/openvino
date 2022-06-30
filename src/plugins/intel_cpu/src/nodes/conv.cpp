@@ -602,13 +602,6 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                     ops.get()->entry_[0].sum.scale = scale[0];
                     continue;
                 }
-
-                if (ops.len() != 0 && ops.kind(ops.len() - 1) == primitive::kind::eltwise &&
-                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
-                    auto len = ops.len();
-                    ops.get()->entry_[len - 1].eltwise.scale = scale[0];
-                    continue;
-                }
             }
 
             if (useLegacyPostOps) {
