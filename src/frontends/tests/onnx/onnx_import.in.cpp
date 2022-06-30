@@ -5184,6 +5184,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/layer_norm.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
+<<<<<<< HEAD
     std::vector<float> a = {
         31.,  245.,   47.,  239.,
         -106.,  167.,   33.,  157.,
@@ -5204,7 +5205,139 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
     test_case.add_input<float>(scale);
     test_case.add_input<float>(bias);
     test_case.add_expected_output<float>(Shape{3, 4}, b);
+=======
+    std::vector<float> input = {
+        31.,
+        245.,
+        47.,
+        239.,
+        -106.,
+        167.,
+        33.,
+        157.,
+        59.,
+        -193.,
+        -103.,
+        -246.,
+    };
+
+    std::vector<float> bias = {
+        43.,
+        -83.,
+        -92.,
+        12.,
+    };
+
+    std::vector<float> scale = {
+        19.,
+        68.,
+        57.,
+        59.,
+    };
+
+    std::vector<float> output = {
+        22.538681,
+        -13.113842,
+        -144.41461,
+        69.15499,
+        14.064551,
+        -19.023893,
+        -107.303635,
+        62.184105,
+        72.52179,
+        -125.468506,
+        -83.254326,
+        -51.877796,
+    };
+
+    test_case.add_input<float>(Shape{3, 4}, input);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(Shape{3, 4}, output);
+>>>>>>> 818fd9ade... axes issue fixed
 
     test_case.run_with_tolerance_as_fp(1e-5);
 }
 
+<<<<<<< HEAD
+=======
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/layer_norm_dynamic_4d.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    std::vector<float> input = {
+        159., 1.,   214.,  -12.,  -56.,  -165., -38.,  251.,  -226., -201., 113.,  101., -217., 167.,  -199., 230.,
+        -13., 94.,  121.,  78.,   139.,  -56.,  -139., -204., -188., 56.,   -165., 59.,  113.,  229.,  -72.,  75.,
+        -75., 202., -195., -102., -234., 237.,  210.,  -49.,  182.,  195.,  150.,  140., 108.,  -245., 63.,   -249.,
+    };
+    std::vector<float> scale = {
+        -74.,
+        -49.,
+        46.,
+        56.,
+    };
+    std::vector<float> bias = {
+        119.,
+        41.,
+        -23.,
+        71.,
+    };
+    std::vector<float> output = {
+        6.7305779e+01,  8.5723816e+01,  3.4935467e+01,  1.2462846e+01, 1.4495818e+02,  9.2883873e+01,  -3.3757442e+01,
+        1.6303590e+02,  1.9862335e+02,  8.6093529e+01,  2.4633244e+01, 1.2480267e+02,  1.9577968e+02,  -1.3956308e-01,
+        -6.6680313e+01, 1.3526292e+02,  2.4104924e+02,  1.7631407e+01, 2.3617962e+01,  7.9902321e+01,  1.9151673e+00,
+        3.7579597e+01,  -4.9401482e+01, 1.0627163e+01,  2.0007460e+02, -7.2534118e+00, -6.4377121e+01, 1.2757914e+02,
+        1.0059356e+02,  -2.4040894e+01, -9.0688644e+01, 6.5141930e+01, 1.3524843e+02,  -3.9941471e+01, -7.0394051e+01,
+        4.8488670e+01,  2.2384190e+02,  -8.4791994e+00, 1.7051153e+01, 4.5034241e+01,  6.8866104e+01,  -2.0495653e+01,
+        -5.7229656e+01, 4.4509735e+00,  3.5370048e+01,  8.9188629e+01, 1.6592127e+01,  1.4586085e+01,
+    };
+
+    test_case.add_input<float>(Shape{2, 2, 3, 4}, input);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, output);
+
+    test_case.run_with_tolerance_as_fp(1e-5);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d_axis_minus1) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/layer_norm_dynamic_4d_axis_-1.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    std::vector<float> input = {
+        159., 1.,   214.,  -12.,  -56.,  -165., -38.,  251.,  -226., -201., 113.,  101., -217., 167.,  -199., 230.,
+        -13., 94.,  121.,  78.,   139.,  -56.,  -139., -204., -188., 56.,   -165., 59.,  113.,  229.,  -72.,  75.,
+        -75., 202., -195., -102., -234., 237.,  210.,  -49.,  182.,  195.,  150.,  140., 108.,  -245., 63.,   -249.,
+    };
+    std::vector<float> scale = {
+        -74.,
+        -49.,
+        46.,
+        56.,
+    };
+    std::vector<float> bias = {
+        119.,
+        41.,
+        -23.,
+        71.,
+    };
+    std::vector<float> output = {
+        6.7305779e+01,  8.5723816e+01,  3.4935467e+01,  1.2462846e+01, 1.4495818e+02,  9.2883873e+01,  -3.3757442e+01,
+        1.6303590e+02,  1.9862335e+02,  8.6093529e+01,  2.4633244e+01, 1.2480267e+02,  1.9577968e+02,  -1.3956308e-01,
+        -6.6680313e+01, 1.3526292e+02,  2.4104924e+02,  1.7631407e+01, 2.3617962e+01,  7.9902321e+01,  1.9151673e+00,
+        3.7579597e+01,  -4.9401482e+01, 1.0627163e+01,  2.0007460e+02, -7.2534118e+00, -6.4377121e+01, 1.2757914e+02,
+        1.0059356e+02,  -2.4040894e+01, -9.0688644e+01, 6.5141930e+01, 1.3524843e+02,  -3.9941471e+01, -7.0394051e+01,
+        4.8488670e+01,  2.2384190e+02,  -8.4791994e+00, 1.7051153e+01, 4.5034241e+01,  6.8866104e+01,  -2.0495653e+01,
+        -5.7229656e+01, 4.4509735e+00,  3.5370048e+01,  8.9188629e+01, 1.6592127e+01,  1.4586085e+01,
+    };
+
+    test_case.add_input<float>(Shape{2, 2, 3, 4}, input);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, output);
+
+    test_case.run_with_tolerance_as_fp(1e-5);
+}
+>>>>>>> 818fd9ade... axes issue fixed
