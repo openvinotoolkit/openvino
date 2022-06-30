@@ -345,7 +345,7 @@ TEST(type_prop, dft_invalid_axes) {
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis must be less than input rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis 3 must be in the input rank range");
     }
 
     try {
@@ -353,11 +353,11 @@ TEST(type_prop, dft_invalid_axes) {
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis must be positive or equal to zero.");
+        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis -3 must be in the input rank range");
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto axes = op::Constant::create(element::i64, Shape{2}, {0, -2});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -369,7 +369,7 @@ TEST(type_prop, dft_invalid_axes) {
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axes cannot contain the last axis.");
+        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis 2 must be in the input rank range");
     }
 
     try {

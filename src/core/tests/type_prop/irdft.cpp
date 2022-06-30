@@ -344,7 +344,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be less than input rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis 3 must be in the input rank range");
     }
 
     try {
@@ -352,11 +352,11 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be positive or equal to zero.");
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis -3 must be in the input rank range");
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto axes = op::Constant::create(element::i64, Shape{2}, {0, -2});
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -368,7 +368,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "IRDFT op axes cannot contain the last axis.");
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis 2 must be in the input rank range");
     }
 
     try {

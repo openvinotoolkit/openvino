@@ -273,7 +273,7 @@ TEST(type_prop, rdft_invalid_axes) {
         auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
         FAIL() << "RDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be less than input rank.");
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis 3 must be in the input rank range");
     }
 
     try {
@@ -281,11 +281,11 @@ TEST(type_prop, rdft_invalid_axes) {
         auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
         FAIL() << "RDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis must be positive or equal to zero.");
+        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis -4 must be in the input rank range");
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto axes = op::Constant::create(element::i64, Shape{2}, {0, -3});
         auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
         FAIL() << "RDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
