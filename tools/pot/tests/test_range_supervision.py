@@ -25,12 +25,12 @@ def _params(request):
     return request.param
 
 
-def test_ranger_graph(_params, tmp_path, models):
+def test_range_supervision_graph(_params, tmp_path, models):
     model_name, model_framework = _params
 
     algorithm_config = Dict({
         'algorithms': [{
-            'name': 'Ranger',
+            'name': 'RangeSupervision',
             'params': {
                 'target_device': 'ANY',
                 'stat_subset_size': 1
@@ -53,4 +53,4 @@ def test_ranger_graph(_params, tmp_path, models):
     pipeline = create_pipeline(config.compression.algorithms, engine)
 
     optimized_model = pipeline.run(model)
-    check_model(tmp_path, optimized_model, model_name + '_ranger', model_framework)
+    check_model(tmp_path, optimized_model, model_name + '_range_supervision', model_framework)

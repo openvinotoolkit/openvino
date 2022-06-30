@@ -42,7 +42,7 @@ void NonZero::getSupportedDescriptors() {
         return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().size() != 1)
+    if (!getChildEdges().size())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
