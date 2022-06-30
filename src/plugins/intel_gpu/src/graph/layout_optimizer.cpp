@@ -1405,7 +1405,8 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 preferred_type = impl_types::cpu;
 
             if (node.id() == forced_impl_type.substr(0, found_type)) {
-                std::cout << "  >>> " << forced_impl_type.substr(0, found_type) << " : " << forced_impl_type.substr(found_type + 1) << std::endl;
+                GPU_DEBUG_COUT << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                    << forced_impl_type.substr(found_type + 1) << std::endl;
                 return preferred_type;
             }
         }
