@@ -85,7 +85,8 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
         return false;
 
     if (!params.fused_ops.empty() &&
-        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
+        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx &&
+         params.outputs[0].GetLayout() != DataLayout::bfwzyx))
         return false;
 
     return true;
