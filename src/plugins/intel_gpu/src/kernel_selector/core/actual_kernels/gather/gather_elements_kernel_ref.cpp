@@ -35,8 +35,6 @@ static size_t GetGatherElementsChannelIndex(const gather_elements_params& params
 
 ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::UINT8);
-    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
