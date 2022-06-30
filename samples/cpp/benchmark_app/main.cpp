@@ -374,7 +374,7 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
-            if (isFlagSetInCommandLine("do")) {
+            if (isFlagSetInCommandLine("dopt")) {
                 device_config.emplace(ov::denormals_optimization(true));
             }
 
