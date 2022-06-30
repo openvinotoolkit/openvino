@@ -5184,28 +5184,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/layer_norm.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-<<<<<<< HEAD
-    std::vector<float> a = {
-        31.,  245.,   47.,  239.,
-        -106.,  167.,   33.,  157.,
-        59., -193., -103., -246.,
-    };
-
-    std::vector<float> b = {
-        22.538681,  -13.113842, -144.41461 ,   69.15499,
-        14.064551,  -19.023893, -107.303635,   62.184105,
-        72.52179 , -125.468506,  -83.254326,  -51.877796,
-    };
-
-    std::vector<float> bias = {43., -83., -92.,  12.,};
-
-    std::vector<float> scale = {19., 68., 57., 59.,};
-
-    test_case.add_input<float>(Shape{3, 4}, a);
-    test_case.add_input<float>(scale);
-    test_case.add_input<float>(bias);
-    test_case.add_expected_output<float>(Shape{3, 4}, b);
-=======
     std::vector<float> input = {
         31.,
         245.,
@@ -5254,13 +5232,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
     test_case.add_input<float>(scale);
     test_case.add_input<float>(bias);
     test_case.add_expected_output<float>(Shape{3, 4}, output);
->>>>>>> 818fd9ade... axes issue fixed
 
     test_case.run_with_tolerance_as_fp(1e-5);
 }
 
-<<<<<<< HEAD
-=======
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/layer_norm_dynamic_4d.onnx"));
@@ -5340,4 +5315,3 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d_axis_minus1) {
 
     test_case.run_with_tolerance_as_fp(1e-5);
 }
->>>>>>> 818fd9ade... axes issue fixed
