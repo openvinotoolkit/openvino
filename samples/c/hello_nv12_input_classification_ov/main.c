@@ -106,30 +106,11 @@ void print_model_input_output_info(ov_model_t* model) {
  * @return bool status True(success) or False(fail)
  */
 
-bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
-    const char* _size = size_str;
-    size_t _width = 0, _height = 0;
-    while (_size && *_size != 'x' && *_size != '\0') {
-        if ((*_size <= '9') && (*_size >= '0')) {
-            _width = (_width * 10) + (*_size - '0');
-            _size++;
-        } else {
-            goto error;
-        }
-    }
-
-    if (_size)
-        _size++;
-
-    while (_size && *_size != '\0') {
-        if ((*_size <= '9') && (*_size >= '0')) {
-            _height = (_height * 10) + (*_size - '0');
-            _size++;
-        } else {
-            goto error;
-        }
-    }
-
+ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
+     char* p_end;
+     size_t _width = 0, _height = 0;
+     _width = strtoul(size_str, &p_end, 10);
+     _height = strtoul(p_end+1, NULL, 10);
     if (_width > 0 && _height > 0) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
@@ -140,19 +121,12 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
             return false;
         }
     } else {
-        goto error;
+        printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
+               "actual: %s\n",
+               size_str);
+        return false;
     }
-error:
-    printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
-           "actual: %s\n",
-           size_str);
-    return false;
-}
-/*
- bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
-     char *p = strtok(size_str,"x");
-     printf("*p:%c",*p);
- }*/
+ }
 
 size_t getData(const char* img_path, unsigned char* img_data, size_t size) {
     FILE* fp = fopen(img_path, "rb");
@@ -259,7 +233,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, U8));
     CHECK_STATUS(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, NV12_SINGLE_PLANE));
     CHECK_STATUS(
-            ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+        ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
     // 3) Pre-processing steps:
     //    a) Convert to 'float'. This is to have color conversion more accurate
