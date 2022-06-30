@@ -458,6 +458,12 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 /**
+ * @brief The name for setting if using experiment convolution algorithm.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool> enforce_experiment_convolution{"ENFORCE_EXPERIMENT_CONVOLUTION"};
+
+/**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
  *

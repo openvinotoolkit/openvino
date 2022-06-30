@@ -38,6 +38,7 @@ struct Config {
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
     bool manualEnforceBF16 = false;
+    bool enforceExperimentConv = false;
 #endif
 
     std::string cache_dir{};

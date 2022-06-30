@@ -517,6 +517,10 @@ public:
         algorithm = alg;
     }
 
+    void setUseExperimentConvAlgorithm(bool use) {
+        useExperimentConv = use;
+    }
+
     virtual bool canFuse(const NodePtr& node) const {
         return false;
     }
@@ -636,6 +640,8 @@ protected:
     WeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Default;
+
+    bool useExperimentConv = false;
 
     bool isInQuantizedGraph = false;
 

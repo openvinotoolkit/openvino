@@ -386,6 +386,11 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
+                // use experiment convolution
+                if (isFlagSetInCommandLine("expconv")) {
+                    device_config.emplace(ov::enforce_experiment_convolution(true));
+                }
+
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();

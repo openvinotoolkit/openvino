@@ -100,6 +100,8 @@ Options:
                                 letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes("NUMA") or
                                 completely disable("NO") CPU inference threads pinning
+    -expconv                  Optional. Enable new experiment convolution algorithm. Only valid in CPU
+    plugin.
 
   Statistics dumping options:
     -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.

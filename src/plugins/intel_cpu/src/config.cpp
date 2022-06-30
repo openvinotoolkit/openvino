@@ -120,6 +120,19 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
+        } else if (key == PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION) {
+            if (val == PluginConfigParams::YES) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                    enforceExperimentConv = true;
+                } else {
+                    IE_THROW() << "Platform doesn't support experiment convolution algorithm";
+                }
+            } else if (val == PluginConfigParams::NO) {
+                enforceExperimentConv = false;
+            } else {
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION
+                    << ". Expected only YES/NO";
+            }
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
@@ -207,6 +220,11 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+    }
+    if (enforceExperimentConv) {
+        _config.insert({ PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION, PluginConfigParams::YES });
+    } else {
+        _config.insert({ PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION, PluginConfigParams::NO });
     }
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
