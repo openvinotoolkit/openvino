@@ -1,11 +1,11 @@
 # Compile Tool {#openvino_inference_engine_tools_compile_tool_README}
 
 Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
-With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, and then transfer a generated file to any machine with the target inference device available. To learn which device supports import / export functionality, see the [Features support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md).
+With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, and then transfer a generated file to any machine with the target inference device available. To learn which device supports the import / export functionality, see the [feature support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md).
 
-The tool compiles networks for the following target devices using corresponding OpenVINO Runtime plugin: Intel® Neural Compute Stick 2 (MYRIAD plugin).
+The tool compiles networks for the following target devices using a corresponding OpenVINO Runtime plugin: Intel® Neural Compute Stick 2 (MYRIAD plugin).
 
-The tool is delivered as an executable file that can be run on both Linux and Windows, and is located in the `<INSTALLROOT>/tools/compile_tool` directory.
+The tool is delivered as an executable file that can be run on both Linux and Windows. It is located in the `<INSTALLROOT>/tools/compile_tool` directory.
 
 ## Workflow of the Compile tool
 
