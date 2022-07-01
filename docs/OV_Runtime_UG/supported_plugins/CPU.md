@@ -10,7 +10,7 @@ For an in-depth description of CPU plugin, see:
 
 
 ## Device Name
-The `CPU` device name is used for the CPU plugin. Even though there can be more than one socket on a platform, from the perspective of a plugin, there is only one `CPU` device.
+The `CPU` device name is used for the CPU plugin. Even though there can be more than one physical socket on a platform, only one device of this kind is listed by OpenVINO.
 On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
 In order to use CPU for inference, the device name should be passed to the `ov::Core::compile_model()` method:
 
