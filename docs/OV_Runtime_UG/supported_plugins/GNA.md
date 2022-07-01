@@ -232,7 +232,6 @@ These parameters can be changed after model compilation `ov::CompiledModel::set_
 
 ## Limitations
 
-Listed below are all plugin limitations:
 
 ### Model and Operation Limitations
 
