@@ -158,7 +158,7 @@ To compile a model, use either [compile Tool](@ref openvino_inference_engine_too
 GNA plugin natively supports stateful models. For more details on such models, refer to the [Stateful models] (@ref openvino_docs_OV_UG_network_state_intro).
 
 
-> **NOTE**: The GNA is typically used in streaming scenarios when minimizing the latency is important. Taking into account that POT does not support the `TensorIterator` operation, the recommendation is to use the `--transform` option of the Model Optimizer to apply `LowLatency2` transformation when converting an original model.
+> **NOTE**: The GNA is typically used in streaming scenarios when minimizing latency is important. Taking into account that POT does not support the `TensorIterator` operation, the recommendation is to use the `--transform` option of the Model Optimizer to apply `LowLatency2` transformation when converting an original model.
 
 ### Profiling
 The GNA plugin allows turning on profiling, using the `ov::enable_profiling` property.
