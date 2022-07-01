@@ -21,7 +21,7 @@ The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For
 ## Device Naming Convention
 * Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}` (only Intel® GPU devices are considered).
 * If the system has an integrated GPU, its `id` is always 0 (`GPU.0`).
-* Order of other GPUs is not predefined and depends on the GPU driver.
+* The order of other GPUs is not predefined and depends on the GPU driver.
 * The `GPU` is an alias for `GPU.0`.
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as `GPU.X.Y`, where `X,Y={0, 1, 2,...}`, `X` - id of the GPU device, `Y` - id of the tile within device `X`
@@ -106,10 +106,10 @@ The GPU plugin supports the following data types as inference precision of inter
   - u1
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
-The `u1`/`u8`/`i8` data types are used for quantized operations only, i.e., those are not selected automatically for non-quantized operations.
-For more details on how to get a quantized model, refer to the [Model Optimization](@ref openvino_docs_model_optimization_guide).
+The `u1`/`u8`/`i8` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
+For more details on how to get a quantized model, refer to the [Model Optimization guide](@ref openvino_docs_model_optimization_guide).
 
-Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR except [compressed f16 OpenVINO IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in the `f16` precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the [compressed f16 OpenVINO IR form](../../MO_DG/prepare_model/FP16_Compression.md), which is executed in the `f16` precision.
 
 > **NOTE**: Hardware acceleration for `i8`/`u8` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. Hardware support of `u8`/`i8` acceleration can be queried via the `ov::device::capabilities` property.
 
@@ -117,7 +117,7 @@ Floating-point precision of a GPU primitive is selected based on operation preci
 
 ## Supported Features
 
-The GPU plugin supports features listed below:
+The GPU plugin supports the following features:
 
 ### Multi-device Execution
 If a system has multiple GPUs (for example, an integrated and a discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
@@ -139,7 +139,7 @@ For more details, see the [Multi-device execution](../multi_device.md).
 
 ### Automatic Batching
 The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware 
-platform and model. Therefore, automatic batching is enabled by default when the `ov::optimal_batch_size` is `> 1` and the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
+platform and model. Therefore, automatic batching is enabled by default when `ov::optimal_batch_size` is `> 1` and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
 Alternatively, it can be enabled explicitly via the device notion, for example `BATCH:GPU`.
 
 @sphinxtabset
@@ -255,7 +255,7 @@ For information on this subject, see the [RemoteTensor API of GPU Plugin](GPU_Re
 The plugin supports the properties listed below.
 
 ### Read-write properties
-All parameters must be set before calling the `ov::Core::compile_model()` in order to take effect or passed as additional argument to the `ov::Core::compile_model()`.
+All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`.
 
 - ov::cache_dir
 - ov::enable_profiling
@@ -287,7 +287,7 @@ All parameters must be set before calling the `ov::Core::compile_model()` in ord
 - ov::intel_gpu::memory_statistics
 
 ## Limitations
-In some cases, the GPU plugin may implicitly execute several primitives on CPU using internal implementations, which may lead to the increase of CPU utilization.
+In some cases, the GPU plugin may implicitly execute several primitives on CPU using internal implementations, which may lead to an increase in CPU utilization.
 Below is a list of such operations:
 - Proposal
 - NonMaxSuppression
@@ -301,7 +301,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 - Try to group individual infer jobs by using [automatic batching](../automatic_batching.md).
 -	Consider [caching](../Model_caching_overview.md) to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. [CPU configuration options](./CPU.md) can be used to limit the number of inference threads for the CPU plugin.
--	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Be wary that this option may increase inference latency, so consider combining it with multiple GPU streams or [throughput performance hints](../performance_hints.md).
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or [throughput performance hints](../performance_hints.md).
 - When operating media inputs, consider [remote tensors API of the GPU Plugin](./GPU_RemoteTensor_API.md).
 
 
