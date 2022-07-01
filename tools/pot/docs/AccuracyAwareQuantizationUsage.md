@@ -11,10 +11,11 @@
 @endsphinxdirective
 
 ## Introduction
-This article is based on the presumption that you have already tried [Default Quantization](@ref pot_default_quantization_usage) for the same model. When it introduces a significant accuracy degradation, the Accuracy-aware Quantization algorithm can be used to maintain accuracy within the pre-defined range. This may cause a 
-degradation of performance in comparison to [Default Quantization](@ref pot_default_quantization_usage) algorithm because some layers can be reverted back to the original precision.
+The Accuracy-aware Quantization algorithm allows to perform quantization while maintaining accuracy within a pre-defined range. Note that it should be used only if  the [Default Quantization](@ref pot_default_quantization_usage) introduces a significant accuracy degradation. The reason for it not being the primary choice is its potential for performance degradation, due to some layers getting reverted to the original precision.
 
-> **NOTE**: The Accuracy-aware Quantization algorithm behavior is different for GNA `target_device`. It is searching for the best configuration, selecting between INT8 and INT16 precisions for weights of each layer. The algorithm works for the `performance` preset only. This algorithm is not helpful, for the `accuracy` preset, since the whole model is already in INT16 precision.
+To proceed with this article, make sure you have read how to use [Default Quantization](@ref pot_default_quantization_usage).
+
+> **NOTE**: The Accuracy-aware Quantization algorithm's behavior is different for the GNA `target_device`. In this case it searches for the best configuration and selects between INT8 and INT16 precisions for weights of each layer. The algorithm works for the `performance` preset only. It is not useful for the `accuracy` preset, since the whole model is already in INT16 precision.
 
 Script for Accuracy-aware Quantization includes four steps:
 1. Prepare data and dataset interface.
@@ -23,15 +24,15 @@ Script for Accuracy-aware Quantization includes four steps:
 4. Define and run quantization process.
 
 ## Prepare data and dataset interface
-This step is the same as in [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` method should return `(data, annotation)` or `(data, annotation, metadata)`. In there, the `annotation` is required and its format should correspond to the expectations of the `Metric` class. The `metadata` is an optional field that can be used to store additional information required for post-processing.
+This step is the same as in [Default Quantization](@ref pot_default_quantization_usage). The only difference is that `__getitem__()` should return `(data, annotation)` or `(data, annotation, metadata)`. The `annotation` is required and its format should correspond to the expectations of the `Metric` class. The `metadata` is an optional field that can be used to store additional information required for post-processing.
 
 ## Define accuracy metric
-To control accuracy during the optimization, the `openvino.tools.pot.Metric` interface should be implemented. Each implementation should override the following properties and methods:
+To control accuracy during optimization, the `openvino.tools.pot.Metric` interface should be implemented. Each implementation should override the following properties and methods:
 
 **Properties**
 - `value` - returns the accuracy metric value for the last model output in a format of `Dict[str, numpy.array]`.
 - `avg_value` - returns the average accuracy metric over collected model results in a format of `Dict[str, numpy.array]`.
-- `higher_better` if a higher value of the metric corresponds to better performance, return `True` , otherwise, `False`. Default implementation returns `True`.
+- `higher_better` if a higher value of the metric corresponds to better performance, returns `True` , otherwise, `False`. The default implementation returns `True`.
 
 **Methods**
 - `update(output, annotation)` - calculates and updates the accuracy metric value, using the last model output and annotation. The model output and annotation should be passed in this method. It should also contain the model-specific post-processing in case the model returns the raw output.
@@ -105,7 +106,7 @@ engine = IEEngine(config=engine_config, data_loader=data_loader, metric=metric)
 ```
 
 ## Select quantization parameters
-Accuracy-aware Quantization uses the Default Quantization algorithm at the initialization step in such order that all its parameters are also valid and can be specified. Below are described only Accuracy-aware Quantization required parameters:
+Accuracy-aware Quantization uses the Default Quantization algorithm at the initialization step in such an order that all its parameters are also valid and can be specified. The only parameter required exclusively by Accuracy-aware Quantization is:
 - `"maximal_drop"` - the maximum accuracy drop which has to be achieved after the quantization. The default value is `0.01` (1%).
 
 ## Run quantization
