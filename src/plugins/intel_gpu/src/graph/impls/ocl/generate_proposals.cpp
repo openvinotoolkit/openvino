@@ -44,7 +44,8 @@ public:
         params.post_nms_count = primitive->post_nms_count;
         params.normalized = primitive->normalized;
         params.nms_eta = primitive->nms_eta;
-        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
+        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ?
+                kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
 
         params.inputs.push_back(convert_data_tensor(arg.anchors().get_output_layout()));
         params.inputs.push_back(convert_data_tensor(arg.deltas().get_output_layout()));

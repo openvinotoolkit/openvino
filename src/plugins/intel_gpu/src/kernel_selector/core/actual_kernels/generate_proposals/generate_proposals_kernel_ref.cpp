@@ -4,8 +4,6 @@
 
 #include "generate_proposals_kernel_ref.h"
 #include "kernel_selector_utils.h"
-#include <algorithm>
-#include <string>
 
 namespace kernel_selector {
 
@@ -115,8 +113,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
 
     constexpr size_t kKernelsNum = 4;
     KernelData kd = KernelData::Default<generate_proposals_params>(params, kKernelsNum);
-    const generate_proposals_params& new_params
-            = static_cast<const generate_proposals_params&>(params);
+    const generate_proposals_params& new_params = static_cast<const generate_proposals_params&>(params);
     const auto& inputs = new_params.inputs;
 
     const auto anchors_num = inputs[kScoresInputIdx].Feature().v;
@@ -126,12 +123,11 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
     const auto num_proposals = anchors_num * bottom_H * bottom_W;
     const auto pre_nms_topn = std::min(num_proposals, new_params.pre_nms_count);
     const auto max_delta_log_wh = static_cast<float>(std::log(1000.0 / 16.0));
-    //const auto coordinates_offset = new_params.normalized ? 0.0f : 1.0f;
+
     kd.internalBufferDataType = Datatype::F32;
 
-    constexpr size_t kProposalBoxSize = 6; // 6 values: {x0, y0, x1, y1, score, keep}
     const auto num_batches = inputs[kScoresInputIdx].Batch().v;
-
+    constexpr size_t kProposalBoxSize = 6; // 6 values: {x0, y0, x1, y1, score, keep}
     const auto proposals_buffer_size = num_batches * num_proposals * sizeof(float) * kProposalBoxSize;
     kd.internalBufferSizes.push_back(proposals_buffer_size);
 
@@ -143,10 +139,9 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
         const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
         auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
-
         cldnn_jit.AddConstant(MakeJitConstant("GENERATE_PROPOSALS_STAGE_" + std::to_string(i), "true"));
-        cldnn_jit.Merge(MakeTypeJitConstants(new_params.roi_num_type, "ROI_NUM"));
         cldnn_jit.AddConstant(MakeJitConstant("PROPOSAL_SIZE", kProposalBoxSize));
+        cldnn_jit.Merge(MakeTypeJitConstants(new_params.roi_num_type, "ROI_NUM"));
         if (new_params.normalized) {
             cldnn_jit.AddConstant(MakeJitConstant("NORMALIZED", 1));
         }
@@ -165,9 +160,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
                 break;
             }
             case 1: {
-                cldnn_jit.AddConstants({MakeJitConstant("NUM_PROPOSALS", num_proposals),
-                                        MakeJitConstant("PRE_NMS_TOPN", pre_nms_topn)
-                                       });
+                cldnn_jit.AddConstants({MakeJitConstant("NUM_PROPOSALS", num_proposals)});
                 break;
             }
             case 2: {

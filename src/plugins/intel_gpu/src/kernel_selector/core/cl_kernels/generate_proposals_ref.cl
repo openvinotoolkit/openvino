@@ -38,14 +38,14 @@ KERNEL(generate_proposals_ref_stage_0)
  __global INPUT0_TYPE* proposals) {
     const uint h = get_global_id(0);
     const uint w = get_global_id(1);
-    const uint bf   = (uint)get_global_id(2);
-    const uint anchor = bf % INPUT0_FEATURE_NUM;
-    const uint b    = bf / INPUT0_FEATURE_NUM;
+    const uint ba = (uint)get_global_id(2);
+    const uint batch = ba / INPUT0_FEATURE_NUM;
+    const uint anchor = ba % INPUT0_FEATURE_NUM;
 
-    const INPUT0_TYPE img_H = im_info[INPUT0_GET_INDEX(b, 0, 0, 0)];
-    const INPUT0_TYPE img_W = im_info[INPUT0_GET_INDEX(b, 1, 0, 0)];
-    const INPUT0_TYPE scale_H = im_info[INPUT0_GET_INDEX(b, 2, 0, 0)];
-    const INPUT0_TYPE scale_W = im_info[INPUT0_GET_INDEX(b, SCALE_W_INDEX, 0, 0)];
+    const INPUT0_TYPE img_H = im_info[INPUT0_GET_INDEX(batch, 0, 0, 0)];
+    const INPUT0_TYPE img_W = im_info[INPUT0_GET_INDEX(batch, 1, 0, 0)];
+    const INPUT0_TYPE scale_H = im_info[INPUT0_GET_INDEX(batch, 2, 0, 0)];
+    const INPUT0_TYPE scale_W = im_info[INPUT0_GET_INDEX(batch, SCALE_W_INDEX, 0, 0)];
     const float min_box_H = MIN_SIZE * scale_H;
     const float min_box_W = MIN_SIZE * scale_W;
 
@@ -54,24 +54,12 @@ KERNEL(generate_proposals_ref_stage_0)
     INPUT0_TYPE x1 = anchors[INPUT1_GET_INDEX(h, w, anchor, 2)];
     INPUT0_TYPE y1 = anchors[INPUT1_GET_INDEX(h, w, anchor, 3)];
 
-/*  intitally index resolution for bfyx was like this:
-    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(b, anchor * 4, h, w + 0 * BOTTOM_AREA)];
-    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(b, anchor * 4, h, w + 1 * BOTTOM_AREA)];
-    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(b, anchor * 4, h, w + 2 * BOTTOM_AREA)];
-    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(b, anchor * 4, h, w + 3 * BOTTOM_AREA)];
-*/
-   const uint dx_i = INPUT2_GET_INDEX(b, anchor * 4 + 0 , h, w);
-    const uint dy_i = INPUT2_GET_INDEX(b, anchor * 4 + 1 , h , w);
-    const uint d_log_w_i = INPUT2_GET_INDEX(b, anchor * 4 + 2 , h, w);
-    const uint d_log_h_i = INPUT2_GET_INDEX(b, anchor * 4 + 3 , h, w);
+    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(batch, anchor * 4 + 0 , h, w)];
+    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(batch, anchor * 4 + 1 , h , w)];
+    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(batch, anchor * 4 + 2 , h, w)];
+    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(batch, anchor * 4 + 3 , h, w)];
 
-    const INPUT0_TYPE dx = deltas[dx_i];
-    const INPUT0_TYPE dy = deltas[dy_i];
-    const INPUT0_TYPE d_log_w = deltas[d_log_w_i];
-    const INPUT0_TYPE d_log_h = deltas[d_log_h_i];
-
-
-    const INPUT0_TYPE score = scores[INPUT3_GET_INDEX(b, anchor, h, w)];
+    const INPUT0_TYPE score = scores[INPUT3_GET_INDEX(batch, anchor, h, w)];
 
     // width & height of box
     const INPUT0_TYPE ww = x1 - x0 + COORDINATES_OFFSET;
@@ -79,32 +67,28 @@ KERNEL(generate_proposals_ref_stage_0)
     // center location of box
     const INPUT0_TYPE ctr_x = x0 + HALF_ONE * ww;
     const INPUT0_TYPE ctr_y = y0 + HALF_ONE * hh;
-
     // new center location according to deltas (dx, dy)
     const INPUT0_TYPE pred_ctr_x = dx * ww + ctr_x;
     const INPUT0_TYPE pred_ctr_y = dy * hh + ctr_y;
     // new width & height according to deltas d(log w), d(log h)
     const INPUT0_TYPE pred_w = exp(min(d_log_w, TO_INPUT0_TYPE(MAX_DELTA_LOG_WH))) * ww;
     const INPUT0_TYPE pred_h = exp(min(d_log_h, TO_INPUT0_TYPE(MAX_DELTA_LOG_WH))) * hh;
-
     // update upper-left corner location
     x0 = pred_ctr_x - HALF_ONE * pred_w;
     y0 = pred_ctr_y - HALF_ONE * pred_h;
     // update lower-right corner location
     x1 = pred_ctr_x + HALF_ONE * pred_w - COORDINATES_OFFSET;
     y1 = pred_ctr_y + HALF_ONE * pred_h - COORDINATES_OFFSET;
-
     // adjust new corner locations to be within the image region
     x0 = max(ZERO, min(x0, img_W - COORDINATES_OFFSET));
     y0 = max(ZERO, min(y0, img_H - COORDINATES_OFFSET));
     x1 = max(ZERO, min(x1, img_W - COORDINATES_OFFSET));
     y1 = max(ZERO, min(y1, img_H - COORDINATES_OFFSET));
-
     // recompute new width & height
     const INPUT0_TYPE box_w = x1 - x0 + COORDINATES_OFFSET;
     const INPUT0_TYPE box_h = y1 - y0 + COORDINATES_OFFSET;
 
-    const uint batch_offset = b * NUM_PROPOSALS * PROPOSAL_SIZE;
+    const uint batch_offset = batch * NUM_PROPOSALS * PROPOSAL_SIZE;
     const uint offset = h * BOTTOM_W + w;
     const uint proposal_idx = batch_offset + (offset * ANCHORS_NUM + anchor) * PROPOSAL_SIZE;
 
@@ -114,26 +98,6 @@ KERNEL(generate_proposals_ref_stage_0)
     proposals[proposal_idx + 3] = y1;
     proposals[proposal_idx + 4] = score;
     proposals[proposal_idx + 5] = ((min_box_W <= box_w) && (min_box_H <= box_h)) ? 1 : 0;
-
-    //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-
-/*
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-
-    if (debug) {
-        for(uint bb=0; bb<INPUT0_BATCH_NUM; ++bb) {
-            printf("\nGPU refine_anchors result: batch=%d\n", bb);
-            for (uint i=0; i<NUM_PROPOSALS; ++i) {
-                printf("\ni=%d ", i);
-                for (uint j=0; j<6; ++j) {
-                    printf("%f ", proposals[i*6+j]);
-                }
-            }
-
-        }
-        printf("\n");
-    }
-*/
 }
 
 #endif /* GENERATE_PROPOSALS_STAGE_0 */
@@ -236,24 +200,6 @@ KERNEL(generate_proposals_ref_stage_1)(__global INPUT0_TYPE* proposals) {
     __global Box* boxes = (__global Box*)(proposals + batch * NUM_PROPOSALS * PROPOSAL_SIZE);
 
     FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
-    //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-
-/*
-    const bool debug = (batch==0);
-    if (debug) {
-        for(uint bb=0; bb<INPUT0_BATCH_NUM; ++bb) {
-            printf("\nGPU partial_sort result: batch=%d\n", bb);
-            for (uint i=0; i<NUM_PROPOSALS; ++i) {
-                printf("\ni=%d ", i);
-                for (uint j=0; j<6; ++j) {  // 6 - 5
-                    printf("%f ", proposals[bb * NUM_PROPOSALS * 6 + i*6+j]);
-                }
-            }
-
-        }
-        printf("\n");
-    }
-*/
 }
 #endif /* GENERATE_PROPOSALS_STAGE_1 */
 
@@ -264,40 +210,18 @@ KERNEL(generate_proposals_ref_stage_2)
 (const __global INPUT0_TYPE* boxes,
        __global size_t* out_indices,
        __global ROI_NUM_TYPE* num_outputs) {
-
-    const bool debug = (get_global_id(0)==0);
-
     const uint batch = get_global_id(0);
     const uint batch_offset = batch * NUM_PROPOSALS * PROPOSAL_SIZE;
 
-/*
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-*/
-
     uint count = 0;
-    // common for all the EU or not?
-    __local uint index_out[INPUT0_BATCH_NUM * POST_NMS_COUNT]/* = {0}*/;
+    __local uint index_out[INPUT0_BATCH_NUM * POST_NMS_COUNT];
+    __local bool is_dead[INPUT0_BATCH_NUM * PRE_NMS_TOPN];
 
-    __local bool is_dead[INPUT0_BATCH_NUM * PRE_NMS_TOPN]/* = {0}*/;
     for (uint box = 0; box < PRE_NMS_TOPN; ++box) {
         is_dead[batch * PRE_NMS_TOPN + box] = boxes[batch_offset + PROPOSAL_SIZE * box + 5] == 0.0f;
     }
-/*
-
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-    if (debug) {
-        for(uint bb=0; bb<INPUT0_BATCH_NUM; ++bb) {
-            printf("\nGPU is_dead batch=%d\n", bb);
-            for (uint i=0; i < PRE_NMS_TOPN; ++i) {
-                printf("[%d]=%d\n", i, is_dead[bb * PRE_NMS_TOPN + i]);
-            }
-        }
-        printf("\n");
-    }
-*/
 
     for (uint box = 0; box < PRE_NMS_TOPN; ++box) {
-        //const uint box = batch * PRE_NMS_TOPN + b;
         if (is_dead[batch * PRE_NMS_TOPN + box])
             continue;
 
@@ -348,21 +272,6 @@ KERNEL(generate_proposals_ref_stage_2)
     for (uint i = 0; i < count; ++i) {
         out_indices[batch * POST_NMS_COUNT + i] = index_out[batch * POST_NMS_COUNT + i];
     }
-
-
-/*
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-
-    if (debug) {
-        for(uint bb = 0; bb < INPUT0_BATCH_NUM; ++bb) {
-            printf("\nGPU nms result: batch=%d, num_outputs=%d\n", bb, num_outputs[bb]);
-            for (uint i = 0; i < num_outputs[bb]; ++i) {
-                printf("\ni=%d %d", i, out_indices[bb * POST_NMS_COUNT + i]);
-            }
-        }
-        printf("\n");
-    }
-*/
 }
 #endif /* GENERATE_PROPOSALS_STAGE_2 */
 
@@ -400,57 +309,6 @@ KERNEL(generate_proposals_ref_stage_3)
         roi_scores[roi_index] = 0.0f;
         ++roi_index;
     }
-
-/*
-    const uint batch = get_global_id(0);
-    const uint output_index = get_global_id(1);
-
-    uint number_of_previous_outputs = 0;
-    for (uint b = 0; b < batch; ++b) {
-        number_of_previous_outputs += num_outputs[b];
-    }
-
-    const uint score_output_index = number_of_previous_outputs + output_index;
-    const uint roi_output_index = score_output_index * ROI_SIZE;
-
-    if (output_index < num_outputs[batch]) {
-        const uint box_index = (batch * NUM_PROPOSALS + out_indices[batch * POST_NMS_COUNT + output_index]) * PROPOSAL_SIZE;
-
-        ///rois[OUTPUT_GET_INDEX(0, output_index, 0, 0)] = boxes[box_index + 0];
-        rois[roi_output_index + 0] = boxes[box_index + 1];
-        rois[roi_output_index + 1] = boxes[box_index + 1];
-        rois[roi_output_index + 2] = boxes[box_index + 2];
-        rois[roi_output_index + 3] = boxes[box_index + 3];
-
-        roi_scores[score_output_index] = boxes[box_index + 4];
-    } else {
-        rois[roi_output_index + 0] = 0.0f;
-        rois[roi_output_index + 1] = 0.0f;
-        rois[roi_output_index + 2] = 0.0f;
-        rois[roi_output_index + 3] = 0.0f;
-
-        roi_scores[score_output_index] = 0.0f;
-    }
-*/
-
-/*
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-    printf("GPU convert result\n");
-    roi_index = 0;
-    for (uint batch=0; batch < INPUT0_BATCH_NUM; ++batch) {
-        printf("num_outputs=%d\n", num_outputs[batch]);
-
-        for (uint i=0; i<POST_NMS_COUNT; ++i) {
-            printf("%d: %f %f %f %f   %f\n",
-                   //i, rois[roi_index + 0], rois[roi_index + 1], rois[roi_index + 2], rois[roi_index + 3], roi_scores[roi_index]);
-                   i,
-                   rois[OUTPUT_GET_INDEX(roi_index, 0, 0, 0)], rois[OUTPUT_GET_INDEX(roi_index, 1, 0, 0)],
-                   rois[OUTPUT_GET_INDEX(roi_index, 2, 0, 0)], rois[OUTPUT_GET_INDEX(roi_index, 3, 0, 0)],
-                   roi_scores[roi_index]);
-            ++roi_index;
-        }
-    }
-*/
 }
 #endif /* GENERATE_PROPOSALS_STAGE_3 */
 

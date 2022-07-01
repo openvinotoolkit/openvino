@@ -357,9 +357,7 @@ public:
         const primitive_id reorder_result_id = generate_proposals_id + "Reordered";
         topology.add(reorder(reorder_result_id, generate_proposals_id, format::bfyx, data_type));
 
-        build_options bo;
-        bo.set_option(build_option::optimize_data(false));
-        network network{engine, topology, bo};
+        network network{engine, topology};
 
         network.set_input_data(input_im_info_id, input_im_info);
         network.set_input_data(input_anchors_id, input_anchors);
