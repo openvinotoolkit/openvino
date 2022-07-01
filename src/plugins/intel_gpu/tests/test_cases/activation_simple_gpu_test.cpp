@@ -348,6 +348,41 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     }
 }
 
+TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f16, format::yxfb, {1, 1, 2, 2}});
+    set_values(input, {FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f)});
+    VF<FLOAT16> output_vec = {FLOAT16(0.5f), FLOAT16(0.66650391f), FLOAT16(0.75f), FLOAT16(0.81835938f)};
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("not", "input", activation_func::softsign));
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "not");
+
+    auto output_memory = outputs.at("not").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 2);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
+        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+    }
+}
+
 TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     //  Input:
     //  1 0 -3  4  5
