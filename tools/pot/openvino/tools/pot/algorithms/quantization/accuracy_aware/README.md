@@ -1,7 +1,7 @@
 # AccuracyAwareQuantization Algorithm {#accuracy_aware_README}
 
 ## Introduction
-The purpose of AccuracyAwareQuantization Algorithm is an accurate quantization and keeping the accuracy of the model to stay within the 
+The purpose of AccuracyAwareQuantization Algorithm is performing precise quantization, while keeping model accuracy within a 
 pre-defined range. In comparison to [DefaultQuantization](../default/README.md) algorithm this may cause a 
 degradation in performance because some layers can be reverted back to the original precision.
 
