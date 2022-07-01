@@ -70,6 +70,7 @@ namespace {
                     res.push_back(ov::hint::allow_auto_batching.name());
                     res.push_back(ov::log::level.name());
                     res.push_back(ov::intel_auto::device_bind_buffer.name());
+                    res.push_back(ov::auto_batch_timeout.name());
                     return res;
                 }();
 }  // namespace
@@ -266,6 +267,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
                                                     RW_property(ov::device::priorities.name()),
                                                     RW_property(ov::enable_profiling.name()),
                                                     RW_property(ov::hint::allow_auto_batching.name()),
+                                                    RW_property(ov::auto_batch_timeout.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name())
         };
@@ -399,6 +401,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                             });
              if (tmpiter != fullConfig.end())
                  deviceConfig.insert({tmpiter->first, tmpiter->second});
+             tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
+                            return (config.first == CONFIG_KEY(AUTO_BATCH_TIMEOUT));
+                            });
+             if (tmpiter != fullConfig.end())
+                 deviceConfig.insert({tmpiter->first, tmpiter->second});
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -443,6 +450,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            if (tmpiter != fullConfig.end())
+                p.config.insert({tmpiter->first, tmpiter->second});
+            tmpiter = fullConfig.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
             if (tmpiter != fullConfig.end())
                 p.config.insert({tmpiter->first, tmpiter->second});
             const auto& deviceName = p.deviceName;
