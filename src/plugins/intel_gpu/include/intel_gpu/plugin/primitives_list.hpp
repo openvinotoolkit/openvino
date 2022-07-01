@@ -3,7 +3,7 @@
 //
 
 #ifndef REGISTER_FACTORY
-#error "REGISTER_FACTORY is not defined"
+#    error "REGISTER_FACTORY is not defined"
 #endif
 
 // ------------------------------ Supported v0 ops ------------------------------ //
@@ -190,7 +190,7 @@ REGISTER_FACTORY(v4, Swish);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
-//REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
+// REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
 REGISTER_FACTORY(v5, GatherND);
 REGISTER_FACTORY(v5, Loop);
@@ -208,6 +208,7 @@ REGISTER_FACTORY(v6, ExperimentalDetectronPriorGridGenerator);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
+REGISTER_FACTORY(v6, ExperimentalDetectronDetectionOutput);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, DFT);
@@ -229,6 +230,9 @@ REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
+
+// ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, SoftSign)
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

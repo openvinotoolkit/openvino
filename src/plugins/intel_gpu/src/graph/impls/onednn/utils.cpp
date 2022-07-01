@@ -147,7 +147,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
-int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc desc) {
+int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
@@ -456,6 +456,10 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 } else if (compare_strides(order, {1, 0, 2, 3, 4})) {
                     return cldnn::format::is_os_zyx_isa8_osv8_isv2;
                 }
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
+                blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
+                return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
             }
         }
 

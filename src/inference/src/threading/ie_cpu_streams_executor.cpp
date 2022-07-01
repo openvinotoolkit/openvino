@@ -19,6 +19,7 @@
 
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
+#include "threading/ie_executor_manager.hpp"
 #include "threading/ie_thread_affinity.hpp"
 #include "threading/ie_thread_local.hpp"
 
@@ -185,6 +186,7 @@ struct CPUStreamsExecutor::Impl {
           _streams([this] {
               return std::make_shared<Impl::Stream>(this);
           }) {
+        _exectorMgr = executorManager();
         auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
@@ -294,6 +296,7 @@ struct CPUStreamsExecutor::Impl {
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
 #endif
+    ExecutorManager::Ptr _exectorMgr;
 };
 
 int CPUStreamsExecutor::GetStreamId() {

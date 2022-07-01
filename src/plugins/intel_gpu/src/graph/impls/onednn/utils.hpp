@@ -33,7 +33,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 
-int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc desc);
+int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
 
 // If the values in the tensor are identical, make it as per-tensor value
 template <typename T>
