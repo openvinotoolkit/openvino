@@ -46,12 +46,9 @@ void infer_result_sort(struct infer_result* results, size_t result_size) {
  * @return struct infer_result
  */
 struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size) {
-    ov_shape_t output_shape = {0};
-    ov_status_e status = ov_tensor_get_shape(tensor, &output_shape);
+    ov_status_e status = ov_tensor_get_size(tensor, result_size);
     if (status != OK)
         return NULL;
-
-    *result_size = output_shape.dims[1];
 
     struct infer_result* results = (struct infer_result*)malloc(sizeof(struct infer_result) * (*result_size));
     if (!results)
@@ -107,7 +104,7 @@ void print_model_input_output_info(ov_model_t* model) {
  */
 
  bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
-     char* p_end;
+     char* p_end = NULL;
      size_t _width = 0, _height = 0;
      _width = strtoul(size_str, &p_end, 10);
      _height = strtoul(p_end+1, NULL, 10);
@@ -128,7 +125,7 @@ void print_model_input_output_info(ov_model_t* model) {
     }
  }
 
-size_t getData(const char* img_path, unsigned char* img_data, size_t size) {
+size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
     FILE* fp = fopen(img_path, "rb");
     size_t read_size = 0;
 
@@ -179,6 +176,10 @@ int main(int argc, char** argv) {
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
     struct infer_result* results = NULL;
+    char* input_tensor_name;
+    char* output_tensor_name;
+    ov_output_node_list_t input_nodes;
+    ov_output_node_list_t output_nodes;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -201,21 +202,18 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    ov_output_node_list_t output_nodes;
     CHECK_STATUS(ov_model_get_outputs(model, &output_nodes));
     if (output_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
-    ov_output_node_list_t input_nodes;
+
     CHECK_STATUS(ov_model_get_inputs(model, &input_nodes));
     if (input_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
     }
 
-    char* input_tensor_name;
-    char* output_tensor_name;
     CHECK_STATUS(ov_node_get_tensor_name(&input_nodes, 0, &input_tensor_name));
     CHECK_STATUS(ov_node_get_tensor_name(&output_nodes, 0, &output_tensor_name));
 
@@ -266,7 +264,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "[ERROR] calloc returned NULL, line %d\n", __LINE__);
         goto err;
     }
-    if (img_size != getData(input_image_path, img_data, img_size)) {
+    if (img_size != read_image_from_file(input_image_path, img_data, img_size)) {
         fprintf(stderr, "[ERROR] Image dimensions not match with NV12 file size, line %d\n", __LINE__);
         goto err;
     }
@@ -288,6 +286,9 @@ int main(int argc, char** argv) {
     // Print classification results
     size_t results_num;
     results = tensor_to_infer_result(output_tensor, &results_num);
+    if (!results) {
+        goto err;
+    }
     infer_result_sort(results, results_num);
     size_t top = 10;
     if (top > results_num) {

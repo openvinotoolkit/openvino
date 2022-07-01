@@ -5,7 +5,7 @@ This sample demonstrates how to execute an inference of image classification net
 ## How It Works
 
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
-image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the
+image in the NV12 color format to an Inference Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the
 application outputs data to the standard output stream.
 
 You can see the explicit description of

@@ -154,16 +154,16 @@ std::map<ov_preprocess_resize_algorithm_e, ov::preprocess::ResizeAlgorithm> resi
     {ov_preprocess_resize_algorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
     {ov_preprocess_resize_algorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
 
-std::map<ov_ColorFormat_e, ov::preprocess::ColorFormat> color_format_map = {
-        {ov_ColorFormat_e::UNDEFINE, ov::preprocess::ColorFormat::UNDEFINED},
-        {ov_ColorFormat_e::NV12_SINGLE_PLANE, ov::preprocess::ColorFormat::NV12_SINGLE_PLANE},
-        {ov_ColorFormat_e::NV12_TWO_PLANES, ov::preprocess::ColorFormat::NV12_TWO_PLANES},
-        {ov_ColorFormat_e::I420_SINGLE_PLANE, ov::preprocess::ColorFormat::I420_SINGLE_PLANE},
-        {ov_ColorFormat_e::I420_THREE_PLANES, ov::preprocess::ColorFormat::I420_THREE_PLANES},
-        {ov_ColorFormat_e::RGB, ov::preprocess::ColorFormat::RGB},
-        {ov_ColorFormat_e::BGR, ov::preprocess::ColorFormat::BGR},
-        {ov_ColorFormat_e::RGBX, ov::preprocess::ColorFormat::RGBX},
-        {ov_ColorFormat_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
+std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
+        {ov_color_format_e::UNDEFINE, ov::preprocess::ColorFormat::UNDEFINED},
+        {ov_color_format_e::NV12_SINGLE_PLANE, ov::preprocess::ColorFormat::NV12_SINGLE_PLANE},
+        {ov_color_format_e::NV12_TWO_PLANES, ov::preprocess::ColorFormat::NV12_TWO_PLANES},
+        {ov_color_format_e::I420_SINGLE_PLANE, ov::preprocess::ColorFormat::I420_SINGLE_PLANE},
+        {ov_color_format_e::I420_THREE_PLANES, ov::preprocess::ColorFormat::I420_THREE_PLANES},
+        {ov_color_format_e::RGB, ov::preprocess::ColorFormat::RGB},
+        {ov_color_format_e::BGR, ov::preprocess::ColorFormat::BGR},
+        {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
+        {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
 std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::UNDEFINED, ov::element::undefined},
@@ -197,7 +197,7 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
 #define GET_OV_ELEMENT_TYPE(a) element_type_map[a]
 #define GET_CAPI_ELEMENT_TYPE(a) find_ov_element_type_e(a)
 
-#define GET_OV_COLOR_FARMAT(a) color_format_map[a]
+#define GET_OV_COLOR_FARMAT(a) (color_format_map.find(a) == color_format_map.end()?ov::preprocess::ColorFormat::UNDEFINED:color_format_map[a])
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) catch (const InferenceEngine::ExceptionType&) {return ov_status_e::StatusCode;}
 
@@ -954,7 +954,7 @@ ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tenso
 }
 
 ov_status_e ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-        const ov_ColorFormat_e colorFormat) {
+        const ov_color_format_e colorFormat) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -990,7 +990,7 @@ ov_status_e ov_preprocess_input_convert_element_type(ov_preprocess_input_process
 }
 
 ov_status_e ov_preprocess_input_convert_color(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
-        const ov_ColorFormat_e colorFormat) {
+        const ov_color_format_e colorFormat) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::GENERAL_ERROR;
     }

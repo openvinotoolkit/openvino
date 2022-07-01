@@ -616,7 +616,7 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
     OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_ColorFormat_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
 
     ov_preprocess_input_tensor_info_free(input_tensor_info);
     ov_preprocess_input_info_free(input_info);
@@ -718,8 +718,8 @@ TEST(ov_preprocess, ov_preprocess_input_convert_color) {
     OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_ColorFormat_e::NV12_SINGLE_PLANE));
-    OV_ASSERT_OK(ov_preprocess_input_convert_color(input_process, ov_ColorFormat_e::BGR));
+    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(ov_preprocess_input_convert_color(input_process, ov_color_format_e::BGR));
 
     ov_preprocess_input_tensor_info_free(input_tensor_info);
     ov_preprocess_input_process_steps_free(input_process);
