@@ -1,12 +1,14 @@
 # Neural Network Compression Framework {#docs_nncf_introduction}
 
-This article describes the Neural Network Compression Framework (NNCF). It is aimed at optimizing Deep Neural Network (DNN) by applying optimization methods, such as quantization, pruning, etc. to the original framework model. NNCF provides in-training optimization capabilities which means that optimization methods require model fine-tuning or even re-training. NNCF is distributed as a separate tool but is highly aligned with OpenVINO in terms of the supported optimization features and models. It is open source and available on [GitHub](https://github.com/openvinotoolkit/nncf). The diagram below shows the model optimization workflow, using NNCF.
+The Neural Network Compression Framework (NNCF) aims at optimizing Deep Neural Networks (DNN) by means of methods such as quantization and pruning. It provides in-training optimization capabilities, which means that the optimization methods require model fine-tuning or even re-training. 
+
+NNCF is distributed as a separate tool but is closely aligned with OpenVINO in terms of supported optimization features and models. It is open source and available on [GitHub](https://github.com/openvinotoolkit/nncf). The diagram below shows the model optimization workflow, using NNCF.
 
 ![](../img/nncf_workflow.png)
 
 ### Features
-- Support of optimization of PyTorch and TensorFlow 2.x models.
-- Support of various optimization algorithms, applied during a model fine-tuning process to achieve a better trade-off between performance and accuracy:
+- Support for optimization of PyTorch and TensorFlow 2.x models.
+- Support for various optimization algorithms, applied during a model fine-tuning process to achieve a better trade-off between performance and accuracy:
   
  |Compression algorithm|PyTorch|TensorFlow 2.x|
  | :--- | :---: | :---: |
@@ -22,7 +24,7 @@ This article describes the Neural Network Compression Framework (NNCF). It is ai
   > **NOTE**: Only models created using Sequential or Keras Functional API are supported. Support for TensorFlow models is limited. 
 - GPU-accelerated layers for faster compressed model fine-tuning.
 - Distributed training support.
-- Configuration of file examples for each supported compression algorithm.
+- Examples of configuration files for each supported compression algorithm.
 - Exporting PyTorch compressed models to ONNX checkpoints and TensorFlow compressed models to SavedModel or Frozen Graph format, ready to use with [OpenVINO toolkit](https://github.com/openvinotoolkit/).
 - Git patches for prominent third-party repositories ([huggingface-transformers](https://github.com/huggingface/transformers)) demonstrating the process of integrating NNCF into custom training pipelines.
 
