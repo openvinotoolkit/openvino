@@ -179,7 +179,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
              loadCount, loadSuccessCount) = this->GetParam();
 
     // test auto plugin
-    config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+    plugin->SetName("AUTO");
     std::string devicesStr = "";
     int selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
