@@ -16,15 +16,16 @@ ParamsKey GenerateProposalsRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
-
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableTensorPitches();
+
     return k;
 }
 
@@ -63,7 +64,7 @@ GenerateProposalsRef::DispatchData SetDefault(const generate_proposals_params& p
     } else if (idx == 1 || idx == 2) {
         dispatch_data.gws = {num_batches, 1, 1};
     } else if (idx == 3) {
-        dispatch_data.gws = {num_batches, params.post_nms_count, 1};
+        dispatch_data.gws = {1, 1, 1};
     }
 
     dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
@@ -116,18 +117,20 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
     KernelData kd = KernelData::Default<generate_proposals_params>(params, kKernelsNum);
     const generate_proposals_params& new_params
             = static_cast<const generate_proposals_params&>(params);
+    const auto& inputs = new_params.inputs;
 
-    const auto anchors_num = new_params.inputs[kScoresInputIdx].Feature().v;
-    const auto bottom_H = new_params.inputs[kDeltasInputIdx].Y().v;
-    const auto bottom_W = new_params.inputs[kDeltasInputIdx].X().v;
+    const auto anchors_num = inputs[kScoresInputIdx].Feature().v;
+    const auto bottom_H = inputs[kDeltasInputIdx].Y().v;
+    const auto bottom_W = inputs[kDeltasInputIdx].X().v;
+    const auto scale_w_index = inputs[kImInfoInputIdx].Feature().v == 3 ? 2 : 3;
     const auto num_proposals = anchors_num * bottom_H * bottom_W;
     const auto pre_nms_topn = std::min(num_proposals, new_params.pre_nms_count);
     const auto max_delta_log_wh = static_cast<float>(std::log(1000.0 / 16.0));
     //const auto coordinates_offset = new_params.normalized ? 0.0f : 1.0f;
     kd.internalBufferDataType = Datatype::F32;
 
-    constexpr size_t kProposalBoxSize = 6/*5*/; // 6 values: {x0, y0, x1, y1, score, keep}
-    const auto num_batches = new_params.inputs[kScoresInputIdx].Batch().v;
+    constexpr size_t kProposalBoxSize = 6; // 6 values: {x0, y0, x1, y1, score, keep}
+    const auto num_batches = inputs[kScoresInputIdx].Batch().v;
 
     const auto proposals_buffer_size = num_batches * num_proposals * sizeof(float) * kProposalBoxSize;
     kd.internalBufferSizes.push_back(proposals_buffer_size);
@@ -143,6 +146,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
 
         cldnn_jit.AddConstant(MakeJitConstant("GENERATE_PROPOSALS_STAGE_" + std::to_string(i), "true"));
         cldnn_jit.Merge(MakeTypeJitConstants(new_params.roi_num_type, "ROI_NUM"));
+        cldnn_jit.AddConstant(MakeJitConstant("PROPOSAL_SIZE", kProposalBoxSize));
         if (new_params.normalized) {
             cldnn_jit.AddConstant(MakeJitConstant("NORMALIZED", 1));
         }
@@ -150,12 +154,12 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
         switch (i) {
             case 0: {
                 cldnn_jit.AddConstants({MakeJitConstant("MIN_SIZE", new_params.min_size),
-//                                        MakeJitConstant("COORDINATES_OFFSET", coordinates_offset),
                                         MakeJitConstant("ANCHORS_NUM", anchors_num),
                                         MakeJitConstant("NUM_PROPOSALS", num_proposals),
                                         MakeJitConstant("BOTTOM_H", bottom_H),
                                         MakeJitConstant("BOTTOM_W", bottom_W),
                                         MakeJitConstant("BOTTOM_AREA", bottom_H * bottom_W),
+                                        MakeJitConstant("SCALE_W_INDEX", scale_w_index),
                                         MakeJitConstant("MAX_DELTA_LOG_WH", max_delta_log_wh)
                                        });
                 break;
@@ -171,7 +175,6 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
                                         MakeJitConstant("PRE_NMS_TOPN", pre_nms_topn),
                                         MakeJitConstant("POST_NMS_COUNT", new_params.post_nms_count),
                                         MakeJitConstant("NMS_THRESHOLD", new_params.nms_threshold),
-//                                        MakeJitConstant("COORDINATES_OFFSET", coordinates_offset),
                                        });
                 break;
             }

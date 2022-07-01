@@ -12,6 +12,22 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
+template <typename T>
+struct GenerateProposalsParams {
+    float min_size;
+    float nms_threshold;
+    int64_t pre_nms_count;
+    int64_t post_nms_count;
+    bool normalized;
+    float nms_eta;
+    std::vector<T> expected_rois;
+    std::vector<T> expected_roi_scores;
+    std::vector<size_t> expected_rois_num;
+};
+
+template <typename T>
+using GenerateProposalsParamsWithLayout = std::tuple<GenerateProposalsParams<T>, format::type>;
+
 constexpr size_t num_batches = 2;
 constexpr size_t image_height = 200;
 constexpr size_t image_width = 200;
@@ -124,22 +140,14 @@ const std::vector<float> scores{
         0.30608943, 0.6572437,  0.69185436, 0.88646156, 0.36985755, 0.5590753,
         0.5256446,  0.03342898, 0.1344396,  0.68642473, 0.37953874, 0.32575172,
         0.21108444, 0.5661886,  0.45378175, 0.62126315, 0.26799858, 0.37272978};
-};  // namespace
 
-template <typename T>
-struct GenerateProposalsParams {
-    float min_size;
-    float nms_threshold;
-    int64_t pre_nms_count;
-    int64_t post_nms_count;
-    bool normalized;
-    float nms_eta;
-    std::vector<T> expected_rois;
-    std::vector<T> expected_roi_scores;
-    std::vector<size_t> expected_rois_num;
-};
-
-namespace {
+const std::vector<format::type> layouts{
+    format::bfyx,
+    format::b_fs_yx_fsv16,
+    format::b_fs_yx_fsv32,
+    format::bs_fs_yx_bsv16_fsv16,
+    format::bs_fs_yx_bsv32_fsv16,
+    format::bs_fs_yx_bsv32_fsv32};
 
 template <typename T>
 std::vector<T> getValues(const std::vector<float>& values) {
@@ -156,139 +164,6 @@ float getError<float>() {
 template<>
 float getError<half_t>() {
     return 0.2;
-}
-};  // namespace
-
-template <typename T, typename ROIS_NUM_T>
-struct generate_proposals_test
-        : public ::testing::TestWithParam<GenerateProposalsParams<T> > {
-public:
-    void test() {
-        const GenerateProposalsParams<T> param
-                = testing::TestWithParam<GenerateProposalsParams<T> >::GetParam();
-        const auto data_type = type_to_data_type<T>::value;
-        const auto rois_num_type = type_to_data_type<ROIS_NUM_T>::value;
-
-        auto& engine = get_test_engine();
-
-        const primitive_id input_im_info_id = "InputImInfo";
-        const auto input_im_info = engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(3)}});
-        set_values(input_im_info, getValues<T>(im_info));
-
-        const primitive_id input_anchors_id = "InputAnchors";
-        auto input_anchors = engine.allocate_memory(
-                {data_type, format::bfyx, tensor{batch(height), feature(width), spatial(4, number_of_anchors)}});
-        set_values(input_anchors, getValues<T>(anchors));
-
-        const primitive_id input_deltas_id = "InputDeltas";
-        auto input_deltas = engine.allocate_memory(
-                {data_type, format::bfyx,
-                 tensor{batch(num_batches), feature(number_of_anchors * 4), spatial(width, height)}});
-        set_values(input_deltas, getValues<T>(deltas));
-
-        const primitive_id input_scores_id = "InputScores";
-        auto input_scores = engine.allocate_memory(
-                {data_type, format::bfyx, tensor{batch(num_batches), feature(number_of_anchors), spatial(width, height)}});
-        set_values(input_scores, getValues<T>(scores));
-
-        const primitive_id output_roi_scores_id = "OutputRoiScores";
-        auto output_roi_scores =
-                engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(param.post_nms_count)}});
-
-        const primitive_id output_rois_num_id = "OutputRoisNum";
-        auto output_rois_num =
-                engine.allocate_memory({rois_num_type, format::bfyx, tensor{batch(num_batches)}});
-
-        topology topology;
-
-        topology.add(input_layout{input_im_info_id, input_im_info->get_layout()});
-        topology.add(input_layout{input_anchors_id, input_anchors->get_layout()});
-        topology.add(input_layout{input_deltas_id, input_deltas->get_layout()});
-        topology.add(input_layout{input_scores_id, input_scores->get_layout()});
-        topology.add(mutable_data{output_roi_scores_id, output_roi_scores});
-        topology.add(mutable_data{output_rois_num_id, output_rois_num});
-
-        const primitive_id generate_proposals_id = "generate_proposals";
-        const auto generate_proposals_primitive = generate_proposals{generate_proposals_id,
-                                                                     input_im_info_id,
-                                                                     input_anchors_id,
-                                                                     input_deltas_id,
-                                                                     input_scores_id,
-                                                                     output_roi_scores_id,
-                                                                     output_rois_num_id,
-                                                                     param.min_size,
-                                                                     param.nms_threshold,
-                                                                     param.pre_nms_count,
-                                                                     param.post_nms_count,
-                                                                     param.normalized,
-                                                                     param.nms_eta,
-                                                                     rois_num_type};
-        topology.add(generate_proposals_primitive);
-
-        network network(engine, topology);
-
-        network.set_input_data(input_im_info_id, input_im_info);
-        network.set_input_data(input_anchors_id, input_anchors);
-        network.set_input_data(input_deltas_id, input_deltas);
-        network.set_input_data(input_scores_id, input_scores);
-
-        const auto outputs = network.execute();
-
-        const auto rois = outputs.at(generate_proposals_id).get_memory();
-
-        const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
-        ASSERT_EQ(rois_ptr.size(), num_batches * param.post_nms_count * 4);
-
-        const cldnn::mem_lock<T> roi_scores_ptr(output_roi_scores, get_test_stream());
-        ASSERT_EQ(roi_scores_ptr.size(), num_batches * param.post_nms_count);
-
-        const cldnn::mem_lock<ROIS_NUM_T> rois_num_ptr(output_rois_num, get_test_stream());
-        ASSERT_EQ(rois_num_ptr.size(), num_batches);
-
-        const auto& expected_roi_scores = param.expected_roi_scores;
-        const auto& expected_rois = param.expected_rois;
-        const auto& expected_rois_num = param.expected_rois_num;
-
-        for (size_t j = 0; j < expected_rois_num.size(); ++j) {
-            EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
-        }
-
-
-        for (size_t i = 0; i < param.post_nms_count; ++i) {
-            EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
-
-            // order of proposals with zero scores is not guaranteed (to be precise,
-            // it is not guaranteed for any equal score values)
-            if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
-                for (size_t coord = 0; coord < 4; ++coord) {
-                    const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
-                }
-            }
-        }
-    }
-};
-
-using generate_proposals_test_f32_i32 = generate_proposals_test<float, int32_t>;
-using generate_proposals_test_f32_i64 = generate_proposals_test<float, int64_t>;
-using generate_proposals_test_f16_i32 = generate_proposals_test<half_t, int32_t>;
-using generate_proposals_test_f16_i64 = generate_proposals_test<half_t, int64_t>;
-
-
-TEST_P(generate_proposals_test_f32_i32, basic) {
-ASSERT_NO_FATAL_FAILURE(test());
-}
-
-TEST_P(generate_proposals_test_f32_i64, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
-}
-
-TEST_P(generate_proposals_test_f16_i32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
-}
-
-TEST_P(generate_proposals_test_f16_i64, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
 }
 
 template <typename T>
@@ -394,29 +269,182 @@ std::vector<GenerateProposalsParams<T>> getGenerateProposalsParams() {
                     getValues<T>({0.922952, 0.90457, 0.886462, 0.826641, 0.698273, 0.691854,
                                   0.922952, 0.90457, 0.886462, 0.826641, 0.698273, 0.691854}),
                     {6, 6}
-            },
-
-
+            }
     };
     return params;
 }
+};  // namespace
 
+template <typename T, typename ROIS_NUM_T>
+struct generate_proposals_test
+        : public ::testing::TestWithParam<GenerateProposalsParamsWithLayout<T> > {
+public:
+    void test() {
+        GenerateProposalsParams<T> param;
+        format::type data_layout;
+        std::tie(param, data_layout) = this->GetParam();
+
+        const auto data_type = type_to_data_type<T>::value;
+        const auto rois_num_type = type_to_data_type<ROIS_NUM_T>::value;
+
+        auto& engine = get_test_engine();
+
+        const primitive_id input_im_info_id = "InputImInfo";
+        const auto input_im_info = engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(3)}});
+        set_values(input_im_info, getValues<T>(im_info));
+
+        const primitive_id input_anchors_id = "InputAnchors";
+        auto input_anchors = engine.allocate_memory(
+                {data_type, format::bfyx, tensor{batch(height), feature(width), spatial(4, number_of_anchors)}});
+        set_values(input_anchors, getValues<T>(anchors));
+
+        const primitive_id input_deltas_id = "InputDeltas";
+        auto input_deltas = engine.allocate_memory(
+                {data_type, format::bfyx,
+                 tensor{batch(num_batches), feature(number_of_anchors * 4), spatial(width, height)}});
+        set_values(input_deltas, getValues<T>(deltas));
+
+        const primitive_id input_scores_id = "InputScores";
+        auto input_scores = engine.allocate_memory(
+                {data_type, format::bfyx, tensor{batch(num_batches), feature(number_of_anchors), spatial(width, height)}});
+        set_values(input_scores, getValues<T>(scores));
+
+        const primitive_id output_roi_scores_id = "OutputRoiScores";
+        auto output_roi_scores =
+                engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(param.post_nms_count)}});
+
+        const primitive_id output_rois_num_id = "OutputRoisNum";
+        auto output_rois_num =
+                engine.allocate_memory({rois_num_type, format::bfyx, tensor{batch(num_batches)}});
+
+        const primitive_id reorder_im_info_id = input_im_info_id + "Reordered";
+        const primitive_id reorder_anchors_id = input_anchors_id + "Reordered";
+        const primitive_id reorder_deltas_id = input_deltas_id + "Reordered";
+        const primitive_id reorder_scores_id = input_scores_id + "Reordered";
+
+        topology topology;
+
+        topology.add(input_layout{input_im_info_id, input_im_info->get_layout()});
+        topology.add(input_layout{input_anchors_id, input_anchors->get_layout()});
+        topology.add(input_layout{input_deltas_id, input_deltas->get_layout()});
+        topology.add(input_layout{input_scores_id, input_scores->get_layout()});
+        topology.add(mutable_data{output_roi_scores_id, output_roi_scores});
+        topology.add(mutable_data{output_rois_num_id, output_rois_num});
+
+        topology.add(reorder(reorder_im_info_id, input_im_info_id, data_layout, data_type));
+        topology.add(reorder(reorder_anchors_id, input_anchors_id, data_layout, data_type));
+        topology.add(reorder(reorder_deltas_id, input_deltas_id, data_layout, data_type));
+        topology.add(reorder(reorder_scores_id, input_scores_id, data_layout, data_type));
+
+        const primitive_id generate_proposals_id = "generate_proposals";
+        const auto generate_proposals_primitive = generate_proposals{
+            generate_proposals_id,
+            reorder_im_info_id,
+            reorder_anchors_id,
+            reorder_deltas_id,
+            reorder_scores_id,
+            output_roi_scores_id,
+            output_rois_num_id,
+            param.min_size,
+            param.nms_threshold,
+            param.pre_nms_count,
+            param.post_nms_count,
+            param.normalized,
+            param.nms_eta,
+            rois_num_type};
+
+        topology.add(generate_proposals_primitive);
+        const primitive_id reorder_result_id = generate_proposals_id + "Reordered";
+        topology.add(reorder(reorder_result_id, generate_proposals_id, format::bfyx, data_type));
+
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        network network{engine, topology, bo};
+
+        network.set_input_data(input_im_info_id, input_im_info);
+        network.set_input_data(input_anchors_id, input_anchors);
+        network.set_input_data(input_deltas_id, input_deltas);
+        network.set_input_data(input_scores_id, input_scores);
+
+        const auto outputs = network.execute();
+
+        const auto rois = outputs.at(reorder_result_id).get_memory();
+
+        const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
+        ASSERT_EQ(rois_ptr.size(), num_batches * param.post_nms_count * 4);
+
+        const cldnn::mem_lock<T> roi_scores_ptr(output_roi_scores, get_test_stream());
+        ASSERT_EQ(roi_scores_ptr.size(), num_batches * param.post_nms_count);
+
+        const cldnn::mem_lock<ROIS_NUM_T> rois_num_ptr(output_rois_num, get_test_stream());
+        ASSERT_EQ(rois_num_ptr.size(), num_batches);
+
+        const auto& expected_roi_scores = param.expected_roi_scores;
+        const auto& expected_rois = param.expected_rois;
+        const auto& expected_rois_num = param.expected_rois_num;
+
+        for (size_t j = 0; j < expected_rois_num.size(); ++j) {
+            EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+        }
+
+
+        for (size_t i = 0; i < param.post_nms_count; ++i) {
+            EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
+
+            if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
+                for (size_t coord = 0; coord < 4; ++coord) {
+                    const auto roi_idx = i * 4 + coord;
+                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                }
+            }
+        }
+    }
+};
+
+using f32_i32 = generate_proposals_test<float, int32_t>;
+TEST_P(f32_i32, f32_i32) {
+    test();
+}
 INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
-        generate_proposals_test_f32_i32,
-        ::testing::ValuesIn(getGenerateProposalsParams<float>()));
+        f32_i32,
+        ::testing::Combine(
+            ::testing::ValuesIn(getGenerateProposalsParams<float>()),
+            ::testing::ValuesIn(layouts)
+            ));
 
+using f32_i64 = generate_proposals_test<float, int64_t>;
+TEST_P(f32_i64, f32_i64) {
+    test();
+}
 INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
-        generate_proposals_test_f32_i64,
-        ::testing::ValuesIn(getGenerateProposalsParams<float>()));
+        f32_i64,
+        ::testing::Combine(
+                ::testing::ValuesIn(getGenerateProposalsParams<float>()),
+                ::testing::ValuesIn(layouts)
+        ));
 
+using f16_i32 = generate_proposals_test<half_t, int32_t>;
+TEST_P(f16_i32, f16_i32) {
+    test();
+}
 INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
-        generate_proposals_test_f16_i32,
-        ::testing::ValuesIn(getGenerateProposalsParams<half_t>()));
+        f16_i32,
+        ::testing::Combine(
+                ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
+                ::testing::ValuesIn(layouts)
+        ));
 
+using f16_i64 = generate_proposals_test<half_t, int64_t>;
+TEST_P(f16_i64, f16_i64) {
+    test();
+}
 INSTANTIATE_TEST_SUITE_P(
         generate_proposals_gpu_test,
-        generate_proposals_test_f16_i64,
-        ::testing::ValuesIn(getGenerateProposalsParams<half_t>()));
+        f16_i64,
+        ::testing::Combine(
+                ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
+                ::testing::ValuesIn(layouts)
+        ));

@@ -19,7 +19,7 @@ layout generate_proposals_inst::calc_output_layout(
     const layout data_layout = node.input().get_output_layout();
     const auto num_batches = data_layout.batch();
     const auto desc = node.get_primitive();
-    return layout(data_layout.data_type, format::bfyx, {static_cast<int>(num_batches * desc->post_nms_count), 4, 1, 1});
+    return layout(data_layout.data_type, data_layout.format, {static_cast<int>(num_batches * desc->post_nms_count), 4, 1, 1});
 }
 
 std::string generate_proposals_inst::to_string(

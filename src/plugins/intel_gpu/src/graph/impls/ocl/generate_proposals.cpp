@@ -70,8 +70,18 @@ namespace detail {
         implementation_map<generate_proposals>::add(impl_types::ocl,
                                                     generate_proposals_impl::create, {
                                                             std::make_tuple(data_types::f16, format::bfyx),
-                                                            std::make_tuple(data_types::f32, format::bfyx)
-                                                    });
+                                                            std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                            std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+
+                                                            std::make_tuple(data_types::f32, format::bfyx),
+                                                            std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                            std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
     }
 }  // namespace detail
 }  // namespace ocl
