@@ -29,7 +29,7 @@ Below is an example of the section in the POT configuration file with the `satur
 ]
 ```
 
-It is recommended to try the "all" option during the model quantization. In case the accuracy problem still occurs after that, try using [Quantization-aware training from NNCF](https://github.com/openvinotoolkit/nncf) and fine-tuning the model.
+If you observe the saturation issue, try the "all" option during model quantization. If the accuracy problem still occurs, try using [Quantization-aware training from NNCF](https://github.com/openvinotoolkit/nncf) and fine-tuning the model.
 
 Use the "no" option when leaving out legacy CPU HW. It might also lead to slightly better accuracy.
 
