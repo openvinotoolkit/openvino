@@ -611,7 +611,7 @@ public:
         if (deviceName.find("BATCH") == std::string::npos) {
             // auto-batching is not applicable, if there is auto_batch_timeout, delete it
             const auto& batch_timeout_mode = config_with_batch.find(ov::auto_batch_timeout.name());
-            if (batch_timeout_mode != config.end()) {
+            if (batch_timeout_mode != config_with_batch.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config_with_batch.erase(batch_timeout_mode);
             }
@@ -713,7 +713,7 @@ public:
         if (deviceName.find("BATCH") == std::string::npos) {
             // auto-batching is not applicable, if there is auto_batch_timeout, delete it
             const auto& batch_timeout_mode = config_with_batch.find(ov::auto_batch_timeout.name());
-            if (batch_timeout_mode != config.end()) {
+            if (batch_timeout_mode != config_with_batch.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config_with_batch.erase(batch_timeout_mode);
             }
