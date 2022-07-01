@@ -19,7 +19,7 @@ In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10t
 
 ### Intel® GNA Forward and Backward Compatibility
 
-When a model is run, using the GNA plugin, it is compiled internally for the specific hardware target. It is possible to export compiled model, using <a href="#import-export">Import/Export</a> functionality to use it later. In general, there is no guarantee that a model compiled and exported for GNA 2.0 runs on GNA 3.0 or vice versa.
+When a model is run, using the GNA plugin, it is compiled internally for the specific hardware target. It is possible to export a compiled model, using <a href="#import-export">Import/Export</a> functionality to use it later. In general, there is no guarantee that a model compiled and exported for GNA 2.0 runs on GNA 3.0 or vice versa.
 
 @sphinxdirective
 
@@ -31,9 +31,9 @@ When a model is run, using the GNA plugin, it is compiled internally for the spe
 
 @endsphinxdirective
 
-> **NOTE**: In most cases, network compiled for GNA 2.0 runs as expected on GNA 3.0. However, the performance may be worse compared to when a network is compiled specifically for the latter. The exception is a network with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-operations-limitations">Models and Operations Limitations</a> section).
+> **NOTE**: In most cases, a network compiled for GNA 2.0 runs as expected on GNA 3.0. However, the performance may be worse compared to when a network is compiled specifically for the latter. The exception is a network with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-operations-limitations">Models and Operations Limitations</a> section).
 
-For optimal work with POT quantized models (which includes 2D convolutions on GNA 3.0 hardware) the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
+For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0 hardware, the <a href="#support-for-2d-convolutions-using-pot">following requirements</a> should be satisfied.
 
 Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 
@@ -59,7 +59,7 @@ To prepare the applications correctly, use Automatic QoS Feature described below
 
 ### Automatic QoS Feature on Windows
 
-Starting with 2021.4.1 release of OpenVINO™ and 03.00.00.1363 version of Windows GNA driver, a new execution mode `ov::intel_gna::ExecutionMode::HW_WITH_SW_FBACK` is introduced to ensure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
+Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version of Windows GNA driver, a new execution mode of `ov::intel_gna::ExecutionMode::HW_WITH_SW_FBACK` has been available to ensure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
 if the HW queue is not empty. Therefore, there is no need for explicitly switching between GNA and CPU.
 
 @sphinxtabset
@@ -82,7 +82,7 @@ if the HW queue is not empty. Therefore, there is no need for explicitly switchi
 
 > **NOTE**: Due to the "first come - first served" nature of GNA driver and the QoS feature, this mode may lead to increased CPU consumption
 if there are several clients using GNA simultaneously.
-Even a lightweight competing infer request (not cleared at the time when the user's GNA client process makes its request) 
+Even a lightweight competing infer request, not cleared at the time when the user's GNA client process makes its request,
 can cause the user's request to be executed on CPU, unnecessarily increasing CPU utilization and power.
 
 ## Supported Inference Data Types
