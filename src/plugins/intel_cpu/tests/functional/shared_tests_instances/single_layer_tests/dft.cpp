@@ -14,12 +14,6 @@ const std::vector<ngraph::helpers::DFTOpType> opTypes = {
     ngraph::helpers::DFTOpType::INVERSE
 };
 
-const std::vector<ngraph::helpers::DFTOpMode> opModes = {
-    ngraph::helpers::DFTOpMode::COMPLEX,
-    // TODO: Uncomment when the CPU plugin will support (I)RDFT
-    // ngraph::helpers::DFTOpMode::REAL,
-};
-
 const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::BF16
@@ -46,7 +40,6 @@ const auto testCase1D = ::testing::Combine(
     ::testing::ValuesIn(axes1D),
     ::testing::ValuesIn(signalSizes1D),
     ::testing::ValuesIn(opTypes),
-    ::testing::ValuesIn(opModes),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -65,7 +58,6 @@ const auto testCase2D = ::testing::Combine(
     ::testing::ValuesIn(axes2D),
     ::testing::ValuesIn(signalSizes2D),
     ::testing::ValuesIn(opTypes),
-    ::testing::ValuesIn(opModes),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -86,7 +78,6 @@ const auto testCase3D = ::testing::Combine(
     ::testing::ValuesIn(axes3D),
     ::testing::ValuesIn(signalSizes3D),
     ::testing::ValuesIn(opTypes),
-    ::testing::ValuesIn(opModes),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -106,7 +97,6 @@ const auto testCase4D = ::testing::Combine(
     ::testing::ValuesIn(axes4D),
     ::testing::ValuesIn(signalSizes4D),
     ::testing::ValuesIn(opTypes),
-    ::testing::ValuesIn(opModes),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

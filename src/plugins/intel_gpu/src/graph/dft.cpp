@@ -30,7 +30,7 @@ layout dft_inst::calc_output_layout(const dft_node& node, const kernel_impl_para
         dims_converted.insert(std::prev(dims_converted.end()), 1);
     }
 
-    const auto output_format = format::get_preserved_blocked_format(dims_converted.size(), input_layout.format);
+    const auto output_format = format::get_preserved_blocked_format(input_layout.format, dims_converted.size());
     return {input_layout.data_type, output_format, tensor(output_format, dims_converted)};
 }
 

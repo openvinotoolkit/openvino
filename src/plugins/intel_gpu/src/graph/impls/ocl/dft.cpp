@@ -42,13 +42,13 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
 
         // Extend input layout for RDFT case to make input rank match output rank
         if (primitive->kind == dft_kind::forward && primitive->mode == dft_mode::real) {
-            auto input_layout = arg.input().get_output_layout();
-            auto output_layout = arg.get_output_layout();
+            const auto input_layout = arg.input().get_output_layout();
+            const auto output_layout = arg.get_output_layout();
             // No need to extend layout for input that has less than 4 dimensions
             if (input_layout.get_rank() != output_layout.get_rank()) {
                 auto new_dims = input_layout.get_dims();
                 new_dims.push_back(1);
-                auto new_fmt = format::get_preserved_blocked_format(new_dims.size(), input_layout.format);
+                const auto new_fmt = format::get_preserved_blocked_format(input_layout.format, new_dims.size());
                 params.inputs[0] = convert_data_tensor({input_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
             }
         }

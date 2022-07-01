@@ -324,95 +324,95 @@ struct format {
     static format adjust_to_rank(format fmt, size_t new_rank);
 
     /// @brief Extend or reduce format with preserving blocked dimensions
-    static format get_preserved_blocked_format(size_t rank, format old_fmt) {
-        if (rank == old_fmt.dimension()) {
-            return old_fmt;
+    static format get_preserved_blocked_format(format input_fmt, size_t output_rank) {
+        if (output_rank == input_fmt.dimension()) {
+            return input_fmt;
         }
 
-        auto fmt = get_default_format(rank);
+        auto output_fmt = get_default_format(output_rank);
 
-        switch (rank) {
+        switch (output_rank) {
         case 4:
-            switch (old_fmt) {
+            switch (input_fmt) {
             case format::b_fs_zyx_fsv2:
-                fmt = b_fs_yx_fsv2;
+                output_fmt = b_fs_yx_fsv2;
                 break;
             case format::b_fs_zyx_fsv4:
-                fmt = b_fs_yx_fsv4;
+                output_fmt = b_fs_yx_fsv4;
                 break;
             case format::b_fs_zyx_fsv16:
-                fmt = b_fs_yx_fsv16;
+                output_fmt = b_fs_yx_fsv16;
                 break;
             case format::b_fs_zyx_fsv32:
-                fmt = b_fs_yx_fsv32;
+                output_fmt = b_fs_yx_fsv32;
                 break;
             case format::bs_fs_zyx_bsv16_fsv16:
-                fmt = bs_fs_yx_bsv16_fsv16;
+                output_fmt = bs_fs_yx_bsv16_fsv16;
                 break;
             case format::bs_fs_zyx_bsv4_fsv4:
-                fmt = bs_fs_yx_bsv4_fsv4;
+                output_fmt = bs_fs_yx_bsv4_fsv4;
                 break;
             case format::bs_fs_zyx_bsv8_fsv4:
-                fmt = bs_fs_yx_bsv8_fsv4;
+                output_fmt = bs_fs_yx_bsv8_fsv4;
                 break;
             case format::bs_fs_zyx_bsv8_fsv2:
-                fmt = bs_fs_yx_bsv8_fsv2;
+                output_fmt = bs_fs_yx_bsv8_fsv2;
                 break;
             case format::bs_fs_zyx_bsv4_fsv2:
-                fmt = bs_fs_yx_bsv4_fsv2;
+                output_fmt = bs_fs_yx_bsv4_fsv2;
                 break;
             case format::bs_fs_zyx_bsv32_fsv32:
-                fmt = bs_fs_yx_bsv32_fsv32;
+                output_fmt = bs_fs_yx_bsv32_fsv32;
                 break;
             case format::bs_fs_zyx_bsv32_fsv16:
-                fmt = bs_fs_yx_bsv32_fsv16;
+                output_fmt = bs_fs_yx_bsv32_fsv16;
                 break;
                 /* TODO: Enable when "bs_fs_yx_bsv16_fsv32" would be added
             case format::bs_fs_zyx_bsv16_fsv32:
-                fmt = bs_fs_yx_bsv16_fsv32;
+                output_fmt = bs_fs_yx_bsv16_fsv32;
                 break;
                  */
             default:
                 break;
             }
         case 5:
-            switch (old_fmt) {
+            switch (input_fmt) {
             case format::b_fs_yx_fsv2:
-                fmt = b_fs_zyx_fsv2;
+                output_fmt = b_fs_zyx_fsv2;
                 break;
             case format::b_fs_yx_fsv4:
-                fmt = b_fs_zyx_fsv4;
+                output_fmt = b_fs_zyx_fsv4;
                 break;
             case format::b_fs_yx_fsv16:
-                fmt = b_fs_zyx_fsv16;
+                output_fmt = b_fs_zyx_fsv16;
                 break;
             case format::b_fs_yx_fsv32:
-                fmt = b_fs_zyx_fsv32;
+                output_fmt = b_fs_zyx_fsv32;
                 break;
             case format::bs_fs_yx_bsv16_fsv16:
-                fmt = bs_fs_zyx_bsv16_fsv16;
+                output_fmt = bs_fs_zyx_bsv16_fsv16;
                 break;
             case format::bs_fs_yx_bsv4_fsv4:
-                fmt = bs_fs_zyx_bsv4_fsv4;
+                output_fmt = bs_fs_zyx_bsv4_fsv4;
                 break;
             case format::bs_fs_yx_bsv8_fsv4:
-                fmt = bs_fs_zyx_bsv8_fsv4;
+                output_fmt = bs_fs_zyx_bsv8_fsv4;
                 break;
             case format::bs_fs_yx_bsv8_fsv2:
-                fmt = bs_fs_zyx_bsv8_fsv2;
+                output_fmt = bs_fs_zyx_bsv8_fsv2;
                 break;
             case format::bs_fs_yx_bsv4_fsv2:
-                fmt = bs_fs_zyx_bsv4_fsv2;
+                output_fmt = bs_fs_zyx_bsv4_fsv2;
                 break;
             case format::bs_fs_yx_bsv32_fsv32:
-                fmt = bs_fs_zyx_bsv32_fsv32;
+                output_fmt = bs_fs_zyx_bsv32_fsv32;
                 break;
             case format::bs_fs_yx_bsv32_fsv16:
-                fmt = bs_fs_zyx_bsv32_fsv16;
+                output_fmt = bs_fs_zyx_bsv32_fsv16;
                 break;
                 /* TODO: Enable when "bs_fs_yx_bsv16_fsv32" would be added
             case format::bs_fs_yx_bsv16_fsv32:
-                fmt = bs_fs_zyx_bsv16_fsv32;
+                output_fmt = bs_fs_zyx_bsv16_fsv32;
                 break;
                  */
             default:
@@ -421,7 +421,7 @@ struct format {
         default:
             break;
         }
-        return fmt;
+        return output_fmt;
     }
 
     /// @brief Checks if @p format is of grouped type

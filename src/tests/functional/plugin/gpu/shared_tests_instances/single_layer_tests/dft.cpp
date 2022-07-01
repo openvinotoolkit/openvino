@@ -39,7 +39,7 @@ using namespace LayerTestsDefinitions;
 
 // RDFT can support 1d
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_1d_real,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{0}),
@@ -47,39 +47,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_1d_real,
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
                                           testing::Values(ngraph::helpers::DFTOpMode::REAL),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          combine({{10, 2}},    // input shapes
                                  {{0}, {-1}},  // axes
                                  {{}, {5}}),   // signal sizes
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_3d,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          combine({{10, 4, 2}},        // input shapes
                                  {{0, 1}, {-1, -2}},  // axes
                                  {{}, {5, 2}}),       // signal sizes
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          combine({{10, 4, 8, 2}},            // input shapes
                                  {{0, 1, 2}, {-1, -2, -3}},  // axes
                                  {{}, {5, 2, 5}}),           // signal sizes
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          combine({{10, 4, 8, 2, 2}},                // input shapes
                                  {{0, 1, 2, 3}, {-1, -2, -3, -4}},  // axes
                                  {{}, {5, 2, 5, 20}}),              // signal sizes
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 // RDFT can support last axis
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d_real_last_axis,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{
@@ -88,12 +88,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d_real_last_axis,
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
                                           testing::Values(ngraph::helpers::DFTOpMode::REAL),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 // DFT, IDFT and IRDFT can support 6d
 INSTANTIATE_TEST_SUITE_P(
     smoke_DFT_6d_complex,
-    DFTLayerTest,
+    DFT9LayerTest,
     testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
                      testing::ValuesIn(inputPrecisions),
                      testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}, {-1, -2, -3, -4, -5}}}),
@@ -101,10 +101,10 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(ngraph::helpers::DFTOpType::FORWARD, ngraph::helpers::DFTOpType::INVERSE),
                      testing::Values(ngraph::helpers::DFTOpMode::COMPLEX),
                      testing::Values(CommonTestUtils::DEVICE_GPU)),
-    DFTLayerTest::getTestCaseName);
+    DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_real,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{
@@ -113,11 +113,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_real,
                                           testing::Values(ngraph::helpers::DFTOpType::INVERSE),
                                           testing::Values(ngraph::helpers::DFTOpMode::REAL),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 // DFT and IDFT can support empty axes
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_complex_empty_axes,
-                         DFTLayerTest,
+                         DFT9LayerTest,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::Values(std::vector<int64_t>{}),
@@ -126,6 +126,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_complex_empty_axes,
                                                           ngraph::helpers::DFTOpType::INVERSE),
                                           testing::Values(ngraph::helpers::DFTOpMode::COMPLEX),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
-                         DFTLayerTest::getTestCaseName);
+                         DFT9LayerTest::getTestCaseName);
 
 }  // namespace
