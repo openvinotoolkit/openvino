@@ -66,10 +66,10 @@ You may also specify "AUTO" as the device, and benchmark_app will automatically 
 ### Number of iterations
 By default, the benchmarking app will run for a predefined duration, repeatedly performing inferencing with the model and measuring the resulting inference speed. There are several options for setting the number of inference iterations:
 
-* Explicitly specify the number of iterations the model runs using the `-niter <number_of_iterations>` option
-* Set how much time the app runs for using the `-t <seconds>` option
-* Set both of them (execution will continue until both conditions are met)
-* If neither -niter nor -t are specified, the app will run for a predefined duration that depends on the device
+* Explicitly specify the number of iterations the model runs using the `-niter <number_of_iterations>` option.
+* Set how much time the app runs for using the `-t <seconds>` option.
+* Set both of them (execution will continue until both conditions are met).
+* If neither -niter nor -t are specified, the app will run for a predefined duration that depends on the device.
 
 The more iterations a model runs, the better the statistics will be for determing average latency and throughput.
 
