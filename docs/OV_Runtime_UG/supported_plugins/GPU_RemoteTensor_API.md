@@ -1,7 +1,7 @@
 # Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
 
 The GPU plugin implementation of the `ov::RemoteContext` and `ov::RemoteTensor` interfaces supports GPU
-pipeline developers, who need video memory sharing and interoperability with existing native APIs, 
+pipeline developers who need video memory sharing and interoperability with existing native APIs, 
 such as OpenCL, Microsoft DirectX, or VAAPI.
 Using these interfaces allows you to avoid any memory copy overhead when plugging OpenVINO™ inference
 into an existing GPU pipeline. It also enables OpenCL kernels to participate in the pipeline to become
@@ -30,7 +30,7 @@ an existing handle from a native API or retrieved from the GPU plugin.
 
 Once you have obtained the context, you can use it to compile a new `ov::CompiledModel` or create `ov::RemoteTensor`
 objects.
-For network compilation, use a dedicated flavor of the `ov::Core::compile_model()`, which accepts the context as an
+For network compilation, use a dedicated flavor of `ov::Core::compile_model()`, which accepts the context as an
 additional parameter.
 
 ### Creation of RemoteContext from Native Handle
@@ -123,7 +123,7 @@ memory handles (which can be obtained from them at any time).
 
 To create a shared tensor from a native memory handle, use dedicated `create_tensor`or `create_tensor_nv12` methods
 of the `ov::RemoteContext` sub-classes.
-The `ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with the `ov::RemoteTensor`
+`ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with the `ov::RemoteTensor`
 object or request plugin to allocate specific device memory. For more details, see the code snippets below:
 
 @sphinxtabset
@@ -193,7 +193,7 @@ object or request plugin to allocate specific device memory. For more details, s
 
 @endsphinxtabset
 
-The `ov::intel_gpu::ocl::D3DContext` and `ov::intel_gpu::ocl::VAContext` classes are derived from the `ov::intel_gpu::ocl::ClContext`.
+The `ov::intel_gpu::ocl::D3DContext` and `ov::intel_gpu::ocl::VAContext` classes are derived from `ov::intel_gpu::ocl::ClContext`.
 Therefore, they provide the functionality described above and extend it
 to allow creation of `ov::RemoteTensor` objects from `ID3D11Buffer`, `ID3D11Texture2D` pointers or the `VASurfaceID` handle respectively.
 
@@ -208,7 +208,7 @@ should be added before model compilation:
 
 @snippet snippets/gpu/preprocessing.cpp init_preproc
 
-Since the `ov::intel_gpu::ocl::ClImage2DTensor` (and derived classes) does not support batched surfaces, if batching and surface sharing are required
+Since the `ov::intel_gpu::ocl::ClImage2DTensor` and its derived classes do not support batched surfaces, if batching and surface sharing are required
 at the same time, inputs need to be set via the `ov::InferRequest::set_tensors` method with vector of shared surfaces for each plane:
 
 @sphinxtabset
@@ -233,7 +233,7 @@ I420 color format can be processed in a similar way
 ## Context & Queue Sharing
 
 The GPU plugin supports creation of shared context from the `cl_command_queue` handle. In that case,
-`opencl` context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
+the `opencl` context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
 the plugin for further execution of inference primitives. Sharing the queue changes the behavior of the `ov::InferRequest::start_async()`
 method to guarantee that submission of inference primitives into the given queue is finished before
 returning control back to the calling thread.
