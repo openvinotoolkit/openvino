@@ -10,7 +10,7 @@ To use the C++ benchmark_app, you must first build it following the [Build the S
 
 > **NOTE**: If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) is available, and you should follow the usage instructions on that page instead.
 
-The benchmarking application works with OpenVINO models in IR format (`model.xml` and `model.bin`) or ONNX format (`model.onnx`). You can use it with your own models or pre-trained [public](@ref omz_models_group_public) or [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which can be downloaded using the [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is converted to OpenVINO format using the [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) tool or is in ONNX format.
+The benchmarking application works with OpenVINO models in IR format (`model.xml` and `model.bin`) or ONNX format (`model.onnx`). You can use it with your own models or pre-trained ones. You can choose among both [public](@ref omz_models_group_public) and [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which you can download using [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is either converted to the OpenVINO format, using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), or is in the ONNX format.
 
 To run benchmarking with default options on a model, use the following command. 
 
