@@ -32,7 +32,7 @@ Framework data loading classes can be wrapped by the `openvino.tools.pot.DataLoa
 
 > **NOTE**: Model-specific preprocessing (for example, mean/scale normalization), can be embedded into the model at the conversion step, using Model Optimizer component. This should be considered during the implementation of the DataLoader interface to avoid "double" normalization, which can lead to the loss of accuracy after optimization.
 
-The example code below defines the `DataLoader` for three popular use cases, such as images, text, and audio:
+The example code below defines the `DataLoader` for three popular use cases: images, text, and audio.
 
 @sphinxtabset
 
@@ -77,7 +77,7 @@ For full specification, see the the [Default Quantization method](@ref pot_compr
 
 ## Run quantization
 POT API provides methods to load and save model objects from OpenVINO Intermediate Representation: the `load_model` and `save_model`. It also has a concept of the `Pipeline` that sequentially applies specified optimization methods to the model. The `create_pipeline` method is used to instantiate a `Pipeline` object.
-An example code below shows basic quantization workflow:
+An example code below shows a basic quantization workflow:
 
 ```python
 from openvino.tools.pot import IEEngine
@@ -134,10 +134,10 @@ compressed_model_paths = save_model(
 
 The output of the script is the quantized model that can be used for inference in the same way as the original full-precision model.
 
-If the high degradation of accuracy occurs after applying the Default Quantization method, it is recommended to follow the tips from [Quantization Best Practices](@ref pot_docs_BestPractices) article or use [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method.
+If high degradation of accuracy occurs after applying the Default Quantization method, it is recommended to follow the tips from [Quantization Best Practices](@ref pot_docs_BestPractices) article or use [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) method.
 
 ## Quantizing cascaded models
-In some cases, when the optimized model is a cascaded model (it consists of several submodels, for example, MT-CNN), you will need to implement a complex inference pipeline that can properly handle different submodels and data flow between them. POT API provides the `Engine` interface for this purpose, which allows customization of the inference logic. However, it is recommended to inherit from `IEEngine` helper class that already contains all the logic required to do the inference based on OpenVINO Python API. For more details, see the following [example](@ref pot_example_face_detection_README).
+In some cases, when the optimized model is a cascaded one (consists of several submodels, for example, MT-CNN), you will need to implement a complex inference pipeline that can properly handle different submodels and data flow between them. POT API provides the `Engine` interface for this purpose, which allows customization of the inference logic. However, it is recommended to inherit from `IEEngine` helper class that already contains all the logic required to do the inference based on OpenVINO Python API. For more details, see the following [example](@ref pot_example_face_detection_README).
 
 ## Examples
 
