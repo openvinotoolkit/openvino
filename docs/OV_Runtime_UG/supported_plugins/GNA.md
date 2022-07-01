@@ -196,8 +196,8 @@ Refer to the table below to learn about the frequency of Intel® GNA inside a pa
 
 Inference request performance counters provided for the time being:
 
-   * Number of total cycles spent on scoring in hardware, including compute and memory stall cycles
-   * Number of stall cycles spent in hardware
+   * The number of total cycles spent on scoring in hardware, including compute and memory stall cycles
+   * The number of stall cycles spent in hardware
 
 ##  Supported Properties
 The plugin supports the properties listed below.
