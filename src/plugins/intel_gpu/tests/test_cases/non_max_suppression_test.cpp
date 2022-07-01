@@ -87,8 +87,8 @@ struct non_max_suppression_basic : public testing::Test {
                                         format::bfyx,
                                         tensor(batch(batch_size), feature(classes_num), spatial(1, boxes_num)));
     const layout selected_scores_layout =
-        layout(type_to_data_type<DataType>::value, format::bfyx, tensor(batch(selected_indices_num), feature(3)));
-    const layout valid_outputs_layout = layout(cldnn::data_types::i32, format::bfyx, tensor(batch(1)));
+        layout(data_type, layout_format, tensor(batch(selected_indices_num), feature(3)));
+    const layout valid_outputs_layout = layout(cldnn::data_types::i32, layout_format, tensor(batch(1)));
 
     memory::ptr get_boxes_memory(engine& engine) {
         auto mem = engine.allocate_memory(boxes_layout);
@@ -246,7 +246,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
 TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     auto& engine = tests::get_test_engine();
 
-    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, this->layout_format, tensor(batch(1))));
+    auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
     tests::set_values(num_per_class_mem, {1.f});
 
     topology topo;
@@ -275,6 +275,7 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
                                  "selected_scores",
                                  "valid_outputs"));
     topo.add(reorder("plane_nms", "nms", format::bfyx, cldnn::data_types::i32));
+    topo.add(reorder("plane_scores", "selected_scores", format::bfyx, this->data_type));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
@@ -328,21 +329,31 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
         EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
     }
 
-    if (selected_scores_mem->get_layout().data_type == data_types::f32) {
-        cldnn::mem_lock<float> second_output_ptr(selected_scores_mem, get_test_stream());
+    topology second_output_topology;
+    second_output_topology.add(input_layout("selected_scores", this->selected_scores_layout));
+    second_output_topology.add(input_layout("num_outputs", this->valid_outputs_layout));
+    second_output_topology.add(reorder("plane_scores", "selected_scores", format::bfyx, this->data_type));
+    second_output_topology.add(reorder("plane_num", "num_outputs", format::bfyx, cldnn::data_types::i32));
+    network second_output_net{engine, second_output_topology};
+    second_output_net.set_input_data("selected_scores", selected_scores_mem);
+    second_output_net.set_input_data("num_outputs", valid_outputs_mem);
+    auto second_output_result = second_output_net.execute();
+    auto plane_scores_mem = second_output_result.at("plane_scores").get_memory();
+    if (this->data_type == data_types::f32) {
+        cldnn::mem_lock<float> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
             EXPECT_FLOAT_EQ(expected_second_out[i], second_output_ptr[i]);
         }
     } else {
-        cldnn::mem_lock<half_t> second_output_ptr(selected_scores_mem, get_test_stream());
+        cldnn::mem_lock<half_t> second_output_ptr(plane_scores_mem, get_test_stream());
 
         for (size_t i = 0; i < expected_second_out.size(); ++i) {
             EXPECT_NEAR(expected_second_out[i], half_to_float(second_output_ptr[i]), 0.0002f);
         }
     }
 
-    cldnn::mem_lock<int> third_output_ptr(valid_outputs_mem, get_test_stream());
+    cldnn::mem_lock<int> third_output_ptr(second_output_result.at("plane_num").get_memory(), get_test_stream());
     ASSERT_EQ(expected_out_num, third_output_ptr[0]);
 }
 

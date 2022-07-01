@@ -106,12 +106,16 @@ public:
         }
 
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.second_output_node().get_output_layout()));
+            layout second_output_layout = arg.second_output_node().get_output_layout();
+            second_output_layout.format = arg.input_scores().get_output_layout().format;
+            params.inputs.push_back(convert_data_tensor(second_output_layout));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
+            layout third_output_layout = arg.third_output_node().get_output_layout();
+            third_output_layout.format = arg.input_scores().get_output_layout().format;
+            params.inputs.push_back(convert_data_tensor(third_output_layout));
             params.has_third_output = true;
         }
 

@@ -555,7 +555,7 @@ KERNEL (non_max_suppression_ref_stage_3)(
 #endif
 
 #ifdef THIRD_OUTPUT_TYPE
-    valid_outputs[0] = TO_THIRD_OUTPUT_TYPE(outputIdx);
+    valid_outputs[THIRD_OUTPUT_GET_INDEX(0, 0, 0, 0)] = TO_THIRD_OUTPUT_TYPE(outputIdx);
 #endif
 }
 #endif  /* NMS_STAGE_3 */
