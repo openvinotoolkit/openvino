@@ -273,4 +273,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTes
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
         ::testing::Values("CPU"));
+
+const std::vector<ov::AnyMap> default_properties = {{ov::device::priorities("CPU")}};
+const std::vector<ov::AnyMap> auto_default_properties = {{}};
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithDefaultPropertiesTest,
+                         OVClassLoadNetworkWithDefaultPropertiesTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(default_properties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithDefaultPropertiesTest,
+                         OVClassLoadNetworkWithDefaultPropertiesTest,
+                         ::testing::Combine(::testing::Values("AUTO:CPU"),
+                                            ::testing::ValuesIn(auto_default_properties)));
+
+const std::vector<ov::AnyMap> default_incorrect_properties = {
+        {ov::device::priorities("CPU"), ov::device::properties("CPU", ov::hint::allow_auto_batching(true))},
+        };
+const std::vector<ov::AnyMap> auto_default_incorrect_properties = {{}};
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
+                         OVClassLoadNetworkWithDefaultIncorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(default_incorrect_properties)));
 } // namespace
