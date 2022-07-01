@@ -48,19 +48,19 @@ The `u1/u8/i8` data types are used for quantized operations only, i.e., those ar
 
 See the [low-precision optimization guide](@ref openvino_docs_model_optimization_guide) for more details on how to get a quantized model.
 
-> **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue", which in some cases leads to reduced computational accuracy for `u8/i8` precision calculations.
+> **NOTE**: Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" that may lead to reduced computational accuracy for `u8/i8` precision calculations.
 > See the [saturation (overflow) issue section](@ref pot_saturation_issue) to get more information on how to detect such issues and possible workarounds.
 
 ### Floating Point Data Types Specifics
 
-Default floating-point precision of a CPU primitive is `f32`. To support `f16` OpenVINO IRs the plugin internally converts all the `f16` values to `f32` and all the calculations are performed using native `f32` precision.
-On platforms that natively support `bfloat16` calculations (have `AVX512_BF16` extension) `bf16` type is automatically used instead of `f32` to achieve better performance, thus no special steps are required to run a model with `bf16` precision.
-For more details about `bfloat16` format, see the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf).
+The default floating-point precision of a CPU primitive is `f32`. To support the `f16` OpenVINO IR the plugin internally converts all the `f16` values to `f32` and all the calculations are performed using the native precision of `f32`.
+On platforms that natively support `bfloat16` calculations (have the `AVX512_BF16` extension), the `bf16` type is automatically used instead of `f32` to achieve better performance. Thus, no special steps are required to run a `bf16` model.
+For more details about the `bfloat16` format, see the [BFLOAT16 – Hardware Numerics Definition white paper](https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf).
 
-Using `bf16` precision provides the following performance benefits:
+Using the `bf16` precision provides the following performance benefits:
 
 - Faster multiplication of two `bfloat16` numbers because of shorter mantissa of the `bfloat16` data.
-- Reduced memory consumption since `bfloat16` data size is two times less than 32-bit float. 
+- Reduced memory consumption since `bfloat16` data half the size of 32-bit float. 
 
 To check if the CPU device can support the `bfloat16` data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
 
@@ -97,16 +97,16 @@ To infer the model in `f32` precision instead of `bf16` on targets with native `
 The `Bfloat16` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
 To enable the simulation, the `ov::hint::inference_precision` has to be explicitly set to `ov::element::bf16`.
 
-> **NOTE**: An exception is thrown in case of setting the `ov::hint::inference_precision` to `ov::element::bf16` on CPU without native `bfloat16` support or `bfloat16` simulation mode.
+> **NOTE**: If ov::hint::inference_precision is set to ov::element::bf16 on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
 
 > **NOTE**: Due to the reduced mantissa size of the `bfloat16` data type, the resulting `bf16` inference accuracy may differ from the `f32` inference, especially for models that were not trained using the `bfloat16` data type. If the `bf16` inference accuracy is not acceptable, it is recommended to switch to the `f32` precision.
   
 ## Supported Features
 
-The plugin supports the features listed below.
+The plugin supports the following features:
 
 ### Multi-device Execution
-If a machine has OpenVINO supported devices other than CPU (for example integrated GPU), then any supported model can be executed on CPU and all the other devices simultaneously.
+If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
 This can be achieved by specifying `MULTI:CPU,GPU.0` as a target device in case of simultaneous usage of CPU and GPU.
 
 @sphinxtabset
@@ -128,20 +128,20 @@ If either `ov::num_streams(n_streams)` with `n_streams > 1` or `ov::hint::perfor
 then multiple streams are created for the model. In case of CPU plugin, each stream has its own host thread, which means that incoming infer requests can be processed simultaneously.
 Each stream is pinned to its own group of physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the [optimization](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide) guide.
+For more details, see the [optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide).
 
 > **NOTE**: When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads on data transfer between NUMA nodes.
 > In that case it is better to use the `ov::hint::PerformanceMode::LATENCY` performance hint. For more details see the [performance hints](@ref openvino_docs_OV_UG_Performance_Hints) overview.
 
 ### Dynamic Shapes
-CPU plugin provides full functional support for models with dynamic shapes in terms of the opset coverage.
+CPU provides full functional support for models with dynamic shapes in terms of the opset coverage.
 
-> **NOTE**: CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
+> **NOTE**: The CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
 
-Dynamic shapes support introduces some additional overheads on memory management and may limit internal runtime optimizations.
-The more degrees of freedom you have, the more difficult it is to achieve the best performance.
-The most flexible configuration is the fully undefined shape, when you do not apply any constraints to the shape dimensions, which is the most convenient approach.
-However, reducing the level of uncertainty will bring performance gains.
+Dynamic shapes support introduces additional overhead on memory management and may limit internal runtime optimizations.
+The more degrees of freedom are used, the more difficult it is to achieve the best performance.
+The most flexible configuration, and the most convenient approach, is the fully undefined shape, which means that no constraints to the shape dimensions are applied.
+However, reducing the level of uncertainty results in performance gains.
 You can reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, if you explicitly set dynamic shapes with defined upper bounds.
 
 @sphinxtabset
