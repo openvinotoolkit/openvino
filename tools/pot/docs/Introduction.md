@@ -19,12 +19,12 @@
 ## Introduction
 
 Post-training model optimization is the process of applying special methods without model retraining or fine-tuning (for example, post-training 8-bit quantization). Therefore, this process does not require a training dataset or a training pipeline in the source DL framework. Post-training methods in OpenVINO require:
-* A floating-point precision model (FP32 or FP16), converted into the OpenVINO Intermediate Representation (IR) format
+* A floating-point precision model (FP32 or FP16), converted to the OpenVINO IR format (Intermediate Representation)
 and run on CPU with OpenVINO.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-OpenVINO provides a Post-training Optimization Tool (POT) which supports the uniform integer quantization method. This method allows increasing inference performance substantially and reducing the size of a model.
+OpenVINO provides a Post-training Optimization Tool (POT) that supports the uniform integer quantization method. It can substantially increase inference performance and reduce the size of a model.
 
 The figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)
@@ -39,7 +39,7 @@ Depending on your needs and requirements, POT provides two main quantization met
 *  [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) -- an advanced method that allows keeping accuracy at a predefined range, at the cost of performance improvement, when `Default Quantization` cannot guarantee it. This method requires an annotated representative dataset and may require more time for quantization. For more details, see the
 [Accuracy-aware Quantization algorithm](@ref accuracy_aware_README) documentation.
 
-Hardware (HW) platforms support different integer precisions and quantization parameters. For example, 8-bit in CPU, GPU, VPU, 16-bit for GNA. POT abstracts this complexity by introducing a concept of the "target device" used to set quantization settings, specific to the device.
+Different hardware platforms support different integer precisions and quantization parameters. For example, 8-bit is used by CPU, GPU, VPU, and 16-bit by GNA. POT abstracts this complexity by introducing a concept of the "target device" used to set quantization settings, specific to the device.
 
 > **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and VPU devices. GNA-quantized models are compatible only with CPU.
 
