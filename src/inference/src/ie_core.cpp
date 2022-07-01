@@ -609,7 +609,7 @@ public:
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
         if (deviceName.find("BATCH") == std::string::npos) {
-            //auto-batching is not applicable, if there is auto_batch_timeout, delete it
+            // auto-batching is not applicable, if there is auto_batch_timeout, delete it
             const auto& batch_timeout_mode = config_with_batch.find(ov::auto_batch_timeout.name());
             if (batch_timeout_mode != config.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
@@ -711,7 +711,7 @@ public:
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
         if (deviceName.find("BATCH") == std::string::npos) {
-            //auto-batching is not applicable, if there is auto_batch_timeout, delete it
+            // auto-batching is not applicable, if there is auto_batch_timeout, delete it
             const auto& batch_timeout_mode = config_with_batch.find(ov::auto_batch_timeout.name());
             if (batch_timeout_mode != config.end()) {
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
