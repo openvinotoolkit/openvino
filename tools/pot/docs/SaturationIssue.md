@@ -6,7 +6,7 @@ The 8-bit instructions of previous generations of Intel CPUs (based on SSE, AVX-
 ## Saturation Problem Detection
 The only way to detect saturation issue is to run inference on the CPU that admits it and on the hardware that does not have such problem (for example, VNNI-based CPU). A significant difference in accuracy (more than 1%) is the main indicator of the saturation issue impact.
 
-## Workaround
+## Saturation Issue Workaround
 The algorithm uses only 7 bits to represent weights (of Convolutional or Fully-Connected layers), while quantizing activations using the full range of 8-bit data types. Using this workaround for the first layer can help mitigate the saturation issue for many models. However, this can lead to the degradation of accuracy due to the reduced representation of weights.
 
 POT tool provides three options to deal with the saturation issue. The options can be enabled in the POT configuration file using the `saturation_fix` parameter:
