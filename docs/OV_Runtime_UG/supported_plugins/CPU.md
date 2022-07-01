@@ -142,7 +142,7 @@ Dynamic shapes support introduces additional overhead on memory management and m
 The more degrees of freedom are used, the more difficult it is to achieve the best performance.
 The most flexible configuration, and the most convenient approach, is the fully undefined shape, which means that no constraints to the shape dimensions are applied.
 However, reducing the level of uncertainty results in performance gains.
-You can reduce memory consumption through memory reuse, and as a result achieve better cache locality, which in its turn leads to better inference performance, if you explicitly set dynamic shapes with defined upper bounds.
+You can reduce memory consumption through memory reuse, achieving better cache locality and increasing inference performance. To do so, set dynamic shapes explicitly, with defined upper bounds.
 
 @sphinxtabset
 
@@ -157,9 +157,9 @@ You can reduce memory consumption through memory reuse, and as a result achieve 
 @endsphinxtabset
 
 > **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
-> If the memory consumption is unacceptable but dynamic shapes are still required, the model can be reshaped using shapes with defined upper bound to reduce memory footprint.
+> If memory consumption is unacceptable but dynamic shapes are still required, the model can be reshaped using shapes with defined upper bounds to reduce memory footprint.
 
-Some runtime optimizations works better if the model shapes are known in advance.
+Some runtime optimizations work better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
 
 @sphinxtabset
@@ -174,7 +174,7 @@ Therefore, if the input data shape is not changed between inference calls, it is
 
 @endsphinxtabset
 
-For more details, see the [dynamic shapes](../ov_dynamic_shapes.md) guide.
+For more details, see the [dynamic shapes guide](../ov_dynamic_shapes.md).
 
 ### Preprocessing Acceleration
 CPU plugin supports a full set of the preprocessing operations, providing high performance implementations for them.
@@ -200,8 +200,8 @@ For more details, see [preprocessing API guide](../preprocessing_overview.md).
 @endsphinxdirective
 
 ### Models Caching
-CPU plugin supports Import/Export network capability. If the model caching is enabled via common OpenVINO™ `ov::cache_dir` property, the plugin will automatically create a cached blob inside the specified directory during model compilation.
-This cached blob contains some intermediate representation of the network that it has after common runtime optimizations and low precision transformations.
+CPU supports Import/Export network capability. If model caching is enabled via the common OpenVINO™ `ov::cache_dir` property, the plugin automatically creates a cached blob inside the specified directory during model compilation.
+This cached blob contains partial representation of the network, having performed common runtime optimizations and low precision transformations.
 The next time the model is compiled, the cached representation will be loaded to the plugin instead of the initial OpenVINO IR, so the aforementioned transformation steps will be skipped.
 These transformations take a significant amount of time during model compilation, so caching this representation reduces time spent for subsequent compilations of the model,
 thereby reducing first inference latency (FIL).
@@ -216,15 +216,15 @@ Enabling fallback on a custom operation implementation is possible by overriding
 > **NOTE**: At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined as a result of performing the operation) are not supported by the plugin.
 
 ### Stateful Models
-CPU plugin supports stateful models without any limitations.
+The CPU plugin supports stateful models without any limitations.
 
 For details, see [stateful models guide](@ref openvino_docs_OV_UG_network_state_intro).
 
 ## Supported Properties
-The plugin supports the properties listed below.
+The plugin supports the following properties:
 
 ### Read-write Properties
-All parameters must be set before calling the `ov::Core::compile_model()` in order to take effect or passed as additional argument to the `ov::Core::compile_model()`
+All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
 - `ov::enable_profiling`
 - `ov::hint::inference_precision`
