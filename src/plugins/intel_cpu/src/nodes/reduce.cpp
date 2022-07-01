@@ -935,6 +935,7 @@ private:
                 break;
             case memory::data_type::u8:
                 if (isa == cpu::x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1553,6 +1554,7 @@ private:
                 break;
             case memory::data_type::u8:
                 if (isa == cpu::x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);

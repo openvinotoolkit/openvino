@@ -722,7 +722,7 @@ private:
                 break;
             case Precision::U16:
                 if (isa == x64::avx512_core) {
-                    vmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdw(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -750,6 +750,7 @@ private:
                 break;
             case Precision::U8:
                 if (isa == x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
