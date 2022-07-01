@@ -15,9 +15,9 @@ from ....utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-@COMPRESSION_ALGORITHMS.register('Ranger')
-class Ranger(Algorithm):
-    name = 'Ranger'
+@COMPRESSION_ALGORITHMS.register('RangeSupervision')
+class RangeSupervision(Algorithm):
+    name = 'RangeSupervision'
 
     def __init__(self, config, engine):
         super().__init__(config, engine)
