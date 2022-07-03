@@ -762,15 +762,19 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
+    auto attrsNum = useExperimentConv ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+    if (useExperimentConv) {
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+    }
 
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (auto &attr : attrs) {
+        for (int i = 0; i < attrsNum; i++) {
+            auto &attr = attrs[i];
             addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -985,8 +989,11 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
+    auto attrsNum = useExperimentConv ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+    if (useExperimentConv) {
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+    }
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -997,7 +1004,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (int n = 0; n < sizeof(attrs) / sizeof(attrs[0]); n++) {
+        for (int n = 0; n < attrsNum; n++) {
             auto &attr = attrs[n];
             addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
