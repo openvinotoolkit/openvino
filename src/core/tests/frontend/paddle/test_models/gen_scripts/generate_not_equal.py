@@ -37,7 +37,6 @@ def not_equal(name: str, x, y, data_type, cast_to_fp32=False):
 
 
 def main():
-    import paddle as paddle
     test_cases = [
         "float32",
         "int32",
