@@ -17,15 +17,20 @@ else:
  - input_low < x <= input_high:
 
 $$
+\begin{align}
    q = round(\frac{x - il}{ih - il} * (levels-1)) \\
    output = q * \frac{oh - ol}{levels-1}  + ol
+\end{align}
 $$
 
 simplified, suppose (ih > il):
+
 $$
+\begin{align}
    q = round(\frac{(x - il)}{(ih - il)} * (levels-1)) \\
    q = clamp(q, 0, levels-1) \\
    output = q * \frac{(oh - ol)}{levels-1}  + ol
+\end{align}
 $$
 
 ----------------------------
@@ -45,9 +50,19 @@ using these paramerter, FQ becomes
 
 $$
 \begin{align}
-   q' &= round(x*\frac{1}{S_i} + Z_i)   \\
-   q_{U} &= clamp(q', 0, levels-1) \\
-   output &= (q_{U} - Z_{out})* S_o
+   q' &= round(x*\frac{1}{S_i} + Z_i) \tag{a}
+\end{align}
+$$
+
+$$
+\begin{align}
+   q_{U} &= clamp(q', 0, levels-1) \tag{b}
+\end{align}
+$$
+
+$$
+\begin{align}
+   output &= (q_{U} - Z_{out})* S_o \tag{c}
 \end{align}
 $$
 
@@ -65,8 +80,8 @@ $$
 here the center value Z0 is substracted before clamp to make a signed quantized value $q_I$ and it was added back later after clamp for mathematical equivalence.
 
 notice:
- - equation (5) is traditional quantization x into q only if Zi is integer:
- - equation (7) is traditional dequantization only if Zo is integer:
+ - equation (a) is traditional quantization x into q only if Zi is integer:
+ - equation (c) is traditional dequantization only if Zo is integer:
 
 thus inputLow/inputHigh/outputLow/outputHigh is gently tuned from statistical result to satisfy these requirements.
 
@@ -80,9 +95,11 @@ $$
 in symetric quantization, Zi is choosen to be `levels/2`, thus we can increase the range a little by push il to be smaller number
 
 $$
+\begin{align}
    (levels-1)/Z_i = -(ih - il)/il = 1 - ih/il \\
    2(1-1/levels) = 1 - ih/il \\
    il = -ih/(1 - 2/levels)
+\end{align}
 $$
 
 for example:
@@ -106,7 +123,7 @@ Otherwise, there is no easy way, either `U8` or `I8` requires non-zero zero-poin
 
 # Quantize-only FQ
 
-the actual tensor in memory is stored in quantized form, so FQ is splited as:
+The actual tensor in memory is stored in quantized form, so FQ is splited as:
 
  - `Quantize(clamp)` which is fused into `Producer` node as post ops.
  - `Dequantize` is fused into `Consumer` node capable of benefit from quantized representation with additinal zero-point and scales information.
@@ -147,3 +164,21 @@ $\frac{1}{S_i}$ as the output scale of `conv` or `inner_produce` to optimize the
       conv --> ... --> eltwise --> FQ
       inner_product --> ... --> eltwise --> FQ
 ```
+
+# FQCommon
+
+The actual tensor is stored in memory as floating point type. So `round` is not needed in this case. The output can be simplified as:
+
+$$
+\begin{align}
+   y =(x-il)*\frac{oh-ol}{ih-il} + ol \\
+   y =x*\frac{oh-ol}{ih-il} + c \\
+   c = -il*\frac{oh-ol}{ih-il} + ol
+\end{align}
+$$
+
+ If the following conditions are ture, FQ can be optimized with output-scales $\frac{oh-ol}{ih-il}$.
+
+ $$
+ |c/(oh-ol)| = |\frac{ol}{oh-ol} -\frac{il}{ih-il}| < 0.01
+ $$
