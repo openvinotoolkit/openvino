@@ -90,7 +90,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             std::make_shared<ngraph::opset8::Reshape>(gather_nd_node->input_value(0), new_shape_node, true);
 
         // gather the final values
-        const auto new_indices_shape = std::vector<size_t>(indices_shape.begin(), indices_shape.end()-1);
+        const auto new_indices_shape = std::vector<size_t>(indices_shape.begin(), indices_shape.end() - 1);
         const auto new_indices_node =
             op::v0::Constant::create<int64_t>(element::Type_t::i64, new_indices_shape, meaningful_indices);
         const auto reshape_output_shape = reshape_node->get_shape();
