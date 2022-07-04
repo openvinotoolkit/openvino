@@ -450,6 +450,19 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
+/**
+ * @brief The key to decide whether terminate tbb threads when inference engine destructing.
+ *
+ * value type: boolean
+ *   - True explicitly terminate tbb when inference engine destruction
+ *   - False will not involve additional tbb operations when inference engine destruction
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}); // enable
+ * @endcode
+ */
+DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
+
 }  // namespace PluginConfigParams
 
 /**
