@@ -101,7 +101,23 @@ struct RectLimitByChannelsAndPrecision {
         const OvGnaType precision, const uint32_t channels, std::string what) const;
 };
 
-class Validator {
+class AbstractValidator {
+protected:
+    static void ThrowIfNotEmpty(const std::string& prefix, const std::string& error);
+public:
+    virtual bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+        OvGnaType inPrecision, bool exception = true) const = 0;
+
+    virtual bool ValidatePooling2D(const std::string& name,
+        const uint32_t windowH, const uint32_t windowW,
+        const uint32_t strideH, const uint32_t strideW,
+        bool exception = true) const = 0;
+    static std::unique_ptr<AbstractValidator> Create(const std::string&);
+};
+
+class Validator_30 : public AbstractValidator {
     RangeLimit2D inputHWLimit{ { 16, 384, "input height"} , { 16, 240, "input width"} };
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
 
@@ -123,20 +139,18 @@ class Validator {
         { convDilationWidth, convDilationWidth, "dilation width" } };
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
-    static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
-
 public:
-    Validator() = default;
+    Validator_30() = default;
 
-    bool ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
+    bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
         const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const;
+        OvGnaType inPrecision, bool exception = true) const override;
 
-    bool ValidatePooling2D(std::string name,
+    bool ValidatePooling2D(const std::string& name,
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW,
-        bool exception = true) const;
+        bool exception = true) const override;
 };
 } // namespace Cnn2D
 

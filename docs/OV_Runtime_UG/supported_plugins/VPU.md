@@ -1,4 +1,4 @@
-# VPU devices {#openvino_docs_OV_UG_supported_plugins_VPU}
+# VPU Devices {#openvino_docs_OV_UG_supported_plugins_VPU}
 
 @sphinxdirective
 
@@ -11,7 +11,7 @@
     
 @endsphinxdirective
 
-This chapter provides information on the OpenVINO Runtime plugins that enable inference of deep learning models on the supported VPU devices:
+This chapter provides information on the OpenVINO™ Runtime plugins that enable inference of deep learning models on the supported VPU devices:
 
 * Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X — Supported by the [MYRIAD Plugin](MYRIAD.md)
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs — Supported by the [HDDL Plugin](HDDL.md)
@@ -20,7 +20,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 
 ## Supported Networks
 
-**Caffe\***:
+**Caffe**:
 * AlexNet
 * CaffeNet
 * GoogleNet (Inception) v1, v2, v4
@@ -32,7 +32,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 * DenseNet family (121,161,169,201)
 * SSD-300, SSD-512, SSD-MobileNet, SSD-GoogleNet, SSD-SqueezeNet
 
-**TensorFlow\***:
+**TensorFlow**:
 * AlexNet
 * Inception v1, v2, v3, v4
 * Inception ResNet v2
@@ -46,7 +46,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 * ssd_mobilenet_v1
 * DeepLab-v3+
 
-**MXNet\***:
+**MXNet**:
 * AlexNet and CaffeNet
 * DenseNet family (121,161,169,201)
 * SqueezeNet v1.1
@@ -68,7 +68,7 @@ VPU plugins support layer fusion and decomposition.
 
 #### Fusing Rules
 
-Certain layers can be merged into convolution, ReLU, and Eltwise layers according to the patterns below:
+Certain layers can be merged into 'convolution', 'ReLU', and 'Eltwise' layers according to the patterns below:
 
 - Convolution
     - Convolution + ReLU → Convolution
@@ -87,7 +87,7 @@ Certain layers can be merged into convolution, ReLU, and Eltwise layers accordin
 
 #### Joining Rules
 
-> **NOTE**: Application of these rules depends on tensor sizes and resources available.
+> **NOTE**: Application of these rules depends on tensor sizes and available resources.
 
 Layers can be joined only when the two conditions below are met:
 
@@ -96,38 +96,38 @@ Layers can be joined only when the two conditions below are met:
 
 ### Decomposition Rules 
 
-- Convolution and Pooling layers are tiled resulting in the following pattern:
-    - A Split layer that splits tensors into tiles
-    - A set of tiles, optionally with service layers like Copy
-    - Depending on a tiling scheme, a Concatenation or Sum layer that joins all resulting tensors into one and restores the full blob that contains the result of a tiled operation
+- Convolution and Pooling layers are tiled, resulting in the following pattern:
+    - A `Split` layer that splits tensors into tiles
+    - A set of tiles, optionally with service layers like `Copy`
+    - Depending on a tiling scheme, a `Concatenation` or `Sum` layer that joins all resulting tensors into one and restores the full blob that contains the result of a tiled operation
 
     Names of tiled layers contain the `@soc=M/N` part, where `M` is the tile number and `N` is the number of tiles:
     ![](../img/yolo_tiny_v1.png)
 
-> **NOTE**: Nominal layers, such as Shrink and Expand, are not executed.
+> **NOTE**: Nominal layers, such as `Shrink` and `Expand`, are not executed.
 
-> **NOTE**: VPU plugins can add extra layers like Copy.
+> **NOTE**: VPU plugins can add extra layers like `Copy`.
 
 ## VPU Common Configuration Parameters
 
 VPU plugins support the configuration parameters listed below.
 The parameters are passed as `std::map<std::string, std::string>` on `InferenceEngine::Core::LoadNetwork`
 or `InferenceEngine::Core::SetConfig`.
-When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
+When specifying key values as raw strings (when using Python API), omit the `KEY_` prefix.
 
 | Parameter Name                      | Parameter Values                       | Default    | Description                                                     |
 | :---                                | :---                                   | :---       | :---                                                            |
 | `KEY_VPU_HW_STAGES_OPTIMIZATION`    | `YES`/`NO`                             | `YES`      | Turn on HW stages usage<br /> Applicable for Intel Movidius Myriad X and Intel Vision Accelerator Design devices only.   |
 | `KEY_VPU_COMPUTE_LAYOUT`            | `VPU_AUTO`, `VPU_NCHW`, `VPU_NHWC`     | `VPU_AUTO` | Specify internal input and output layouts for network layers.    |
-| `KEY_VPU_PRINT_RECEIVE_TENSOR_TIME` | `YES`/`NO`                             | `NO`       | Add device-side time spent waiting for input to PerformanceCounts.<br />See <a href="#VPU_DATA_TRANSFER_PIPELINING">Data Transfer Pipelining</a> section for details. |
-| `KEY_VPU_IGNORE_IR_STATISTIC`       | `YES`/`NO`                             | `NO`       | VPU plugin could use statistic present in IR in order to try to improve calculations precision.<br /> If you don't want statistic to be used enable this option. |
-| `KEY_VPU_CUSTOM_LAYERS`             | path to XML file                       | empty string | This option allows to pass XML file with custom layers binding.<br />If layer is present in such file, it would be used during inference even if the layer is natively supported.    |
+| `KEY_VPU_PRINT_RECEIVE_TENSOR_TIME` | `YES`/`NO`                             | `NO`       | Add device-side time spent waiting for input to PerformanceCounts.<br />See the <a href="#VPU_DATA_TRANSFER_PIPELINING">Data Transfer Pipelining</a> section for details. |
+| `KEY_VPU_IGNORE_IR_STATISTIC`       | `YES`/`NO`                             | `NO`       | VPU plugin could use statistic present in IR in order to try to improve calculations precision.<br /> This option is enabled to exclude the statistic. |
+| `KEY_VPU_CUSTOM_LAYERS`             | path to XML file                       | empty string | This option allows passing XML file with custom layers binding.<br />If a layer is present in such file, it will be used during inference even if the layer is natively supported.    |
 
 
 ## Data Transfer Pipelining <a name="VPU_DATA_TRANSFER_PIPELINING">&nbsp;</a>
 
-MYRIAD plugin tries to pipeline data transfer to/from device with computations.
-While one infer request is executed, the data for next infer request can be uploaded to device in parallel.
+MYRIAD plugin tries to pipeline data transfer to/from a device with computations.
+While one infer request is executed, the data for the next infer request can be uploaded to a device in parallel.
 The same applies to result downloading.
 
 `KEY_VPU_PRINT_RECEIVE_TENSOR_TIME` configuration parameter can be used to check the efficiency of current pipelining.
@@ -136,10 +136,10 @@ In a perfect pipeline this time should be near zero, which means that the data w
 
 ## Troubleshooting
 
-**Get the following message when running inference with the VPU plugin: "[VPU] Cannot convert layer <layer_name> due to unsupported layer type <layer_type>"**
+**When running inference with the VPU plugin: "[VPU] Cannot convert layer <layer_name> due to unsupported layer type <layer_type>"**
 
-This means that your topology has a layer that is unsupported by your target VPU plugin. To resolve this issue, you can implement the custom layer for the target device using the [OpenVINO™ Extensibility mechanism](../../Extensibility_UG/Intro.md). Or, to quickly get a working prototype, you can use the heterogeneous scenario with the default fallback policy (see the [Heterogeneous execution](../hetero_execution.md) section). Use the HETERO mode with a fallback device that supports this layer, for example, CPU: `HETERO:MYRIAD,CPU`.
-For a list of VPU-supported layers, see the Supported Layers section of the [Supported Devices](Supported_Devices.md) page.
+This means that the topology has a layer unsupported by the target VPU plugin. To resolve this issue, the custom layer can be implemented for the target device, using the [OpenVINO™ Extensibility mechanism](../../Extensibility_UG/Intro.md). To quickly get a working prototype, use the heterogeneous scenario with the default fallback policy (see the [Heterogeneous execution](../hetero_execution.md) section). Use the HETERO mode with a fallback device that supports this layer, for example, CPU: `HETERO:MYRIAD,CPU`.
+For a list of VPU-supported layers, see the **Supported Layers** section of the [Supported Devices](Supported_Devices.md) page.
 
 ## Known Layers Limitations
 

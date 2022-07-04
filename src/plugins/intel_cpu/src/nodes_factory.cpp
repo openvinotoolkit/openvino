@@ -86,6 +86,7 @@
 #include "nodes/subgraph.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
+#include "nodes/eye.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -184,6 +185,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
+    INTEL_CPU_NODE(Eye, Type::Eye);
 }
 
 #undef INTEL_CPU_NODE

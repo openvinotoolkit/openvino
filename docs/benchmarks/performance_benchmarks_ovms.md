@@ -1,22 +1,22 @@
 # OpenVINO™ Model Server Benchmark Results {#openvino_docs_performance_benchmarks_ovms}
 
-OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
+OpenVINO™ Model Server is an open-source, production grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
 
 ![OpenVINO™ Model Server](../img/performance_benchmarks_ovms_01.png)
 
 ## Measurement Methodology
 
-OpenVINO™ Model Server is measured in multiple-client-single-server configuration using two hardware platforms connected by ethernet network. The network bandwidth depends on the platforms as well as models under investigation and it is set to not be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup is consists of four main parts:
+OpenVINO™ Model Server is measured in a multiple-client-single-server configuration using two hardware platforms connected by an ethernet network. The network bandwidth depends on the platforms as well as models under investigation, and it is set not to be a bottleneck for workload intensity. This connection is dedicated only to the performance measurements. The benchmark setup consists of four main parts:
 
 ![OVMS Benchmark Setup Diagram](../img/performance_benchmarks_ovms_02.png)
 
-* **OpenVINO™ Model Server** is launched as a docker container on the server platform and it listens (and answers on) requests from clients. OpenVINO™ Model Server is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by OpenVINO™ Model Server are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
+- **OpenVINO™ Model Server** -- It is launched as a docker container on the server platform and it listens (and answers on) requests from clients. It is run on the same machine as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are located in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
-* **Clients** are run in separated physical machine referred to as client platform. Clients are implemented in Python3 programming language based on TensorFlow* API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it will send a new next request. The role played by the clients is also verification of responses.
+- **Clients** -- They are run in a separated physical machine referred to as a client platform. Clients are implemented in Python3 programming language based on TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it sends a new request. Clients also play a role in the verification of responses.
 
-* **Load balancer** works on the client platform in a docker container. HAProxy is used for this purpose. Its main role is counting of requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason of locating the load balancer on the client site is to simulate real life scenario that includes impact of physical network on reported metrics.
+- **Load Balancer** -- It works on the client platform in a docker container by using a HAProxy. The main role of Load Balancer is counting the requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason for locating this part on the client site is to simulate a real life scenario that includes an impact of a physical network on reported metrics.
 
-* **Execution Controller** is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from the load balancer, and presenting the final report of the execution.
+- **Execution Controller** -- It is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from Load Balancer and presenting the final report of the execution.
 
 ## resnet-50-TF (INT8)
 ![](../img/throughput_ovms_resnet50_int8.png)
@@ -44,8 +44,25 @@ OpenVINO™ Model Server is measured in multiple-client-single-server configurat
 ![](../img/throughput_ovms_3dunet.png)
 
 ## Image Compression for Improved Throughput
-OpenVINO Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
-feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. A good example of such use could be wireless 5G communication, a typical 1 Gbit/sec Ethernet network or a usage scenario with many client machines issuing a high rate of inference requests to one single central OpenVINO model server. Generally the performance improvement increases with increased compressibility of the data/image. The decompression on the server-side is performed by the OpenCV library. Please refer to [Supported Image Formats](#supported-image-formats-for-ovms-compression).
+OpenVINO™ Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
+feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. Some examples of such a use case are: wireless 5G communication, a typical 1 Gbit/sec Ethernet network, and a scenario of multiple client machines issuing a high rate of inference requests to a single, central OpenVINO model server. Generally, performance improvement grows with increased compressibility of data/image. Decompression on the server side is performed by the OpenCV library.
+
+### Supported Image Formats for OVMS Compression
+
+- Always supported:
+  - Portable image format - `*.pbm`, `*.pgm`, `*.ppm`, `*.pxm`, `*.pnm`.
+  - Radiance HDR - `*.hdr`, `*.pic`.
+  - Sun rasters - `*.sr`, `*.ras`.
+  - Windows bitmaps - `*.bmp`, `*.dib`.
+
+- Limited support (refer to OpenCV documentation):
+  - Raster and Vector geospatial data supported by GDAL.
+  - JPEG files - `*.jpeg`, `*.jpg`, `*.jpe`.
+  - Portable Network Graphics - `*.png`.
+  - TIFF files - `*.tiff`, `*.tif`.
+  - OpenEXR Image files - `*.exr`.
+  - JPEG 2000 files - `*.jp2`.
+  - WebP - `*.webp`.
 
 ### googlenet-v4-tf (FP32)
 ![](../img/throughput_ovms_1gbps_googlenet4_fp32.png)
@@ -478,20 +495,3 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
 
 @endsphinxdirective
 
-## Supported Image Formats for OVMS Compression
-- Always supported:
-
-  - Portable image format - *.pbm, *.pgm, *.ppm *.pxm, *.pnm
-  - Radiance HDR - *.hdr, *.pic
-  - Sun rasters - *.sr, *.ras
-  - Windows bitmaps - *.bmp, *.dib
-
-- Limited support (please see OpenCV documentation):
-
-  - Raster and Vector geospatial data supported by GDAL
-  - JPEG files - *.jpeg, *.jpg, *.jpe
-  - Portable Network Graphics - *.png
-  - TIFF files - *.tiff, *.tif
-  - OpenEXR Image files - *.exr
-  - JPEG 2000 files - *.jp2
-  - WebP - *.webp
