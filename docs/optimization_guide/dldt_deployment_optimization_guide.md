@@ -14,35 +14,42 @@
 
 @endsphinxdirective
 
-Runtime (or deployment) optimization is focused on tuning of the inference "parameters" (i.e., optimal number of the requests executed simultaneously) and other means of how a model is "executed". The relevant "runtime" configuration is the `ov::hint::inference_precision` which trades the accuracy for the performance (i.e., by allowing the `fp16/bf16` execution for the layers that remain in `fp32` after quantization of the original `fp32` model). 
+Runtime optimizations, or deployment optimizations, focus on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
+`ov::hint::inference_precision` is a "typical runtime configuration" which trades accuracy for performance, allowing `fp16/bf16` execution for the layers that remain in `fp32` after quantization of the original `fp32` model. 
 
-After that, a possible optimization should start by defining the use case. For example, whether the target scenario emphasizes throughput over latency, i.e., processing millions of samples by overnight jobs in the data centers.
-In contrast, real-time usages would likely trade off the throughput to deliver the results at minimal latency. Often this is a combined scenario that targets highest possible throughput, while maintaining a specific latency threshold.  
+Therefore, optimization should start with defining the use case. For example, if it is about processing millions of samples by overnight jobs in data centers, throughput could be prioritized over latency. On the other hand, real-time usages would likely trade off throughput to deliver the results at minimal latency. A combined scenario is also possible, targeting the highest possible throughput, while maintaining a specific latency threshold.
 
-Also it is important to understand how the full-stack application uses the inference "end-to-end" component. For example, what are the stages that need to be orchestrated? In some cases, a significant part of the workload time is spent on bringing and preparing the input data. Further in the documentation, there are the tips on efficient way of connecting the data input pipeline and the model inference.
-These are also a common performance solutions that help with both latency and throughput scenarios. 
+It is also important to understand how the full-stack application would use the inference component "end-to-end." For example, to know what stages need to be orchestrated to save workload devoted to fetching and preparing input data. 
 
-The articles below cover the associated "runtime" performance optimizations subjects. For more information on this topic, see the [matrix support of the features by the individual devices](@ref features_support_matrix).
+For more information on this topic, see the following articles:
+* [feature support by device](@ref features_support_matrix),
  
 * [Inputs Pre-processing with the OpenVINO](@ref inputs_pre_processing).
 * [Async API](@ref async_api).
 * [The 'get_tensor' Idiom](@ref tensor_idiom).
 * For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md).
 
-**For use case specific optimizations** see the guides, depending on whether you want to optimize for [latency](./dldt_deployment_optimization_latency.md) or [throughput](./dldt_deployment_optimization_tput.md).
+See the [latency](./dldt_deployment_optimization_latency.md) and [throughput](./dldt_deployment_optimization_tput.md) optimization guides, for **use-case-specific optimizations** 
 
-## Writing Performance Portable Inference Application
-Each of the [supported devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) in OpenVINO offers a bunch of low-level performance settings. 
+## Writing Performance-Portable Inference Applications
+Although inference performed in OpenVINO Runtime can be configured with a multitude of low-level performance settings, it is not recommended in most cases. Firstly, achieving the best performance with such adjustments requires deep understanding of device architecture and the inference engine.
 
-> **NOTE**: Alerting this detailed configuration requires deep architecture understanding.
 
-While the resulting performance may be optimal for the specific combination of the device and model that is inferred, it is actually neither device/model nor future-proof. Even within a family of the devices (like various CPUs), different instruction set or number of CPU cores would eventually result in different execution configuration to be optimal. Likewise, the optimal batch size is highly specific to the particular instance of the GPU. Compute vs memory-bandwidth requirements for the model being inferenced, as well as inference precision, possible model quantization also contribute to the optimal parameters selection. Finally, the optimal execution parameters of one device do not map transparently to another device type. For example, both the CPU and GPU devices support the notion of the [streams](./dldt_deployment_optimization_tput_advanced.md), yet the optimal number of the streams is deduced very differently.
+Secondly, such optimization may not translate well to other device-model combinations. In other words, one set of execution parameters is likely to result in different performance when used under different conditions. For example:
+   * both the CPU and GPU support the notion of [streams](./dldt_deployment_optimization_tput_advanced.md), yet they deduce their optimal number very differently. 
+   * Even among devices of the same type, different execution configurations can be considered optimal, as in the case of instruction sets or the number of cores for the CPU and the batch size for the GPU. 
+   * Different models have different optimal parameter configurations, considering factors such as compute vs memory-bandwidth, inference precision, and possible model quantization. 
+   * Execution "scheduling" impacts performance strongly and is highly device-specific, for example, GPU-oriented optimizations like batching, combining multiple inputs to achieve the optimal throughput, [do not always map well to the CPU](dldt_deployment_optimization_internals.md). 
  
-Therefore, to mitigate the performance configuration complexity, the **performance hints** offer the high-level "presets" for the **latency** and **throughput**. For more details, see the [Performance Hints usage](../OV_Runtime_UG/performance_hints.md).
+ 
+To make the configuration process much easier and its performance optimization more portable, the option of [Performance Hints](../OV_Runtime_UG/performance_hints.md) has been introduced. It comprises two high-level "presets" focused on either **latency** or **throughput** and, essentially, makes execution specifics irrelevant.
 
-Beyond "parameters" execution, there is a device-specific "scheduling" that strongly influences the performance. 
-Specifically, GPU-oriented optimizations like batching, which combines many of inputs to achieve optimal throughput, do not always map well to the CPU. For detailed examples, see the [further internals](dldt_deployment_optimization_internals.md) sections. In the same sections, there are details of the implementation (particularly how OpenVINO implements the *throughput* approach) for the specific devices. Keep in mind that the hints make this transparent to the application. For example, the hints anticipate the need for explicit (application-side) batching or streams.
+The Performance Hints functionality makes configuration transparent to the application, for example, anticipates the need for explicit (application-side) batching or streams, and facilitates parallel processing of separate infer requests for different input sources 
 
-The hints are sufficient to keep separate infer requests per camera or per another source of input and process the requests in parallel, using Async API as explained in the [application design considerations section](@ref throughput_app_design). The main requirement for the application to leverage the throughput is **running multiple inference requests in parallel**.
 
-In summary, when the performance "portability" is of concern, consider the Performance Hints as a solution. For the API examples and details, see the [High-level Performance Hints](../OV_Runtime_UG/performance_hints.md).
+Additional materials:
+* [Using Async API and running multiple inference requests in parallel to leverage throughput](@ref throughput_app_design).
+* [The throughput approach implementation details for specific devices](dldt_deployment_optimization_internals.md) 
+* [Details on throughput](dldt_deployment_optimization_tput.md)
+* [Details on latency](dldt_deployment_optimization_latency.md)
+* [API examples and details](../OV_Runtime_UG/performance_hints.md).

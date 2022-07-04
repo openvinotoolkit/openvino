@@ -9,7 +9,7 @@ While the techniques (e.g. pre-processing) can be specific to end-user applicati
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 - Model Optimizer can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the [relevant Model Optimizer command-line options](../MO_DG/prepare_model/Additional_Optimizations.md).
 - Let OpenVINO accelerate other means of [Image Pre-processing and Conversion](../OV_Runtime_UG/preprocessing_overview.md).
-- Data which already are in the "on-device" memory can be input directly by using the [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
+- Data which is already in the "on-device" memory can be input directly by using the [remote tensors API of the GPU Plugin](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
 @anchor async_api
 ## Prefer OpenVINO Async API
@@ -44,10 +44,10 @@ Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_c
 > **NOTE**: Using the Asynchronous API is a must for [throughput-oriented scenarios](./dldt_deployment_optimization_tput.md).
 
 ### Notes on Callbacks
-Keep in mind that the `ov::InferRequest::wait()` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by the OpenVINO runtime to notify you of the results (or errors). 
+Keep in mind that the `ov::InferRequest::wait()` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the `ov::InferRequest::wait`. The most scalable approach is using callbacks (set via the `ov::InferRequest::set_callback`) that are executed upon completion of the request. The callback functions will be used by OpenVINO Runtime to notify you of the results (or errors). 
 This is a more event-driven approach.
 
-Few important points on the callbacks:
+A few important points on the callbacks:
 - It is the job of the application to ensure that any callback function is thread-safe.
 - Although executed asynchronously by a dedicated threads, the callbacks should NOT include heavy operations (e.g. I/O) and/or blocking calls. Work done by any callback should be kept to a minimum.
 

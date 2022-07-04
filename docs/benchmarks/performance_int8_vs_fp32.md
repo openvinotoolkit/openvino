@@ -1,6 +1,6 @@
 # Model Accuracy for INT8 and FP32 Precision {#openvino_docs_performance_int8_vs_fp32}
 
-The table below presents the absolute accuracy drop that is calculated as the difference in accuracy between the FP32 representation of a model and its INT8 representation:
+The following table presents the absolute accuracy drop calculated as the accuracy difference between FP32 and INT8 representations of a model:
 
 @sphinxdirective
 .. raw:: html
