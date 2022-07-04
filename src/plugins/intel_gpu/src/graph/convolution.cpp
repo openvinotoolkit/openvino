@@ -34,6 +34,8 @@ static format GetRecommendFormat(layout input_layout, data_types output_type) {
             case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
             case format::bs_fs_zyx_bsv8_fsv2:
             case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            default:
+                break;
         }
     } else if (data_type_traits::is_floating_point(output_type)) {
         switch (input_layout.format) {
@@ -49,6 +51,8 @@ static format GetRecommendFormat(layout input_layout, data_types output_type) {
             case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
             case format::bs_fs_zyx_bsv8_fsv2:
             case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+            default:
+                break;
         }
     }
 
