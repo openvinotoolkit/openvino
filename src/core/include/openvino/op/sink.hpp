@@ -10,7 +10,8 @@
 
 namespace ov {
 namespace op {
-/// Root of nodes that can be sink nodes
+/// \brief Root of nodes that can be sink nodes
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Sink : public Op {
 public:
     ~Sink() override = 0;

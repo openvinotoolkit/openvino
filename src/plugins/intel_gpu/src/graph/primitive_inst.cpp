@@ -148,18 +148,21 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         return _impl->execute(events, *this);
 
     std::vector<event::ptr> dependencies;
-    dependencies.reserve(_exec_deps.size());
-    for (auto& input : _exec_deps) {
-        auto id = input->id();
-        try {
-            // if the requested event does not exits it means that it has not been executed, so the processing_order is
-            // wrong or synchronization failed.
-            auto ev = get_network().get_primitive_event(id);
-            dependencies.emplace_back(ev);
-        } catch (const std::out_of_range& oor) {
-            std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +
-                               std::string(oor.what() + std::string("\n"));
-            CLDNN_ERROR_MESSAGE(id, temp);
+    auto queue_type = get_network().get_stream().get_queue_type();
+    if (queue_type == queue_types::out_of_order) {
+        dependencies.reserve(_exec_deps.size());
+        for (auto& input : _exec_deps) {
+            auto id = input->id();
+            try {
+                // if the requested event does not exists it means that it has not been executed, so the processing_order is
+                // wrong or synchronization failed.
+                auto ev = get_network().get_primitive_event(id);
+                dependencies.emplace_back(ev);
+            } catch (const std::out_of_range& oor) {
+                std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +
+                                std::string(oor.what() + std::string("\n"));
+                CLDNN_ERROR_MESSAGE(id, temp);
+            }
         }
     }
     return _impl->execute(dependencies, *this);
@@ -260,12 +263,12 @@ void primitive_inst::allocate_internal_buffers(void) {
             _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
     }
 }
-memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, uint32_t net_id,
         bool is_internal) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
         if (_engine.configuration().use_memory_pool)
-                return pool.get_memory(layout, id, 0, dependencies, type, reusable);
+                return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
         return pool.get_memory(layout, type);
     };
 
@@ -329,7 +332,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 memory::ptr primitive_inst::allocate_output() {
-    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
+    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, get_network_id(), _network.is_internal());
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

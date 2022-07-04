@@ -30,7 +30,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
-/src/common/transformations/  @GlebKazantaev @ilyachur
+/src/common/transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
 /src/common/  @openvinotoolkit/openvino-ie-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
@@ -39,7 +39,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # IE CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/plugins/intel_cpu/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/thirdparty/onednn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 
 #IE LPT
 /src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers
@@ -68,6 +68,9 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/inference/include/ie/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
+# IE ARM CPU:
+/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md  @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+
 # IE Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 /src/inference/include/ie/multi-device/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
@@ -76,8 +79,8 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 
 # IE Tests:
-/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
-/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
+/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
 /src/tests/functional/inference_engine/ngraph_reader/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 /src/tests/functional/inference_engine/transformations/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ngraph-maintainers
 

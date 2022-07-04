@@ -186,4 +186,28 @@ TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     }
 }
 
+TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
+    ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
+
+TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
+    ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+
+    InferenceEngine::ExecutableNetwork exeNetWork;
+    ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, targetDevice, loadNetWorkConfig));
+    for (const auto& property_item : loadNetWorkConfig) {
+        InferenceEngine::Parameter exeNetProperty;
+        ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
+        ASSERT_EQ(property_item.second, exeNetProperty.as<std::string>());
+    }
+
+    // the value of GetConfig should be the same as SetConfig
+    for (const auto& property_item : configuration) {
+        InferenceEngine::Parameter property;
+        ASSERT_NO_THROW(property = ie->GetConfig(targetDevice, property_item.first));
+        ASSERT_EQ(property_item.second, property.as<std::string>());
+    }
+}
+
 } // namespace BehaviorTestsDefinitions

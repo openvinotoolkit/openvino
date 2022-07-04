@@ -40,6 +40,10 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
             idx_order = {"batch", "feature", "y", "x"};
         } else if (params.inputs[0].GetDims().size() == 5) {
             idx_order = {"batch", "feature", "z", "y", "x"};
+        } else if (params.inputs[0].GetDims().size() == 6) {
+            idx_order = {"batch", "feature", "w", "z", "y", "x"};
+        } else {
+            IE_THROW() << "unknown dimension";
         }
         FusedOpsConfiguration conf = {"", idx_order, "dst", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
@@ -60,7 +64,7 @@ KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/
 bool ActivationKernelRef::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) return false;
     const auto& params = static_cast<const activation_params&>(p);
-    if (params.inputs[0].GetDims().size() != params.output.GetDims().size())
+    if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
         return false;
 
     return true;

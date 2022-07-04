@@ -13,13 +13,13 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/crash_handler.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -198,6 +198,12 @@ void SubgraphBaseTest::compile_model() {
     if (functionRefs == nullptr) {
         functionRefs = ov::clone_model(*function);
     }
+
+    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+    }
+
     compiledModel = core->compile_model(function, targetDevice, configuration);
 }
 

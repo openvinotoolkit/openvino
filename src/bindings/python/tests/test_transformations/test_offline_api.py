@@ -1,11 +1,18 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
-    apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation, \
-    compress_model_transformation, serialize
+from openvino.runtime import serialize
+from openvino.offline_transformations import (
+    apply_moc_transformations,
+    apply_pot_transformations,
+    apply_low_latency_transformation,
+    apply_pruning_transformation,
+    apply_make_stateful_transformation,
+    compress_model_transformation,
+)
 
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
@@ -66,26 +73,6 @@ def test_make_stateful_transformations():
     assert len(function.get_results()) == 0
 
 
-def test_serialize_pass():
-    core = Core()
-    xml_path = "serialized_function.xml"
-    bin_path = "serialized_function.bin"
-
-    func = get_test_function()
-
-    serialize(func, xml_path, bin_path)
-
-    assert func is not None
-
-    res_func = core.read_model(model=xml_path, weights=bin_path)
-
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
-
-    os.remove(xml_path)
-    os.remove(bin_path)
-
-
 def test_serialize_pass_v2():
     core = Core()
     xml_path = "./serialized_function.xml"
@@ -113,14 +100,16 @@ def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
     func = Model(node_ceil, [], "TestFunction")
-    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f32"
+    elem_type = func.get_ordered_ops()[0].get_element_type().get_type_name()
+    assert elem_type == "f32"
     compress_model_transformation(func)
 
     assert func is not None
-    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f16"
+    elem_type = func.get_ordered_ops()[0].get_element_type().get_type_name()
+    assert elem_type == "f16"
 
 
-def test_Version_default():
+def test_version_default():
     core = Core()
     xml_path = "./serialized_function.xml"
     bin_path = "./serialized_function.bin"
@@ -140,7 +129,17 @@ def test_Version_default():
     os.remove(bin_path)
 
 
-def test_Version_ir_v10():
+def test_serialize_default_bin():
+    xml_path = "./serialized_function.xml"
+    bin_path = "./serialized_function.bin"
+    model = get_test_function()
+    serialize(model, xml_path)
+    assert os.path.exists(bin_path)
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_version_ir_v10():
     core = Core()
     xml_path = "./serialized_function.xml"
     bin_path = "./serialized_function.bin"
@@ -160,7 +159,7 @@ def test_Version_ir_v10():
     os.remove(bin_path)
 
 
-def test_Version_ir_v11():
+def test_version_ir_v11():
     core = Core()
     xml_path = "./serialized_function.xml"
     bin_path = "./serialized_function.bin"

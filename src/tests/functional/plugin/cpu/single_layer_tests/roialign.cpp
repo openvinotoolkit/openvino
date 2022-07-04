@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -22,6 +22,7 @@ using ROIAlignSpecificParams =  std::tuple<
         float,                                               // scale for given region considering actual input size
         int,                                                 // pooling ratio
         std::string,                                         // pooling mode
+        std::string,                                         // aligned mode
         ROIAlignShapes
 >;
 
@@ -52,8 +53,9 @@ public:
         float spatialScale;
         int samplingRatio;
         std::string mode;
+        std::string alignedMode;
         ROIAlignShapes inputShapes;
-        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, inputShapes) = roiPar;
+        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes) = roiPar;
         std::ostringstream result;
 
         result << netPrecision << "_IS=";
@@ -74,6 +76,7 @@ public:
         result << "spatialScale=" << spatialScale << "_";
         result << "samplingRatio=" << samplingRatio << "_";
         result << mode << "_";
+        result << alignedMode << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         return result.str();
@@ -138,16 +141,19 @@ protected:
         float spatialScale;
         int samplingRatio;
         std::string mode;
+        std::string alignedMode;
         ROIAlignShapes inputShapes;
-        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, inputShapes) = roiAlignParams;
+        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes) = roiAlignParams;
 
         init_input_shapes(inputShapes);
 
         auto float_params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
         auto int_params = ngraph::builder::makeDynamicParams(ngraph::element::i32, { inputDynamicShapes[2] });
+        auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
+        auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 
-        auto roialign = std::make_shared<ngraph::opset3::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
-                                                                   samplingRatio, spatialScale, mode);
+        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
+                                                                   samplingRatio, spatialScale, pooling_mode, aligned_mode);
 
         selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
         if (inputPrecision == ElementType::bf16) {
@@ -206,6 +212,12 @@ const std::vector<std::string> modeVector = {
         "max"
 };
 
+const std::vector<std::string> alignedModeVector = {
+        "asymmetric",
+        "half_pixel_for_nn",
+        "half_pixel"
+};
+
 const std::vector<ROIAlignShapes> inputShapeVector = {
     ROIAlignShapes{{{}, {{ 2, 22, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
     ROIAlignShapes{{{}, {{ 2, 18, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
@@ -239,6 +251,7 @@ const auto roiAlignParams = ::testing::Combine(
         ::testing::ValuesIn(spatialScaleVector),      // scale for given region considering actual input size
         ::testing::ValuesIn(poolingRatioVector),      // pooling ratio for bin
         ::testing::ValuesIn(modeVector),              // pooling mode
+        ::testing::ValuesIn(alignedModeVector),       // aligned mode
         ::testing::ValuesIn(inputShapeVector)         // feature map shape
 );
 

@@ -8,12 +8,12 @@
 namespace kernel_selector {
 
     size_t FullyConnectedBlockKernelBase::GetBatchesPerWorkItem(const fully_connected_params& params) const {
-        auto batchSize = params.output.Batch().v;
+        auto batchSize = params.outputs[0].Batch().v;
         return std::min(batchSize, static_cast<size_t>(32U));
     }
 
     size_t FullyConnectedBlockKernelBase::GetLocalGroupsSize(const fully_connected_params& params) const {
-        auto batchSize = params.output.Batch().v;
+        auto batchSize = params.outputs[0].Batch().v;
         return std::max(static_cast<size_t>(1U), batchSize / GetBatchesPerWorkItem(params));
     }
 
@@ -30,7 +30,7 @@ JitConstants FullyConnectedBlockKernelBase::GetJitConstants(
     cldnnJit.AddConstant(MakeJitConstant("BATCHES_PER_WORK_ITEM",
                                          batches_per_work_item));  // how many batches will a single work item compute
     cldnnJit.AddConstant(
-        MakeJitConstant("OUTPUT_ELEMENTS_COUNT", params.output.LogicalSize() / params.output.Batch().v));
+        MakeJitConstant("OUTPUT_ELEMENTS_COUNT", params.outputs[0].LogicalSize() / params.outputs[0].Batch().v));
 
     return cldnnJit;
 }

@@ -27,6 +27,7 @@ struct AutoBroadcastSpec;
 ///     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
 /// \li Static rank, and static dimensions on all axes.
 ///     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
+/// \ingroup ov_model_cpp_api
 class OPENVINO_API PartialShape {
     using Dimensions = std::vector<Dimension>;
 

@@ -141,7 +141,9 @@ public:
                     struct softmax_t {
                         uint32_t dimX : 1;
                         uint32_t dimY : 1;
+                        uint32_t dimZ : 1;
                         uint32_t dimFeature : 1;
+                        uint32_t dimBatch : 1;
                     } softmax;
                     struct region_yolo_t {
                         uint32_t dimX : 1;
@@ -589,14 +591,14 @@ struct base_params : public Params {
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
-    DataTensor output;
+    MultiDataTensor outputs;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 
 protected:
-    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1) {}
+    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

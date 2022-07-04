@@ -7,7 +7,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
@@ -43,7 +43,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              int32_t,                                            // Max output boxes per class
                              ThresholdValues,                                    // IOU, Score, Soft NMS sigma
                              ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
-                             ngraph::op::v5::NonMaxSuppression::BoxEncodingType, // Box encoding
+                             ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
                              bool,                                               // Sort result descending
                              ngraph::element::Type,                              // Output type
                              std::string>;                                       // Device name
@@ -57,7 +57,7 @@ public:
         ngraph::helpers::InputLayerType maxOutBoxesType;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
         element::Type outType;
         std::string targetDevice;
@@ -115,7 +115,7 @@ protected:
         ThresholdValues thrValues;
         ngraph::helpers::InputLayerType maxOutBoxesType;
         float iouThr, scoreThr, softNmsSigma;
-        op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
+        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
         element::Type outType;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
@@ -163,7 +163,7 @@ protected:
         auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
         auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
         auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
-        auto nms = std::make_shared<ngraph::op::v5::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
+        auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
         function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
@@ -413,8 +413,8 @@ const std::vector<InputShapeParams> inShapeParams = {
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
 const std::vector<float> threshold = {0.3f, 0.7f};
 const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-const std::vector<op::v5::NonMaxSuppression::BoxEncodingType> encodType = {op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
-                                                                           op::v5::NonMaxSuppression::BoxEncodingType::CORNER};
+const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
+                                                                           op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 const std::vector<ngraph::helpers::InputLayerType> maxBoxInputTypes = {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT};

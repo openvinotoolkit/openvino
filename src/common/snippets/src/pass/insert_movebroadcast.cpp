@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/insert_movebroadcast.hpp"
@@ -166,7 +166,7 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
         }
 
         reset_broacast_config(root);
-
+        MATCHER_SCOPE_ENABLE(InsertMoveBroadcast);
         return true;
     };
 

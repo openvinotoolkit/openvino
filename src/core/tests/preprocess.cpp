@@ -6,6 +6,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "util/test_tools.hpp"
 
@@ -1331,7 +1332,6 @@ TEST(pre_post_process, preprocess_crop_wrong_dims_not_aligned) {
     } catch (const ov::Exception& err) {
         EXPECT_TRUE(std::string(err.what()).find(exp_dump.str()) != std::string::npos) << err.what();
         EXPECT_TRUE(std::string(err.what()).find(act_dump.str()) != std::string::npos) << err.what();
-        std::cout << err.what();
     } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
@@ -1733,6 +1733,66 @@ TEST(pre_post_process, postprocess_many) {
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
     EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 2, 2, 3}));
     EXPECT_TRUE(custom_called);
+}
+
+TEST(pre_post_process, postprocess_one_node_many_outputs) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    ResultVector results;
+    for (size_t i = 0; i < op->get_num_splits(); i++) {
+        op->output(i).set_names({"tensor_Split" + std::to_string(i)});
+        auto res = std::make_shared<op::v0::Result>(op->output(i));
+        results.emplace_back(res);
+    }
+    auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+
+    auto p = PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(element::f32);
+    p.output(2).tensor().set_element_type(element::f32);
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
+}
+
+TEST(pre_post_process, postprocess_nothing_applied) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 10, 20});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {1});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    ResultVector results;
+    for (size_t i = 0; i < op->get_num_splits(); i++) {
+        op->output(i).set_names({"tensor_Split" + std::to_string(i)});
+        auto res = std::make_shared<op::v0::Result>(op->output(i));
+        results.emplace_back(res);
+    }
+    auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+
+    ov::layout::set_layout(model->output(1), "N???");
+    auto p = PrePostProcessor(model);
+    p.output(1).tensor().set_layout("NCHW");
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(ov::layout::get_layout(model->output(1)), "NCHW");
+    EXPECT_EQ(model->output(1).get_shape(), (Shape{1, 1, 10, 20}));
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
 }
 
 TEST(pre_post_process, exception_safety) {

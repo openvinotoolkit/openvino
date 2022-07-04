@@ -9,7 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/leaky_relu.hpp"
 
+#include "itt.hpp"
+
 ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
+    MATCHER_SCOPE(ConvertToLeakyRelu);
     auto input = ngraph::pattern::any_input();
     auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope_constant });
@@ -27,11 +30,12 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
             leakyRelu->set_friendly_name(prelu->get_friendly_name());
             ngraph::copy_runtime_info(prelu, leakyRelu);
             ngraph::replace_node(prelu, leakyRelu);
+            MATCHER_SCOPE_ENABLE(ConvertToLeakyRelu);
             return true;
         }
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertToLeakyRelu");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, matcher_name);
     this->register_matcher(m, callback);
 }

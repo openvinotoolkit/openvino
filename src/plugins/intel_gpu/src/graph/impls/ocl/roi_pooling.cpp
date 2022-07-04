@@ -53,7 +53,7 @@ protected:
         else
             args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
 
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
 
         return args;
     }

@@ -55,7 +55,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
         R"(.*NormalizeL2_1D.*)",
         R"(.*NormalizeL2_5D.*)",
-        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        // Issue: 59788. dnnl_normalize_nchw applies eps after sqrt for across_spatial
         R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
         R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
@@ -79,8 +79,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
-        // Issue: 62846 Here shape[1] is not the channel dimension size
-        R"(.*smoke_Reduce.*KeepNoDims.*(_axes=\((0.*|.*1.*)).*Fused=.*PerChannel.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
         R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
@@ -97,9 +95,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
         R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
-        // CPU plugin does not support some precisions
-        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
-
         // CPU does not support dynamic rank
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
@@ -112,8 +107,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
 
-        // TODO: Issue CVS-51680
-        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
         // TODO: CVS-67255
@@ -169,6 +162,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*Nms.*)",
+        // Issue: 76980
+        R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
+        // enable after other plugins support nms9 as setup with nms5 in
+        // tests/functional/shared_test_classes/include/shared_test_classes/single_layer/non_max_suppression.hpp
+        // is shared across plugins
+        // passed local test and cpu has specific test cases with nms9 to cover
+        R"(smoke_NmsLayerTest.*)",
     };
 
 #define FIX_62820 0

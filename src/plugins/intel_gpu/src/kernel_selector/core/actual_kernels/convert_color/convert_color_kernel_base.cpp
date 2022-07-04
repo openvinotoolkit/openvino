@@ -24,9 +24,9 @@ bool ConvertColorKernelBase::Validate(const Params& p, const optional_params& o)
 
 CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.output.GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
 
     dispatchData.gws = { out.Batch().v, out.Y().v, out.X().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout);

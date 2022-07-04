@@ -22,6 +22,7 @@ enum class Type {
     Reorder,
     Input,
     Output,
+    Eye,
     Convolution,
     Deconvolution,
     Lrn,
@@ -98,6 +99,7 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposals,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,
@@ -172,6 +174,7 @@ enum class Algorithm {
     FQCommon,
     FQQuantization,
     FQBinarization,
+    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,

@@ -8,7 +8,6 @@ from tests_compatibility import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_issue_33488,
-    xfail_issue_33538,
     xfail_issue_33581,
     xfail_issue_33589,
     xfail_issue_33595,
@@ -44,7 +43,11 @@ from tests_compatibility import (
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
-    xfail_issue_78741
+    xfail_issue_78741,
+    xfail_issue_81976,
+    skip_segfault,
+    xfail_issue_82038,
+    xfail_issue_82039,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -147,6 +150,7 @@ tests_expected_to_fail = [
         "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
         "OnnxBackendNodeModelTest.test_if_seq_cpu",
+        "OnnxBackendNodeModelTest.test_if_opt_cpu",  # Optional, SequenceConstruct
     ),
     (
         xfail_issue_38701,
@@ -190,11 +194,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
-    ),
-    (
-        xfail_issue_33538,
-        "OnnxBackendNodeModelTest.test_scan_sum_cpu",
-        "OnnxBackendNodeModelTest.test_scan9_sum_cpu",
     ),
     (
         xfail_issue_33581,
@@ -332,6 +331,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_optional_get_element_sequence_cpu",
         "OnnxBackendNodeModelTest.test_optional_has_element_cpu",
         "OnnxBackendNodeModelTest.test_optional_has_element_empty_cpu",
+        "OnnxBackendNodeModelTest.test_loop16_seq_none_cpu",  # OptionalHasElement, SequenceInsert
     ),
     (
         xfail_issue_63138,
@@ -431,7 +431,43 @@ tests_expected_to_fail = [
         "OnnxBackendSimpleModelTest.test_expand_shape_model2_cpu",
         "OnnxBackendSimpleModelTest.test_expand_shape_model3_cpu",
         "OnnxBackendSimpleModelTest.test_expand_shape_model4_cpu",
-    )
+    ),
+    (
+        skip_segfault,
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_cpu",  # ticket: 81976
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
+    ),
+    (
+        xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",
+        "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_3d_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_3d_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_cpu",
+        "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_none_cpu",
+        "OnnxBackendNodeModelTest.test_sce_none_log_prob_cpu",
+        "OnnxBackendNodeModelTest.test_sce_sum_cpu",
+        "OnnxBackendNodeModelTest.test_sce_sum_log_prob_cpu",
+    ),
+    (
+        xfail_issue_82038,
+        "OnnxBackendNodeModelTest.test_scatter_elements_with_duplicate_indices_cpu",
+        "OnnxBackendNodeModelTest.test_scatternd_add_cpu",
+        "OnnxBackendNodeModelTest.test_scatternd_multiply_cpu",
+    ),
+    (
+        xfail_issue_82039,
+        "OnnxBackendNodeModelTest.test_identity_opt_cpu",
+    ),
 ]
 
 for test_group in tests_expected_to_fail:

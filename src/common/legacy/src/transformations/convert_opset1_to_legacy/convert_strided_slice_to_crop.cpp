@@ -202,8 +202,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         }
 
         auto data_node_shape = data_output.get_shape();
-        // Crop supports only 2d, 4d and 5d blobs
-        if (data_node_shape.size() != 2 && data_node_shape.size() != 4 && data_node_shape.size() != 5) {
+        if (data_node_shape.size() < 2 || data_node_shape.size() > 5) {
             return false;
         }
 

@@ -76,8 +76,8 @@ protected:
                 args.fused_op_inputs.push_back(instance.fused_memory(i));
             }
         }
-
-        args.output = instance.output_memory_ptr();
+        // TODO: support multiple outputs
+        args.outputs.push_back(instance.output_memory_ptr());
 
         return args;
     }

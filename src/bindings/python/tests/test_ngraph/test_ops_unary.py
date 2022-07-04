@@ -1,17 +1,18 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ov
+import openvino.runtime.opset9 as ov
 from openvino.runtime import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "ng_api_fn, numpy_fn, range_start, range_end",
+    ("ng_api_fn", "numpy_fn", "range_start", "range_end"),
     [
         (ov.absolute, np.abs, -1, 1),
         (ov.abs, np.abs, -1, 1),
@@ -47,7 +48,7 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
 
 
 @pytest.mark.parametrize(
-    "ng_api_fn, numpy_fn, input_data",
+    ("ng_api_fn", "numpy_fn", "input_data"),
     [
         pytest.param(ov.absolute, np.abs, np.float32(-3)),
         pytest.param(ov.abs, np.abs, np.float32(-3)),
@@ -78,7 +79,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
 
 
 @pytest.mark.parametrize(
-    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
+    "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))],
 )
 def test_logical_not(input_data):
     expected = np.logical_not(input_data)
@@ -91,8 +92,8 @@ def test_sigmoid():
     input_data = np.array([-3.14, -1.0, 0.0, 2.71001, 1000.0], dtype=np.float32)
     result = run_op_node([input_data], ov.sigmoid)
 
-    def sigmoid(x):
-        return 1.0 / (1.0 + np.exp(-x))
+    def sigmoid(value):
+        return 1.0 / (1.0 + np.exp(-value))
 
     expected = np.array(list(map(sigmoid, input_data)))
 
@@ -240,5 +241,42 @@ def test_gelu_tanh_operator_with_array():
 
     result = computation()
     expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    [
+        Type.f64,
+        Type.f32,
+        Type.f16,
+    ],
+)
+def test_softsign_with_parameters(data_type):
+    data = np.random.rand(4, 2).astype(data_type.to_dtype())
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    param = ov.parameter(data.shape, data_type, name="Data")
+    result = runtime.computation(ov.softsign(param, "SoftSign"), param)(data)
+
+    assert np.allclose(result, expected, 1e-6, 1e-3)
+
+
+@pytest.mark.parametrize(
+    "data_type",
+    [
+        np.float64,
+        np.float32,
+        np.float16,
+    ],
+)
+def test_softsign_with_array(data_type):
+    data = np.random.rand(32, 5).astype(data_type)
+    expected = np.divide(data, np.abs(data) + 1)
+
+    runtime = get_runtime()
+    result = runtime.computation(ov.softsign(data, "SoftSign"))()
 
     assert np.allclose(result, expected, 1e-6, 1e-6)

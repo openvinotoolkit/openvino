@@ -14,12 +14,14 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FakeQuantizeDecompositionTransformation);
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -27,11 +29,11 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(FakeQuantizeDecompositionTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeDecompositionTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

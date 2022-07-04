@@ -12,6 +12,7 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Returns embeddings for given indices
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API EmbeddingBagPackedSum : public util::EmbeddingBagPackedBase {
 public:
     OPENVINO_OP("EmbeddingBagPackedSum", "opset3", util::EmbeddingBagPackedBase, 3);

@@ -91,6 +91,12 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -106,21 +112,53 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
-    NOT DEFINED OpenVINO_SOURCE_DIR)
-    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+if(NOT TARGET gflags)
+    if(NOT APPLE)
+        # on Apple only dynamic libraries are available
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
+
+    if(gflags_FOUND)
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+if(NOT TARGET zlib::zlib)
+    if(NOT CMAKE_CROSSCOMPILING)
+        find_host_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(zlib QUIET
+                              IMPORTED_TARGET
+                              zlib)
+            if(zlib_FOUND)
+                set_target_properties(PkgConfig::zlib PROPERTIES IMPORTED_GLOBAL ON)
+                add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            endif()
+        endif()
+    endif()
+
+    if(zlib_FOUND)
+        message(STATUS "zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
-    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json QUIET)
+    if(nlohmann_json_FOUND)
+        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
+        # suppress shadowing names warning
+        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+        add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -197,7 +235,7 @@ macro(ie_add_sample)
 
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
-        set(ov_link_libraries openvino::runtime::c)
+        set(ov_link_libraries openvino::runtime::ov openvino::runtime::c)
     else()
         set(ov_link_libraries openvino::runtime)
     endif()
@@ -215,12 +253,10 @@ macro(ie_add_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
 
-    install(
-        TARGETS ${IE_SAMPLE_NAME}
-        RUNTIME DESTINATION samples_bin/
-        COMPONENT samples_bin
-        EXCLUDE_FROM_ALL
-    )
+    install(TARGETS ${IE_SAMPLE_NAME}
+            RUNTIME DESTINATION samples_bin/
+            COMPONENT samples_bin
+            EXCLUDE_FROM_ALL)
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
@@ -233,7 +269,7 @@ macro(ie_add_sample)
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 

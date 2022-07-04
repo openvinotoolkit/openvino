@@ -5,5 +5,5 @@
 
 
 if __name__ == "__main__":
-    from subprocess_main import subprocess_main  # pylint: disable=no-name-in-module
+    from subprocess_main import subprocess_main  # nosec; pylint: disable=no-name-in-module
     subprocess_main(framework=None)

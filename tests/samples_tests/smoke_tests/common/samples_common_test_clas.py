@@ -160,8 +160,10 @@ class SamplesCommonTestClass():
                 executable_path = 'python ' + executable_path
             else:
                 executable_path = 'python3 ' + executable_path
-        elif 'c' in sample_type.lower() and not 'c++' in sample_type.lower():
+        elif 'c' in sample_type.lower() and not 'c++' in sample_type.lower() and not '2.0' in sample_type:
             executable_path += '_c'
+        elif '2.0' in sample_type:
+            executable_path += '_ov_c'
         if is_windows and not 'python' in sample_type.lower():
             executable_path += '.exe'
 
@@ -186,16 +188,16 @@ class SamplesCommonTestClass():
         return model
 
     @staticmethod
-    def join_env_path(param, executable_path):
+    def join_env_path(param, executable_path, complete_path=True):
         gpu_lib_path = os.path.join(os.environ.get('IE_APP_PATH'), 'lib')
         if 'i' in param:
             # If batch > 1, then concatenate images
             if ' ' in param['i']:
                 param['i'] = param['i'].split(' ')
-            else:
+            elif complete_path:
                 param['i'] = list([param['i']])
         for k in param.keys():
-            if ('i' == k):
+            if ('i' == k) and complete_path:
                 param['i'] = [os.path.join(Environment.env['test_data'], e) for e in param['i']]
                 param['i'] = ' '.join(param['i'])
             elif ('ref_m' == k):
@@ -236,10 +238,10 @@ class SamplesCommonTestClass():
                 param['l'] = os.path.join(Environment.env['test_data'], param['l'])
             elif ('pp' == k):
                 param['pp'] = gpu_lib_path
-            elif ('r' == k):
+            elif ('r' == k) and complete_path:
                 if len(param['r']) > 0:
                     param['r'] = os.path.join(Environment.env['test_data'], param['r'])
-            elif ('o' == k):
+            elif ('o' == k) and complete_path:
                 param['o'] = os.path.join(Environment.env['out_directory'], param['o'])
             elif ('wg' == k):
                 param['wg'] = os.path.join(Environment.env['out_directory'], param['wg'])
@@ -344,7 +346,7 @@ class SamplesCommonTestClass():
             "Path for test data {} is not exist!".format(Environment.env['test_data'])
         cls.output_dir = Environment.env['out_directory']
 
-    def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None):
+    def _test(self, param, use_preffix=True, get_cmd_func=None, get_shell_result=False, long_hyphen=None, complete_path=True):
         """
         :param param:
         :param use_preffix: use it when sample doesn't require keys (i.e. hello_classification <path_to_model> <path_to_image>
@@ -379,7 +381,7 @@ class SamplesCommonTestClass():
         if get_cmd_func is None:
             get_cmd_func = self.get_cmd_line
 
-        self.join_env_path(param_cp, executable_path=self.executable_path)
+        self.join_env_path(param_cp, executable_path=self.executable_path, complete_path=complete_path)
 
         # Updating all attributes in the original dictionary (param), because param_cp was changes (join_env_path)
         for key in param.keys():

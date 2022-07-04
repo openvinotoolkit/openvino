@@ -19,6 +19,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");
@@ -715,6 +716,7 @@ private:
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
+    std::shared_ptr<void> m_femgr;
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;

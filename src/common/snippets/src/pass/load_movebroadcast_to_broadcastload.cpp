@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
@@ -50,6 +50,7 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             if (inshape.back() == 1 && outshape.back() != 1) {
                 ngraph::copy_runtime_info(root, broadcastload);
                 ngraph::replace_node(root, broadcastload);
+                MATCHER_SCOPE_ENABLE(LoadMoveBroadcastToBroadcastLoad);
                 return true;
             } else {
                 return false;

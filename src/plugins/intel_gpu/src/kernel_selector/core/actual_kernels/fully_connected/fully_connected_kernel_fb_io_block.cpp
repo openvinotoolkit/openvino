@@ -23,7 +23,7 @@ ParamsKey FullyConnected_fb_io_block::GetSupportedKey() const {
 FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(const fully_connected_params& arg,
                                                                                 int) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
-    const auto& output = arg.output;
+    const auto& output = arg.outputs[0];
 
     auto batch_size = output.Batch().v;
     auto response_size = output.Feature().v;
@@ -81,7 +81,7 @@ bool FullyConnected_fb_io_block::Validate(const Params& p, const optional_params
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
     const auto responseSize = output.Feature().v;
     const auto batches = output.Batch().v;
     const auto xSize = output.LogicalSize() / batches;
@@ -132,7 +132,7 @@ KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, con
 KernelsPriority FullyConnected_fb_io_block::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
 
-    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+    return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3
                                                                                : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

@@ -11,6 +11,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
@@ -35,6 +36,7 @@ using namespace ngraph;
 //          Multiply
 //
 ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions) {
+    MATCHER_SCOPE(ConvertSubtractConstant);
     auto weightsConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
     auto weightsConvertWrapper = ngraph::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
     auto subtractConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
@@ -87,10 +89,10 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }
-
+        MATCHER_SCOPE_ENABLE(ConvertSubtractConstant);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multiplyWrapper, "ConvertSubtractConstant");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(multiplyWrapper, matcher_name);
     this->register_matcher(m, callback);
 }

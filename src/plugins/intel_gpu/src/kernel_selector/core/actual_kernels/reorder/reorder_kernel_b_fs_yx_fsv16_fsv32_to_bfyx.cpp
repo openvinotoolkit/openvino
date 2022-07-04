@@ -120,7 +120,7 @@ JitConstants ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetJitConstants(const re
     const size_t f = params.inputs[0].Feature().v;
     const size_t x = params.inputs[0].X().v;
     const size_t tile_size = GetTileSize(params);
-    const size_t output_ndims = params.output.GetDims().size();
+    const size_t output_ndims = params.outputs[0].GetDims().size();
     const size_t fsv_alignment = GetFsvAlignment(params);
 
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(output_ndims)));
@@ -163,7 +163,7 @@ bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p, const 
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     // decreamental-dims are not supported
     if (input.GetDims().size() > output.GetDims().size()) {

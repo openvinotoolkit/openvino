@@ -32,13 +32,13 @@
 using namespace ov::preprocess;
 
 /**
- * @brief The entry point for inference engine automatic speech recognition sample
+ * @brief The entry point for OpenVINO Runtime automatic speech recognition sample
  * @file speech_sample/main.cpp
  * @example speech_sample/main.cpp
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get Inference Engine version ----------------------------------------------
+        // ------------------------------ Get OpenVINO Runtime version ----------------------------------------------
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
@@ -49,7 +49,10 @@ int main(int argc, char* argv[]) {
         BaseFile* fileOutput;
         ArkFile arkFile;
         NumpyFile numpyFile;
-        auto extInputFile = fileExt(FLAGS_i);
+        std::pair<std::string, std::vector<std::string>> input_data;
+        if (!FLAGS_i.empty())
+            input_data = parse_parameters(FLAGS_i);
+        auto extInputFile = fileExt(input_data.first);
         if (extInputFile == "ark") {
             file = &arkFile;
         } else if (extInputFile == "npz") {
@@ -60,9 +63,9 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> inputFiles;
         std::vector<uint32_t> numBytesThisUtterance;
         uint32_t numUtterances(0);
-        if (!FLAGS_i.empty()) {
+        if (!input_data.first.empty()) {
             std::string outStr;
-            std::istringstream stream(FLAGS_i);
+            std::istringstream stream(input_data.first);
             uint32_t currentNumUtterances(0), currentNumBytesThisUtterance(0);
             while (getline(stream, outStr, ',')) {
                 std::string filename(fileNameNoExt(outStr) + "." + extInputFile);
@@ -79,7 +82,7 @@ int main(int argc, char* argv[]) {
         }
         size_t numInputFiles(inputFiles.size());
 
-        // --------------------------- Step 1. Initialize inference engine core and read model
+        // --------------------------- Step 1. Initialize OpenVINO Runtime core and read model
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
@@ -89,19 +92,26 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> output_names;
         std::vector<size_t> ports;
         // --------------------------- Processing custom outputs ---------------------------------------------
-        if (!FLAGS_oname.empty()) {
-            output_names = convert_str_to_vector(FLAGS_oname);
-            for (const auto& output_name : output_names) {
-                auto pos_layer = output_name.rfind(":");
-                if (pos_layer == std::string::npos) {
-                    throw std::logic_error("Output " + output_name + " doesn't have a port");
-                }
-                outputs.push_back(output_name.substr(0, pos_layer));
-                try {
-                    ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
-                } catch (const std::exception&) {
-                    throw std::logic_error("Ports should have integer type");
-                }
+        std::pair<std::string, std::vector<std::string>> output_data;
+        std::pair<std::string, std::vector<std::string>> reference_data;
+        if (!FLAGS_o.empty())
+            output_data = parse_parameters(FLAGS_o);
+        if (!FLAGS_r.empty())
+            reference_data = parse_parameters(FLAGS_r);
+        if (!output_data.second.empty())
+            output_names = output_data.second;
+        else if (!reference_data.second.empty())
+            output_names = reference_data.second;
+        for (const auto& output_name : output_names) {
+            auto pos_layer = output_name.rfind(":");
+            if (pos_layer == std::string::npos) {
+                throw std::logic_error("Output " + output_name + " doesn't have a port");
+            }
+            outputs.push_back(output_name.substr(0, pos_layer));
+            try {
+                ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
+            } catch (const std::exception&) {
+                throw std::logic_error("Ports should have integer type");
             }
         }
         // ------------------------------ Preprocessing ------------------------------------------------------
@@ -233,8 +243,9 @@ int main(int argc, char* argv[]) {
         };
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
-        gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = false;
+        gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;
         gnaPluginConfig[ov::intel_gna::pwl_max_error_percent.name()] = FLAGS_pwl_me;
+        gnaPluginConfig[ov::log::level.name()] = FLAGS_log;
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
@@ -289,6 +300,9 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
+            if (!FLAGS_compile_target.empty()) {
+                slog::info << "GNA embedded model target: " << FLAGS_compile_target << slog::endl;
+            }
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
@@ -304,8 +318,8 @@ int main(int argc, char* argv[]) {
         std::vector<ov::Tensor> ptrInputBlobs;
         auto cInputInfo = executableNet.inputs();
         check_number_of_inputs(cInputInfo.size(), numInputFiles);
-        if (!FLAGS_iname.empty()) {
-            std::vector<std::string> inputNameBlobs = convert_str_to_vector(FLAGS_iname);
+        if (!input_data.second.empty()) {
+            std::vector<std::string> inputNameBlobs = input_data.second;
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
                                        " ) is not equal to the number of inputs entered in the -iname argument ( " +
@@ -328,15 +342,15 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> output_name_files;
         std::vector<std::string> reference_name_files;
         size_t count_file = 1;
-        if (!FLAGS_o.empty()) {
-            output_name_files = convert_str_to_vector(FLAGS_o);
+        if (!output_data.first.empty()) {
+            output_name_files = convert_str_to_vector(output_data.first);
             if (output_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
-        if (!FLAGS_r.empty()) {
-            reference_name_files = convert_str_to_vector(FLAGS_r);
+        if (!reference_data.first.empty()) {
+            reference_name_files = convert_str_to_vector(reference_data.first);
             if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
@@ -429,9 +443,9 @@ int main(int argc, char* argv[]) {
             BaseFile* fileReferenceScores;
             std::string refUtteranceName;
 
-            if (!FLAGS_r.empty()) {
+            if (!reference_data.first.empty()) {
                 /** Read file with reference scores **/
-                auto exReferenceScoresFile = fileExt(FLAGS_r);
+                auto exReferenceScoresFile = fileExt(reference_data.first);
                 if (exReferenceScoresFile == "ark") {
                     fileReferenceScores = &arkFile;
                 } else if (exReferenceScoresFile == "npz") {
@@ -540,12 +554,12 @@ int main(int argc, char* argv[]) {
                         continue;
                     }
                     ptrInputBlobs.clear();
-                    if (FLAGS_iname.empty()) {
+                    if (input_data.second.empty()) {
                         for (auto& input : cInputInfo) {
                             ptrInputBlobs.push_back(inferRequest.inferRequest.get_tensor(input));
                         }
                     } else {
-                        std::vector<std::string> inputNameBlobs = convert_str_to_vector(FLAGS_iname);
+                        std::vector<std::string> inputNameBlobs = input_data.second;
                         for (const auto& input : inputNameBlobs) {
                             ov::Tensor blob = inferRequests.begin()->inferRequest.get_tensor(input);
                             if (!blob) {
@@ -638,7 +652,7 @@ int main(int argc, char* argv[]) {
 
             for (size_t next_output = 0; next_output < count_file; next_output++) {
                 if (!FLAGS_o.empty()) {
-                    auto exOutputScoresFile = fileExt(FLAGS_o);
+                    auto exOutputScoresFile = fileExt(output_data.first);
                     if (exOutputScoresFile == "ark") {
                         fileOutput = &arkFile;
                     } else if (exOutputScoresFile == "npz") {

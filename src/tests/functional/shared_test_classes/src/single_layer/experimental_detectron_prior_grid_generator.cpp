@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/experimental_detectron_prior_grid_generator.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
@@ -70,8 +70,19 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
             "ExperimentalDetectronPriorGridGenerator");
 }
 
+namespace {
+template<typename T>
+ov::runtime::Tensor generateTensorByShape(const Shape &shape) {
+    return ov::test::utils::create_tensor<T>(
+            ov::element::from<T>(),
+            shape,
+            std::vector<T>(0., shape_size(shape)));
+}
+}
+
 void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     auto inputTensors = std::get<1>(GetParam());
+    auto netPrecision = std::get<2>(GetParam());
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -84,12 +95,11 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
     }
-
     for (auto j = i; j < funcInputs.size(); ++j) {
-        ov::runtime::Tensor inputTensor = ov::test::utils::create_tensor<float>(
-            ov::element::f32,
-            targetInputStaticShapes[j],
-            std::vector<float>(0.f, shape_size(targetInputStaticShapes[j])));
+        ov::runtime::Tensor inputTensor = (netPrecision == element::f16)
+                                          ? generateTensorByShape<ov::float16>(targetInputStaticShapes[j])
+                                          : generateTensorByShape<float>(
+                        targetInputStaticShapes[j]);
 
         inputs.insert({funcInputs[j].get_node_shared_ptr(), inputTensor});
     }

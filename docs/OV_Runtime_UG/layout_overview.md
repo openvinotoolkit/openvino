@@ -1,4 +1,4 @@
-# Layout API overview {#openvino_docs_OV_Runtime_UG_Layout_Overview}
+# Layout API overview {#openvino_docs_OV_UG_Layout_Overview}
 
 ## Introduction
 
@@ -20,82 +20,82 @@ Reasons when you may want to care about input/output layout:
 ### Short
 The easiest way is to fully specify each dimension with one alphabetical letter
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:simple]
+@snippet docs/snippets/ov_layout.cpp ov:layout:simple
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:simple]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:simple
+
+@endsphinxtab
+
+@endsphinxtabset
 
 This assigns 'N' to first dimension, 'C' to second, 'H' to 3rd and 'W' to 4th
 
 ### Advanced
 Advanced syntax allows assigning a word to a dimension. To do this, wrap layout with square brackets `[]` and specify each name separated by comma `,`
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:complex]
+@snippet docs/snippets/ov_layout.cpp ov:layout:complex
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:complex]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:complex
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 ### Partially defined layout
 If some dimension is not important, it's name can be set to `?`
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:partially_defined]
+@snippet docs/snippets/ov_layout.cpp ov:layout:partially_defined
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:partially_defined]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:partially_defined
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 ### Dynamic layout
 If number of dimensions is not important, ellipsis `...` can be used to specify variadic number of dimensions.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:dynamic]
+@snippet docs/snippets/ov_layout.cpp ov:layout:dynamic
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:dynamic]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:dynamic
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Predefined names
 
@@ -108,22 +108,21 @@ Layout has pre-defined some widely used in computer vision dimension names:
 
 These names are used in [PreProcessing API](./preprocessing_overview.md) and there is a set of helper functions to get appropriate dimension index from layout
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:predefined]
+@snippet docs/snippets/ov_layout.cpp ov:layout:predefined
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:predefined]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:predefined
 
+@endsphinxtab
+
+@endsphinxtabset
 
 ### Equality
 
@@ -133,21 +132,21 @@ Layout names are case-insensitive, which means that ```Layout("NCHW") == Layout(
 
 Layout can be converted to string in advanced syntax format. Can be useful for debugging and serialization purposes
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_layout.cpp
-         :language: cpp
-         :fragment: [ov:layout:dump]
+@snippet docs/snippets/ov_layout.cpp ov:layout:dump
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_layout.py
-         :language: python
-         :fragment: [ov:layout:dump]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_layout.py ov:layout:dump
+
+@endsphinxtab
+
+@endsphinxtabset
 
 ## See also
 

@@ -154,23 +154,23 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
 }
 template <>
 void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
-    auto&& size = mem->get_layout().size;
+    auto&& l = mem->get_layout();
 
     file_stream << "shape: ";
-    file_stream << size.batch[0] << " ";
-    file_stream << size.feature[0] << " ";
-    file_stream << size.spatial[1] << " ";
-    file_stream << size.spatial[0] << " ";
-    file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+    file_stream << l.batch() << " ";
+    file_stream << l.feature() << " ";
+    file_stream << l.spatial(1) << " ";
+    file_stream << l.spatial(0) << " ";
+    file_stream << "(" << l.batch() * l.feature() * l.spatial(1) * l.spatial(0) << ")" << std::endl;
 
     mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
-    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
-        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(size.feature[0], 32); ++f) {
-            for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
-                for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                    for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+    for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
+            for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
+                for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                    for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
                         cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
                         size_t input_it = mem->get_layout().get_linear_offset(t);
                         file_stream << mem_ptr[input_it] << std::endl;
@@ -536,54 +536,22 @@ void network::allocate_primitives() {
 
     for (auto const& node : _program->get_processing_order()) {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
-            bool can_reuse_eltwise_mem = false;
             size_t eltw_dep = 0;
-
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
-                    auto eltw_in_layout = eltw_in.get_output_layout();
-                    auto out_layout = node->get_output_layout();
-
-                    if (!program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout))
+                    // If it is first sum, reuse the buffer
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
-
-                    if (program_helpers::are_layouts_identical_for_onednn_sum_post_op(eltw_in_layout, out_layout)) {
-                        if (eltw_dep > 0)
-                            throw std::runtime_error("Unsupported multiple full size tensors.");
-
-                        eltw_dep = fused_op.dep_start_idx;
-                        can_reuse_eltwise_mem = true;
+                    eltw_dep = fused_op.dep_start_idx;
+                    auto& eltw_in = node->get_dependency(eltw_dep);
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto& eltw_mem = eltw_inst->output_memory();
+                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
+                        prim_inst->set_output_memory(new_mem);
                     }
-
-                    if (!can_reuse_eltwise_mem) {
-                        if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                            auto& eltw_inst = _primitives.at(eltw_in.id());
-                            auto& prim_inst = _primitives.at(node->id());
-                            auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
-                            auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
-
-                            // Keep lockable memory type for `prim_inst` output if needed
-                            if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
-                                can_reuse_eltwise_mem = false;
-                        }
-                    }
-
-                    if (program_helpers::needs_onednn_sum_post_op(fused_op.node->as<eltwise>(), eltw_in_layout) && !can_reuse_eltwise_mem) {
-                        throw std::runtime_error("Buffer reuse is required for onednn sum post operation.");
-                    }
-                }
-            }
-
-            if (can_reuse_eltwise_mem) {
-                auto& eltw_in = node->get_dependency(eltw_dep);
-                if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                    auto& eltw_inst = _primitives.at(eltw_in.id());
-                    auto& prim_inst = _primitives.at(node->id());
-                    auto& eltw_mem = eltw_inst->output_memory();
-                    auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-
-                    prim_inst->set_output_memory(new_mem);
                 }
             }
         }
@@ -698,8 +666,21 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            std::ostringstream in_addr;
+            // buffer_ptr() only support usm_memory
+            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                auto& in_mem = get_primitive(inst->id())->dep_memory(i);
+                in_addr << in_mem.buffer_ptr();
+                if (i < get_primitive(inst->id())->dependencies().size() - 1) {
+                    in_addr << ", ";
+                }
+            }
+            auto& out_mem = get_primitive(inst->id())->output_memory();
+
             GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
-                           << inst->output_memory().get_allocation_type() << std::endl;
+                           << inst->output_memory().get_allocation_type() << ", in_usm("
+                           << in_addr.str() << "), out_usm("
+                           << out_mem.buffer_ptr() << ")" << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed
@@ -713,40 +694,45 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             auto& node = _program->get_node(inst->id());
             const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name)) {
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }
     }
 
-    for (auto& inst : _program->get_processing_order()) {
-        // Special handling for mutable data. The event should be the same as the user or dependency with highest
-        // processing_num as the mutable_data can be updated when is both user or dependency.
-        if (inst->is_type<mutable_data>()) {
-            decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
-            for (auto& user : inst->get_users()) {
-                auto user_proc_num = _program->get_processing_order().get_processing_number(user);
-                if (user_proc_num > proc_num) {
-                    _events[inst->id()] = _events[user->id()];
-                    proc_num = user_proc_num;
+    // Store events only in case of OOO queue or enabled Profiling
+    auto store_events = get_stream().get_queue_type() == queue_types::out_of_order ||
+                        get_engine().configuration().enable_profiling;
+    if (store_events) {
+        for (auto& inst : _program->get_processing_order()) {
+            // Special handling for mutable data. The event should be the same as the user or dependency with highest
+            // processing_num as the mutable_data can be updated when is both user or dependency.
+            if (inst->is_type<mutable_data>()) {
+                decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
+                for (auto& user : inst->get_users()) {
+                    auto user_proc_num = _program->get_processing_order().get_processing_number(user);
+                    if (user_proc_num > proc_num) {
+                        _events[inst->id()] = _events[user->id()];
+                        proc_num = user_proc_num;
+                    }
                 }
-            }
 
-            if (!inst->get_dependencies().empty()) {
-                for (auto& dep : inst->get_dependencies()) {
-                    auto dep_proc_num = _program->get_processing_order().get_processing_number(dep);
-                    if (dep_proc_num > proc_num) {
-                        _events[inst->id()] = _events[dep->id()];
-                        proc_num = dep_proc_num;
+                if (!inst->get_dependencies().empty()) {
+                    for (auto& dep : inst->get_dependencies()) {
+                        auto dep_proc_num = _program->get_processing_order().get_processing_number(dep);
+                        if (dep_proc_num > proc_num) {
+                            _events[inst->id()] = _events[dep->id()];
+                            proc_num = dep_proc_num;
+                        }
                     }
                 }
             }
         }
-    }
 
-    for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
-                                        // them valid events manually
-        _events[dout->id()] = get_stream().create_user_event(true);
+        for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
+                                            // them valid events manually
+            _events[dout->id()] = get_stream().create_user_event(true);
+        }
     }
 
     for (auto& prim : _primitives) {
@@ -847,17 +833,15 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
 }
 
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                                     const std::vector<event::ptr>& events) {
-    auto id = primitive->id();
-    auto it = _events.find(id);
-    bool found = (it != _events.end());
-    CLDNN_ERROR_BOOL(id,
-                     "Invalid primitive call ",
-                     found,
-                     "Primitive " + id + " is tried to be executed for the second time");
-
+                                const std::vector<event::ptr>& events) {
     event::ptr ev = primitive->execute(events);
-    _events.insert({id, ev});
+
+    // Collect events only for OOO queue and Profiling mode
+    if (get_stream().get_queue_type() == queue_types::out_of_order ||
+        get_engine().configuration().enable_profiling) {
+        auto id = primitive->id();
+        _events.insert({id, ev});
+    }
 }
 
 void network::allocate_primitive_instance(program_node const& node) {

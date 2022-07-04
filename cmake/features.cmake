@@ -59,7 +59,7 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
 # Inference Engine specific options
 #
 
-# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
@@ -82,7 +82,7 @@ else()
     set(ENABLE_TBBBIND_2_5_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB" OFF)
 
 ie_dependent_option (ENABLE_INTEL_GNA "GNA support for inference engine" ON
     "NOT APPLE;NOT ANDROID;X86_64;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 5.4" OFF)
@@ -135,6 +135,17 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
+
+get_linux_name(LINUX_OS_NAME)
+if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
+    # Debian packages are enabled on Ubuntu systems
+    # so, system TBB can be tried for usage
+    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+endif()
+
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 

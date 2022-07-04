@@ -12,12 +12,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(InterpolateTransformation);
     auto mul = pattern::wrap_type<opset1::Multiply>();
 
     auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
@@ -40,12 +42,13 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(InterpolateTransformation);
         return transform(*context, m);
     };
 
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
-        "InterpolateTransformation");
+        matcher_name);
 
     this->register_matcher(matcher, callback);
 }

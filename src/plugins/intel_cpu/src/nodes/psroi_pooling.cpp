@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -15,10 +15,10 @@
 #include <nodes/common/blocked_desc_creator.h>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
 namespace ov {
 namespace intel_cpu {
@@ -57,7 +57,7 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -133,7 +133,7 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
         return;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -540,7 +540,7 @@ struct PSROIPooling::PSROIPoolingExecute {
     }
 };
 
-void PSROIPooling::execute(mkldnn::stream strm) {
+void PSROIPooling::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
 

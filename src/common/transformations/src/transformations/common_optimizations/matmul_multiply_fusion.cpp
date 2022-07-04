@@ -180,7 +180,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         register_new_node(new_mm);
         copy_runtime_info({mul, weights.get_node_shared_ptr(), matmul}, {new_weights, new_mm});
         replace_node(mul, new_mm);
-
+        MATCHER_SCOPE_ENABLE(MatMulMultiplyFusion);
         return true;
     };
 

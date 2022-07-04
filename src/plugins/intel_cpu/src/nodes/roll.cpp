@@ -10,12 +10,12 @@
 #include "roll.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -24,10 +24,6 @@ namespace node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto interp = std::dynamic_pointer_cast<const ngraph::opset7::Roll>(op);
         if (!interp) {
             errorMessage = "Only opset7 Roll operation is supported";
@@ -39,29 +35,27 @@ bool Roll::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
                 Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         layerErrorPrefix = "Roll layer with name '" + getName() + "'";
-        if (getOriginalInputsNumber() != numberOfInputs) {
+        if (inputShapes.size() != 3 || outputShapes.size() != 1) {
             IE_THROW() << layerErrorPrefix << " has incorrect number of input/output edges!";
         }
 
-        shape = inputShapes[DATA_INDEX].getStaticDims();
         const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
             IE_THROW() << layerErrorPrefix << "has unsupported precision: " << dataPrecision.name();
 
-        if (shape.size() < 1) {
-            IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << shape.size();
+        const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
+        if (dataRank < 1) {
+            IE_THROW() << layerErrorPrefix << " doesn't support 'data' input tensor with rank: " << dataRank;
         }
-        numOfDims = shape.size();
 
-        if (shape != outputShapes[0].getStaticDims()) {
-            IE_THROW() << layerErrorPrefix << " has different 'data' input and output dimensions";
-        }
+        if (dataRank != getOutputShapeAtPort(0).getRank())
+            IE_THROW() << layerErrorPrefix << " has input/output rank mismatch";
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
@@ -69,7 +63,7 @@ Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
             IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesTensorPrec.name();
         }
 
-        const auto axesTensorRank = inputShapes[AXES_INDEX].getRank();
+        const auto axesTensorRank = getInputShapeAtPort(AXES_INDEX).getRank();
         if (axesTensorRank > 1) {
             IE_THROW() << layerErrorPrefix << " doesn't support 'axes' input tensor with rank: " << axesTensorRank;
         }
@@ -80,7 +74,7 @@ Roll::Roll(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, W
             IE_THROW() << layerErrorPrefix << " has unsupported 'shift' input precision: " << shiftTensorPrec.name();
         }
 
-        const auto shiftTensorRank = inputShapes[SHIFT_INDEX].getRank();
+        const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();
         if (shiftTensorRank > 1) {
             IE_THROW() << layerErrorPrefix << " doesn't support 'shift' input tensor with rank: " << shiftTensorRank;
         }
@@ -97,8 +91,6 @@ void Roll::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
-    auto srcDims = getInputShapeAtPort(0).getStaticDims();
-
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
                           {LayoutType::ncsp, InferenceEngine::Precision::I32},
                           {LayoutType::ncsp, InferenceEngine::Precision::I32}},
@@ -106,21 +98,61 @@ void Roll::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref);
 }
 
+void Roll::prepareParams() {
+    const auto& dataMemPtr = getParentEdgeAt(DATA_INDEX)->getMemoryPtr();
+    const auto& shiftMemPtr = getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr();
+    const auto& axesMemPtr = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
+    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
-void Roll::execute(mkldnn::stream strm) {
+    if (!dataMemPtr || !dataMemPtr->isAllocated())
+        IE_THROW() << layerErrorPrefix << " has not allocated input memory of 'data'";
+    if (!shiftMemPtr || !shiftMemPtr->isAllocated())
+        IE_THROW() << layerErrorPrefix << " has not allocated input memory of 'shift'";
+    if (!axesMemPtr || !axesMemPtr->isAllocated())
+        IE_THROW() << layerErrorPrefix << " has not allocated input memory of 'axes'";
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << layerErrorPrefix << " has not allocated output memory";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << layerErrorPrefix << " has unidentified preferable primitive descriptor";
+
+    const VectorDims& dataDims = dataMemPtr->getStaticDims();
+    const VectorDims& shiftDims = shiftMemPtr->getStaticDims();
+    const VectorDims& axesDims = axesMemPtr->getStaticDims();
+    const VectorDims& dstDims = dstMemPtr->getStaticDims();
+
+    execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims);
+}
+
+void Roll::executeDynamicImpl(dnnl::stream strm) {
+    execute(std::move(strm));
+}
+
+void Roll::execute(dnnl::stream strm) {
+    if (!execPtr)
+        IE_THROW() << layerErrorPrefix << " has no compiled executor";
+
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I8>::value_type>();
+            execPtr->exec<PrecisionTrait<Precision::I8>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
+                                                                     getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
         case sizeof(PrecisionTrait<Precision::I16>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I16>::value_type>();
+            execPtr->exec<PrecisionTrait<Precision::I16>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
+                                                                     getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
         case sizeof(PrecisionTrait<Precision::I32>::value_type): {
-            rollImpl<PrecisionTrait<Precision::I32>::value_type>();
+            execPtr->exec<PrecisionTrait<Precision::I32>::value_type>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(SHIFT_INDEX)->getMemoryPtr(),
+                                                                     getParentEdgeAt(AXES_INDEX)->getMemoryPtr(),
+                                                                     getChildEdgeAt(0)->getMemoryPtr());
             break;
         }
         default:
@@ -128,60 +160,70 @@ void Roll::execute(mkldnn::stream strm) {
     }
 }
 
-size_t Roll::calculateShiftOffset(size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize) {
-    size_t pos = dataOffset / segmentSize % dimSize;
-    size_t shift = (pos + dimShift) % dimSize - pos;
-    return dataOffset + shift * segmentSize;
+Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& shiftDims, const VectorDims& axesDims,
+    const VectorDims& dstDims)
+        : numOfDims{dataDims.size()}
+        , blockSize{dataDims.back()}
+        , numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<size_t>()) / blockSize}
+        , axesLength{axesDims[0]} {
+    for (size_t i = 0; i < dataDims.size(); ++i) {
+        if (dataDims[i] != dstDims[i])
+            IE_THROW() << "Input/output tensors dimensions mismatch";
+    }
+
+    if (shiftDims[0] != axesDims[0])
+        IE_THROW() << "'shift' and 'axes' dimensions mismatch";
 }
 
-template <typename DataType>
-void Roll::rollImpl() {
-    const auto dataEdge = getParentEdgeAt(DATA_INDEX);
-    const auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto shiftsEdge = getParentEdgeAt(SHIFT_INDEX);
+template<typename T>
+void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
+    MemoryPtr& dstMemPtr) {
+    const auto *data = reinterpret_cast<const T *>(dataMemPtr->GetPtr());
+    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->GetPtr());
+    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->GetPtr());
+    auto *dst = reinterpret_cast<T *>(dstMemPtr->GetPtr());
 
-    const auto *axes = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
-    const auto *shifts = reinterpret_cast<const int32_t*>(shiftsEdge->getMemoryPtr()->GetPtr());
+    std::vector<size_t> shiftsVector(numOfDims, 0ul);
+    const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
-    const auto *input = reinterpret_cast<const DataType*>(dataEdge->getMemoryPtr()->GetPtr());
-    auto *output = reinterpret_cast<DataType*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    std::vector<size_t> shiftsVector(numOfDims, 0);
-
-    const size_t axesLength = axesEdge->getMemory().getStaticDims()[0];
     for (size_t dim = 0; dim < axesLength ; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
-        int32_t shiftSum = shiftsVector[currentAxis] + shifts[dim];
-        int32_t dimSize = shape[currentAxis];
+        int32_t shiftSum = shiftsVector[currentAxis] + shift[dim];
+        int32_t dimSize = dataDims[currentAxis];
         shiftsVector[currentAxis] = (shiftSum % dimSize + dimSize) % dimSize;
     }
 
-    const size_t blockSize = shape.back();
-    const size_t totalElements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
     const size_t leftBlockSize = blockSize - shiftsVector.back();
     const size_t rightBlockSize = blockSize - leftBlockSize;
-    const size_t elementSize = sizeof(DataType);
+    const size_t elementSize = sizeof(T);
 
-    const size_t nIterations = totalElements / blockSize;
-    const auto strides = dataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    parallel_for(nIterations, [&](size_t iter) {
+    const auto strides = dataMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto calculateShiftOffset = [](size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize){
+        size_t pos = dataOffset / segmentSize % dimSize;
+        size_t shift = (pos + dimShift) % dimSize - pos;
+
+        return dataOffset + shift * segmentSize;
+    };
+
+    parallel_for(numOfIterations, [&, this](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;
 
         for (int dim = numOfDims - 1; dim >= 0; --dim) {
-            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
-            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], shape[dim]);
+            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
+            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
         }
 
         if (leftBlockSize > 0)
-            cpu_memcpy(output + leftBlockStartOffset,
-                       input + start,
+            cpu_memcpy(dst + leftBlockStartOffset,
+                       data + start,
                        leftBlockSize * elementSize);
 
 
         if (rightBlockSize > 0)
-            cpu_memcpy(output + rightBlockStartOffset,
-                       input + (start + leftBlockSize),
+            cpu_memcpy(dst + rightBlockStartOffset,
+                       data + (start + leftBlockSize),
                        rightBlockSize * elementSize);
     });
 }
@@ -190,9 +232,7 @@ bool Roll::created() const {
     return getType() == Type::Roll;
 }
 
-void Roll::createPrimitive() {}
-
-const std::vector<size_t> Roll::supportedPrecisionSizes = {1, 2, 4};
+constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
 }   // namespace node
 }   // namespace intel_cpu

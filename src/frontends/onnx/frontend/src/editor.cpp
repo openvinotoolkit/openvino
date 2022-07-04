@@ -179,16 +179,27 @@ public:
     InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
         : m_model_proto{model_proto},
           m_infer_shapes_was_run{false} {}
-    void infer_shapes() {
-        ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
-        m_infer_shapes_was_run = true;
-    }
-    ~InferShapesAutoRelease() {
-        try {
-            if (m_infer_shapes_was_run) {
-                m_model_proto->mutable_graph()->clear_value_info();
-            }
+
+    bool infer_shapes() {
+        try {  // unexpected exceptions of external onnx lib
+            ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+            m_infer_shapes_was_run = true;
         } catch (...) {
+            release();
+        }
+        return m_infer_shapes_was_run;
+    }
+
+    void release() {
+        try {
+            m_model_proto->mutable_graph()->clear_value_info();
+        } catch (...) {
+        }
+    }
+
+    ~InferShapesAutoRelease() {
+        if (m_infer_shapes_was_run) {
+            release();
         }
     }
 
@@ -325,9 +336,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
         tensor = initializer;
     } else {
-        try {
-            onnx_shapes.infer_shapes();
-        } catch (const std::exception& e) {
+        auto shape_infer_applied = onnx_shapes.infer_shapes();
+        if (!shape_infer_applied) {
             NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
             return PartialShape::dynamic();
         }
@@ -515,7 +525,9 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
 
 std::string onnx_editor::ONNXModelEditor::get_node_name(const EditorNode& node) const {
     if (node.m_node_index >= 0) {
-        OPENVINO_ASSERT(node.m_node_index < m_pimpl->m_model_proto->graph().node().size(), "XXX");
+        if (node.m_node_index >= m_pimpl->m_model_proto->graph().node().size()) {
+            return "";
+        }
         const auto& n = m_pimpl->m_model_proto->graph().node(node.m_node_index);
         return n.has_name() ? n.name() : "";
     } else {

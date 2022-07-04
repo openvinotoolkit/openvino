@@ -8,20 +8,23 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FoldConvertTransformation::FoldConvertTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FoldConvertTransformation);
     auto subtract = pattern::wrap_type<opset1::Subtract>();
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(subtract, "FoldConvertTransformation");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(subtract, matcher_name);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(FoldConvertTransformation);
         return transform(*context, m);
     };
 

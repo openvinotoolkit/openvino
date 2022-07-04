@@ -4,6 +4,8 @@
 
 #include "gna_limitations.hpp"
 
+#include "gna/gna_config.hpp"
+
 #include <cstdint>
 #include <unordered_set>
 #include <legacy/ie_layers.h>
@@ -11,6 +13,7 @@
 #include <layers/gna_layer_type.hpp>
 #include <layers/gna_layer_info.hpp>
 #include "gna_graph_tools.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -115,10 +118,11 @@ std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h, c
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
-bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+bool Validator_30::ValidateCnn2D(const std::string &name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
     const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
     OvGnaType inPrecision, bool exception) const {
+
     const std::string prefix = "Layer Convolution2D: " + name + ":";
     auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
 
@@ -141,7 +145,7 @@ bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
     return error.empty() ? true : false;
 }
 
-bool Validator::ValidatePooling2D(std::string name,
+bool Validator_30::ValidatePooling2D(const std::string& name,
     const uint32_t windowH, const uint32_t windowW,
     const uint32_t strideH, const uint32_t strideW,
     bool exception) const {
@@ -160,7 +164,14 @@ bool Validator::ValidatePooling2D(std::string name,
     return error.empty() ? true : false;
 }
 
-void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {
+std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
+    if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+        return tools::make_unique<Validator_30>();
+    }
+    return nullptr;
+}
+
+void AbstractValidator::ThrowIfNotEmpty(const std::string& prefix, const std::string& error) {
     if (!error.empty()) {
         THROW_GNA_EXCEPTION << prefix << error;
     }

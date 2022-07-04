@@ -9,7 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/swish_cpu.hpp"
 
+#include "itt.hpp"
+
 ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
+    MATCHER_SCOPE(ConvertToSwishCPU);
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
@@ -31,9 +34,10 @@ ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
         swish_cpu->set_friendly_name(swish->get_friendly_name());
         ngraph::copy_runtime_info(swish, swish_cpu);
         ngraph::replace_node(swish, swish_cpu);
+        MATCHER_SCOPE_ENABLE(ConvertToSwishCPU);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(swish, "ConvertToSwishCPU");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(swish, matcher_name);
     this->register_matcher(m, callback);
 }

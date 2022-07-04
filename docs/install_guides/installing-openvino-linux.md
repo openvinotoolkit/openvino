@@ -17,7 +17,7 @@
 
   Optimized for these processors:
 
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
+  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
   * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
   * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
   * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
@@ -28,10 +28,16 @@
 
 .. tab:: Processor Notes
 
-  Processor graphics are not included in all processors.
+  Processor graphics are not included in all processors. 
   See `Product Specifications`_ for information about your processor.
-
+  
   .. _Product Specifications: https://ark.intel.com/
+
+.. tab:: Software
+
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
 
 @endsphinxdirective
 
@@ -74,11 +80,11 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    <br>You should see the following dialog box open up:
 
    @sphinxdirective
-
+   
    .. image:: _static/images/openvino-install.png
       :width: 400px
       :align: center
-
+   
    @endsphinxdirective
 
    Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
@@ -86,7 +92,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ./l_openvino_toolkit_p_<version>.sh -a --cli
    ```
    > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
-
+   
 6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check the installation process on the image below:<br>
 
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
@@ -114,7 +120,7 @@ This script enables you to install Linux platform development tools and componen
    ```sh
    sudo -E ./install_openvino_dependencies.sh
    ```
-
+   
    Once the dependencies are installed, continue to the next section to set your environment variables.
 
 ## <a name="set-the-environment-variables"></a>Step 3: Configure the Environment
@@ -123,7 +129,7 @@ You must update several environment variables before you can compile and run Ope
 
 ```sh
 source <INSTALL_DIR>/setupvars.sh
-```
+```  
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
@@ -139,7 +145,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 .. dropdown:: OpenCV
 
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples and demos also use OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
+   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
 
    .. note::
       Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
@@ -153,8 +159,8 @@ The environment variables are set. Next, you can download some additional tools.
 @sphinxdirective
 .. tab:: GNA
 
-   Only if you want to enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
@@ -167,7 +173,7 @@ The environment variables are set. Next, you can download some additional tools.
 .. tab:: VPU
 
    To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
+   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
 
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
@@ -188,50 +194,21 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 
-## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-@sphinxdirective
-
-.. dropdown:: Troubleshooting
-
-   PRC developers might encounter pip errors during Intel® Distribution of OpenVINO™ installation. To resolve the issues, try one of the following options:
-
-   * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example:
-
-   .. code-block:: sh
-
-      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
-
-   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
-
-   * If you run into incompatibility issues between components after installing new Intel® Distribution of OpenVINO™ version, try running ``requirements.txt`` with the following command:
-
-   .. code-block:: sh
-
-      pip install -r <INSTALL_DIR>/tools/requirements.txt
-
-@endsphinxdirective
+## Additional Resources
 
 @sphinxdirective
+      
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
 
-.. dropdown:: Additional Resources
-
-   * Convert models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Write your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning inference engine>`
-   * Information on sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Information on a supplied set of models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
-
-   To learn more about converting models from specific frameworks, go to:
-
-   * :ref:`Convert Your Caffe Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`
-   * :ref:`Convert Your TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`
-   * :ref:`Convert Your MXNet Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`
-   * :ref:`Convert Your Kaldi Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>`
-   * :ref:`Convert Your ONNX Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
-
-   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

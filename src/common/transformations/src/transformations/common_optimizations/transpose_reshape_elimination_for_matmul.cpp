@@ -185,6 +185,7 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         new_matmul->set_friendly_name(transpose_after->get_friendly_name());
         copy_runtime_info({transpose_before, reshape_before, matmul, reshape_after, transpose_after}, new_matmul);
         replace_node(transpose_after, new_matmul);
+        MATCHER_SCOPE_ENABLE(TransposeReshapeEliminationForMatmul);
         return true;
     };
 

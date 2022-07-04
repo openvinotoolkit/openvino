@@ -27,7 +27,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         return args;

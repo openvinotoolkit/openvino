@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -14,39 +15,39 @@ def create_simple_if_with_two_outputs(condition_val):
     condition = ov.constant(condition_val, dtype=np.bool)
 
     # then_body
-    X_t = ov.parameter([], np.float32, "X")
-    Y_t = ov.parameter([], np.float32, "Y")
-    Z_t = ov.parameter([], np.float32, "Z")
+    x_t = ov.parameter([], np.float32, "X")
+    y_t = ov.parameter([], np.float32, "Y")
+    z_t = ov.parameter([], np.float32, "Z")
 
-    add_t = ov.add(X_t, Y_t)
-    mul_t = ov.multiply(Y_t, Z_t)
+    add_t = ov.add(x_t, y_t)
+    mul_t = ov.multiply(y_t, z_t)
     then_body_res_1 = ov.result(add_t)
     then_body_res_2 = ov.result(mul_t)
-    then_body = Model([then_body_res_1, then_body_res_2], [X_t, Y_t, Z_t], "then_body_function")
+    then_body = Model([then_body_res_1, then_body_res_2], [x_t, y_t, z_t], "then_body_function")
 
     # else_body
-    X_e = ov.parameter([], np.float32, "X")
-    Z_e = ov.parameter([], np.float32, "Z")
-    W_e = ov.parameter([], np.float32, "W")
+    x_e = ov.parameter([], np.float32, "X")
+    z_e = ov.parameter([], np.float32, "Z")
+    w_e = ov.parameter([], np.float32, "W")
 
-    add_e = ov.add(X_e, W_e)
-    pow_e = ov.power(W_e, Z_e)
+    add_e = ov.add(x_e, w_e)
+    pow_e = ov.power(w_e, z_e)
     else_body_res_1 = ov.result(add_e)
     else_body_res_2 = ov.result(pow_e)
-    else_body = Model([else_body_res_1, else_body_res_2], [X_e, Z_e, W_e], "else_body_function")
+    else_body = Model([else_body_res_1, else_body_res_2], [x_e, z_e, w_e], "else_body_function")
 
-    X = ov.constant(15.0, dtype=np.float32)
-    Y = ov.constant(-5.0, dtype=np.float32)
-    Z = ov.constant(4.0, dtype=np.float32)
-    W = ov.constant(2.0, dtype=np.float32)
+    const_x = ov.constant(15.0, dtype=np.float32)
+    const_y = ov.constant(-5.0, dtype=np.float32)
+    const_z = ov.constant(4.0, dtype=np.float32)
+    const_w = ov.constant(2.0, dtype=np.float32)
 
     if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
-    if_node.set_input(X.output(0), X_t, X_e)
-    if_node.set_input(Y.output(0), Y_t, None)
-    if_node.set_input(Z.output(0), Z_t, Z_e)
-    if_node.set_input(W.output(0), None, W_e)
+    if_node.set_input(const_x.output(0), x_t, x_e)
+    if_node.set_input(const_y.output(0), y_t, None)
+    if_node.set_input(const_z.output(0), z_t, z_e)
+    if_node.set_input(const_w.output(0), None, w_e)
     if_node.set_output(then_body_res_1, else_body_res_1)
     if_node.set_output(then_body_res_2, else_body_res_2)
     return if_node
@@ -56,32 +57,32 @@ def create_diff_if_with_two_outputs(condition_val):
     condition = ov.constant(condition_val, dtype=np.bool)
 
     # then_body
-    X_t = ov.parameter([2], np.float32, "X")
-    Y_t = ov.parameter([2], np.float32, "Y")
-    mmul_t = ov.matmul(X_t, Y_t, False, False)
-    mul_t = ov.multiply(Y_t, X_t)
+    x_t = ov.parameter([2], np.float32, "X")
+    y_t = ov.parameter([2], np.float32, "Y")
+    mmul_t = ov.matmul(x_t, y_t, False, False)
+    mul_t = ov.multiply(y_t, x_t)
     then_body_res_1 = ov.result(mmul_t)
     then_body_res_2 = ov.result(mul_t)
-    then_body = Model([then_body_res_1, then_body_res_2], [X_t, Y_t], "then_body_function")
+    then_body = Model([then_body_res_1, then_body_res_2], [x_t, y_t], "then_body_function")
 
     # else_body
-    X_e = ov.parameter([2], np.float32, "X")
-    Z_e = ov.parameter([], np.float32, "Z")
-    mul_e = ov.multiply(X_e, Z_e)
-    else_body_res_1 = ov.result(Z_e)
+    x_e = ov.parameter([2], np.float32, "X")
+    z_e = ov.parameter([], np.float32, "Z")
+    mul_e = ov.multiply(x_e, z_e)
+    else_body_res_1 = ov.result(z_e)
     else_body_res_2 = ov.result(mul_e)
-    else_body = Model([else_body_res_1, else_body_res_2], [X_e, Z_e], "else_body_function")
+    else_body = Model([else_body_res_1, else_body_res_2], [x_e, z_e], "else_body_function")
 
-    X = ov.constant([3, 4], dtype=np.float32)
-    Y = ov.constant([2, 1], dtype=np.float32)
-    Z = ov.constant(4.0, dtype=np.float32)
+    const_x = ov.constant([3, 4], dtype=np.float32)
+    const_y = ov.constant([2, 1], dtype=np.float32)
+    const_z = ov.constant(4.0, dtype=np.float32)
 
     if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
-    if_node.set_input(X.output(0), X_t, X_e)
-    if_node.set_input(Y.output(0), Y_t, None)
-    if_node.set_input(Z.output(0), None, Z_e)
+    if_node.set_input(const_x.output(0), x_t, x_e)
+    if_node.set_input(const_y.output(0), y_t, None)
+    if_node.set_input(const_z.output(0), None, z_e)
     if_node.set_output(then_body_res_1, else_body_res_1)
     if_node.set_output(then_body_res_2, else_body_res_2)
 
@@ -91,28 +92,28 @@ def create_diff_if_with_two_outputs(condition_val):
 def simple_if(condition_val):
     condition = ov.constant(condition_val, dtype=np.bool)
     # then_body
-    X_t = ov.parameter([2], np.float32, "X")
-    Y_t = ov.parameter([2], np.float32, "Y")
+    x_t = ov.parameter([2], np.float32, "X")
+    y_t = ov.parameter([2], np.float32, "Y")
 
-    then_mul = ov.multiply(X_t, Y_t)
+    then_mul = ov.multiply(x_t, y_t)
     then_body_res_1 = ov.result(then_mul)
-    then_body = Model([then_body_res_1], [X_t, Y_t], "then_body_function")
+    then_body = Model([then_body_res_1], [x_t, y_t], "then_body_function")
 
     # else_body
-    X_e = ov.parameter([2], np.float32, "X")
-    Y_e = ov.parameter([2], np.float32, "Y")
-    add_e = ov.add(X_e, Y_e)
+    x_e = ov.parameter([2], np.float32, "X")
+    y_e = ov.parameter([2], np.float32, "Y")
+    add_e = ov.add(x_e, y_e)
     else_body_res_1 = ov.result(add_e)
-    else_body = Model([else_body_res_1], [X_e, Y_e], "else_body_function")
+    else_body = Model([else_body_res_1], [x_e, y_e], "else_body_function")
 
-    X = ov.constant([3, 4], dtype=np.float32)
-    Y = ov.constant([2, 1], dtype=np.float32)
+    const_x = ov.constant([3, 4], dtype=np.float32)
+    const_y = ov.constant([2, 1], dtype=np.float32)
 
     if_node = ov.if_op(condition)
     if_node.set_then_body(then_body)
     if_node.set_else_body(else_body)
-    if_node.set_input(X.output(0), X_t, X_e)
-    if_node.set_input(Y.output(0), Y_t, Y_e)
+    if_node.set_input(const_x.output(0), x_t, x_e)
+    if_node.set_input(const_y.output(0), y_t, y_e)
     if_res = if_node.set_output(then_body_res_1, else_body_res_1)
     relu = ov.relu(if_res)
 
@@ -181,12 +182,12 @@ def test_simple_if_without_body_parameters():
 def test_simple_if_basic():
     condition = ov.constant(True, dtype=np.bool)
     # then_body
-    X_t = ov.parameter([2], np.float32, "X")
-    Y_t = ov.parameter([2], np.float32, "Y")
+    x_t = ov.parameter([2], np.float32, "X")
+    y_t = ov.parameter([2], np.float32, "Y")
 
-    then_mul = ov.multiply(X_t, Y_t)
+    then_mul = ov.multiply(x_t, y_t)
     then_body_res_1 = ov.result(then_mul)
-    then_body = Model([then_body_res_1], [X_t, Y_t], "then_body_function")
+    then_body = Model([then_body_res_1], [x_t, y_t], "then_body_function")
     then_body_inputs = [InvariantInputDescription(1, 0), InvariantInputDescription(2, 1)]
 
     else_body_outputs = [BodyOutputDescription(0, 0)]

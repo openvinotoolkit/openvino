@@ -16,26 +16,13 @@ BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
-class TypeInfo {
-public:
-    TypeInfo(size_t bitwidth,
-             bool is_real,
-             bool is_signed,
-             bool is_quantized,
-             const std::string& cname,
-             const std::string& type_name)
-        : m_bitwidth{bitwidth},
-          m_is_real{is_real},
-          m_is_signed{is_signed},
-          m_is_quantized{is_quantized},
-          m_cname{cname},
-          m_type_name{type_name} {}
+struct TypeInfo {
     size_t m_bitwidth;
     bool m_is_real;
     bool m_is_signed;
     bool m_is_quantized;
-    std::string m_cname;
-    std::string m_type_name;
+    const char* m_cname;
+    const char* m_type_name;
 };
 
 struct ElementTypes {
@@ -48,38 +35,47 @@ struct ElementTypes {
     using ElementsMap = std::unordered_map<ov::element::Type_t, TypeInfo, TypeHash>;
 };
 
-const ElementTypes::ElementsMap& get_type_info_map() {
-    static const ElementTypes::ElementsMap elements_map{
-        {ov::element::Type_t::undefined,
-         TypeInfo(std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
-        {ov::element::Type_t::dynamic, TypeInfo(0, false, false, false, "dynamic", "dynamic")},
-        {ov::element::Type_t::boolean, TypeInfo(8, false, true, false, "char", "boolean")},
-        {ov::element::Type_t::bf16, TypeInfo(16, true, true, false, "bfloat16", "bf16")},
-        {ov::element::Type_t::f16, TypeInfo(16, true, true, false, "float16", "f16")},
-        {ov::element::Type_t::f32, TypeInfo(32, true, true, false, "float", "f32")},
-        {ov::element::Type_t::f64, TypeInfo(64, true, true, false, "double", "f64")},
-        {ov::element::Type_t::i4, TypeInfo(4, false, true, true, "int4_t", "i4")},
-        {ov::element::Type_t::i8, TypeInfo(8, false, true, true, "int8_t", "i8")},
-        {ov::element::Type_t::i16, TypeInfo(16, false, true, false, "int16_t", "i16")},
-        {ov::element::Type_t::i32, TypeInfo(32, false, true, true, "int32_t", "i32")},
-        {ov::element::Type_t::i64, TypeInfo(64, false, true, false, "int64_t", "i64")},
-        {ov::element::Type_t::u1, TypeInfo(1, false, false, false, "uint1_t", "u1")},
-        {ov::element::Type_t::u4, TypeInfo(4, false, false, false, "uint4_t", "u4")},
-        {ov::element::Type_t::u8, TypeInfo(8, false, false, true, "uint8_t", "u8")},
-        {ov::element::Type_t::u16, TypeInfo(16, false, false, false, "uint16_t", "u16")},
-        {ov::element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
-        {ov::element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
-    };
-    return elements_map;
-};
-
-const TypeInfo& get_type_info(ov::element::Type_t type) {
-    const auto& tim = get_type_info_map();
-    const auto& found = tim.find(type);
-    if (found == tim.end()) {
-        throw std::out_of_range{"ov::element::Type_t not supported"};
+inline TypeInfo get_type_info(ov::element::Type_t type) {
+    switch (type) {
+    case ov::element::Type_t::undefined:
+        return {std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined"};
+    case ov::element::Type_t::dynamic:
+        return {0, false, false, false, "dynamic", "dynamic"};
+    case ov::element::Type_t::boolean:
+        return {8, false, true, false, "char", "boolean"};
+    case ov::element::Type_t::bf16:
+        return {16, true, true, false, "bfloat16", "bf16"};
+    case ov::element::Type_t::f16:
+        return {16, true, true, false, "float16", "f16"};
+    case ov::element::Type_t::f32:
+        return {32, true, true, false, "float", "f32"};
+    case ov::element::Type_t::f64:
+        return {64, true, true, false, "double", "f64"};
+    case ov::element::Type_t::i4:
+        return {4, false, true, true, "int4_t", "i4"};
+    case ov::element::Type_t::i8:
+        return {8, false, true, true, "int8_t", "i8"};
+    case ov::element::Type_t::i16:
+        return {16, false, true, false, "int16_t", "i16"};
+    case ov::element::Type_t::i32:
+        return {32, false, true, true, "int32_t", "i32"};
+    case ov::element::Type_t::i64:
+        return {64, false, true, false, "int64_t", "i64"};
+    case ov::element::Type_t::u1:
+        return {1, false, false, false, "uint1_t", "u1"};
+    case ov::element::Type_t::u4:
+        return {4, false, false, false, "uint4_t", "u4"};
+    case ov::element::Type_t::u8:
+        return {8, false, false, true, "uint8_t", "u8"};
+    case ov::element::Type_t::u16:
+        return {16, false, false, false, "uint16_t", "u16"};
+    case ov::element::Type_t::u32:
+        return {32, false, false, false, "uint32_t", "u32"};
+    case ov::element::Type_t::u64:
+        return {64, false, false, false, "uint64_t", "u64"};
+    default:
+        OPENVINO_UNREACHABLE("ov::element::Type_t not supported: ", type);
     }
-    return found->second;
 };
 }  // namespace
 
@@ -109,7 +105,28 @@ ov::element::Type::Type(size_t bitwidth,
                         bool is_signed,
                         bool is_quantized,
                         const std::string& /* cname */) {
-    for (const auto& t : get_type_info_map()) {
+    const ElementTypes::ElementsMap elements_map{
+        {ov::element::Type_t::undefined,
+         {std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined"}},
+        {ov::element::Type_t::dynamic, {0, false, false, false, "dynamic", "dynamic"}},
+        {ov::element::Type_t::boolean, {8, false, true, false, "char", "boolean"}},
+        {ov::element::Type_t::bf16, {16, true, true, false, "bfloat16", "bf16"}},
+        {ov::element::Type_t::f16, {16, true, true, false, "float16", "f16"}},
+        {ov::element::Type_t::f32, {32, true, true, false, "float", "f32"}},
+        {ov::element::Type_t::f64, {64, true, true, false, "double", "f64"}},
+        {ov::element::Type_t::i4, {4, false, true, true, "int4_t", "i4"}},
+        {ov::element::Type_t::i8, {8, false, true, true, "int8_t", "i8"}},
+        {ov::element::Type_t::i16, {16, false, true, false, "int16_t", "i16"}},
+        {ov::element::Type_t::i32, {32, false, true, true, "int32_t", "i32"}},
+        {ov::element::Type_t::i64, {64, false, true, false, "int64_t", "i64"}},
+        {ov::element::Type_t::u1, {1, false, false, false, "uint1_t", "u1"}},
+        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "u4"}},
+        {ov::element::Type_t::u8, {8, false, false, true, "uint8_t", "u8"}},
+        {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
+        {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
+        {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
+    };
+    for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
         if (bitwidth == info.m_bitwidth && is_real == info.m_is_real && is_signed == info.m_is_signed &&
             is_quantized == info.m_is_quantized) {
@@ -119,7 +136,7 @@ ov::element::Type::Type(size_t bitwidth,
     }
 }
 
-const std::string& ov::element::Type::c_type_string() const {
+std::string ov::element::Type::c_type_string() const {
     return get_type_info(m_type).m_cname;
 }
 
@@ -131,7 +148,7 @@ size_t ov::element::Type::hash() const {
     return static_cast<size_t>(m_type);
 }
 
-const std::string& ov::element::Type::get_type_name() const {
+std::string ov::element::Type::get_type_name() const {
     return get_type_info(m_type).m_type_name;
 }
 
@@ -241,7 +258,7 @@ std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type
 }
 
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
-    static const std::unordered_map<std::string, ov::element::Type> legacy = {
+    const std::unordered_map<std::string, ov::element::Type> legacy = {
         {"BOOL", ov::element::boolean},
         {"BF16", ov::element::bf16},
         {"I4", ov::element::i4},

@@ -12,6 +12,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "itt.hpp"
+
 
 namespace {
     bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
@@ -38,6 +40,7 @@ namespace {
 } // namespace
 
 ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ngraph::pattern::wrap_type<ngraph::op::util::UnaryElementwiseArithmetic,
                                                       ngraph::op::util::BinaryElementwiseArithmetic>(ngraph::pattern::has_static_rank());
 
@@ -105,9 +108,10 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         newChild->set_friendly_name(child->get_friendly_name());
 
         ngraph::replace_node(child, newChild);
+        MATCHER_SCOPE_ENABLE(MoveEltwiseUpThroughDataMov);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, "MoveEltwiseUpThroughDataMov");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

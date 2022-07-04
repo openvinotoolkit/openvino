@@ -51,12 +51,13 @@ private:
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
     Config engConfig;
-    NumaNodesWeights weightsSharing;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority even than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
+
+    std::shared_ptr<void> specialSetup;
 };
 
 }   // namespace intel_cpu

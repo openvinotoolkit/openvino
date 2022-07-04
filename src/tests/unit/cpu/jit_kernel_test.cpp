@@ -7,7 +7,7 @@
 #include <random>
 
 using namespace ov::intel_cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace {
@@ -183,7 +183,7 @@ private:
 
 TEST(JitKernel, variable_permute_and_blend) {
     jit_variable_test_kernel kernel;
-    if (mayiuse(cpu_isa_t::avx512_common)) {
+    if (mayiuse(cpu_isa_t::avx512_core)) {
         kernel.test<16>();
     }
     if (mayiuse(cpu_isa_t::avx2)) {
@@ -319,7 +319,7 @@ private:
 
 TEST(JitKernel, variable_load_and_store) {
     jit_variable_load_store_test_kernel<uint8_t, float> kernel;
-    if (mayiuse(cpu_isa_t::avx512_common)) {
+    if (mayiuse(cpu_isa_t::avx512_core)) {
         kernel.test<16>();
     }
     if (mayiuse(cpu_isa_t::avx2)) {
