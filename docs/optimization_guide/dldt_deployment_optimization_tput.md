@@ -7,11 +7,11 @@ The associated increase in latency is not linearly dependent on the number of re
 A trade-off between overall throughput and serial performance of individual requests can be achieved with the right performance configuration of OpenVINO.
 
 ##  Basic and Advanced Ways of Leveraging Throughput 
-There are several ways of leveraging the throughput with the individual device:
+There are two ways of leveraging throughput with individual devices:
 * **Basic (high-level)** flow with [OpenVINO performance hints](../OV_Runtime_UG/performance_hints.md) which is inherently **portable and future-proof**.
 * **Advanced (low-level)** approach of explicit  **batching** and **streams**. For more details, see the [runtime inference optimizations](dldt_deployment_optimization_tput_advanced.md).
 
-In both cases application should be designed to execute multiple inference requests in parallel. Additionally, the *automatic* multi-device execution might be used. Read more details on these topics in the following section.
+In both cases, the application should be designed to execute multiple inference requests in parallel, as described in the following section.
 
 @anchor throughput_app_design
 ## Throughput-Oriented Application Design
@@ -38,7 +38,7 @@ In general, most throughput-oriented inference applications should:
 * Use the Async API with callbacks, to avoid any dependency on the completion order of the requests and possible device starvation, as explained in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common).
 
 ## Multi-Device Execution
-OpenVINO offers an automatic, scalable [multi-device inference](../OV_Runtime_UG/multi_device.md). This is a simple *application-transparent* way to improve the throughput. There is no need to re-architecture existing applications for any explicit multi-device support: no explicit network loading to each device, no separate per-device queues, no additional logic to balance the inference requests between devices, etc. From the perspective of an application, it is communicating with the single device that internally handles the actual machinery.
+OpenVINO offers the automatic, scalable [multi-device inference mode](../OV_Runtime_UG/multi_device.md), which is a simple *application-transparent* way to improve throughput. There is no need to re-architecture existing applications for any explicit multi-device support: no explicit network loading to each device, no separate per-device queues, no additional logic to balance inference requests between devices, etc. For the application using it, multi-device is like any other device, as it manages all processes internally.
 Just like with other throughput-oriented scenarios, there are several major pre-requisites for optimal multi-device performance:
 *	Using the [Asynchronous API](@ref async_api) and [callbacks](../OV_Runtime_UG/ov_infer_request.md) in particular.
 *	Providing the multi-device (and hence the underlying devices) with enough data to crunch. As the inference requests are naturally independent data pieces, the multi-device performs load-balancing at the "requests" (outermost) level to minimize the scheduling overhead.
