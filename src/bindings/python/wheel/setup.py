@@ -216,8 +216,9 @@ class PrepareLibs(build_clib):
                 self.spawn(["cmake", "--install", CMAKE_BUILD_DIR, "--prefix", install_prefix, "--component", comp_data.get("name")])
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
-                file_types = [".so"] if sys.platform == "linux" else [".dylib", ".so"]
-                for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob("*")):
+                for path in filter(
+                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"]) for item in x.suffixes), Path(install_dir).glob("*"),
+                ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
     def generate_package(self, src_dirs):
