@@ -345,6 +345,23 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::vector<DeviceInformation> metaDevices;
     bool workModeAuto = GetName() == "AUTO";
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    // If the user sets the property, insert the property into the deviceConfig
+    auto insertPropToConfig = [&](std::string property,
+                                  std::string& deviceName,
+                                  std::map<std::string, std::string>& deviceConfig) {
+        auto tmpiter =
+            std::find_if(fullConfig.begin(), fullConfig.end(), [&](const std::pair<std::string, std::string>& config) {
+                return (config.first == property);
+            });
+        if (tmpiter != fullConfig.end()) {
+            deviceConfig.insert({tmpiter->first, tmpiter->second});
+            LOG_INFO_TAG("device:%s, config:%s=%s",
+                         deviceName.c_str(),
+                         tmpiter->first.c_str(),
+                         tmpiter->second.c_str());
+        }
+    };
+
     // if workMode is AUTO
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
@@ -398,16 +415,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(), config.second.c_str());
                  }
              }
-             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
-                            });
-             if (tmpiter != fullConfig.end())
-                 deviceConfig.insert({tmpiter->first, tmpiter->second});
-             tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-                            return (config.first == CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-                            });
-             if (tmpiter != fullConfig.end())
-                 deviceConfig.insert({tmpiter->first, tmpiter->second});
+             insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, deviceConfig);
+             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, deviceConfig);
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -451,12 +460,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::once_flag readNetworkFlag;
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
-            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end())
-                p.config.insert({tmpiter->first, tmpiter->second});
-            tmpiter = fullConfig.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-            if (tmpiter != fullConfig.end())
-                p.config.insert({tmpiter->first, tmpiter->second});
+            insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), p.deviceName, p.config);
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;

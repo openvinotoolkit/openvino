@@ -96,7 +96,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[ie::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName.find("AUTO") == 0 && deviceName.find("AUTO_BATCH") != 0) {
+    } else if (deviceName == "AUTO" || deviceName.find("AUTO:") == 0) {
         deviceName_ = "AUTO";
         if (deviceName.find("AUTO:") == 0) {
             config_[ie::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
