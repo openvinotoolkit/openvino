@@ -184,6 +184,7 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         mvn->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(nodes_to_copy_info, mvn);
         ngraph::replace_node(m.get_match_root(), mvn);
+        MATCHER_SCOPE_ENABLE(MVNFusionWithoutConstants);
         return true;
     };
 
@@ -299,6 +300,7 @@ ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
                                   {mvn, const_gamma_node, mul_gamma, const_beta_node, add_beta});
         add_beta->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::replace_node(m.get_match_root(), add_beta);
+        MATCHER_SCOPE_ENABLE(MVNFusionWithConstantsInside);
         return true;
     };
 

@@ -5,8 +5,8 @@ import os
 import pytest
 
 import ngraph as ng
-from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from tests_compatibility.conftest import model_path, create_relu
+from openvino.inference_engine import IECore, DataPtr, InputInfoPtr, PreProcessInfo
+from tests_compatibility.conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()

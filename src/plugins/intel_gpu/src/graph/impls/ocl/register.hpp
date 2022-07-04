@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include "generic_layer.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/average_unpooling.hpp"
@@ -12,9 +13,12 @@
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/bucketize.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
@@ -25,12 +29,16 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/gather.hpp"
-#include "intel_gpu/primitives/gather_nd.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
+#include "intel_gpu/primitives/gather_nd.hpp"
+#include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/grn.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/lstm_dynamic.hpp"
+#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
+#include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/max_unpooling.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
@@ -47,14 +55,16 @@
 #include "intel_gpu/primitives/region_yolo.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reorg_yolo.hpp"
+#include "intel_gpu/primitives/resample.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/roll.hpp"
 #include "intel_gpu/primitives/scale.hpp"
-#include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shape_of.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
@@ -63,15 +73,6 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
-#include "intel_gpu/primitives/resample.hpp"
-#include "intel_gpu/primitives/gather_tree.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_input.hpp"
-#include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
-#include "intel_gpu/primitives/grn.hpp"
-#include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
-#include "intel_gpu/primitives/convert_color.hpp"
-#include "generic_layer.hpp"
-
 
 namespace cldnn {
 namespace ocl {
@@ -79,9 +80,9 @@ void register_implementations();
 
 namespace detail {
 
-#define REGISTER_OCL(prim)               \
-    struct attach_##prim##_impl {        \
-        attach_##prim##_impl();          \
+#define REGISTER_OCL(prim)        \
+    struct attach_##prim##_impl { \
+        attach_##prim##_impl();   \
     }
 
 REGISTER_OCL(activation);
@@ -92,6 +93,7 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
+REGISTER_OCL(bucketize);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(convolution);
 REGISTER_OCL(crop);
@@ -103,6 +105,7 @@ REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
 REGISTER_OCL(detection_output);
 REGISTER_OCL(dft);
+REGISTER_OCL(experimental_detectron_detection_output);
 REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
 REGISTER_OCL(experimental_detectron_prior_grid_generator);
 REGISTER_OCL(experimental_detectron_roi_feature_extractor);
@@ -134,9 +137,11 @@ REGISTER_OCL(region_yolo);
 REGISTER_OCL(reorder);
 REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
+REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
+REGISTER_OCL(roll);
 REGISTER_OCL(scale);
 REGISTER_OCL(scatter_update);
 REGISTER_OCL(scatter_elements_update);

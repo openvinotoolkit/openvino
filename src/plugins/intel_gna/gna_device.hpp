@@ -68,6 +68,12 @@ class GNADeviceHelper {
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 
+    bool debugLogEnabled = false;
+    uint64_t debugLogIndexRequestEnqueue = 0;
+    uint64_t debugLogIndexRequestWait = 0;
+    static constexpr const char* kDumpExt = ".bin";
+    static constexpr const char* kDumpDelimiter = ".";
+
 public:
     explicit GNADeviceHelper(std::string executionTargetIn = "",
          std::string compileTargetIn = "",
@@ -97,6 +103,15 @@ public:
         }
     }
 
+    void enableDiagnostics();
+
+    /**
+     * @brief Dump raw memory of each GNA allocation to files
+     * @param idx index to be appended to the file name
+     * @param infix File name would a form of <idx><tagName><kDumpDelimiter><infix><kDumpExt>
+     */
+    void dumpAllAllocations(uint64_t idx, const std::string& infix) const;
+
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
@@ -117,7 +132,7 @@ public:
         return dev <= Gna2DeviceVersion2_0 && isGnaHw(dev);
     }
     bool enforceLegacyCnnNeeded() const;
-    static void checkGna2Status(Gna2Status status, const std::string& from);
+    static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
     GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
