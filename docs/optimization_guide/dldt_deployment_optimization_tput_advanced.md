@@ -1,7 +1,5 @@
 # Using Advanced Throughput Options: Streams and Batching {#openvino_docs_deployment_optimization_guide_tput_advanced}
 
-This article describes advanced throughput options - Streams and Batching. It also provides information about selecting a number of streams, a batch size and a few device specific details.
-
 ## OpenVINO Streams
 As explained in the [common-optimizations section](@ref openvino_docs_deployment_optimization_guide_common), running multiple inference requests asynchronously is important for general application efficiency.
 Internally, every device implements a queue, which acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 

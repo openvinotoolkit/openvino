@@ -111,7 +111,7 @@ Accuracy-aware Quantization uses the Default Quantization algorithm at the initi
 
 ## Run quantization
 
-The example code below shows basic quantization workflow with accuracy control. The `UserDataLoader()` is a placeholder for the implementation of the `DataLoader`.
+The example code below shows a basic quantization workflow with accuracy control. `UserDataLoader()` is a placeholder for the implementation of `DataLoader`.
 
 ```python
 from openvino.tools.pot import IEEngine
