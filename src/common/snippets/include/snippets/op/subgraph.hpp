@@ -74,6 +74,8 @@ public:
 
     Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
 
+    Subgraph() = default;
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;

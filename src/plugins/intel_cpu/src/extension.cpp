@@ -13,6 +13,7 @@
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
 #include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include "snippets/op/subgraph.hpp"
 
 #include <mutex>
 
@@ -111,10 +112,21 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         return opset;
     };
 
+        auto SnippetsOpset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(Subgraph, ngraph::snippets::op)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
     static std::map<std::string, ngraph::OpSet> opsets = {
         { "cpu_plugin_opset", cpu_plugin_opset() },
         { "type_relaxed_opset", type_relaxed_opset() },
         { "ie_internal_opset", ie_internal_opset() },
+        { "SnippetsOpset", SnippetsOpset() },
     };
 
     return opsets;

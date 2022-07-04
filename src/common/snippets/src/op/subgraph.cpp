@@ -66,6 +66,7 @@ void snippets::op::Subgraph::validate_and_infer_types() {
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("body", m_body);
     return true;
 }
 
@@ -394,7 +395,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
 void snippets::op::Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
+    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V11);
     serializer.run_on_model(get_body());
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();
