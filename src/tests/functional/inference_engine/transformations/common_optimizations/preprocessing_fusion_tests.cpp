@@ -63,12 +63,16 @@ std::shared_ptr<GroupConvolution> create_group_conv_with_gather(Output<Node> inp
                                               ov::Strides{1, 1});
 }
 
-std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
-    auto gather = std::make_shared<Gather>(create_weights(weigts_shape), Constant::create(element::i64, Shape{order.size()}, order),
+std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, Output<Node> weigts, const std::vector<int64_t> & order) {
+    auto gather = std::make_shared<Gather>(weigts, Constant::create(element::i64, Shape{order.size()}, order),
                                                    Constant::create(element::i64, Shape{1}, {1}));
     return std::make_shared<Convolution>(input, gather, ov::Strides{1, 1},
                                                          ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0},
                                                          ov::Strides{1, 1});
+}
+
+std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input, const Shape & weigts_shape, const std::vector<int64_t> & order) {
+    return create_conv_with_gather(input, create_weights(weigts_shape), order);
 }
 
 std::shared_ptr<Parameter> create_param(const PartialShape & shape) {
@@ -1132,6 +1136,32 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
+    {
+        auto input = create_param({1, 3, 16, 16});
+        auto weights = create_weights({3, 3, 1, 1});
+        auto conv1 = create_conv(input, weights);
+        auto conv2 = create_conv(conv1, weights);
+
+        function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+    }
+    {
+        auto input = create_param({1, 3, 16, 16});
+        auto weights = create_weights({3, 3, 1, 1});
+        auto conv1 = create_conv_with_gather(input, weights, {2, 1, 0});
+        auto conv2 = create_conv(conv1, weights);
+        function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

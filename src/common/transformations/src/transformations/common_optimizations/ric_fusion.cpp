@@ -392,9 +392,6 @@ class Convolution : public ngraph::pass::MatcherPass {
 public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
-        // Handle Convolution with Constant and FQ on weights. As Convolution is
-        // a terminal node, so we do not propagate RIC attribute further and insert
-        // final RIC attribute to the weights input.
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
         auto pattern_root = pattern::wrap_type<opset8::Convolution>(
             {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
@@ -548,6 +545,9 @@ public:
             for (const auto& input : m.get_match_root()->input_values()) {
                 if (ric_attr::has(input)) {
                     auto ric = ric_attr::get(input);
+                    if (ric.is_final()) {
+                        continue;
+                    }
                     ric.set_can_be_fused(false);
                     NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                 }
@@ -800,6 +800,9 @@ public:
                 for (const auto& consumer : output.get_target_inputs()) {
                     if (ric_attr::has(consumer)) {
                         auto ric = ric_attr::get(consumer);
+                        if (ric.is_final()) {
+                            continue;
+                        }
                         ric.set_can_be_fused(false);
                         NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                     }
