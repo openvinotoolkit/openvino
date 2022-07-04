@@ -29,10 +29,10 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, activationsShape[0], targetDevice, params) <<
-        "FQ_X:" << param.fakeQuantize_X << "_" <<
-        "DQ_X:" << param.dequantization_X << "_" <<
-        "FQ_W:" << param.fakeQuantize_W << "_" <<
-        "DQ_W:" << param.dequantization_W;
+        "FQ_X_" << param.fakeQuantize_X << "_" <<
+        "DQ_X_" << param.dequantization_X << "_" <<
+        "FQ_W_" << param.fakeQuantize_W << "_" <<
+        "DQ_W_" << param.dequantization_W;
     return result.str();
 }
 
