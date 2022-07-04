@@ -312,7 +312,7 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
 }
 
 const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
-    if (!useExperimentConv)
+    if (!cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV))
         return Node::getPrimitivesPriority();
 
     std::vector<impl_desc_type> priorities = {
@@ -517,7 +517,7 @@ void Convolution::getSupportedDescriptors() {
             auto outputShape = getOutputShapeAtPort(0);
 
             bool acceptedFormat = inputDataType == memory::data_type::bf16;
-            acceptedFormat |= useExperimentConv && inputDataType == memory::data_type::f32;
+            acceptedFormat |= cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) && inputDataType == memory::data_type::f32;
             if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -762,9 +762,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = useExperimentConv ? 2 : 1;
+    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (useExperimentConv) {
+    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 
@@ -989,9 +989,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = useExperimentConv ? 2 : 1;
+    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (useExperimentConv) {
+    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 

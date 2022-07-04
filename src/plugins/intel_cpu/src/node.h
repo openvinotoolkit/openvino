@@ -517,8 +517,8 @@ public:
         algorithm = alg;
     }
 
-    void setUseExperimentConvAlgorithm(bool use) {
-        useExperimentConv = use;
+    void setCPUExperimental(const std::set<std::string>& experimental) {
+        cpuExperimental = experimental;
     }
 
     virtual bool canFuse(const NodePtr& node) const {
@@ -641,7 +641,7 @@ protected:
 
     Algorithm algorithm = Algorithm::Default;
 
-    bool useExperimentConv = false;
+    std::set<std::string> cpuExperimental;
 
     bool isInQuantizedGraph = false;
 

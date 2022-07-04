@@ -159,7 +159,7 @@ Options:
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_network.
-  -expconv              Optional. Enable new experiment convolution algorithm. Only valid in CPU plugin.
+  -cpu_experimental SETTING     Optional. Enable experimental setting for CPU plugin. SETTING should be "brgconv" etc.
 ```
 Running the application with the empty list of options yields the usage message given above and an error message.
 
