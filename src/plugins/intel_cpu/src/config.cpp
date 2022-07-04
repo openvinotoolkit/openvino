@@ -120,18 +120,18 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION) {
-            if (val == PluginConfigParams::YES) {
+        } else if (key == PluginConfigParams::KEY_CPU_EXPERIMENTAL) {
+            if (val == cpu_experimental_brgconv) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceExperimentConv = true;
                 } else {
-                    IE_THROW() << "Platform doesn't support experiment convolution algorithm";
+                    IE_THROW() << "Platform doesn't support brgconv algorithm";
                 }
-            } else if (val == PluginConfigParams::NO) {
+            } else if (val.empty()) {
                 enforceExperimentConv = false;
             } else {
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION
-                    << ". Expected only YES/NO";
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_CPU_EXPERIMENTAL
+                    << ". Expected only " << cpu_experimental_brgconv;
             }
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
@@ -222,9 +222,7 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
     }
     if (enforceExperimentConv) {
-        _config.insert({ PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION, PluginConfigParams::YES });
-    } else {
-        _config.insert({ PluginConfigParams::KEY_ENFORCE_EXPERIMENT_CONVOLUTION, PluginConfigParams::NO });
+        _config.insert({ PluginConfigParams::KEY_CPU_EXPERIMENTAL, cpu_experimental_brgconv });
     }
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,

@@ -431,14 +431,9 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
- * @brief Use experiment convolution algorithm whenever it is possible
- *
- * This option let CPU plugin to use experiment convolution algorithm if hardware supports
- * AVX512.
- * By default, the option is set to NO, set to YES will try to use the experiment convolution
- * algorithm.
+ * @brief Use experimental setting for CPU plugin.
  */
-DECLARE_CONFIG_KEY(ENFORCE_EXPERIMENT_CONVOLUTION);
+DECLARE_CONFIG_KEY(CPU_EXPERIMENTAL);
 
 /**
  * @brief This key defines the directory which will be used to store any data cached by plugins.

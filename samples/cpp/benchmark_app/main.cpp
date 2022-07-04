@@ -386,9 +386,9 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
-                // use experiment convolution
-                if (isFlagSetInCommandLine("expconv")) {
-                    device_config.emplace(ov::enforce_experiment_convolution(true));
+                // use experimental setting
+                if (isFlagSetInCommandLine("cpu_experimental")) {
+                    device_config.emplace(ov::cpu_experimental(FLAGS_cpu_experimental));
                 }
 
                 // for CPU execution, more throughput-oriented execution via streams

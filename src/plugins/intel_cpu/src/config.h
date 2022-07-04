@@ -40,6 +40,7 @@ struct Config {
     bool manualEnforceBF16 = false;
     bool enforceExperimentConv = false;
 #endif
+    std::string cpu_experimental_brgconv = "brgconv";
 
     std::string cache_dir{};
 

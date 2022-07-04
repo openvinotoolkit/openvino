@@ -230,8 +230,8 @@ static constexpr char inference_only_message[] =
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
 
-static constexpr char experiment_convolution_message[] =
-    "Optional. Enable new experiment convolution algorithm. Only valid in CPU plugin.";
+static constexpr char cpu_experimental_message[] =
+    "Optional. Enable experimental setting for CPU plugin. Setting should be 'brgconv' etc.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -366,8 +366,8 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Define flag for using experiment convolution <br>
-DEFINE_bool(expconv, false, experiment_convolution_message);
+/// @brief Define flag for using experimental setting for CPU plugin <br>
+DEFINE_string(cpu_experimental, "", cpu_experimental_message);
 
 /**
  * @brief This function show a help message
@@ -403,7 +403,7 @@ static void show_usage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
               << infer_threads_pinning_message << std::endl;
-    std::cout << "    -expconv                    " << experiment_convolution_message << std::endl;
+    std::cout << "    -cpu_experimental         " << cpu_experimental_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
