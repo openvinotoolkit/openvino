@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validdata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validinputs) {
     {
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 0});
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
@@ -38,23 +38,22 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validdata) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_invaliddata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_invalidinputs) {
     {
-        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 0});
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 0});
+        const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
 
-        auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
+        const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
         manager.register_pass<ov::pass::OptimizerGatherND>();
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validdata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -74,23 +73,10 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validdata) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_invaliddata) {
-    {
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 1, 0});
-        const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
-
-        const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
-
-        manager.register_pass<ov::pass::OptimizerGatherND>();
-    }
-}
-
-TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_invaliddata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_invalidinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2});
@@ -102,7 +88,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_invaliddata) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validdata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
@@ -122,7 +108,6 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validdata) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
@@ -137,16 +122,15 @@ TEST_F(TransformationTestsF, OptimizeGatherND_1leadingdim) {
         manager.register_pass<ov::pass::OptimizerGatherND>();
     }
     {
-        const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1, 1, 2});
+        const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
@@ -161,16 +145,15 @@ TEST_F(TransformationTestsF, OptimizeGatherND_3leadingdims) {
         manager.register_pass<ov::pass::OptimizerGatherND>();
     }
     {
-        const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, {-1, 1, 1, 1, 2});
+        const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
-        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1, 1, 1}, {1, 0});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
@@ -208,11 +191,10 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim_expandeddata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim_complexexample1) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4});
@@ -225,7 +207,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim_expandeddata) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_expandeddata) {
+TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_complexexample2) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4});
@@ -246,53 +228,51 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_expandeddata) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     }
 }
 
-
-
-TEST_F(TransformationTestsF, OptimizeGatherND_complexexample1_validindices) {
+TEST_F(TransformationTestsF, OptimizeGatherND_complexexample3) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2, 3}, {0, 0, 3, 0, 0, 1, 0, 0, 4, 0, 0, 2});
-
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 5});
 
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        //manager.register_pass<ov::pass::VisualizeTree>("before.svg");
         manager.register_pass<ov::pass::OptimizerGatherND>();
-        //manager.register_pass<ov::pass::Validate>();
-        //manager.register_pass<ov::pass::VisualizeTree>("after.svg");
     }
-/*     {
+    {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 5});
         const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
 
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {3, 1, 4, 2});
-        //const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {3, 1, 4, 2});
         const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
-        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-    } */
+    }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_complexexample2_validindices) {
+TEST_F(TransformationTestsF, OptimizeGatherND_complexexample4) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2, 2}, {0, 1, 0, 3, 0, 2, 0, 0});
-
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 4, 1});
 
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        //manager.register_pass<ov::pass::VisualizeTree>("before.svg");
         manager.register_pass<ov::pass::OptimizerGatherND>();
-        //manager.register_pass<ov::pass::Validate>();
-        //manager.register_pass<ov::pass::VisualizeTree>("after.svg");
+    }
+    {
+        const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 1});
+        const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 4, 1});
+        const auto reshape = std::make_shared<ngraph::opset8::Reshape>(data, shape, true);
+
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 3, 2, 0});
+        const auto axis = ngraph::opset8::Constant::create<int64_t>(ngraph::element::Type_t::i64, ngraph::Shape{}, {0});
+        const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
 }
