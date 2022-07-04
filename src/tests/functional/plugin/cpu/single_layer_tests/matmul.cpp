@@ -173,6 +173,16 @@ protected:
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
+    if (inType == ElementType::bf16) {
+        if (cpuNodeType == "FullyConnected") {
+            if (priority[0].find("amx") != std::string::npos || priority[0] == "brgemm_avx512") {
+                if (fusedOps.size() == 2 && fusedOps[0] == std::string("FakeQuantize") && fusedOps[1] == std::string("Relu")) {
+                    GTEST_SKIP() << "Skip MatMul BF16 FakeQuantization Fusing test" << std::endl;
+                }
+            }
+        }
+    }
 
     run();
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
@@ -199,6 +209,15 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() 
     return additionalConfig;
 }
 
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BrgemmAmx() {
+    std::vector<std::map<std::string, std::string>> additionalConfig;
+    if (with_cpu_x86_bfloat16()) {
+        additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
+    }
+
+    return additionalConfig;
+}
+
 const std::vector<ElementType> netPRCs {
     ElementType::f32,
     ElementType::bf16
@@ -215,6 +234,15 @@ std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
     std::vector<CPUSpecificParams> specificParams;
     if (with_cpu_x86_avx512_core()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    }
+
+    return specificParams;
+}
+
+std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core_amx()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
     }
 
     return specificParams;
@@ -289,6 +317,13 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
+        emptyFusingSpec,
+        fusingBias,
+        fusingMultiplyPerChannel,
+        fusingFakeQuantizePerTensorRelu,
+};
+
+std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         emptyFusingSpec,
         fusingBias,
         fusingMultiplyPerChannel,
@@ -499,6 +534,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
+    {static_shapes_to_test_representation({{59, 120}, {120, 120}}), {true, false}},
+
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
 
@@ -554,10 +591,26 @@ const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::V
 
 const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_smoke),
+                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
                                              ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
+
+const auto testParams2D_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_Amx_smoke,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
+                                             ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
+
 
 const auto fullyConnectedParams2D_Brgemm_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_nightly),
                                                        ::testing::Values(ElementType::f32),
@@ -573,6 +626,21 @@ const auto testParams2D_Brgemm_nightly = ::testing::Combine(fullyConnectedParams
                                              ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_nightly, MatMulLayerCPUTest::getTestCaseName);
+
+const auto fullyConnectedParams2D_Brgemm_Amx_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_nightly),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
+
+const auto testParams2D_Brgemm_Amx_nightly = ::testing::Combine(fullyConnectedParams2D_Brgemm_Amx_nightly,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::ValuesIn(fusingParamsSet2D_nightly),
+                                             ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_Brgemm_Amx_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 } // namespace fullyConnected
 
@@ -1005,6 +1073,42 @@ const auto testBrgemmParams_smoke = ::testing::Combine(matMulBrgemmParams_smoke,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_smoke, MatMulLayerCPUTest::getTestCaseName);
 
+std::vector<fusingSpecificParams> matmulBrgemmAmxFusingParams {
+        emptyFusingSpec,
+        fusingPReluPerTensor,
+        fusingAddPerTensor,
+        fusingBias,
+};
+
+const std::vector<ShapeRelatedParams> IS_brgemm_Amx_smoke = {
+        {static_shapes_to_test_representation({{1, 2, 32, 64}, {64, 5}}), {false, false}},
+        {static_shapes_to_test_representation({{1, 2, 32, 64}, {64, 5}}), {true, false}},
+
+        {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {false, true}},
+        {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {true, true}},
+
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
+        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
+
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
+        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+};
+
+const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
+                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
+
+const auto testBrgemmAmxParams_smoke = ::testing::Combine(matMulBrgemmAmxParams_smoke,
+                                                       ::testing::Values(MatMulNodeType::MatMul),
+                                                       ::testing::ValuesIn(matmulBrgemmAmxFusingParams),
+                                                       ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testBrgemmAmxParams_smoke, MatMulLayerCPUTest::getTestCaseName);
+
 const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(IS_brgemm_nightly),
                                                          ::testing::Values(ElementType::f32),
                                                          ::testing::Values(ElementType::undefined),
@@ -1019,6 +1123,22 @@ const auto testBrgemmParams_nightly = ::testing::Combine(matMulBrgemmParams_nigh
                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_nightly, MatMulLayerCPUTest::getTestCaseName);
+
+const auto matMulBrgemmAmxParams_nightly = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
+                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(ElementType::undefined),
+                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
+
+const auto testBrgemmAmxParams_nightly = ::testing::Combine(matMulBrgemmAmxParams_nightly,
+                                                       ::testing::Values(MatMulNodeType::MatMul),
+                                                       ::testing::ValuesIn(matmulBrgemmAmxFusingParams),
+                                                       ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testBrgemmAmxParams_nightly, MatMulLayerCPUTest::getTestCaseName);
+
 
 const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
         {
@@ -1087,6 +1207,20 @@ const auto testBrgemmParamsDynamic = ::testing::Combine(matMulBrgemmParamsDynami
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic, MatMulLayerCPUTest, testBrgemmParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
+const auto matMulBrgemmAmxParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Brgemm_Dynamic),
+                                                          ::testing::Values(ElementType::f32),
+                                                          ::testing::Values(ElementType::undefined),
+                                                          ::testing::Values(ElementType::undefined),
+                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                          ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
+
+const auto testBrgemmAmxParamsDynamic = ::testing::Combine(matMulBrgemmAmxParamsDynamic,
+                                                        ::testing::Values(MatMulNodeType::MatMul),
+                                                        ::testing::Values(emptyFusingSpec),
+                                                        ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Dynamic, MatMulLayerCPUTest, testBrgemmAmxParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsBrgemmDynamicFusing = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_Fusing),
                                                                 ::testing::Values(ElementType::f32),

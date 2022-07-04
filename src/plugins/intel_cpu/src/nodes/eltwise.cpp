@@ -209,7 +209,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        if (isa == x64::avx512_common)
+        if (isa == x64::avx512_core)
             vpxord(vmm_zero, vmm_zero, vmm_zero);
 
         for (int i = 0; i < jep.inputs_number; i++) {
@@ -708,7 +708,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
-                if (isa == x64::avx512_common) {
+                if (isa == x64::avx512_core) {
                     vpmovsdw(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -721,8 +721,8 @@ private:
                 }
                 break;
             case Precision::U16:
-                if (isa == x64::avx512_common) {
-                    vmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdw(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -735,8 +735,7 @@ private:
                 }
                 break;
             case Precision::I8:
-                if (isa == x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == x64::avx512_core) {
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -750,7 +749,8 @@ private:
                 }
                 break;
             case Precision::U8:
-                if (isa == x64::avx512_common) {
+                if (isa == x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1303,8 +1303,8 @@ public:
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(),
                        [](size_t& offset) { return offset * sizeof(float);});
 
-        if (mayiuse(x64::avx512_common)) {
-            _pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(jep, eltwise_data, ops_list, post_ops));
+        if (mayiuse(x64::avx512_core)) {
+            _pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_core>(jep, eltwise_data, ops_list, post_ops));
         } else if (mayiuse(x64::avx2)) {
             _pKernel.reset(new jit_uni_eltwise_generic<x64::avx2>(jep, eltwise_data, ops_list, post_ops));
         } else if (mayiuse(x64::sse41)) {
@@ -1780,7 +1780,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
             // same for disabled collapse dims
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-                size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
+                size_t blockSize = mayiuse(x64::avx512_core) ? 16 : 8;
 
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
@@ -1839,7 +1839,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(portConfig);
 
         impl_desc_type impl_type;
-        if (mayiuse(x64::avx512_common)) {
+        if (mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
@@ -2075,19 +2075,10 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
                                     || parentNode->getType() == Type::BinaryConvolution)
                                         && getAlgorithm() == Algorithm::EltwiseAdd &&
             dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
-    if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
+    if ((scales.empty() && shifts.empty()) &&
+        !specialConvolutionAddFusing &&
+        canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
-        if ((parentNode->getType() == Type::FullyConnected
-                || parentNode->getType() == Type::MatMul)
-            && one_of(getAlgorithm(), Algorithm::EltwiseAdd,
-                                      Algorithm::EltwiseSubtract,
-                                      Algorithm::EltwiseMultiply,
-                                      Algorithm::EltwiseDivide,
-                                      Algorithm::EltwiseMulAdd,
-                                      Algorithm::EltwisePowerStatic,
-                                       Algorithm::EltwisePrelu)) {
-            std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
-        }
     }
     Node::fuseInto(parentNode);
 }
@@ -2107,7 +2098,7 @@ void Eltwise::appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, st
 }
 
 template <typename T>
-void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
+void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem, const int channelAxis) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
@@ -2137,32 +2128,36 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
-        const size_t chIdx = postOpDims.size() > 1 ? getFusingAxis() : 0;
+        int channelSize = 1;
+        if (channelAxis >= 0) {
+            const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
+            channelSize = postOpDims[chIdx];
+        }
         // since legacy depthwise post ops mechanism requires broadcasted data we need to reinitilize it in case of changed shape
-        if (depthwiseData.empty() || depthwiseDataSize != 2 * postOpDims[chIdx]) {
+        if (depthwiseData.empty() || depthwiseDataSize != 2 * channelSize) {
             depthwiseData.clear();
             depthwiseMemory.reset();
 
             depthwiseData.insert(depthwiseData.end(), scales.begin(), scales.end());
             if (scales.size() == 1) {
-                depthwiseData.resize(postOpDims[chIdx], depthwiseData.back());
-            } else if (scales.size() != postOpDims[chIdx]) {
+                depthwiseData.resize(channelSize, depthwiseData.back());
+            } else if (scales.size() != channelSize) {
                 IE_THROW() << errorPrefix << "failed due to scales data size inconsistency";
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
                 // in case of Prelu algorithm scales data is always empty
-                depthwiseData.resize(2 * postOpDims[chIdx], 0);
+                depthwiseData.resize(2 * channelSize, 0);
             } else if (shifts.size() == 1) {
-                depthwiseData.resize(2 * postOpDims[chIdx], depthwiseData.back());
-            } else if (shifts.size() != postOpDims[chIdx]) {
+                depthwiseData.resize(2 * channelSize, depthwiseData.back());
+            } else if (shifts.size() != channelSize) {
                 IE_THROW() << errorPrefix << "failed due to shifts data size inconsistency";
             }
-            depthwiseDataSize = 2 * postOpDims[chIdx];
+            depthwiseDataSize = 2 * channelSize;
 
             // always align for legacy scale/shift post ops
             constexpr int bufferAlignment = 16;
-            int bufferPaddingSize = rnd_up(postOpDims[chIdx], bufferAlignment) - postOpDims[chIdx];
+            int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
             depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
         }
 
@@ -2170,7 +2165,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
             IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
 
         std::array<size_t, 2> offsets = {0};
-        offsets[1] = offsets[0] + postOpDims[chIdx];
+        offsets[1] = offsets[0] + channelSize;
 
         /* @todo legacy depthwise post ops are kept for now
          * for performance reasons
@@ -2195,12 +2190,12 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
     }
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem);
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
+    appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem);
+void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
+    appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
 void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {

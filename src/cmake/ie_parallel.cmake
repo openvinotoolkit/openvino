@@ -72,17 +72,21 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
+        set(COMPILE_DEF_TYPE "INTERFACE")
     elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
            target_type STREQUAL "MODULE_LIBRARY")
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
         # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
         # Affected libraries: inference_engine only
         # TODO: why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     else()
         message(WARNING "Unknown target type")
     endif()
@@ -113,6 +117,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
+            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR path.\

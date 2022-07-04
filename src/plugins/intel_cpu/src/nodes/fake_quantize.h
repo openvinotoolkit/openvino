@@ -114,6 +114,8 @@ public:
         outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
     }
 
+    const std::vector<float>& getFQScales() const { return fqScales; }
+
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
@@ -122,9 +124,11 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
-    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
     void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
+            bool isLastPostOp, dnnl::memory::data_type outDataType);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -195,8 +199,13 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    // onednn style post ops data representation
+    std::vector<float> fqScales;
+
+
     bool isPostOpDataInitialized = false;
+    bool isLegacyPostOpDataInitialized = false;
+
+    // onednn style post ops data representation
     dnnl::impl::shifts_t<float> cropLowData;
     dnnl::impl::shifts_t<float> cropHighData;
     dnnl::impl::scales_t inputScaleData;

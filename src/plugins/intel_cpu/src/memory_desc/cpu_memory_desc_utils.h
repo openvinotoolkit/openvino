@@ -67,6 +67,13 @@ public:
     static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
 
     /**
+     * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
+     * @return InferenceEngine::TensorDesc
+     */
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
+
+    /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
      * @param desc MemoryDesc to be converted
      * @return converted InferenceEngine::TensorDesc

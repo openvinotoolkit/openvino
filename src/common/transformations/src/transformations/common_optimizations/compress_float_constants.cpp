@@ -78,7 +78,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         ov::mark_as_decompression(convert);
 
         ov::replace_node(const_node, convert);
-
+        MATCHER_SCOPE_ENABLE(CompressFloatConstantsImpl);
         return true;
     };
 

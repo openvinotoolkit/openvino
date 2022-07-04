@@ -3,7 +3,7 @@
 //
 
 #ifndef REGISTER_FACTORY
-#error "REGISTER_FACTORY is not defined"
+#    error "REGISTER_FACTORY is not defined"
 #endif
 
 // ------------------------------ Supported v0 ops ------------------------------ //
@@ -133,6 +133,7 @@ REGISTER_FACTORY(v1, ReduceMin);
 REGISTER_FACTORY(v1, ReduceProd);
 REGISTER_FACTORY(v1, ReduceSum);
 REGISTER_FACTORY(v1, Reshape);
+REGISTER_FACTORY(v1, Reverse);
 REGISTER_FACTORY(v1, Subtract);
 REGISTER_FACTORY(v1, SpaceToBatch);
 REGISTER_FACTORY(v1, Softmax);
@@ -144,14 +145,12 @@ REGISTER_FACTORY(v1, TopK);
 REGISTER_FACTORY(v1, VariadicSplit);
 REGISTER_FACTORY(v1, Mod);
 
-// ----------------------------- Unsupported v1 ops ----------------------------- //
-// REGISTER_FACTORY(v1, Reverse);
-
 // ------------------------------ Supported v3 ops ------------------------------ //
 REGISTER_FACTORY(v3, Asinh);
 REGISTER_FACTORY(v3, Acosh);
 REGISTER_FACTORY(v3, Atanh);
 REGISTER_FACTORY(v3, Broadcast);
+REGISTER_FACTORY(v3, Bucketize);
 REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
@@ -165,7 +164,6 @@ REGISTER_FACTORY(v3, ShapeOf);
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
 // REGISTER_FACTORY(v3, Assign);
-// REGISTER_FACTORY(v3, Bucketize);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
 // REGISTER_FACTORY(v3, ReadValue);
@@ -192,7 +190,7 @@ REGISTER_FACTORY(v4, Swish);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
-//REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
+// REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
 REGISTER_FACTORY(v5, GatherND);
 REGISTER_FACTORY(v5, Loop);
@@ -206,12 +204,18 @@ REGISTER_FACTORY(v5, Loop);
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
 REGISTER_FACTORY(v6, MVN);
 REGISTER_FACTORY(v6, GatherElements);
+REGISTER_FACTORY(v6, ExperimentalDetectronPriorGridGenerator);
 REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
+REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
+REGISTER_FACTORY(v6, ExperimentalDetectronDetectionOutput);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
+REGISTER_FACTORY(v7, DFT);
 REGISTER_FACTORY(v7, Gather);
 REGISTER_FACTORY(v7, Gelu);
+REGISTER_FACTORY(v7, IDFT);
+REGISTER_FACTORY(v7, Roll);
 
 // ------------------------------ Supported v8 ops ------------------------------ //
 REGISTER_FACTORY(v8, Slice);
@@ -224,6 +228,11 @@ REGISTER_FACTORY(v8, I420toRGB);
 REGISTER_FACTORY(v8, I420toBGR);
 REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
+REGISTER_FACTORY(v8, AdaptiveAvgPool);
+REGISTER_FACTORY(v8, AdaptiveMaxPool);
+
+// ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, SoftSign)
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
