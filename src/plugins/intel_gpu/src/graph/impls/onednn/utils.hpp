@@ -35,9 +35,9 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 
 int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
 
-// If the values in the tensor are identical, make it as per-tensor value
+// Check if data node is per-tensor
 template <typename T>
-void make_per_tensor_if_possible(cldnn::data_node& node);
+bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val);
 
 }  // namespace onednn
 }  // namespace cldnn
