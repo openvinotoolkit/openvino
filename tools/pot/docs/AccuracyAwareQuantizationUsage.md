@@ -10,7 +10,6 @@
 
 @endsphinxdirective
 
-## Introduction
 The Accuracy-aware Quantization algorithm allows to perform quantization while maintaining accuracy within a pre-defined range. Note that it should be used only if  the [Default Quantization](@ref pot_default_quantization_usage) introduces a significant accuracy degradation. The reason for it not being the primary choice is its potential for performance degradation, due to some layers getting reverted to the original precision.
 
 To proceed with this article, make sure you have read how to use [Default Quantization](@ref pot_default_quantization_usage).
