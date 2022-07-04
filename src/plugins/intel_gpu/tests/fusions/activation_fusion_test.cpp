@@ -158,19 +158,19 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_quantize_i8, ::testing
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 3, "activation_ref" },  // FIXME - accuracy bug
 }));
 
-class activation_scale_activation_quantize_u8 : public ActivationFusingTest {};
-TEST_P(activation_scale_activation_quantize_u8, basic) {
+class activation_eltwise_activation_quantize_u8 : public ActivationFusingTest {};
+TEST_P(activation_eltwise_activation_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         activation("act", "input", activation_func::relu),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         data("in_low", get_mem(get_single_element_layout(p), 0)),
         data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        scale("scale", "act", "scale_data"),
-        activation("act2", "scale", activation_func::softsign),
+        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
+        activation("act2", "eltwise", activation_func::softsign),
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
     );
@@ -179,18 +179,18 @@ TEST_P(activation_scale_activation_quantize_u8, basic) {
     execute(p);
 }
 
-TEST_P(activation_scale_activation_quantize_u8, per_channel) {
+TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         activation("act", "input", activation_func::relu),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         data("in_low", get_mem(get_per_channel_layout(p), 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -127)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        scale("scale", "act", "scale_data"),
-        activation("act2", "scale", activation_func::softsign),
+        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
+        activation("act2", "eltwise", activation_func::softsign),
         quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
     );
@@ -199,7 +199,7 @@ TEST_P(activation_scale_activation_quantize_u8, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
     // InputDataType = FP32
     activation_test_params{ CASE_ACTIVATION_F32_0, 2, 5, "activation_opt" },
     activation_test_params{ CASE_ACTIVATION_F32_1, 2, 5, "activation_opt" },
@@ -219,19 +219,19 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation_quantize_u8, :
     activation_test_params{ CASE_ACTIVATION_3D_F32_2, 2, 5, "activation_ref" },
 }));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_scale_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
+INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref" },  // FIXME - accuracy bug
 }));
 
-class activation_scale_activation : public ActivationFusingTest {};
-TEST_P(activation_scale_activation, basic) {
+class activation_eltwise_activation : public ActivationFusingTest {};
+TEST_P(activation_eltwise_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         activation("act", "input", activation_func::relu),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        scale("scale", "act", "scale_data"),
-        activation("act2", "scale", activation_func::exp),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
+        activation("act2", "eltwise", activation_func::exp),
         reorder("reorder_bfyx", "act2", p.default_format, data_types::f32)
     );
 
@@ -239,7 +239,7 @@ TEST_P(activation_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     // InputDataType = FP32
     activation_test_params{ CASE_ACTIVATION_F32_0, 2, 4, "activation_opt" },
     activation_test_params{ CASE_ACTIVATION_F32_1, 2, 4, "activation_opt" },
@@ -291,7 +291,28 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_scale_activation, ::testing::Va
     activation_test_params{ CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_ref" }
 }));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_scale_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
+INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
+}));
+
+class activation_eltwise : public ActivationFusingTest {};
+TEST_P(activation_eltwise, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        activation("act", "input", activation_func::abs),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 10.0f)),
+        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+#define CASE_ACTIVATION_4D_F32_0 { 1, 2, 3, 2, 3, 2 }, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise, ::testing::ValuesIn(std::vector<activation_test_params>{
+    // InputDataType = FP32
+    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_opt" }
 }));
