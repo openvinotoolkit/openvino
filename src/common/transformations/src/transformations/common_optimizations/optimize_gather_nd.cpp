@@ -24,40 +24,64 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         if (!gather_nd_node) {
             return false;
         }
+
+        // transformation cannot be applied for non-default batch_dims value
         const auto batch_dims = gather_nd_node->get_batch_dims();
         if (batch_dims != 0) {
             return false;
         }
+
+        // check if indices are given
         const auto& pattern_to_output = m.get_pattern_value_map();
-        const auto indicies_input =
+        const auto indices_input =
             std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(indices).get_node_shared_ptr());
-        if (!indicies_input) {
+        if (!indices_input) {
             return false;
         }
-        const auto const_indices_values = indicies_input->cast_vector<int64_t>();
+        const auto const_indices_values = indices_input->cast_vector<int64_t>();
         if (const_indices_values.size() == 0) {
             return false;
         }
+
+        // data shape values need to be validated, so it has to be static
         const auto data_input = pattern_to_output.at(data);
         const auto& data_partial_shape = data_input.get_partial_shape();
         if (data_partial_shape.is_dynamic()) {
             return false;
         }
+
+        const auto indices_shape = indices_input->get_shape();
+         
+
+        std::cout << std::endl;
+        std::cout << std::endl << "Indices shape: " << std::endl;
+        for (const auto& i: indices_shape) {
+            std::cout << i << ", ";
+        }
+        std::cout << std::endl;
+
         const auto& data_shape = data_partial_shape.get_shape();
-        const auto n_dims = indicies_input->get_shape().back();
+        const auto n_dims = indices_input->get_shape().back();
         std::vector<int64_t> meaningful_indices;
+
         // check if indices have just one meaningful dimension and all other dimensions of input have size 1
         for (int i = 0; i < n_dims; i++) {
             // get the indices values
             std::vector<int64_t> indices;
-            int64_t column_element_counter = i;
-            while (column_element_counter < const_indices_values.size()) {
-                indices.push_back(const_indices_values[column_element_counter]);
-                column_element_counter += n_dims;
+
+            int64_t dim_value_counter = i;
+            while (dim_value_counter < const_indices_values.size()) {
+                indices.push_back(const_indices_values[dim_value_counter]);
+                dim_value_counter += n_dims;
             }
             // check if dimension is non-meaningful (all indices values are zeros)
             if (std::count(indices.cbegin(), indices.cend(), 0) == indices.size()) {
                 // if is not meaningful, make sure input tensor's shape is 1
+                std::cout << std::endl << "Non-meaningful dim: " << std::endl;
+                    for (const auto& i: indices) {
+                        std::cout << i << ", ";
+                    }
+                    std::cout << std::endl;
                 if (data_shape[i] != 1) {
                     return false;
                 }
@@ -66,13 +90,38 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
                 if (!meaningful_indices.empty()) {
                     return false;
                 }
+                std::cout << std::endl << "Meaningful dim: " << std::endl;
+                for (const auto& i: indices) {
+                    std::cout << i << ", ";
+                }
+                std::cout << std::endl;
                 std::copy(indices.begin(), indices.end(), std::back_inserter(meaningful_indices));
             }
         }
+
         // reshape the tensor for Gather node
         std::vector<int64_t> new_shape;
+
         std::copy(data_shape.begin() + n_dims, data_shape.end(), std::back_inserter(new_shape));
+        // account for leading shape dimensions
+        for (int i = 0; i < indices_shape.size() - 1; i++) {
+            // find leading dimensions
+            if (indices_shape[i] == indices_shape[i+1] && indices_shape[i] == 1) {
+                // keep them in the same place
+                new_shape.insert(new_shape.begin() + i - 1, 1);
+            }
+        }
+        // fill the rest of the values into the first dimension
         new_shape.insert(new_shape.begin(), -1);
+
+        std::cout << std::endl;
+        std::cout << std::endl << "New shape: " << std::endl;
+        for (const auto& i: new_shape) {
+            std::cout << i << ", ";
+        }
+        std::cout << std::endl;
+
+
         const auto new_shape_node =
             op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{new_shape.size()}, new_shape);
         auto reshape_node =
@@ -81,10 +130,35 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         const auto new_indices_shape = (meaningful_indices.size() > 1) ? Shape{meaningful_indices.size()} : Shape{};
         const auto new_indices_node =
             op::v0::Constant::create<int64_t>(element::Type_t::i64, new_indices_shape, meaningful_indices);
+
+        const auto reshape_output_shape = reshape_node->get_shape();
+        std::cout << std::endl;
+        std::cout << std::endl << "Reshape output shape: " << std::endl;
+        for (const auto& i: reshape_output_shape) {
+            std::cout << i << ", ";
+        }
+        std::cout << std::endl;
+
+
         auto gather_node = std::make_shared<ngraph::opset8::Gather>(
             reshape_node,
             new_indices_node,
             op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {0}));
+
+
+        // check if output shapes before and after the transformation match 
+        const auto gather_node_shape = gather_node->get_output_shape(0);
+        const auto gathernd_node_shape = gather_nd_node->get_output_shape(0);
+        if (gather_node_shape != gathernd_node_shape) {
+            return false;
+        }
+
+        std::cout << std::endl << "Gather output shape: " << std::endl;
+        for (const auto& i: gather_node_shape) {
+            std::cout << i << ", ";
+        }
+        std::cout << std::endl;
+
         gather_node->set_friendly_name(gather_nd_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_nd_node, {reshape_node, gather_node});
         ngraph::replace_node(gather_nd_node, gather_node);
