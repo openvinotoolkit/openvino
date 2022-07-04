@@ -431,6 +431,11 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
+ * @brief Use experimental setting for CPU plugin.
+ */
+DECLARE_CONFIG_KEY(CPU_EXPERIMENTAL);
+
+/**
  * @brief This key defines the directory which will be used to store any data cached by plugins.
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
