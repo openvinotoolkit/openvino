@@ -18,7 +18,7 @@ Features and benefits of Intel® technologies depend on system configuration and
 
 @sphinxdirective
 
-:download:`A full list of used for testing HW platforms (along with their configuration)<../../../docs/benchmarks/files/Platform_list.pdf>`
+:download:`A full list of HW platforms used for testing (along with their configuration)<../../../docs/benchmarks/files/Platform_list.pdf>`
 
 @endsphinxdirective
 
