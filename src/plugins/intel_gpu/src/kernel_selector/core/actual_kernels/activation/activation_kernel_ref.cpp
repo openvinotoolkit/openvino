@@ -40,6 +40,10 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
             idx_order = {"batch", "feature", "y", "x"};
         } else if (params.inputs[0].GetDims().size() == 5) {
             idx_order = {"batch", "feature", "z", "y", "x"};
+        } else if (params.inputs[0].GetDims().size() == 6) {
+            idx_order = {"batch", "feature", "w", "z", "y", "x"};
+        } else {
+            IE_THROW() << "unknown dimension";
         }
         FusedOpsConfiguration conf = {"", idx_order, "dst", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
