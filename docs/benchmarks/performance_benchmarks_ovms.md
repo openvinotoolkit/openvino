@@ -45,7 +45,7 @@ OpenVINO™ Model Server is measured in a multiple-client-single-server configur
 
 ## Image Compression for Improved Throughput
 OpenVINO™ Model Server supports compressed binary input data (images in JPEG and PNG formats) for vision processing models. This
-feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. A good example of such a use case could be wireless 5G communication, a typical 1 Gbit/sec Ethernet network or a usage scenario with many client machines issuing a high rate of inference requests to one single central OpenVINO model server. Generally, the performance improvement grows with increased compressibility of the data/image. The decompression on the server side is performed by the OpenCV library.
+feature improves overall performance on networks where the bandwidth constitutes a system bottleneck. Some examples of such a use case are: wireless 5G communication, a typical 1 Gbit/sec Ethernet network, and a scenario of multiple client machines issuing a high rate of inference requests to a single, central OpenVINO model server. Generally, performance improvement grows with increased compressibility of data/image. Decompression on the server side is performed by the OpenCV library.
 
 ### Supported Image Formats for OVMS Compression
 
