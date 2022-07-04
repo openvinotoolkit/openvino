@@ -125,11 +125,14 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             const auto elements = split(val, ',');
             std::set<std::string> newConfig;
             for (const auto& element : elements) {
+                if (element.empty()) {
+                    continue;
+                }
                 if (element == EXPERIMENTAL_KEY_BRGCONV) {
                     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-                        IE_THROW() << "Platform doesn't support " EXPERIMENTAL_KEY_BRGCONV " algorithm";
+                        continue;
                     }
-                } else if (!val.empty()) {
+                } else {
                     IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_CPU_EXPERIMENTAL
                         << ". Expected only " << EXPERIMENTAL_KEY_BRGCONV;
                 }
