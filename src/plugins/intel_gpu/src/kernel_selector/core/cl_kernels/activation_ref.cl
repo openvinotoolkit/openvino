@@ -23,7 +23,7 @@ KERNEL(activation)(
 #endif
     )
 {
-#if OUTPUT_DIMS==6
+#if OUTPUT_DIMS == 6
     #define ORDER batch,feature,w,z,y,x
 #elif OUTPUT_DIMS == 5
     #define ORDER batch,feature,z,y,x
