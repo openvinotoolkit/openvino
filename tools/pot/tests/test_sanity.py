@@ -173,7 +173,7 @@ SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
      {'accuracy@top1': 0.701, 'accuracy@top5': 0.91}, []),
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.71, 'accuracy@top5': 0.906}, ['--input_shape=[1,3,?,?]'])
+     {'accuracy@top1': 0.712, 'accuracy@top5': 0.906}, ['--input_shape=[1,3,?,?]'])
 ]
 
 

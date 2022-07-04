@@ -63,6 +63,7 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     auto concat_label = ngraph::pattern::wrap_type<ngraph::opset1::Concat>(pattern::rank_equals(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(GroupedGatherElimination);
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeVector new_ops;
@@ -234,7 +235,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
 
         const auto concat_axis = concat->get_axis();
-        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+        OPENVINO_ASSERT(concat_axis == 0 || concat_axis == -1, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
@@ -255,13 +256,20 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         std::int64_t gather_dims_expected_location = 0;
         bool gather_folded = false;
 
+        auto update_expected_gather_location = [&](const Output<Node>& concat_input) {
+            const auto concat_input_shape = concat_input.get_shape();
+            OPENVINO_ASSERT(concat_input_shape.size() == 1,
+                            "concat input rank is not valid for matched Concat with 1D output");
+            gather_dims_expected_location += concat_input_shape[0];
+        };
+
         // We need this check to avoid sequences shapeOf -> gather -> concat
         // that change the arrangement of dimensions in the reshape pattern
-        for (auto& input : new_concat_inputs) {
-            if (const auto gather = as_type_ptr<op::util::GatherBase>(input.get_node_shared_ptr())) {
+        for (auto& concat_input : new_concat_inputs) {
+            if (const auto gather = as_type_ptr<op::util::GatherBase>(concat_input.get_node_shared_ptr())) {
                 auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
                 if (!indices_constant || !check_shape_of_gather(gather)) {
-                    gather_dims_expected_location++;
+                    update_expected_gather_location(gather);
                     continue;
                 }
 
@@ -277,14 +285,11 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
                 if (gather_can_be_fused) {
                     const size_t num_of_unchanged_dimensions = indices.size();
                     const auto subgraph_et = gather->get_input_element_type(0);
-                    input = opset8::Constant::create(subgraph_et, Shape{num_of_unchanged_dimensions}, {0});
+                    concat_input = opset8::Constant::create(subgraph_et, Shape{num_of_unchanged_dimensions}, {0});
                     gather_folded = true;
                 }
             } else {
-                const auto concat_input_shape = input.get_shape();
-                OPENVINO_ASSERT(concat_input_shape.size() == 1,
-                                "concat input rank is not valid for matched Concat with 1D output");
-                gather_dims_expected_location += concat_input_shape[0];
+                update_expected_gather_location(concat_input);
             }
         }
 

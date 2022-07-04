@@ -265,7 +265,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                               output_layout == DataLayout::b_fs_yx_fsv16 || output_layout == DataLayout::b_fs_zyx_fsv16 ||
                               output_layout == DataLayout::b_fs_yx_fsv32 || output_layout == DataLayout::b_fs_zyx_fsv32;
 
-    auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16;
+    auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                                  output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+                                  output_layout == DataLayout::bs_fs_zyx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32;
 
     auto try_change_priority_order = (simple_planar_layout || blocked_fsv_layout || blocked_bsv_fsv_layout) && one_layout;
 
@@ -319,7 +321,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
         // Revert basic priority if something is wrong
         if (priority_order[0] == priority_order[1] || priority_order[0] == priority_order[2] || priority_order[1] == priority_order[2] ||
             priority_order[0] > 2 || priority_order[1] > 2 || priority_order[2] > 2) {
-            priority_order = { 0, 1, 2 };
+            priority_order[0] = 0;
+            priority_order[1] = 1;
+            priority_order[2] = 2;
         }
     }
 
@@ -432,13 +436,16 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::b_fs_zyx_fsv32,         {1, 32}},
         {DataLayout::bs_fs_yx_bsv16_fsv16,   {16, 16}},
         {DataLayout::bs_fs_zyx_bsv16_fsv16,  {16, 16}},
+        {DataLayout::bs_fs_zyx_bsv16_fsv32,  {16, 32}},
         {DataLayout::bs_f_bsv8__af8,         {8, 8}},
         {DataLayout::bs_f_bsv16__af8,        {16, 8}},
         {DataLayout::b_fs_yx_fsv4,           {1, 4}},
         {DataLayout::fs_b_yx_fsv32,          {1, 32}},
         {DataLayout::b_fs_yx_32fp,           {1, 32}},
         {DataLayout::bs_fs_yx_bsv32_fsv16,   {32, 16}},
-        {DataLayout::bs_fs_yx_bsv32_fsv32,   {32, 32}}
+        {DataLayout::bs_fs_zyx_bsv32_fsv16,  {32, 16}},
+        {DataLayout::bs_fs_yx_bsv32_fsv32,   {32, 32}},
+        {DataLayout::bs_fs_zyx_bsv32_fsv32,  {32, 32}}
     };
 
     if (params.inputs.size()) {
@@ -479,8 +486,8 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
                     return false;
             }
         }
-
-        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);
+        // TODO : check for multiple outputs
+        no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.outputs[0]);
     }
 
     return no_pitch_same_dims;

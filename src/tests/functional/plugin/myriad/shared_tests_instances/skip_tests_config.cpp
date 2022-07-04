@@ -24,6 +24,9 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferDynamicNetworkWithSetTensor2times.*",
         ".*InferRequestDynamicTests.GetSameTensor2times.*",
         ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputShapeBeforeInfer.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetUnexpectedOutputTensorBeforeInfer.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkSetOutputTensorPreAllocatedMemoryBeforeInfer.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -85,5 +88,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: Issue 76209
         R"(.*MultithreadingTests.*canRun.*RequestsConsistentlyFromThreads.*MYRIAD.*)",
+        // TODO: CVS-82012
+        R"(.*StridedSliceLayerTest\.CompareWithRefs/inShape=\(1\.12\.100\).*)",
+
+        // Issue: 81016
+        R"(.*ParameterResultSubgraphTest\.CompareWithRefs.*)",
     };
 }

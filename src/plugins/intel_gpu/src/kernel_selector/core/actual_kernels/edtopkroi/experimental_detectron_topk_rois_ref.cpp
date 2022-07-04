@@ -16,7 +16,7 @@ namespace {
 
 CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params &params, const optional_params &) {
     CommonDispatchData dispatchData;
-    dispatchData.gws = {params.output.Batch().v, 1, 1};
+    dispatchData.gws = {params.outputs[0].Batch().v, 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;
 }

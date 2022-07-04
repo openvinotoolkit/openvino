@@ -72,8 +72,10 @@ protected:
             std::map<std::string, std::string> config;
             if (device_name.find("GPU") != std::string::npos)
                 config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-            if (device_name.find("CPU") != std::string::npos)
+            if (device_name.find("CPU") != std::string::npos) {
                 config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+                config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);
+            }
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
@@ -143,8 +145,8 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(device_name, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeEltwisePlusDetectionOutput(),
-                   ngraph::builder::subgraph::makeEltwisePlusDetectionOutput()};
+        fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
+                   ngraph::builder::subgraph::makeDetectionOutput()};
     };
 
     static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {

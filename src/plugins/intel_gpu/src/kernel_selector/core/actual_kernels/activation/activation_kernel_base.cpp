@@ -10,9 +10,9 @@
 namespace kernel_selector {
 
 ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activation_params& arg) const {
-    const auto& out = arg.output;
+    const auto& out = arg.outputs[0];
     auto in_layout = arg.inputs[0].GetLayout();
-    auto out_layout = arg.output.GetLayout();
+    auto out_layout = arg.outputs[0].GetLayout();
 
     DispatchData dispatchData;
     if (out_layout == DataLayout::yxfb) {
@@ -28,8 +28,8 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
         dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
         dispatchData.lws = {1, 16, 16};
     } else {
-        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+        dispatchData.gws = {out.X().v * out.W().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::W},
                                                                          {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
                                                                          {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);

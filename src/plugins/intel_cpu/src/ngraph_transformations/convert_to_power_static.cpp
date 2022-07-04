@@ -14,6 +14,8 @@
 #include "op/fully_connected.hpp"
 #include "utils/general_utils.h"
 
+#include "itt.hpp"
+
 namespace {
 
 int getConstPort(const std::shared_ptr<ngraph::Node> &node) {
@@ -97,6 +99,7 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
 } // namespace
 
 ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
+    MATCHER_SCOPE(ConvertToPowerStatic);
     ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                       ngraph::pattern::any_input(ngraph::pattern::has_static_rank())};
     auto power = ngraph::pattern::wrap_type<ngraph::opset1::Power>(twoInputs);
@@ -131,9 +134,10 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         toReplace->set_friendly_name(node->get_friendly_name());
         ngraph::copy_runtime_info(node, toReplace);
         ngraph::replace_node(node, toReplace);
+        MATCHER_SCOPE_ENABLE(ConvertToPowerStatic);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(candidate, "ConvertToPowerStatic");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(candidate, matcher_name);
     this->register_matcher(m, callback);
 }

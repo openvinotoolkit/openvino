@@ -34,7 +34,11 @@ class FrontEnd;
 }
 
 class ModelAccessor;
-/// A user-defined model.
+
+/**
+ * @brief A user-defined model
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
     friend OPENVINO_API std::shared_ptr<Model> clone_model(const Model& func,
@@ -106,6 +110,12 @@ public:
 
     /// Return the op that generates output i
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
+
+    /// \brief Clones the original model
+    std::shared_ptr<ov::Model> clone() const;
+
+    /// \brief Reference to frontend maanager
+    std::shared_ptr<void> m_femgr;
 
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
@@ -345,6 +355,9 @@ private:
     // of weak_ptr not to increase node ref counter to prevent the situation when
     // node has no consumers but still exists in a graph.
     mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
+
+    mutable std::unordered_map<std::string, Output<Node>> m_cached_output_names;
+    mutable std::unordered_map<std::string, std::weak_ptr<Node>> m_cached_op_names;
 
     // Private runtime info which is shared across nodes and used only
     // for internal purposes.

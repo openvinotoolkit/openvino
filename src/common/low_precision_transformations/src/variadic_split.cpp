@@ -8,12 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) : SplitTransformation(params) {
+    MATCHER_SCOPE(VariadicSplitTransformation);
     auto matcher = pattern::wrap_type<opset1::VariadicSplit>({
         pattern::wrap_type<opset1::Multiply>(),
         pattern::wrap_type<opset1::Constant>(),
@@ -24,10 +26,11 @@ VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) :
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(VariadicSplitTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "VariadicSplitTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

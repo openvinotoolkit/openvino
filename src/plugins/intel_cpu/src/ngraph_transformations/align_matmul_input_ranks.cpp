@@ -12,8 +12,10 @@
 #include <ngraph/pattern/op/or.hpp>
 
 #include <algorithm>
+#include "itt.hpp"
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
+    MATCHER_SCOPE(AlignMatMulInputRanks);
     ngraph::OutputVector twoInputs = {
         ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
         ngraph::pattern::any_input(ngraph::pattern::has_static_rank())
@@ -131,10 +133,10 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             ngraph::replace_node(matmul, matmul_new);
         }
 
-
+        MATCHER_SCOPE_ENABLE(AlignMatMulInputRanks);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmulPattern, "AlignMatMulInputRanks");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmulPattern, matcher_name);
     this->register_matcher(m, callback);
 }

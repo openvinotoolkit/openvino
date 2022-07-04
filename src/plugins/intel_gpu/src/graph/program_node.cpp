@@ -7,9 +7,12 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "convolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
+#include "pooling_inst.h"
+#include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif // ENABLE_ONEDNN_FOR_GPU
 
@@ -31,7 +34,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         output_layout.data_padding = prim->output_padding;
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx] == &new_dep)
@@ -46,16 +49,18 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep) {
     if (it != dependencies[idx]->users.end()) {
         dependencies[idx]->users.erase(it);
     }
-    myprog.remove_if_dangling(*dependencies[idx]);
+
+    if (remove_if_dangling)
+        myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
     new_dep.users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep) {
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i] == &old_dep)
-            return replace_dependency(i, new_dep);
+            return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -103,10 +108,10 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     node_info->add("output layout", output_layout_info);
 
-    node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
+    node_info->add("optimized", bool_to_str(optimized));
 
     json_composite fused_nodes_info;
     size_t index = 0;
@@ -345,6 +350,8 @@ bool program_node::has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& a
 
 dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
                                                    bool& optimization_is_completed) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+
     // Create new dnnl::post_ops object which will be filled inside the optimization process
     dnnl::post_ops optimized_p_ops;
 
@@ -393,6 +400,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 float scale;
                 dnnl::memory::data_type data_type;
                 cur_p_ops.get_params_sum(idx, scale, data_type);
+                // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                 if (is_type<convolution>()) {
                     new_p_ops.append_sum(scale, data_type);
                 } else {
@@ -419,7 +427,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
     // Check that post-op type is any optimized
     auto type_is_any_optimized = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::optimized || type == onednn_post_op_type::optimized_sum ||
+        return type == onednn_post_op_type::optimized ||
+               type == onednn_post_op_type::optimized_sum ||
                type == onednn_post_op_type::optimized_eltwise_act ||
                type == onednn_post_op_type::optimized_eltwise_linear ||
                type == onednn_post_op_type::optimized_eltwise_clip ||
@@ -462,20 +471,45 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         }
     };
 
+    auto remove_optimized_prefix = [&](std::vector<fused_primitive_desc_onednn>& post_ops) {
+        // Check and update post-op map if we already optimized something
+        auto iter = post_ops.begin();
+        while (iter != post_ops.end()) {
+            if (type_is_optimized_sum(iter->op_type)) {
+                iter->op_type = onednn_post_op_type::sum;
+                ++iter;
+            } else if (type_is_optimized_eltwise(iter->op_type)) {
+                iter->op_type = get_eltwise_type(iter->op_type);
+                ++iter;
+            } else if (type_is_optimized(iter->op_type)) {
+                iter = post_ops.erase(iter);
+            } else {
+                ++iter;
+            }
+        }
+    };
+
     auto& cur_post_ops = get_fused_primitives_onednn();
 
     size_t cur_post_op_idx = 1;
     size_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
-    // Check and update post-op map if we already optimized something
-    for (size_t post_op_idx = 0; post_op_idx < cur_post_ops.size(); post_op_idx++) {
-        if (type_is_optimized_sum(cur_post_ops[post_op_idx].op_type))
-            cur_post_ops[post_op_idx].op_type = onednn_post_op_type::sum;
-        else if (type_is_optimized_eltwise(cur_post_ops[post_op_idx].op_type))
-            cur_post_ops[post_op_idx].op_type = get_eltwise_type(cur_post_ops[post_op_idx].op_type);
-        else if (type_is_optimized(cur_post_ops[post_op_idx].op_type))
-            cur_post_ops.erase(cur_post_ops.begin() + post_op_idx);
+    GPU_DEBUG_IF(debug_config->verbose >= 3) {
+        GPU_DEBUG_COUT << "================================================" << std::endl;
+        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+        for (size_t i = 0; i < cur_post_ops.size(); i++)
+            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    }
+
+    remove_optimized_prefix(cur_post_ops);
+
+    GPU_DEBUG_IF(debug_config->verbose >= 3) {
+        GPU_DEBUG_COUT << "remove optimized prefix ------------------------" << std::endl;
+        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+        for (size_t i = 0; i < cur_post_ops.size(); i++)
+            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+        GPU_DEBUG_COUT << "----------------------------------->>>>>>>>>>>>>" << std::endl;
     }
 
     // Get post-ops size for current node
@@ -498,6 +532,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_type = cur_post_ops[cur_post_op_idx].op_type;
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
+        GPU_DEBUG_IF(debug_config->verbose >= 3)
+            GPU_DEBUG_COUT << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
             prev_post_op_idx++;
@@ -513,8 +550,17 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
         }
 
+        GPU_DEBUG_IF(debug_config->verbose >= 3)
+            GPU_DEBUG_COUT << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
+
+        // if 2 indices are same, add the last post-op to dnnl::post_ops
+        if (prev_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
+            add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
+            break;
+        }
 
         // If this is the last pair and it's optimized - add the last post-op and go out from the cycle
         if (cur_post_op_idx == post_ops_size - 1 && (type_is_any_optimized(cur_type) || type_is_any_optimized(prev_type))) {
@@ -541,6 +587,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                                 eltw_and_scale;
 
         bool cur_ops_pair_is_optimized = false;
+
+        GPU_DEBUG_IF(debug_config->verbose >= 3) {
+            GPU_DEBUG_COUT << "prev_idx: " << prev_idx << " " << prev_type
+                           << ", cur_idx: " << cur_idx << " " << cur_type << std::endl;
+        }
 
         if (can_try_optimize) {
             if (eltw_and_eltw) {
@@ -701,6 +752,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                     dnnl::post_ops eltw_p_op_prev, sum_p_op;
 
                     eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
+                    // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                     if (is_type<convolution>()) {
                         sum_p_op.append_sum(sum_scale * next_alpha, data_type);
                     } else {
@@ -769,7 +821,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         }
     }
 
+    // if optimization_is_completed is true, try to optimize again.
     optimization_is_completed = !optimization_is_completed;
+    if (optimization_is_completed) {
+        remove_optimized_prefix(cur_post_ops);
+    }
+
+    GPU_DEBUG_IF(debug_config->verbose >= 3) {
+        GPU_DEBUG_COUT << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
+        for (size_t i = 0; i < cur_post_ops.size(); i++)
+            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+        GPU_DEBUG_COUT << "------------------------------------------------" << std::endl;
+    }
 
     add_onednn_fused_primitives(cur_post_ops);
 
@@ -805,6 +868,7 @@ void program_node::init_onednn_primitive_attributes() {
             memory_offset++;
     };
 
+    int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         auto node = cldnn_post_ops[idx].node;
 
@@ -825,7 +889,12 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
-                post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
+                if (alg == dnnl::algorithm::eltwise_pow)
+                    post_ops.append_eltwise(1.0f, alg, 1.0f, fused_desc->additional_params.a);
+                else
+                    post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (node->is_type<eltwise>()) {
@@ -834,22 +903,24 @@ void program_node::init_onednn_primitive_attributes() {
             auto in = get_dependency(dep_idx).get_output_layout();
 
             if (e_node.get_primitive()->mode == eltwise_mode::sum) {
-                if (program_helpers::needs_onednn_sum_post_op(e_node, in)) {
+                auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
+                if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
                     if (is_type<convolution>()) {
                         post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
                     } else {
                         post_ops.append_sum(1.0f);
                     }
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
+                    num_sum_post_ops++;
                 } else {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
                     post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.size.spatial[0] > 1 || in.size.spatial[1] > 1 || in.size.batch[0] > 1)
+                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
                     throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                if (idx == 0 && !has_out_scales(attrs)) {
+                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>()) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
@@ -1063,10 +1134,20 @@ void program_node::init_onednn_primitive_attributes() {
 
     for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
         auto activation_type = get_fused_activations_funcs()[i];
-        auto params = get_fused_activations_params()[i];
-        dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-        post_ops.append_eltwise(1.0f, alg, params.a, params.b);
-        update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        if (activation_type == cldnn::activation_func::hsigmoid) {
+            // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.f, 3.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.f, 6.f);
+            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1/6.f, 0.f);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
+        } else {
+            auto params = get_fused_activations_params()[i];
+            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
+            post_ops.append_eltwise(1.0f, alg, params.a, params.b);
+            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
+        }
     }
 
     // Trying to optimize more than 1 post-ops

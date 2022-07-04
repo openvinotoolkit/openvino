@@ -10,14 +10,14 @@
 #include <string>
 #include <vector>
 #include <dnnl_extension_utils.h>
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -30,7 +30,7 @@ struct FCKey {
     DnnlMemoryDescCPtr inp1;
     DnnlMemoryDescCPtr bias;
     DnnlMemoryDescCPtr out;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     impl_desc_type implType;
 
     size_t hash() const;
@@ -103,7 +103,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -196,8 +196,8 @@ void FullyConnected::getSupportedDescriptors() {
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-        auto in_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
-        auto out_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
+        auto in_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
+        auto out_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(outDims), outputDataType, dnnl::memory::format_tag::any);
 
         createDescriptorInternal(in_candidate, out_candidate);
     }
@@ -224,7 +224,7 @@ void FullyConnected::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    AttrPtr attr = std::make_shared<mkldnn::primitive_attr>();
+    AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
     setPostOps(*attr, dstMemPtr->getStaticDims());
 
     DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
@@ -245,7 +245,7 @@ void FullyConnected::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const FCKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [&engine](const FCKey& key) -> std::shared_ptr<dnnl::primitive> {
         auto inDesc = key.inp0->getDnnlDesc();
         if (inDesc.dims().size() == 3) {
             auto inDims = inDesc.dims();
@@ -260,15 +260,15 @@ void FullyConnected::prepareParams() {
             outDesc = outDesc.reshape(normalizedOutDims);
         }
 
-        std::shared_ptr<mkldnn::inner_product_forward::desc> fcDsc;
+        std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
         if (key.bias) {
-            fcDsc = std::make_shared<mkldnn::inner_product_forward::desc>(mkldnn::prop_kind::forward_scoring,
+            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
                                                                           inDesc,
                                                                           key.inp1->getDnnlDesc(),
                                                                           key.bias->getDnnlDesc(),
                                                                           outDesc);
         } else {
-            fcDsc = std::make_shared<mkldnn::inner_product_forward::desc>(mkldnn::prop_kind::forward_scoring,
+            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
                                                                           inDesc,
                                                                           key.inp1->getDnnlDesc(),
                                                                           outDesc);
@@ -318,8 +318,8 @@ void FullyConnected::prepareParams() {
             auto dims = oldMem.get_desc().dims();
             if (dims.size() == 3) {
                 std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-                mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
-                mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+                dnnl::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
+                dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
                 primArgs.at(argType) = newMem;
             }
         }
@@ -331,8 +331,8 @@ void FullyConnected::prepareParams() {
 void FullyConnected::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
 
-    auto setBatchPrimArgs = [this](int argType, const mkldnn::memory& oldMem) {
-        mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+    auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
+        dnnl::memory::desc newMemDesc(oldMem.get_desc());
         newMemDesc.data.dims[0] = batchToProcess();
         newMemDesc.data.padded_dims[0] = batchToProcess();
         auto dims = newMemDesc.dims();
@@ -342,14 +342,14 @@ void FullyConnected::setDynamicBatchLim(int lim) {
             newMemDesc = newMemDesc.reshape(normalizedDims);
         }
 
-        primArgs.at(argType) = mkldnn::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+        primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
     };
 
     setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
     setBatchPrimArgs(DNNL_ARG_DST, getChildEdgesAtPort(0)[0]->getMemory().GetPrimitive());
 }
 
-void FullyConnected::execute(mkldnn::stream strm) {
+void FullyConnected::execute(dnnl::stream strm) {
     if (prim) {
         // in cases parameter -> FullyConnected or dynamic shapes
         // we keep old pointer to data in primArgs on second iteration with same input shapes
@@ -372,7 +372,7 @@ void FullyConnected::execute(mkldnn::stream strm) {
     }
 }
 
-void FullyConnected::executeDynamicImpl(mkldnn::stream strm) {
+void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -380,13 +380,13 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void FullyConnected::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights) {
-    mkldnn::post_ops ops;
+void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights) {
+    dnnl::post_ops ops;
 
     auto getBinPostOpShape = [&](){
         const size_t binaryShapeRank = getOutputShapeAtPort(0).getRank() == 3 ? 2 : getOutputShapeAtPort(0).getRank();
         VectorDims binaryShape(binaryShapeRank, 1);
-        const size_t channelAxis = getFusingAxis();
+        const auto channelAxis = getFusingAxis();
         // always use 1 as channelAxis for binary Shape, since oneDNN primitive is actually always 2D
         binaryShape[1] = dims[channelAxis];
 
@@ -400,7 +400,7 @@ void FullyConnected::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &
         }
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
-            if (eltwiseNode->getOneDnnAlgorithm() != mkldnn::algorithm::undef) {
+            if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
                 eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
@@ -421,6 +421,8 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgemm_avx512_amx,
+            impl_desc_type::brgemm_avx512,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,
@@ -447,14 +449,6 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             impl_desc_type::ref,
     };
 
-    // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
-    const size_t simdWidth = 16;
-    auto inputDims = getInputShapeAtPort(DATA_ID).getDims();
-    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
-        priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
-        priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
-    }
-
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);
@@ -463,7 +457,7 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
 }
 
 Node::AttrPtr FullyConnected::initPrimitiveAttr() {
-    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
 
     setPostOps(*attr, outDims);
 
@@ -471,18 +465,18 @@ Node::AttrPtr FullyConnected::initPrimitiveAttr() {
 }
 
 // WA: creation DnnlMemoryDesc with format == any is prohibited
-// so we create mkldnn::memory::desc directly
+// so we create dnnl::memory::desc directly
 // we need specific method and can't remove createDescriptor from base class because its used into initDescriptor
-void FullyConnected::createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
-                                                        const mkldnn::memory::desc &outputDesc) {
+void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDesc,
+                                                        const dnnl::memory::desc &outputDesc) {
     auto in_candidate = inputDesc;
     auto out_candidate = outputDesc;
 
-    mkldnn::memory::data_type wdt = in_candidate.data_type();
-    mkldnn::memory::data_type bdt = out_candidate.data_type();
-    if (in_candidate.data_type() == mkldnn::memory::data_type::bf16) {
-        bdt = mkldnn::memory::data_type::f32;
-    } else if (in_candidate.data_type() == mkldnn::memory::data_type::u8 || in_candidate.data_type() == mkldnn::memory::data_type::s8) {
+    dnnl::memory::data_type wdt = in_candidate.data_type();
+    dnnl::memory::data_type bdt = out_candidate.data_type();
+    if (in_candidate.data_type() == dnnl::memory::data_type::bf16) {
+        bdt = dnnl::memory::data_type::f32;
+    } else if (in_candidate.data_type() == dnnl::memory::data_type::u8 || in_candidate.data_type() == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
         if (withBiases)
             bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(BIAS_ID));
@@ -491,23 +485,23 @@ void FullyConnected::createDescriptorInternal(const mkldnn::memory::desc &inputD
     if (in_candidate.dims().size() == 3) {
         auto inDims = in_candidate.dims();
         auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-        in_candidate = mkldnn::memory::desc(normalizedInDims, in_candidate.data_type(),
+        in_candidate = dnnl::memory::desc(normalizedInDims, in_candidate.data_type(),
                                          DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
     }
 
     if (out_candidate.dims().size() == 3) {
         auto outDims = out_candidate.dims();
         auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-        out_candidate = mkldnn::memory::desc(normalizedOutDims, out_candidate.data_type(),
+        out_candidate = dnnl::memory::desc(normalizedOutDims, out_candidate.data_type(),
                                          DnnlExtensionUtils::GetPlainFormatByRank(normalizedOutDims.size()));
     }
 
-    mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
-                                       wdt, mkldnn::memory::format_tag::any);
+    dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(WEIGHTS_ID).getStaticDims()),
+                                       wdt, dnnl::memory::format_tag::any);
 
     if (withBiases) {
-        mkldnn::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
-                                            mkldnn::memory::format_tag::any);
+        dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
+                                            dnnl::memory::format_tag::any);
         DnnlDesriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 bias_candidate, out_candidate)));
@@ -588,12 +582,12 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(
-            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
+            static_cast<dnnl::memory::data_type>(desc.data.data_type)), getInputShapeAtPort(idx));
     }
 
     if (getInputShapeAtPort(idx).isDynamic()) {
@@ -603,12 +597,12 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(mkldnn::primitive_desc
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = primitive_desc_it.dst_desc(idx);
 
     if (getOutputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(
-            static_cast<mkldnn::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
+            static_cast<dnnl::memory::data_type>(desc.data.data_type)), getOutputShapeAtPort(idx));
     }
 
     if (getOutputShapeAtPort(idx).isDynamic()) {

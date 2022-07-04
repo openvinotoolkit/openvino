@@ -5,7 +5,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace ngraph;
@@ -179,7 +179,7 @@ namespace fqImpl {
 std::vector<CPUSpecificParams> memForm4D_jit = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+//        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}) comment out due to post ops optimizations in lpt plugin.cpp
 };
 
 std::vector<inputShapes> rangesShapes4D_jit = {
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLaye
 std::vector<CPUSpecificParams> memForm5D_jit = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
+//        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}) comment out due to post ops optimizations in lpt plugin.cpp
 };
 
 std::vector<inputShapes> rangesShapes5D_jit = {

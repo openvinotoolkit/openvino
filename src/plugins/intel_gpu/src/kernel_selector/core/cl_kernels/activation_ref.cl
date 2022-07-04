@@ -23,13 +23,27 @@ KERNEL(activation)(
 #endif
     )
 {
-#if OUTPUT_DIMS == 5
+#if OUTPUT_DIMS == 6
+    #define ORDER batch,feature,w,z,y,x
+#elif OUTPUT_DIMS == 5
     #define ORDER batch,feature,z,y,x
 #elif OUTPUT_DIMS == 4
     #define ORDER batch,feature,y,x
 #endif
 
-#if OUTPUT_DIMS == 5
+#if OUTPUT_DIMS == 6
+    const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
+    const uint w = (uint)get_global_id(0) / OUTPUT_SIZE_X;
+    #if OUTPUT_BATCH_NUM == 1
+        const unsigned feature = (uint)get_global_id(2);
+        const unsigned batch = 0;
+    #else
+        const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+        const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    #endif
+#elif OUTPUT_DIMS == 5
     const unsigned x = get_global_id(0);
     const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
@@ -92,7 +106,8 @@ KERNEL(activation)(
         #define NL_M_PARAMETERIZED (float)params[2*feature + 0]
         #define NL_N_PARAMETERIZED (float)params[2*feature + 1]
     #elif PARAMS_NUM == 1
-        #define NL_M_PARAMETERIZED (float)params[feature]
+        const unsigned param_index = GET_INDEX(ADDITIONAL_PARAMS,,ORDER);
+        #define NL_M_PARAMETERIZED (float)params[param_index]
         #define NL_N_PARAMETERIZED (float)NL_N
     #else
         #define NL_M_PARAMETERIZED (float)NL_M

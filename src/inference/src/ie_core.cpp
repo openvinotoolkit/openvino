@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "any_copy.hpp"
@@ -53,6 +54,11 @@ using namespace InferenceEngine;
 using namespace std::placeholders;
 
 namespace ov {
+
+namespace frontend {
+class FrontEndManager;
+std::shared_ptr<FrontEndManager> get_frontend_manager();
+}  // namespace frontend
 
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
@@ -121,19 +127,38 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    for (auto&& property : properties) {
-        auto parsed = parseDeviceNameIntoConfig(property.first);
+    for (auto item = result.begin(); item != result.end();) {
+        auto parsed = parseDeviceNameIntoConfig(item->first);
+        if (!item->second.is<ov::AnyMap>()) {
+            item++;
+            continue;
+        }
         if (device.find(parsed._deviceName) != std::string::npos) {
-            if (property.second.is<ov::AnyMap>()) {
-                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
-                    result[sub_property.first] = sub_property.second;
-                }
+            // 1. flatten the scondary property for target device
+            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+                // 1.1 1st level property overides 2nd level property
+                if (result.find(sub_property.first) != result.end())
+                    continue;
+                result[sub_property.first] = sub_property.second;
             }
+            item = result.erase(item);
+        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
+            // 2. remove the secondary property setting for other hard ware device
+            item = result.erase(item);
+        } else {
+            // 3. keep the secondary property for the other virtual devices
+            item++;
         }
     }
     return result;
 }
 
+void stripDeviceName(std::string& device, const std::string& substr) {
+    auto pos = device.find(substr);
+    if (pos == 0) {
+        device.erase(pos, substr.length());
+    }
+}
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
@@ -150,27 +175,82 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
                 std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-                _cacheConfig._cacheDir = it->second;
-                if (!it->second.empty()) {
-                    FileUtils::createDirectoryRecursive(it->second);
-                    _cacheConfig._cacheManager = std::make_shared<ie::FileStorageCacheManager>(std::move(it->second));
-                } else {
-                    _cacheConfig._cacheManager = nullptr;
+                fillConfig(_cacheConfig, it->second);
+                for (auto& deviceCfg : _cacheConfigPerDevice) {
+                    fillConfig(deviceCfg.second, it->second);
                 }
+                config.erase(it);
+            }
 
+            it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                executorManager()->setTbbFlag(flag);
                 config.erase(it);
             }
         }
 
-        // Creating thread-safe copy of config including shared_ptr to ICacheManager
-        CacheConfig getCacheConfig() const {
+        void setCacheForDevice(const std::string& dir, const std::string& name) {
             std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-            return _cacheConfig;
+            fillConfig(_cacheConfigPerDevice[name], dir);
+        }
+
+        // Creating thread-safe copy of config including shared_ptr to ICacheManager
+        // Passing empty or not-existing name will return global cache config
+        CacheConfig getCacheConfigForDevice(const std::string& device_name,
+                                            bool deviceSupportsCacheDir,
+                                            std::map<std::string, std::string>& parsedConfig) const {
+            if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
+                CoreConfig::CacheConfig tempConfig;
+                CoreConfig::fillConfig(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)));
+                if (!deviceSupportsCacheDir) {
+                    parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
+                }
+                return tempConfig;
+            } else {
+                std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+                if (_cacheConfigPerDevice.count(device_name) > 0) {
+                    return _cacheConfigPerDevice.at(device_name);
+                } else {
+                    return _cacheConfig;
+                }
+            }
+        }
+
+        CacheConfig getCacheConfigForDevice(const std::string& device_name) const {
+            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+            if (_cacheConfigPerDevice.count(device_name) > 0) {
+                return _cacheConfigPerDevice.at(device_name);
+            } else {
+                return _cacheConfig;
+            }
+        }
+
+    private:
+        static void fillConfig(CacheConfig& config, const std::string& dir) {
+            config._cacheDir = dir;
+            if (!dir.empty()) {
+                FileUtils::createDirectoryRecursive(dir);
+                config._cacheManager = std::make_shared<ie::FileStorageCacheManager>(dir);
+            } else {
+                config._cacheManager = nullptr;
+            }
         }
 
     private:
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
+        std::map<std::string, CacheConfig> _cacheConfigPerDevice;
+    };
+
+    struct CacheContent {
+        explicit CacheContent(const std::shared_ptr<ie::ICacheManager>& cache_manager,
+                              const std::string model_path = {})
+            : cacheManager(cache_manager),
+              modelPath(model_path) {}
+        std::shared_ptr<ie::ICacheManager> cacheManager;
+        std::string blobId = {};
+        std::string modelPath = {};
     };
 
     // Core settings (cache config, etc)
@@ -204,6 +284,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     };
 
+    std::shared_ptr<void> frontEndManagerPtr;
+    ExecutorManager::Ptr executorManagerPtr;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
@@ -246,46 +328,42 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                                  ov::InferencePlugin& plugin,
                                                                  const std::map<std::string, std::string>& parsedConfig,
                                                                  const ie::RemoteContext::Ptr& context,
-                                                                 const std::string& blobID,
-                                                                 const std::string& modelPath = std::string(),
+                                                                 const CacheContent& cacheContent,
                                                                  bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         execNetwork = context ? plugin.compile_model(network, context, parsedConfig)
                               : plugin.compile_model(network, parsedConfig);
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
-        if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (!forceDisableCache && cacheContent.cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Export");
-                cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
+                cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
                     networkStream << ie::CompiledBlobHeader(
                         ie::GetInferenceEngineVersion()->buildNumber,
-                        ie::NetworkCompilationContext::calculateFileInfo(modelPath));
+                        ie::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
                     execNetwork->Export(networkStream);
                 });
             } catch (...) {
-                cacheManager->removeCacheEntry(blobID);
+                cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
                 throw;
             }
         }
         return execNetwork;
     }
 
-    ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkFromCache(
-        const std::shared_ptr<ie::ICacheManager>& cacheManager,
-        const std::string& blobId,
+    static ov::SoPtr<ie::IExecutableNetworkInternal> LoadNetworkFromCache(
+        const CacheContent& cacheContent,
         ov::InferencePlugin& plugin,
         const std::map<std::string, std::string>& config,
         const std::shared_ptr<ie::RemoteContext>& context,
-        bool& networkIsImported,
-        const std::string& modelPath = std::string()) {
+        bool& networkIsImported) {
         ov::SoPtr<ie::IExecutableNetworkInternal> execNetwork;
         struct HeaderException {};
 
-        OPENVINO_ASSERT(cacheManager != nullptr);
+        OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
         try {
-            cacheManager->readCacheEntry(blobId, [&](std::istream& networkStream) {
+            cacheContent.cacheManager->readCacheEntry(cacheContent.blobId, [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ie::itt::domains::IE_LT,
                              "Core::LoadNetworkFromCache::ReadStreamAndImport");
@@ -296,7 +374,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                         // Build number mismatch, don't use this cache
                         throw ie::NetworkNotRead("Version does not match");
                     }
-                    if (header.getFileInfo() != ie::NetworkCompilationContext::calculateFileInfo(modelPath)) {
+                    if (header.getFileInfo() !=
+                        ie::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
                         throw ie::NetworkNotRead("Original model file is changed");
                     }
@@ -310,10 +389,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             });
         } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
-            cacheManager->removeCacheEntry(blobId);
+            cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
             networkIsImported = false;
         } catch (...) {
-            cacheManager->removeCacheEntry(blobId);
+            cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
             networkIsImported = false;
             // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
             // throw;
@@ -373,6 +452,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
+        executorManagerPtr = executorManager();
+        frontEndManagerPtr = ov::frontend::get_frontend_manager();
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -538,20 +619,23 @@ public:
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
-            auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
-            auto lock = cacheGuard.getHashLock(hash);
-            res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, context, loadedFromCache);
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, context, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network, plugin, parsed._config, context, hash);
+                res = compile_model_impl(network, plugin, parsed._config, context, cacheContent);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network, plugin, parsed._config, context, {});
+            res = compile_model_impl(network, plugin, parsed._config, context, cacheContent);
         }
         return res;
     }
@@ -634,20 +718,23 @@ public:
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager};
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
-            auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
+            cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
-            auto lock = cacheGuard.getHashLock(hash);
-            res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
-                res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
+                res = compile_model_impl(network, plugin, parsed._config, nullptr, cacheContent, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
                 InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
             }
         } else {
-            res = compile_model_impl(network, plugin, parsed._config, nullptr, {}, {}, forceDisableCache);
+            res = compile_model_impl(network, plugin, parsed._config, nullptr, cacheContent, forceDisableCache);
         }
         return {res._ptr, res._so};
     }
@@ -660,18 +747,21 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
-        auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager, modelPath};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
-            auto hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
-            auto lock = cacheGuard.getHashLock(hash);
-            res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
+            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, hash, modelPath);
+                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
             }
         } else if (cacheManager) {
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
@@ -681,7 +771,7 @@ public:
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, {}, modelPath);
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
         }
         return {res._ptr, res._so};
     }
@@ -800,6 +890,10 @@ public:
                         "You can only get_config of the AUTO itself (without devices). "
                         "get_config is also possible for the individual devices before creating the AUTO on top.");
 
+        if (name == ov::force_tbb_terminate.name()) {
+            const auto flag = executorManager()->getTbbFlag();
+            return decltype(ov::force_tbb_terminate)::value_type(flag);
+        }
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
@@ -875,6 +969,7 @@ public:
         auto deviceName = pluginName;
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
+        stripDeviceName(deviceName, "-");
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
@@ -921,10 +1016,13 @@ public:
                 // configuring
                 {
                     if (DeviceSupportsCacheDir(plugin)) {
-                        auto cacheConfig = coreConfig.getCacheConfig();
+                        auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                         if (cacheConfig._cacheManager) {
                             desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                         }
+                    } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                        // Remove "CACHE_DIR" from config if it is not supported by plugin
+                        desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                     }
                     allowNotImplemented([&]() {
                         // Add device specific value to support device_name.device_id cases
@@ -1048,6 +1146,9 @@ public:
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
+        if (config.empty()) {
+            return;
+        }
 
         InferenceEngine::DeviceIDParser parser(deviceName);
         std::string clearDeviceName = parser.getDeviceName();
@@ -1056,6 +1157,11 @@ public:
 
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
+        } else {
+            auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
+            if (cache_it != config.end()) {
+                coreConfig.setCacheForDevice(cache_it->second, clearDeviceName);
+            }
         }
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
@@ -1085,10 +1191,13 @@ public:
                 allowNotImplemented([&]() {
                     auto configCopy = config;
                     if (DeviceSupportsCacheDir(plugin.second)) {
-                        auto cacheConfig = coreConfig.getCacheConfig();
+                        auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
                         if (cacheConfig._cacheManager) {
                             configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                         }
+                    } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                        // Remove "CACHE_DIR" from config if it is not supported by plugin
+                        configCopy.erase(CONFIG_KEY(CACHE_DIR));
                     }
                     // Add device specific value to support device_name.device_id cases
                     std::vector<std::string> supportedConfigKeys =
@@ -1599,6 +1708,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
             IE_THROW() << "You can only GetConfig of the AUTO itself (without devices). "
                           "GetConfig is also possible for the individual devices before creating the AUTO on top.";
         }
+    }
+
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);

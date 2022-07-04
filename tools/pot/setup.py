@@ -25,11 +25,6 @@ class InstallCmd(install):
             # install requires
             self.do_egg_install()
 
-        def_quant_path = os.path.join("configs", "default_quantization_template.json")
-        aa_quant_path = os.path.join("configs", "accuracy_aware_quantization_template.json")
-        copyfile(def_quant_path, os.path.join(self.install_purelib, prefix, "pot", def_quant_path))
-        copyfile(aa_quant_path, os.path.join(self.install_purelib, prefix, "pot", aa_quant_path))
-
         version_txt = os.path.join(prefix, "pot", "version.txt")
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
@@ -75,7 +70,7 @@ INSTALL_REQUIRES = [
     "numpy>=1.16.6,<1.20",
     "addict>=2.4.0",
     "networkx~=2.5;python_version<='3.6'",
-    "networkx~=2.6;python_version>'3.6'",
+    "networkx<2.8.1;python_version>'3.6'",
     "tqdm>=4.54.1",
     "texttable~=1.6.3",
     "pandas~=1.1.5",
@@ -143,8 +138,9 @@ setup(
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
                                     "tools", "tools.*"]),
-    package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
-                  "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},
+    package_data={'openvino.tools.pot.configs.hardware': ['*.json'],
+                  'openvino.tools.pot.api.samples': ['*.md', '*/*.md'],
+                  'openvino.tools.pot.configs.templates': ['*.json']},
     include_package_data=True,
     cmdclass={
         'install': InstallCmd,

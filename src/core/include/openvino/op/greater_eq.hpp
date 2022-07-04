@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise greater-than-or-equal operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GreaterEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("GreaterEqual", "opset1", op::util::BinaryElementwiseComparison, 1);

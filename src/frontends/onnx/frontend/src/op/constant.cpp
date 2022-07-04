@@ -19,112 +19,6 @@ namespace onnx_import {
 namespace op {
 namespace {
 template <typename T>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant_impl(const element::Type& type, const Tensor& tensor) {
-    std::shared_ptr<default_opset::Constant> constant{nullptr};
-    try {
-        constant = std::make_shared<default_opset::Constant>(type, tensor.get_shape(), tensor.get_data<T>());
-    } catch (const ngraph::ngraph_error&) {
-        constant = common::make_failsafe_constant(type);
-    }
-
-    return constant;
-}
-
-template <Tensor::Type>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant(const Tensor& tensor) {
-    throw error::tensor::unsupported_data_type{tensor};
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::float16>(const Tensor& tensor) {
-    return make_ng_constant_impl<ngraph::float16>(element::f16, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::float32>(const Tensor& tensor) {
-    return make_ng_constant_impl<float>(element::f32, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::float64>(const Tensor& tensor) {
-    return make_ng_constant_impl<double>(element::f64, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::int8>(const Tensor& tensor) {
-    return make_ng_constant_impl<int8_t>(element::i8, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::int16>(const Tensor& tensor) {
-    return make_ng_constant_impl<int16_t>(element::i16, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::int32>(const Tensor& tensor) {
-    return make_ng_constant_impl<int32_t>(element::i32, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::int64>(const Tensor& tensor) {
-    return make_ng_constant_impl<int64_t>(element::i64, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::uint8>(const Tensor& tensor) {
-    return make_ng_constant_impl<uint8_t>(element::u8, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::uint16>(const Tensor& tensor) {
-    return make_ng_constant_impl<uint16_t>(element::u16, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::uint32>(const Tensor& tensor) {
-    return make_ng_constant_impl<uint32_t>(element::u32, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::uint64>(const Tensor& tensor) {
-    return make_ng_constant_impl<uint64_t>(element::u64, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::boolean>(const Tensor& tensor) {
-    return make_ng_constant_impl<char>(element::boolean, tensor);
-}
-
-template <>
-inline std::shared_ptr<default_opset::Constant> make_ng_constant<Tensor::Type::bfloat16>(const Tensor& tensor) {
-    return make_ng_constant_impl<ngraph::bfloat16>(element::bf16, tensor);
-}
-
-inline std::shared_ptr<default_opset::Constant> make_constant(const Tensor& tensor) {
-#define MAKE_NG_CONSTANT(data_type_) \
-    case data_type_:                 \
-        return make_ng_constant<data_type_>(tensor)
-
-    switch (tensor.get_type()) {
-        MAKE_NG_CONSTANT(Tensor::Type::float16);
-        MAKE_NG_CONSTANT(Tensor::Type::float32);
-        MAKE_NG_CONSTANT(Tensor::Type::float64);
-        MAKE_NG_CONSTANT(Tensor::Type::int8);
-        MAKE_NG_CONSTANT(Tensor::Type::int16);
-        MAKE_NG_CONSTANT(Tensor::Type::int32);
-        MAKE_NG_CONSTANT(Tensor::Type::int64);
-        MAKE_NG_CONSTANT(Tensor::Type::uint8);
-        MAKE_NG_CONSTANT(Tensor::Type::uint16);
-        MAKE_NG_CONSTANT(Tensor::Type::uint32);
-        MAKE_NG_CONSTANT(Tensor::Type::uint64);
-        MAKE_NG_CONSTANT(Tensor::Type::boolean);
-        MAKE_NG_CONSTANT(Tensor::Type::bfloat16);
-    default:
-        throw error::tensor::invalid_data_type{tensor};
-    }
-}
-
-template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
     NGRAPH_CHECK(values.size() == indices.size(),
                  "The number of values and indices is not equal."
@@ -212,7 +106,8 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const Sh
 
 namespace set_1 {
 OutputVector constant(const onnx_import::Node& node) {
-    return {make_constant(node.get_attribute_value<Tensor>("value"))};
+    auto tensor = node.get_attribute_value<Tensor>("value");
+    return {tensor.get_ng_constant()};
 }
 
 }  // namespace set_1
@@ -283,13 +178,10 @@ OutputVector constant(const onnx_import::Node& node) {
         }
         return {get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
     }
-    return {make_constant(node.get_attribute_value<Tensor>(attributes_names[0]))};
+    auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
+    return {tensor.get_ng_constant()};
 }
-
 }  // namespace set_13
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

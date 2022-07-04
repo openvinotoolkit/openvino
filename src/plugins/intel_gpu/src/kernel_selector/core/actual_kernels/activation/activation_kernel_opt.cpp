@@ -77,15 +77,16 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
     const auto totalSize = GetTotalSize(params);
     if ((totalSize % NUM_COLS_WI) != 0 ||
         (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
-        (params.output.GetFirstElementOffset() % NUM_COLS_WI) != 0) {
+        (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0) {
         return false;
     }
 
-    if (params.output.GetLayout() != params.inputs[0].GetLayout())
+    if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
         return false;
 
     if (!params.fused_ops.empty() &&
-        (params.output.GetLayout() != DataLayout::bfyx && params.output.GetLayout() != DataLayout::bfzyx))
+        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx &&
+         params.outputs[0].GetLayout() != DataLayout::bfwzyx))
         return false;
 
     return true;
@@ -109,11 +110,20 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
                              "x / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
                              "x % OUTPUT_SIZE_X"};
             } else if (params.inputs[0].GetDims().size() == 5) {
-                idx_order = {"x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z* OUTPUT_FEATURE_NUM)",
+                idx_order = {"x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_FEATURE_NUM)",
                              "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM",
                              "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
                              "x / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
                              "x % OUTPUT_SIZE_X"};
+            } else if (params.inputs[0].GetDims().size() == 6) {
+                idx_order = {"x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W * OUTPUT_FEATURE_NUM)",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W) % OUTPUT_FEATURE_NUM",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_SIZE_W",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
+                             "x / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "x % OUTPUT_SIZE_X"};
+            } else {
+                IE_THROW() << "Unknown dimension";
             }
         } else {
             if (params.inputs[0].GetDims().size() <= 4) {
@@ -122,11 +132,20 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
                              "(x + i) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
                              "(x + i) % OUTPUT_SIZE_X"};
             } else if (params.inputs[0].GetDims().size() == 5) {
-                idx_order = {"(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z* OUTPUT_FEATURE_NUM)",
+                idx_order = {"(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_FEATURE_NUM)",
                              "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM",
                              "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
                              "(x + i) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
                              "(x + i) % OUTPUT_SIZE_X"};
+            } else if (params.inputs[0].GetDims().size() == 6) {
+                idx_order = {"(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W * OUTPUT_FEATURE_NUM)",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W) % OUTPUT_FEATURE_NUM",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_SIZE_W",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
+                             "(x + i) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "(x + i) % OUTPUT_SIZE_X"};
+            } else {
+                IE_THROW() << "Unknown dimension";
             }
         }
         FusedOpsConfiguration conf_vector = {"_VECTOR",

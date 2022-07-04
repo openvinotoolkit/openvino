@@ -17,7 +17,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
@@ -89,6 +89,9 @@
 #ifdef __unix__
 #include <sys/resource.h>
 #endif
+
+using namespace ov::runtime::intel_gpu;
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  build_options const& options,
@@ -258,7 +261,6 @@ bool program::analyze_output_size_handling_need() {
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -279,7 +281,7 @@ bool program::analyze_output_size_handling_need() {
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
@@ -296,14 +298,18 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
+            tensor size(1);
+            for (size_t i = 0; i < prim->size.size(); i++) {
+                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+            }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().size;
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
-                prim->size,
-                prim->pad,
+                size,
+                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
                 prim->stride,
-                {1, 1, 1, 1},
+                ov::Strides(prim->stride.size(), 1),
                 true,
                 1);
 
@@ -502,6 +508,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_primitive_fusing_through>();
+
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
@@ -571,7 +579,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled())
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
@@ -870,13 +878,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node);
+        user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
 
@@ -960,7 +968,7 @@ bool program::remove_if_dangling(program_node& node) {
     return true;
 }
 
-bool program::extract_and_remove(program_node& node) {
+bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
@@ -999,13 +1007,32 @@ bool program::extract_and_remove(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input);
-    else
-        remove_if_dangling(node);
+        replace_all_usages(node, input, false);
+
+    if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
+        processing_order.erase(&node);
 
     return true;
 }
 
+bool program::extract_and_remove(program_node& node) {
+    if (extract(node)) {
+        return remove_if_dangling(node);
+    }
+
+    return false;
+}
+
+bool program::move_node(program_node& node,
+                        program_node& new_prev,
+                        program_node& new_next) {
+    if (extract(node)) {
+        add_intermediate(node, new_next, new_prev);
+        return true;
+    }
+
+    return false;
+}
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
@@ -1370,7 +1397,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
-            prim.type() != cldnn::gather::type_id()) {
+            prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1396,6 +1424,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::quantize::type_id())
             can_use_bs_fs_yx_bsv16_fsv16 = false;
     }
@@ -1515,7 +1544,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, 0, false));
         }
     }
 

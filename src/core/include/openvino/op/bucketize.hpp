@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v3 {
 /// \brief Operation that bucketizes the input based on boundaries
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Bucketize : public Op {
 public:
     OPENVINO_OP("Bucketize", "opset3", op::Op, 3);

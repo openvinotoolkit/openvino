@@ -76,8 +76,8 @@ function(addIeTarget)
 
     # remove unnecessary directories
     foreach(excludedDir ${ARG_EXCLUDED_SOURCE_PATHS})
-        list(FILTER includes EXCLUDE REGEX "${excludedDir}*")
-        list(FILTER sources EXCLUDE REGEX "${excludedDir}*")
+        list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
+        list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
     endforeach()
 
     source_group("include" FILES ${includes})

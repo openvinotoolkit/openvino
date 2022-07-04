@@ -63,11 +63,13 @@ class OVClassSetDevicePriorityConfigTest : public ::testing::Test, public ::test
 protected:
     std::string deviceName;
     ov::AnyMap configuration;
+    std::shared_ptr<ngraph::Function> actualNetwork;
 
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(deviceName, configuration) = GetParam();
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
 
@@ -79,6 +81,7 @@ using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
+using OVClassGetMetricTest_DEVICE_UUID = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
@@ -93,9 +96,13 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
+using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -381,6 +388,18 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
+TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    EXPECT_EQ(value, false);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    EXPECT_EQ(value, true);
+}
+
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     // log level
@@ -636,6 +655,16 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNo
     }
 }
 
+TEST_P(OVClassGetMetricTest_DEVICE_UUID, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::device::UUID t;
+
+    OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::uuid));
+    std::cout << "Device uuid: " << std::endl << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::uuid);
+}
+
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> t;
@@ -649,7 +678,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(OVClassGetMetricTest_MAX_BATCH_SIZE, GetMetricAndPrintNoThrow) {
     ov::Core ie;
-    uint32_t max_batch_size;
+    uint32_t max_batch_size = 0;
 
     ASSERT_NO_THROW(max_batch_size = ie.get_property(deviceName, ov::max_batch_size));
 
@@ -677,7 +706,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    unsigned int start, end, step;
+    unsigned int start{0}, end{0}, step{0};
 
     ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(deviceName, ov::range_for_async_infer_requests));
 
@@ -694,7 +723,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    unsigned int start, end;
+    unsigned int start = 0, end = 0;
 
     ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(deviceName, ov::range_for_streams));
 
@@ -994,6 +1023,29 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     }
 }
 
+TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
+}
+
+TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+}
+
+TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefaultIncorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
+}
+
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
@@ -1026,6 +1078,31 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       ov::device::priorities(deviceName, CommonTestUtils::DEVICE_CPU),
                                       ov::device::id("110")),
                      ov::Exception);
+    } else {
+        GTEST_SKIP();
+    }
+}
+
+//
+// LoadNetwork with AUTO on MULTI combinations particular device
+//
+TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
+        std::string devices;
+        auto availableDevices = ie.get_property(deviceName, ov::available_devices);
+        for (auto&& device : availableDevices) {
+            devices += deviceName + '.' + device;
+            if (&device != &(availableDevices.back())) {
+                devices += ',';
+            }
+        }
+        OV_ASSERT_NO_THROW(
+            ie.compile_model(actualNetwork,
+                             CommonTestUtils::DEVICE_MULTI,
+                             ov::device::properties(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(devices)),
+                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                                    ov::device::priorities(CommonTestUtils::DEVICE_AUTO, deviceName))));
     } else {
         GTEST_SKIP();
     }

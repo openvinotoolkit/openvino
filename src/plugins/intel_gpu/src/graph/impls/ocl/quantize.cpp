@@ -38,7 +38,7 @@ protected:
                 args.inputs.push_back(instance.dep_memory_ptr(8));
             }
         }
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         return args;
     }
 
@@ -78,7 +78,7 @@ public:
             quantize_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
         }
         const auto& output_layout = arg.get_output_layout();
-        quantize_params.output = convert_data_tensor(output_layout);
+        quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
@@ -175,10 +175,20 @@ attach_quantize_impl::attach_quantize_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
 
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
     });
 }
 

@@ -13,8 +13,8 @@
 #include <utils/jit_kernel.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -358,7 +358,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -383,7 +383,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -522,7 +522,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
@@ -559,7 +559,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -594,7 +594,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -710,7 +710,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -736,7 +736,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -871,7 +871,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
@@ -908,7 +908,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -945,7 +945,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -1010,7 +1010,7 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node
 }
 
 ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                                               const mkldnn::engine& eng,
+                                               const dnnl::engine& eng,
                                                WeightsSharing::Ptr &cache)
     : Node(op, eng, cache) {
     std::string errorMessage;
@@ -1128,7 +1128,7 @@ void ColorConvert::createPrimitive() {
     }
 }
 
-void ColorConvert::execute(mkldnn::stream strm) {
+void ColorConvert::execute(dnnl::stream strm) {
     if (!_impl)
         IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
                    << "has no any implemented converter";
@@ -1150,7 +1150,7 @@ bool ColorConvert::needPrepareParams() const {
     return false;
 }
 
-void ColorConvert::executeDynamicImpl(mkldnn::stream strm) {
+void ColorConvert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

@@ -27,7 +27,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
         args.recurrent = instance.recurrent_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
@@ -54,7 +54,7 @@ public:
             const auto& hidden_layout = arg.hidden().get_output_layout();
             lstm_gemm_params.SetHidden(convert_data_tensor(hidden_layout));
             // TODO: make a generic function to get the direction
-            if (hidden_layout.size.spatial[1] > 1) {
+            if (hidden_layout.spatial(1) > 1) {
                 lstm_gemm_params.hidden_direction = arg.direction();
             }
         }
@@ -62,7 +62,7 @@ public:
 
         // Update the direction of the input for the gemm kernel
         const auto& input_layout = arg.input().get_output_layout();
-        size_t input_directions = input_layout.size.spatial[1];
+        size_t input_directions = input_layout.spatial(1);
 
         if (input_directions > 1) {  // For bidirection input, input direction can be 1 or 0
             lstm_gemm_params.input_direction = arg.direction();

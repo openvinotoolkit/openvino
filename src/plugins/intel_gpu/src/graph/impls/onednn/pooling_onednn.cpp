@@ -28,12 +28,11 @@ protected:
         auto prim = arg.get_primitive();
 
         auto& input = arg.get_dependency(0);
-        auto spatials_rank = cldnn::format::spatial_num(input.get_output_layout().format);
 
-        auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
-        auto kernel = onednn::convert_spatials(prim->size, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->pad_end, spatials_rank);
+        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+        dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
+        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
+        dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto output_md = onednn::layout_to_memory_desc(arg.get_output_layout());
@@ -91,10 +90,20 @@ attach_pooling_onednn::attach_pooling_onednn() {
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
 
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
@@ -106,10 +115,20 @@ attach_pooling_onednn::attach_pooling_onednn() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
 
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
+
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
     });
 }
 

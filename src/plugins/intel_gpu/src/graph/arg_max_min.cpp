@@ -4,7 +4,7 @@
 
 #include "arg_max_min_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils.h"
+#include "sliding_window_utils_legacy.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
@@ -60,90 +60,90 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
     if (desc->with_axis) {
         switch (desc->axis) {
             case arg_max_min::x:
-                size_check(input_layout.size.spatial[0]);
+                size_check(input_layout.spatial(0));
                 if (format == cldnn::format::bfzyx)
                     return layout{output_data_type,
                                   format::bfzyx,
-                                  tensor{input_layout.size.batch[0],
-                                         input_layout.size.feature[0],
+                                  tensor{input_layout.batch(),
+                                         input_layout.feature(),
                                          (int32_t)desc->top_k,
-                                         input_layout.size.spatial[1],
-                                         input_layout.size.spatial[2]}};
+                                         input_layout.spatial(1),
+                                         input_layout.spatial(2)}};
                 else
                     return layout{output_data_type,
                                   format,
-                                  tensor{input_layout.size.batch[0],
-                                         input_layout.size.feature[0],
+                                  tensor{input_layout.batch(),
+                                         input_layout.feature(),
                                          (int32_t)desc->top_k,
-                                         input_layout.size.spatial[1]}};
+                                         input_layout.spatial(1)}};
             case arg_max_min::y:
-                size_check(input_layout.size.spatial[1]);
+                size_check(input_layout.spatial(1));
                 if (format == cldnn::format::bfzyx)
                     return layout{output_data_type,
                                   format::bfzyx,
-                                  tensor{input_layout.size.batch[0],
-                                         input_layout.size.feature[0],
-                                         input_layout.size.spatial[0],
+                                  tensor{input_layout.batch(),
+                                         input_layout.feature(),
+                                         input_layout.spatial(0),
                                          (int32_t)desc->top_k,
-                                         input_layout.size.spatial[2]}};
+                                         input_layout.spatial(2)}};
                 else
                     return layout{output_data_type,
                                   format,
-                                  tensor{input_layout.size.batch[0],
-                                         input_layout.size.feature[0],
-                                         input_layout.size.spatial[0],
+                                  tensor{input_layout.batch(),
+                                         input_layout.feature(),
+                                         input_layout.spatial(0),
                                          (int32_t)desc->top_k}};
             case arg_max_min::feature:
-                size_check(input_layout.size.feature[0]);
+                size_check(input_layout.feature());
                 if (format == cldnn::format::bfzyx)
                     return layout{output_data_type,
                                   format::bfzyx,
-                                  tensor{input_layout.size.batch[0],
+                                  tensor{input_layout.batch(),
                                          (int32_t)desc->top_k,
-                                         input_layout.size.spatial[0],
-                                         input_layout.size.spatial[1],
-                                         input_layout.size.spatial[2]}};
+                                         input_layout.spatial(0),
+                                         input_layout.spatial(1),
+                                         input_layout.spatial(2)}};
                 else
                     return layout{output_data_type,
                                   format,
-                                  tensor{input_layout.size.batch[0],
+                                  tensor{input_layout.batch(),
                                          (int32_t)desc->top_k,
-                                         input_layout.size.spatial[0],
-                                         input_layout.size.spatial[1]}};
+                                         input_layout.spatial(0),
+                                         input_layout.spatial(1)}};
             case arg_max_min::batch:
-                size_check(input_layout.size.batch[0]);
+                size_check(input_layout.batch());
                 if (format == cldnn::format::bfzyx)
                     return layout{output_data_type,
                                   format::bfzyx,
                                   tensor{(int32_t)desc->top_k,
-                                         input_layout.size.feature[0],
-                                         input_layout.size.spatial[0],
-                                         input_layout.size.spatial[1],
-                                         input_layout.size.spatial[2]}};
+                                         input_layout.feature(),
+                                         input_layout.spatial(0),
+                                         input_layout.spatial(1),
+                                         input_layout.spatial(2)}};
                 else
                     return layout{output_data_type,
                                   format,
                                   tensor{(int32_t)desc->top_k,
-                                         input_layout.size.feature[0],
-                                         input_layout.size.spatial[0],
-                                         input_layout.size.spatial[1]}};
+                                         input_layout.feature(),
+                                         input_layout.spatial(0),
+                                         input_layout.spatial(1)}};
             case arg_max_min::z:
-                size_check(input_layout.size.spatial[2]);
+                size_check(input_layout.spatial(2));
                 return layout{output_data_type,
                               format::bfzyx,
-                              tensor{input_layout.size.batch[0],
-                                     input_layout.size.feature[0],
-                                     input_layout.size.spatial[0],
-                                     input_layout.size.spatial[1],
+                              tensor{input_layout.batch(),
+                                     input_layout.feature(),
+                                     input_layout.spatial(0),
+                                     input_layout.spatial(1),
                                      (int32_t)desc->top_k}};
             default:
                 break;
         }
     }
-    size_check(input_layout.size.feature[0] * input_layout.size.spatial[0] * input_layout.size.spatial[1]);
+    size_check(input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1));
     return layout{output_data_type,
                   input_layout.format,
-                  tensor{input_layout.size.batch[0], 1, (int32_t)desc->top_k, 1}};
+                  tensor{input_layout.batch(), 1, (int32_t)desc->top_k, 1}};
 }
 
 std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {

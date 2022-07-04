@@ -5,7 +5,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -306,6 +306,14 @@ const auto addSpParams = ::testing::Combine(
         ::testing::Values(std::vector<size_t> {1, 1})  // dilations
 );
 
+const auto addSpParamsDilationUneven = ::testing::Combine(
+        ::testing::ValuesIn(padTypes),  // pad. type
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
+        ::testing::Values(std::vector<size_t> {1, 1}),  // strides
+        ::testing::Values(std::vector<size_t> {2, 1})  // dilations
+);
+
 const std::vector<std::vector<size_t>> spatParams1 = {
     {1}, // batch
     {34, 34}, // in. spat. shape
@@ -328,6 +336,12 @@ const std::vector<std::vector<size_t>> spatParams4 = {
     {1}, // batch
     {3, 2}, // in. spat. shape
     {2, 1}, // off. spat. shape
+    {2, 2} // ker. spat. shape
+};
+const std::vector<std::vector<size_t>> spatParamsDilationUneven = {
+    {1}, // batch
+    {3, 2}, // in. spat. shape
+    {1, 1}, // off. spat. shape
     {2, 2} // ker. spat. shape
 };
 const std::vector<std::vector<size_t>> channelParamsSingleGr = {
@@ -579,6 +593,14 @@ const auto params9 = ::testing::Combine(
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+const auto params10 = ::testing::Combine(
+                         ::testing::Combine(
+                            addSpParamsDilationUneven,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParamsDilationUneven, channelParamsSingleGr))),
+                            defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice(false)));
 
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest1, DefConvLayerCPUTest, params1, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest2, DefConvLayerCPUTest, params2, DefConvLayerCPUTest::getTestCaseName);
@@ -589,5 +611,6 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest6, DefConvLayerCPUTest, params6, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest7, DefConvLayerCPUTest, params7, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

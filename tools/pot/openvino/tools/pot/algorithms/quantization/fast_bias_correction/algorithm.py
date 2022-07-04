@@ -33,12 +33,14 @@ class FastBiasCorrection(Algorithm):
             self._config.get(
                 'stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader))
+        stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self.total_exec_steps = stat_subset_size
         self._threshold = float(self._config.get('threshold', 2.0))
         self._apply_for_all_nodes = self._config.get('apply_for_all_nodes', False)
         shuffle_data = self._config.get('shuffle_data', False)
         seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
+        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed, stat_batch_size)
         self._channel_axis = {}
 
     @property
@@ -159,8 +161,8 @@ class FastBiasCorrection(Algorithm):
                     bias = nu.get_bias_for_node(op_node)
                     after_biased_conv = nu.get_node_output(bias, 0)[0]
                     after_biased_conv_name = get_quantized_input_key(after_biased_conv)
-                inputs_outputs_layout[after_biased_conv_name] = \
-                    {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
+                    inputs_outputs_layout[after_biased_conv_name] = \
+                        {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
 
         return inputs_outputs_layout
 

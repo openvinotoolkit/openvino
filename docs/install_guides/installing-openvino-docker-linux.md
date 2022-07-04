@@ -26,8 +26,10 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
   To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
 
   - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see [this article](https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434) for more details.
+  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see `this article`_ for more details.
   - From 2022.1 release, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
+  
+  .. _this article: https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434
 
 @endsphinxdirective
 
@@ -116,7 +118,7 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
 
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
 
-1. Set up the environment on the host machine to be used for running Docker. It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](installing-openvino-config-ivad-vpu.md).
+1. Set up the environment on the host machine to be used for running Docker. It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-ivad-vpu.md).
 2. Run `hddldaemon` on the host in a separate terminal session using the following command:
     ```sh
     $HDDL_INSTALL_DIR/hddldaemon

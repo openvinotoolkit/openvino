@@ -66,7 +66,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
                                                                                    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.output;
+    const auto& out = params.outputs[0];
 
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
@@ -101,7 +101,7 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optiona
     const auto& params = static_cast<const convolution_params&>(p);
 
     const auto& input = params.inputs[0];
-    const auto& output = params.output;
+    const auto& output = params.outputs[0];
 
     // Up to 4 input features allowed
     if (input.Feature().v > 4) {
@@ -119,7 +119,7 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optiona
 JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convolution_params& params,
                                                                  const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
-    auto output = params.output;
+    auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
@@ -159,7 +159,7 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, blockWidth)));
 
-    if (params.output.Feature().v % feature_block_size != 0) {
+    if (params.outputs[0].Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
 

@@ -10,7 +10,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
+#include "itt.hpp"
+
 ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
+    MATCHER_SCOPE(ReshapeFullyConnectedFusion);
     auto m_reshape = ngraph::pattern::wrap_type<ngraph::opset1::Reshape>({ngraph::pattern::any_input(ov::pass::pattern::has_static_shape()),
                                                                           ngraph::pattern::any_input()},
                                                                          ngraph::pattern::has_static_shape());
@@ -78,9 +81,10 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         new_fc->set_friendly_name(fc->get_friendly_name());
         ngraph::copy_runtime_info({reshape, fc}, new_ops);
         ngraph::replace_node(fc, new_fc);
+        MATCHER_SCOPE_ENABLE(ReshapeFullyConnectedFusion);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, "ReshapeFullyConnectedFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fcTwoOrThreeInputs, matcher_name);
     register_matcher(m, callback);
 }

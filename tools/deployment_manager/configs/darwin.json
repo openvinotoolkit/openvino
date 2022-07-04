@@ -25,6 +25,7 @@
         "runtime/lib/intel64/Release/libopenvino_ir_frontend.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.dylib",
         "runtime/lib/intel64/Release/libopenvino_paddle_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_fe.dylib",
         "runtime/lib/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
