@@ -6,8 +6,8 @@
 // "impl_types" enum is not accessible if "implementation_map.hpp" is included first
 // so, a "fix" for now is to turn off clang-format for these include
 // clang-format off
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
+#include "primitive_base.hpp"
 // clang-format on
 #include "roll/roll_kernel_ref.hpp"
 #include "roll/roll_kernel_selector.hpp"

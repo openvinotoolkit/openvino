@@ -3,8 +3,8 @@
 //
 
 #include "activation_inst.h"
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
+#include "primitive_base.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "activation/activation_kernel_selector.h"
