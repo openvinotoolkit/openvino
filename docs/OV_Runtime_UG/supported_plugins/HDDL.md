@@ -6,7 +6,7 @@ The OpenVINO Runtime HDDL plugin was developed for inference with neural network
 
 ## Configuring the HDDL Plugin
 
-To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systems, refer to the installation [guide](../../install_guides/installing-openvino-config-ivad-vpu).
+To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systems, refer to the [installation guide](../../install_guides/installing-openvino-config-ivad-vpu).
 
 > **NOTE**: The HDDL and Myriad plugins may cause conflicts when used at the same time.
 > To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.

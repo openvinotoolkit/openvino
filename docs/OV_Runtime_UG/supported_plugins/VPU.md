@@ -68,7 +68,7 @@ VPU plugins support layer fusion and decomposition.
 
 #### Fusing Rules
 
-Certain layers can be merged into convolution, `ReLU`, and `Eltwise` layers according to the patterns below:
+Certain layers can be merged into 'convolution', 'ReLU', and 'Eltwise' layers according to the patterns below:
 
 - Convolution
     - Convolution + ReLU → Convolution

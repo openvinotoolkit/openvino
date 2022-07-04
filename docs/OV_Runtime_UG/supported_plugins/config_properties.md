@@ -1,24 +1,23 @@
 # Query Device Properties - Configuration {#openvino_docs_OV_UG_query_api}
 
 
-The OpenVINO™ toolkit supports inferring with several types of devices (processors or accelerators).
+The OpenVINO™ toolkit supports inference with several types of devices (processors or accelerators).
 This section provides a high-level description of the process of querying of different device properties and configuration values at runtime.
 
 OpenVINO runtime has two types of properties:
 - Read only properties which provide information about the devices (such as device name, termal, execution capabilities, etc.) and information about the `ov::CompiledModel` to understand what configuration values were used to compile the model with.
-- Mutable properties which are primarily used to configure `ov::Core::compile_model` process and affect final inference on the specific set of devices. Such properties can be set globally per device via the `ov::Core::set_property` or locally for particular model in the `ov::Core::compile_model` and the `ov::Core::query_model` calls.
+- Mutable properties which are primarily used to configure the `ov::Core::compile_model` process and affect final inference on a specific set of devices. Such properties can be set globally per device via `ov::Core::set_property` or locally for particular model in the `ov::Core::compile_model` and the `ov::Core::query_model` calls.
 
-OpenVINO property is represented as a named constexpr variable with a given string name and type. The example below:
+An OpenVINO property is represented as a named constexpr variable with a given string name and a type. The following example represents a read-only property with a C++ name of `ov::available_devices`, a string name of `AVAILABLE_DEVICES` and a type of `std::vector<std::string>`:
 ```
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 ```
-represents a read-only property with a C++ name `ov::available_devices`, a string name `AVAILABLE_DEVICES` and a type `std::vector<std::string>`.
 
 Refer to the [Hello Query Device С++ Sample](../../../samples/cpp/hello_query_device/README.md) sources and the [Multi-Device execution](../multi_device.md) documentation for examples of using setting and getting properties in user applications.
 
 ### Get a Set of Available Devices
 
-Based on read-only property `ov::available_devices`, OpenVINO Core collects information about currently available devices enabled by OpenVINO plugins and returns information, using the `ov::Core::get_available_devices` method:
+Based on the `ov::available_devices` read-only property, OpenVINO Core collects information about currently available devices enabled by OpenVINO plugins and returns information, using the `ov::Core::get_available_devices` method:
 
 @sphinxtabset
 
@@ -47,11 +46,11 @@ GPU.0
 GPU.1
 ```
 
-If there is more than one instance of a specific device, the devices are enumerated with `.suffix`, where `suffix` is a unique string identifier. Each device name can then be passed to:
+If there are multiple instances of a specific device, the devices are enumerated with a suffix comprising a full stop and a unique string identifier, such as `.suffix`. Each device name can then be passed to:
 
 * `ov::Core::compile_model` to load the model to a specific device with specific configuration properties.
-* `ov::Core::get_property` to get common or device specific properties.
-* All other methods of the `ov::Core` class that accept a `deviceName`.
+* `ov::Core::get_property` to get common or device-specific properties.
+* All other methods of the `ov::Core` class that accept `deviceName`.
 
 ### Working with Properties in Your Code
 
@@ -65,7 +64,7 @@ The `ov::CompiledModel` class is also extended to support the properties:
 * `ov::CompiledModel::get_property`
 * `ov::CompiledModel::set_property`
 
-For documentation about OpenVINO common device-independent properties, refer to the `openvino/runtime/properties.hpp`. Device specific configuration keys can be found in corresponding device folders (for example, `openvino/runtime/intel_gpu/properties.hpp`).
+For documentation about OpenVINO common device-independent properties, refer to the `openvino/runtime/properties.hpp`. Device-specific configuration keys can be found in corresponding device folders (for example, `openvino/runtime/intel_gpu/properties.hpp`).
 
 ### Working with Properties via Core
 
@@ -143,7 +142,7 @@ The example below specifies hints that a model should be compiled to be inferred
 
 #### Setting Properties Globally
 
-The `ov::Core::set_property` with a given device name should be used to set global configuration properties, which are the same across multiple `ov::Core::compile_model`, `ov::Core::query_model`, and other calls. However, setting property on the specific `ov::Core::compile_model` call applies properties only for the current call:
+`ov::Core::set_property` with a given device name should be used to set global configuration properties, which are the same across multiple `ov::Core::compile_model`, `ov::Core::query_model`, and other calls. However, setting properties on a specific `ov::Core::compile_model` call applies properties only for the current call:
 
 @sphinxtabset
 
