@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include <ie_algorithm.hpp>
@@ -1255,6 +1256,14 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
         getBlobImpl(blobPtr.get())->allocate();
         return blobPtr;
     }
+}
+
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferRequest::QueryState() {
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
+    ret.reserve(variables_states_.size());
+    for (const auto& pair : variables_states_)
+        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->GetEngine(), m_curBatch));
+    return ret;
 }
 
 }  // namespace intel_gpu
