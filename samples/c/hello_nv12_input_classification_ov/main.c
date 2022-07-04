@@ -107,7 +107,7 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
     char* p_end = NULL;
     size_t _width = 0, _height = 0;
     _width = strtoul(size_str, &p_end, 10);
-    _height = strtoul(p_end+1, NULL, 10);
+    _height = strtoul(p_end + 1, NULL, 10);
     if (_width > 0 && _height > 0) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
