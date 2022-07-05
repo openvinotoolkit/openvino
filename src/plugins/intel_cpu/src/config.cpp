@@ -17,6 +17,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/properties.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -120,6 +121,24 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
+        } else if (key == PluginConfigParams::KEY_CPU_EXPERIMENTAL) {
+            const auto elements = split(val, ',');
+            std::set<std::string> newConfig;
+            for (const auto& element : elements) {
+                if (element.empty()) {
+                    continue;
+                }
+                if (element == EXPERIMENTAL_KEY_BRGCONV) {
+                    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                        continue;
+                    }
+                } else {
+                    IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_CPU_EXPERIMENTAL
+                        << ". Expected only " << EXPERIMENTAL_KEY_BRGCONV;
+                }
+                newConfig.insert(element);
+            }
+            cpuExperimental = std::move(newConfig);
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
@@ -148,6 +167,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
+        } else if (PluginConfigParams::KEY_DENORMALS_OPTIMIZATION == key) {
+            if (val == PluginConfigParams::YES) {
+                denormalsOptMode = DenormalsOptMode::DO_On;
+            } else if (val == PluginConfigParams::NO) {
+                denormalsOptMode = DenormalsOptMode::DO_Off;
+            } else {
+                denormalsOptMode = DenormalsOptMode::DO_Keep;
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DENORMALS_OPTIMIZATION
+                << ". Expected only YES/NO";
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -207,6 +236,9 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+    }
+    if (!cpuExperimental.empty()) {
+        _config.insert({ PluginConfigParams::KEY_CPU_EXPERIMENTAL, join(cpuExperimental, ',') });
     }
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
