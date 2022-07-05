@@ -3,7 +3,6 @@
 //
 
 #include "default_opset.hpp"
-#include "op/com.microsoft/bias_gelu.hpp"
 
 namespace ngraph {
 namespace onnx_import {
