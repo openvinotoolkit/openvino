@@ -1136,8 +1136,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
@@ -1151,6 +1149,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
         manager.register_pass<pass::ReverseInputChannelsFusion>();
+        disable_rt_info_check();
     }
     {
         auto input = create_param({1, 3, 16, 16});
@@ -1159,9 +1158,5 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         auto conv2 = create_conv(conv1, weights);
         function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
     }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
