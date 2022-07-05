@@ -2,43 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "model_worker_factory.hpp"
+#include "worker_factory.hpp"
 
 #include "backend/am_intel_dnn.hpp"
-#include "gna2_model_wrapper.hpp"
 #include "gna_device_interface.hpp"
 #include "gna_plugin_log.hpp"
-#include "model_subrequest.hpp"
-#include "model_worker_impl.hpp"
+#include "request/model_wrapper.hpp"
 #include "runtime/gna_float_runtime.hpp"
+#include "subrequest.hpp"
+#include "worker_impl.hpp"
 
 namespace GNAPluginNS {
+namespace request {
 
-constexpr const uint32_t ModelWorkerFactory::kFakeRequestID;
+constexpr const uint32_t WorkerFactory::kFakeRequestID;
 
-std::shared_ptr<ModelWorker> ModelWorkerFactory::create_model_worker(std::shared_ptr<Gna2ModelWrapper> model,
-                                                                     std::shared_ptr<GNADevice> device,
-                                                                     const Gna2AccelerationMode acceleration_mode) {
-    return std::make_shared<ModelWorkerImpl>(model,
-                                             create_model_subrequests(model, std::move(device), acceleration_mode));
+std::shared_ptr<Worker> WorkerFactory::create_model_worker(std::shared_ptr<ModelWrapper> model,
+                                                           std::shared_ptr<GNADevice> device,
+                                                           const Gna2AccelerationMode acceleration_mode) {
+    return std::make_shared<WorkerImpl>(model, create_model_subrequests(model, std::move(device), acceleration_mode));
 }
 
-std::shared_ptr<ModelWorker> ModelWorkerFactory::create_model_worker_fp32(
-    std::shared_ptr<Gna2ModelWrapper> model,
-    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
-    return std::make_shared<ModelWorkerImpl>(model, create_model_subrequests_fp32(model, std::move(dnn)));
+std::shared_ptr<Worker> WorkerFactory::create_model_worker_fp32(std::shared_ptr<ModelWrapper> model,
+                                                                std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
+    return std::make_shared<WorkerImpl>(model, create_model_subrequests_fp32(model, std::move(dnn)));
 }
 
-std::shared_ptr<ModelWorker> ModelWorkerFactory::create_model_worker_trivial_topology(
-    std::shared_ptr<Gna2ModelWrapper> model) {
-    return std::make_shared<ModelWorkerImpl>(std::move(model), create_model_subrequests_trivial());
+std::shared_ptr<Worker> WorkerFactory::create_model_worker_trivial_topology(std::shared_ptr<ModelWrapper> model) {
+    return std::make_shared<WorkerImpl>(std::move(model), create_model_subrequests_trivial());
 }
 
-std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests(
-    std::shared_ptr<Gna2ModelWrapper> model,
-    std::shared_ptr<GNADevice> device,
-    const Gna2AccelerationMode acceleration_mode) {
-    std::vector<ModelSubrequest> subrequests;
+std::vector<Subrequest> WorkerFactory::create_model_subrequests(std::shared_ptr<ModelWrapper> model,
+                                                                std::shared_ptr<GNADevice> device,
+                                                                const Gna2AccelerationMode acceleration_mode) {
+    std::vector<Subrequest> subrequests;
     if (!device) {
         THROW_GNA_EXCEPTION << "device is nullptr";
     }
@@ -78,10 +75,10 @@ std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests(
     return subrequests;
 }
 
-std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests_fp32(
-    std::shared_ptr<Gna2ModelWrapper> model,
+std::vector<Subrequest> WorkerFactory::create_model_subrequests_fp32(
+    std::shared_ptr<ModelWrapper> model,
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
-    std::vector<ModelSubrequest> subrequests;
+    std::vector<Subrequest> subrequests;
 
     if (!dnn) {
         THROW_GNA_EXCEPTION << "dnn is nullptr";
@@ -107,8 +104,8 @@ std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests_fp32(
     return subrequests;
 }
 
-std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests_trivial() {
-    std::vector<ModelSubrequest> subrequests;
+std::vector<Subrequest> WorkerFactory::create_model_subrequests_trivial() {
+    std::vector<Subrequest> subrequests;
 
     auto enque_simple = []() {
         return kFakeRequestID;
@@ -122,4 +119,5 @@ std::vector<ModelSubrequest> ModelWorkerFactory::create_model_subrequests_trivia
     return subrequests;
 }
 
+}  // namespace request
 }  // namespace GNAPluginNS

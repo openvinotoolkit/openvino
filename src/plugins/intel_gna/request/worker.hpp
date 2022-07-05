@@ -13,11 +13,13 @@
 #include "request_status.hpp"
 
 namespace GNAPluginNS {
-class Gna2ModelWrapper;
+namespace request {
 
-class ModelWorker {
+class ModelWrapper;
+
+class Worker {
 public:
-    virtual ~ModelWorker() = default;
+    virtual ~Worker() = default;
 
     virtual const Gna2Model* model() const = 0;
     virtual Gna2Model* model() = 0;
@@ -37,4 +39,5 @@ public:
     virtual InferenceEngine::BlobMap& result() = 0;
 };
 
+}  // namespace request
 }  // namespace GNAPluginNS

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "model_subrequest.hpp"
+#include "subrequest.hpp"
 
 #include <gna2-inference-api.h>
 
 #include "gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
+namespace request {
 
-ModelSubrequest::ModelSubrequest(EnqueueHandler enqueue_handler, WaitHandler wait_handler)
+Subrequest::Subrequest(EnqueueHandler enqueue_handler, WaitHandler wait_handler)
     : enqueue_handler_(std::move(enqueue_handler)),
       wait_handler_(std::move(wait_handler)) {
     if (!enqueue_handler_ || !wait_handler_) {
@@ -18,7 +19,7 @@ ModelSubrequest::ModelSubrequest(EnqueueHandler enqueue_handler, WaitHandler wai
     }
 }
 
-RequestStatus ModelSubrequest::wait(int64_t timeout_miliseconds) {
+RequestStatus Subrequest::wait(int64_t timeout_miliseconds) {
     if (!is_pending()) {
         return status_;
     }
@@ -28,21 +29,22 @@ RequestStatus ModelSubrequest::wait(int64_t timeout_miliseconds) {
     return status_;
 }
 
-void ModelSubrequest::enqueue() {
+void Subrequest::enqueue() {
     request_id_ = enqueue_handler_();
     status_ = RequestStatus::kPending;
 }
 
-bool ModelSubrequest::is_pending() const {
+bool Subrequest::is_pending() const {
     return status_ == RequestStatus::kPending;
 }
 
-bool ModelSubrequest::is_aborted() const {
+bool Subrequest::is_aborted() const {
     return status_ == RequestStatus::kAborted;
 }
 
-bool ModelSubrequest::is_completed() const {
+bool Subrequest::is_completed() const {
     return status_ == RequestStatus::kCompleted;
 }
 
+}  // namespace request
 }  // namespace GNAPluginNS

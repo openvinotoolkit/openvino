@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna2_model_wrapper_factory.hpp"
+#include "model_wrapper_factory.hpp"
 
 #include <memory>
 
@@ -10,11 +10,13 @@
 #include "gna2_model_helper.hpp"
 
 namespace GNAPluginNS {
-std::shared_ptr<Gna2ModelWrapper> Gna2ModelWrapperFactory::create_trivial() {
-    return std::make_shared<Gna2ModelWrapper>(Gna2ModelWrapper::ConstructionPassKey());
+namespace request {
+
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_trivial() {
+    return std::make_shared<ModelWrapper>(ModelWrapper::ConstructionPassKey());
 }
 
-std::shared_ptr<Gna2ModelWrapper> Gna2ModelWrapperFactory::create_with_number_of_empty_operations(
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_with_number_of_empty_operations(
     uint32_t number_of_operations) {
     auto wrapper = create_trivial();
 
@@ -41,10 +43,11 @@ std::shared_ptr<Gna2ModelWrapper> Gna2ModelWrapperFactory::create_with_number_of
     return wrapper;
 }
 
-std::shared_ptr<Gna2ModelWrapper> Gna2ModelWrapperFactory::create_initialized(ModelInitializer initializer) {
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_initialized(ModelInitializer initializer) {
     auto wrapper = create_trivial();
     initializer(&wrapper->object());
     return wrapper;
 }
 
+}  // namespace request
 }  // namespace GNAPluginNS

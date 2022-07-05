@@ -8,13 +8,13 @@
 
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#include "gna2_model_wrapper_factory.hpp"
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
-#include "model_worker_factory.hpp"
-#include "model_subrequest.hpp"
-#include "model_worker_pool.hpp"
-#include "model_worker_impl.hpp"
+#include "request/model_wrapper_factory.hpp"
+#include "request/subrequest.hpp"
+#include "request/worker_factory.hpp"
+#include "request/worker_impl.hpp"
+#include "request/worker_pool.hpp"
 
 using GNAPluginNS::GNAInferRequest;
 using GNAPluginNS::GNAPlugin;
@@ -31,6 +31,9 @@ public:
 
     // Prepare underlining object to enable GNAInferRequest::Wait() working
     GNAPluginForGNAWaitTest() {
+        using namespace GNAPluginNS;
+        using namespace request;
+
         InferenceEngine::TensorDesc td{InferenceEngine::Precision::FP32, {1, 1}, InferenceEngine::Layout::HW};
         auto fakeInfo = std::make_shared<InferenceEngine::InputInfo>();
         auto fakePtr = std::make_shared<InferenceEngine::Data>("fakeName", td);
@@ -38,10 +41,11 @@ public:
         outputs_data_map_["fakeOut"] = fakePtr;
         inputs_data_map_["fakeIn"] = fakeInfo;
 
-        std::vector<GNAPluginNS::ModelSubrequest> subrequests;
+
+
+        std::vector<Subrequest> subrequests;
 
         // Code below could be replaced with LoadNetwork with at least one layer
-        auto acceleration_mode = config.pluginGna2AccMode;
         std::weak_ptr<GNADevice> weak_device = gnadevice;
 
         auto enqueue = []() -> uint32_t {
@@ -55,9 +59,9 @@ public:
             THROW_GNA_EXCEPTION << "device is nullptr";
         };
 
-        auto model = GNAPluginNS::Gna2ModelWrapperFactory::create_with_number_of_empty_operations(1);
+        auto model = ModelWrapperFactory::create_with_number_of_empty_operations(1);
         subrequests.emplace_back(enqueue, wait);
-        auto model_worker = std::make_shared<GNAPluginNS::ModelWorkerImpl>(model, std::move(subrequests));
+        auto model_worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
 
         request_pool_->add_model_worker(model_worker);
         model_worker->enqueue_request();

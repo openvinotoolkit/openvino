@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <model_worker_pool_impl.hpp>
+#include <request/worker_pool_impl.hpp>
 
 //using namespace testing;
 //using namespace InferenceEngine;
@@ -14,7 +14,7 @@
 
  TEST_F(GNA_Request_test, RequestConstructor) {
      std::cout << "cpp: " << __cplusplus << std::endl;
-     ASSERT_NO_THROW(GNAPluginNS::ModelWorkerPoolImpl());
+     ASSERT_NO_THROW(GNAPluginNS::request::WorkerPoolImpl());
  }
 
 

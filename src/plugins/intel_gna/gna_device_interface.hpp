@@ -4,17 +4,19 @@
 
 #pragma once
 
-#include <cstdint>
 #include <gna2-inference-api.h>
+
+#include <cstdint>
 
 #include "request_status.hpp"
 
 enum Gna2AccelerationMode;
 class Gna2Model;
 
+namespace GNAPluginNS {
 // Interface name is different to the file naem due the lagacy reason.
 // 1. Implementation file names should be changed in next PR.
-// 2. Interface and Implementation should be moved to GNAPluginNS namespace
+// 2. Implementation of interface should be moved to GNAPluginNS namespace
 
 /**
  * @interface Interface for invoking operation on GNA device.
@@ -37,3 +39,5 @@ public:
     virtual uint32_t enqueue_request(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) = 0;
     virtual GNAPluginNS::RequestStatus wait_for_reuqest(uint32_t id, int64_t millisTimeout) = 0;
 };
+
+}  // namespace GNAPluginNS

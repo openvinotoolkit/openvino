@@ -33,7 +33,7 @@
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper : public GNADevice {
+class GNADeviceHelper : public GNAPluginNS::GNADevice {
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
         static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion() };

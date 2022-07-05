@@ -39,9 +39,9 @@
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
 #include "gna2_model_helper.hpp"
-#include "gna2_model_wrapper_factory.hpp"
-#include "model_worker_pool_impl.hpp"
-#include "model_worker_factory.hpp"
+#include "request/model_wrapper_factory.hpp"
+#include "request/worker_pool_impl.hpp"
+#include "request/worker_factory.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -359,7 +359,7 @@ void GNAPlugin::Init() {
     graphCompiler.setGNAFlagsPtr(gnaFlags);
     graphCompiler.setInputsPtr(inputs_ptr_);
 
-    request_pool_ = std::make_shared<ModelWorkerPoolImpl>();
+    request_pool_ = std::make_shared<request::WorkerPoolImpl>();
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -1142,34 +1142,35 @@ std::string GNAPluginNS::GNAPlugin::effective_gna_compile_target() const {
     }
     return config.gnaCompileTarget;
 }
-std::shared_ptr<ModelWorker> GNAPlugin::create_model_worker_for_load_network(bool trivial, bool fp32_mode) {
+std::shared_ptr<request::Worker> GNAPlugin::create_model_worker_for_load_network(bool trivial, bool fp32_mode) {
     return create_model_worker(create_model_wrapper_for_load_network(trivial), trivial, fp32_mode);
 }
 
-std::shared_ptr<ModelWorker> GNAPlugin::create_model_worker(std::shared_ptr<Gna2ModelWrapper> model_wrapper,
+std::shared_ptr<request::Worker> GNAPlugin::create_model_worker(std::shared_ptr<request::ModelWrapper> model_wrapper,
                                                             bool trivial,
                                                             bool fp32_mode) {
     if (trivial) {
-        return ModelWorkerFactory::create_model_worker_trivial_topology(std::move(model_wrapper));
+        return request::WorkerFactory::create_model_worker_trivial_topology(std::move(model_wrapper));
     }
 
     if (fp32_mode) {
         if (!dnn) {
             THROW_GNA_EXCEPTION << "dnn is nullptr cannot run fp32 mode";
         }
-        return ModelWorkerFactory::create_model_worker_fp32(std::move(model_wrapper), dnn);
+        return request::WorkerFactory::create_model_worker_fp32(std::move(model_wrapper), dnn);
     }
 
     // This shouldn't happend due the fact device is created when gnaFlags->sw_fp32 is false.
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "device is nullptr cannot run in device mode";
     }
-    return ModelWorkerFactory::create_model_worker(std::move(model_wrapper), gnadevice, config.pluginGna2AccMode);
+
+    return request::WorkerFactory::create_model_worker(std::move(model_wrapper), gnadevice, config.pluginGna2AccMode);
 }
 
-std::shared_ptr<Gna2ModelWrapper> GNAPlugin::create_model_wrapper_for_load_network(bool trivial) {
+std::shared_ptr<request::ModelWrapper> GNAPlugin::create_model_wrapper_for_load_network(bool trivial) {
     if (trivial) {
-        return Gna2ModelWrapperFactory::create_trivial();
+        return request::ModelWrapperFactory::create_trivial();
     }
 
     if (!dnn) {
@@ -1186,12 +1187,12 @@ std::shared_ptr<Gna2ModelWrapper> GNAPlugin::create_model_wrapper_for_load_netwo
         THROW_GNA_EXCEPTION << "dnn is nullptr";
     };
 
-    return Gna2ModelWrapperFactory::create_initialized(std::move(initializer));
+    return request::ModelWrapperFactory::create_initialized(std::move(initializer));
 }
 
-std::shared_ptr<Gna2ModelWrapper> GNAPluginNS::GNAPlugin::create_model_wrapper_for_import_network(
+std::shared_ptr<request::ModelWrapper> GNAPluginNS::GNAPlugin::create_model_wrapper_for_import_network(
     uint32_t number_of_operations) {
-    return Gna2ModelWrapperFactory::create_with_number_of_empty_operations(number_of_operations);
+    return request::ModelWrapperFactory::create_with_number_of_empty_operations(number_of_operations);
 }
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {

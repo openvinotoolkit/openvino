@@ -26,10 +26,11 @@
 #include <gna2-model-api.h>
 
 namespace GNAPluginNS {
-
-class Gna2ModelWrapper;
-class ModelWorkerPool;
-class ModelWorker;
+namespace request {
+class ModelWrapper;
+class WorkerPool;
+class Worker;
+}  // namespace request
 
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
@@ -55,7 +56,7 @@ protected:
 
     std::shared_ptr<GNADeviceHelper> gnadevice;
 
-    std::shared_ptr<ModelWorkerPool> request_pool_;
+    std::shared_ptr<request::WorkerPool> request_pool_;
 
     /**
      * @brief size of RW segment without extra memory for parallel execution
@@ -220,10 +221,10 @@ protected:
 
     bool is_fp32_mode_active() const;
     std::string effective_gna_compile_target() const;
-    std::shared_ptr<Gna2ModelWrapper> create_model_wrapper_for_load_network(bool trivial);
-    std::shared_ptr<Gna2ModelWrapper> create_model_wrapper_for_import_network(uint32_t number_of_operations);
-    std::shared_ptr<ModelWorker> create_model_worker_for_load_network(bool trivial, bool fp32_mode);
-    std::shared_ptr<ModelWorker> create_model_worker(std::shared_ptr<Gna2ModelWrapper> model_wrapper,
+    std::shared_ptr<request::ModelWrapper> create_model_wrapper_for_load_network(bool trivial);
+    std::shared_ptr<request::ModelWrapper> create_model_wrapper_for_import_network(uint32_t number_of_operations);
+    std::shared_ptr<request::Worker> create_model_worker_for_load_network(bool trivial, bool fp32_mode);
+    std::shared_ptr<request::Worker> create_model_worker(std::shared_ptr<request::ModelWrapper> model_wrapper,
                                                      bool trivial,
                                                      bool fp32_mode);
 

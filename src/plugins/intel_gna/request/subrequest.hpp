@@ -10,18 +10,19 @@
 #include "request_status.hpp"
 
 namespace GNAPluginNS {
+namespace request {
 
-class ModelSubrequest {
+class Subrequest {
 public:
     using EnqueueHandler = std::function<uint32_t()>;
     using WaitHandler = std::function<RequestStatus(uint32_t request_id, int64_t timeout_milliseconds)>;
 
-    ModelSubrequest(EnqueueHandler enqueue_handler, WaitHandler wait_handler);
+    Subrequest(EnqueueHandler enqueue_handler, WaitHandler wait_handler);
 
-    ModelSubrequest(const ModelSubrequest&) = default;
-    ModelSubrequest(ModelSubrequest&&) = default;
-    ModelSubrequest& operator=(const ModelSubrequest&) = default;
-    ModelSubrequest& operator=(ModelSubrequest&&) = default;
+    Subrequest(const Subrequest&) = default;
+    Subrequest(Subrequest&&) = default;
+    Subrequest& operator=(const Subrequest&) = default;
+    Subrequest& operator=(Subrequest&&) = default;
 
     RequestStatus wait(int64_t timeout_miliseconds);
     void enqueue();
@@ -38,4 +39,5 @@ private:
     WaitHandler wait_handler_;
 };
 
+}  // namespace request
 }  // namespace GNAPluginNS

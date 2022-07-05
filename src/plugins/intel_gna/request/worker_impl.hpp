@@ -11,20 +11,22 @@
 #include <memory>
 #include <vector>
 
-#include "model_worker.hpp"
+#include "worker.hpp"
 
 namespace GNAPluginNS {
-class Gna2ModelWrapper;
-class ModelSubrequest;
+namespace request {
 
-class ModelWorkerImpl : public ModelWorker {
+class ModelWrapper;
+class Subrequest;
+
+class WorkerImpl : public Worker {
 public:
-    explicit ModelWorkerImpl(std::shared_ptr<Gna2ModelWrapper> model, std::vector<ModelSubrequest> model_subrequests);
+    explicit WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> model_subrequests);
 
-    ModelWorkerImpl(const ModelWorkerImpl&) = delete;
-    ModelWorkerImpl(ModelWorkerImpl&&) = delete;
-    ModelWorkerImpl& operator=(const ModelWorkerImpl&) = delete;
-    ModelWorkerImpl& operator=(ModelWorkerImpl&&) = delete;
+    WorkerImpl(const WorkerImpl&) = delete;
+    WorkerImpl(WorkerImpl&&) = delete;
+    WorkerImpl& operator=(const WorkerImpl&) = delete;
+    WorkerImpl& operator=(WorkerImpl&&) = delete;
 
     const Gna2Model* model() const override;
     Gna2Model* model() override;
@@ -48,9 +50,10 @@ private:
     void check_if_free();
 
     uint32_t representing_index_{0};
-    std::shared_ptr<Gna2ModelWrapper> full_model_;
-    std::vector<ModelSubrequest> model_subrequests_;
+    std::shared_ptr<ModelWrapper> full_model_;
+    std::vector<Subrequest> model_subrequests_;
     InferenceEngine::BlobMap request_result_;
 };
 
+}  // namespace request
 }  // namespace GNAPluginNS
