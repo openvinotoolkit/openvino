@@ -25,6 +25,12 @@ struct Config {
         On,
     };
 
+    enum DenormalsOptMode {
+        DO_Keep,
+        DO_Off,
+        DO_On,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
@@ -45,6 +51,8 @@ struct Config {
     std::set<std::string> cpuExperimental;
 
     std::string cache_dir{};
+
+    DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

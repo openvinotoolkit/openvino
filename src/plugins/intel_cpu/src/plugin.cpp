@@ -120,6 +120,7 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
+#include "utils/denormals.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -792,6 +793,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+    static Xbyak::util::Cpu cpu;
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+            flush_to_zero(true);
+            denormals_as_zero(true);
+        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+            flush_to_zero(false);
+            denormals_as_zero(false);
+        }
     }
 
     return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());
