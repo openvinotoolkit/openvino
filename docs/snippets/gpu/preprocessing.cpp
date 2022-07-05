@@ -27,12 +27,13 @@ int main() {
     auto infer_request = compiled_model.create_infer_request();
 
 {
-
     //! [single_batch]
+    auto input0 = model_with_preproc->get_parameters().at(0);
+    auto input1 = model_with_preproc->get_parameters().at(1);
     ov::intel_gpu::ocl::ClImage2DTensor y_tensor = get_y_tensor();
     ov::intel_gpu::ocl::ClImage2DTensor uv_tensor = get_uv_tensor();
-    infer_request.set_tensor("y", y_tensor);
-    infer_request.set_tensor("uv", uv_tensor);
+    infer_request.set_tensor(input0->get_friendly_name(), y_tensor);
+    infer_request.set_tensor(input1->get_friendly_name(), uv_tensor);
     infer_request.infer();
     //! [single_batch]
 }
@@ -43,10 +44,12 @@ int main() {
     auto uv_tensor_0 = get_uv_tensor();
     auto uv_tensor_1 = get_uv_tensor();
     //! [batched_case]
+    auto input0 = model_with_preproc->get_parameters().at(0);
+    auto input1 = model_with_preproc->get_parameters().at(1);
     std::vector<ov::Tensor> y_tensors = {y_tensor_0, y_tensor_1};
     std::vector<ov::Tensor> uv_tensors = {uv_tensor_0, uv_tensor_1};
-    infer_request.set_tensors("y", y_tensors);
-    infer_request.set_tensors("uv", uv_tensors);
+    infer_request.set_tensors(input0->get_friendly_name(), y_tensors);
+    infer_request.set_tensors(input1->get_friendly_name(), uv_tensors);
     infer_request.infer();
     //! [batched_case]
 }
