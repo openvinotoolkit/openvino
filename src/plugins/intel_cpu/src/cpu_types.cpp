@@ -64,6 +64,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "PRelu", Type::Eltwise },
         { "Erf", Type::Eltwise },
         { "SoftPlus", Type::Eltwise },
+        { "SoftSign", Type::Eltwise },
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },

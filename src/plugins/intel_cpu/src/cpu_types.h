@@ -169,6 +169,7 @@ enum class Algorithm {
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
+    EltwiseSoftSign,
 
     // FakeQuantize algorithms
     FQCommon,
