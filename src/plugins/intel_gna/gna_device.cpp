@@ -51,7 +51,7 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
     // check GNA Library version
     const auto gnaLibVersion = GetGnaLibraryVersion();
 
-    max_layers_count_ = retrieve_max_layers_count();
+    maxLayersCount_ = retrieveMaxLayersCount();
 }
 
 GNADeviceHelper ::~GNADeviceHelper() {
@@ -157,7 +157,7 @@ void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& 
     }
 }
 
-uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
+uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
@@ -166,7 +166,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
 
-    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
+    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigID, gna2AccelerationMode);
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
 
     if (debugLogEnabled) {
@@ -174,7 +174,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         debugLogIndexRequestEnqueue++;
     }
 
-    const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
+    const auto status2 = Gna2RequestEnqueue(requestConfigID, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
 
     unwaitedRequestIds.insert(reqId);
@@ -287,10 +287,10 @@ Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const 
     return parseDeclaredTarget(declared, execTarget);
 }
 
-uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) const {
+uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelID) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    uint32_t reqConfId;
-    auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
+    uint32_t reqConfId = 0;
+    auto status = Gna2RequestConfigCreate(modelID, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
 
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
@@ -486,13 +486,13 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
             {{Gna2OperationTypeThreshold, 1}, "Output"}
 };
 
-GNAPluginNS::RequestStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2RequestWait(reqId, millisTimeout);
+    const auto status = Gna2RequestWait(requestID, timeoutMilliseconds);
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNAPluginNS::RequestStatus::kPending;
     }
-    unwaitedRequestIds.erase(reqId);
+    unwaitedRequestIds.erase(requestID);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
         return GNAPluginNS::RequestStatus::kAborted;
     }
@@ -582,7 +582,7 @@ void GNADeviceHelper::close() {
     auto requestsToClose = unwaitedRequestIds;
     for (auto requestId : requestsToClose) {
         try {
-            wait(requestId);
+            waitForRequest(requestId);
         } catch (...) {
             gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
         }
@@ -638,40 +638,21 @@ std::string GNADeviceHelper::GetCompileTarget() const {
     return found->second;
 }
 
-// these methos are needed to support GNADevice interface.
-// GNADeviceHelper shouldbe some kind of facade implementing GNADevice interface and not used
-// directly in the code only by pointer to super class.
-uint32_t GNADeviceHelper::create_model(Gna2Model& gnaModel) const {
-    return createModel(gnaModel);
+uint32_t GNADeviceHelper::maxLayersCount() const {
+    return maxLayersCount_;
 }
 
-uint32_t GNADeviceHelper::create_request_config(const uint32_t model_id) const {
-    return createRequestConfig(model_id);
-}
-
-uint32_t GNADeviceHelper::max_layers_count() const {
-    return max_layers_count_;
-}
-
-uint32_t GNADeviceHelper::retrieve_max_layers_count() {
+uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     using namespace GNAPluginNS::GNALimitations;
 
     switch (getTargetDevice(true)) {
     case Gna2DeviceVersion1_0:
-        return MaxLayersCountGNA1_0;
+        return kMaxLayersCountGNA1_0;
     case Gna2DeviceVersion2_0:
-        return MaxLayersCountGNA2_0;
+        return kMaxLayersCountGNA2_0;
     case Gna2DeviceVersion3_0:
     case Gna2DeviceVersion3_5:
     default:
-        return max_layers_count_ = MaxLayersCountGNA3_X;
+        return kMaxLayersCountGNA3_X;
     }
-}
-
-uint32_t GNADeviceHelper::enqueue_request(const uint32_t requestConfigId, const Gna2AccelerationMode gna2AccelerationMode) {
-    return propagate(requestConfigId, gna2AccelerationMode);
-}
-
-GNAPluginNS::RequestStatus GNADeviceHelper::wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) {
-    return wait(request_id, timeout_milliseconds);
 }

@@ -17,55 +17,55 @@ namespace request {
 
 constexpr const uint32_t WorkerFactory::kFakeRequestID;
 
-std::shared_ptr<Worker> WorkerFactory::create_model_worker(std::shared_ptr<ModelWrapper> model,
-                                                           std::shared_ptr<GNADevice> device,
-                                                           const Gna2AccelerationMode acceleration_mode) {
-    return std::make_shared<WorkerImpl>(model, create_model_subrequests(model, std::move(device), acceleration_mode));
+std::shared_ptr<Worker> WorkerFactory::createWorker(std::shared_ptr<ModelWrapper> model,
+                                                    std::shared_ptr<GNADevice> device,
+                                                    const Gna2AccelerationMode accelerationMode) {
+    return std::make_shared<WorkerImpl>(model, createModelSubrequests(model, std::move(device), accelerationMode));
 }
 
-std::shared_ptr<Worker> WorkerFactory::create_model_worker_fp32(std::shared_ptr<ModelWrapper> model,
-                                                                std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
-    return std::make_shared<WorkerImpl>(model, create_model_subrequests_fp32(model, std::move(dnn)));
+std::shared_ptr<Worker> WorkerFactory::createWorkerFP32(std::shared_ptr<ModelWrapper> model,
+                                                        std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
+    return std::make_shared<WorkerImpl>(model, createModelSubrequestsFP32(model, std::move(dnn)));
 }
 
-std::shared_ptr<Worker> WorkerFactory::create_model_worker_trivial_topology(std::shared_ptr<ModelWrapper> model) {
-    return std::make_shared<WorkerImpl>(std::move(model), create_model_subrequests_trivial());
+std::shared_ptr<Worker> WorkerFactory::createWorkerTrivialTopology(std::shared_ptr<ModelWrapper> model) {
+    return std::make_shared<WorkerImpl>(std::move(model), createModelSubrequestsTrivial());
 }
 
-std::vector<Subrequest> WorkerFactory::create_model_subrequests(std::shared_ptr<ModelWrapper> model,
-                                                                std::shared_ptr<GNADevice> device,
-                                                                const Gna2AccelerationMode acceleration_mode) {
+std::vector<Subrequest> WorkerFactory::createModelSubrequests(std::shared_ptr<ModelWrapper> model,
+                                                              std::shared_ptr<GNADevice> device,
+                                                              const Gna2AccelerationMode accelerationMode) {
     std::vector<Subrequest> subrequests;
     if (!device) {
         THROW_GNA_EXCEPTION << "device is nullptr";
     }
 
-    uint16_t layers_limit = device->max_layers_count();
-    auto slices_number = model->object().NumberOfOperations / layers_limit;
-    slices_number += (model->object().NumberOfOperations % layers_limit) ? 1 : 0;
-    auto total_operations_number = model->object().NumberOfOperations;
+    uint16_t layersLimit = device->maxLayersCount();
+    auto submodelsNumber = model->object().NumberOfOperations / layersLimit;
+    submodelsNumber += (model->object().NumberOfOperations % layersLimit) ? 1 : 0;
+    auto totalOperationsNumber = model->object().NumberOfOperations;
 
-    std::weak_ptr<GNADevice> weak_device = device;
+    std::weak_ptr<GNADevice> weakDevice = device;
 
-    auto wait = [weak_device](uint32_t request_id, int64_t timeout_milliseconds) -> RequestStatus {
-        if (auto device = weak_device.lock()) {
-            return device->wait_for_reuqest(request_id, timeout_milliseconds);
+    auto wait = [weakDevice](uint32_t requestID, int64_t timeoutMilliseconds) -> RequestStatus {
+        if (auto device = weakDevice.lock()) {
+            return device->waitForRequest(requestID, timeoutMilliseconds);
         }
         THROW_GNA_EXCEPTION << "device is nullptr";
     };
 
-    for (int i = 0; i < slices_number; ++i) {
+    for (int i = 0; i < submodelsNumber; ++i) {
         // this models are needed only temporarily to create configurations
-        Gna2Model temp_model;
-        temp_model.NumberOfOperations =
-            (i + 1 < slices_number ? layers_limit : total_operations_number - i * layers_limit);
-        temp_model.Operations = &model->object().Operations[i * layers_limit];
-        const auto model_id = device->create_model(temp_model);
-        const auto request_config_id = device->create_request_config(model_id);
+        Gna2Model tempModel;
+        tempModel.NumberOfOperations =
+            (i + 1 < submodelsNumber ? layersLimit : totalOperationsNumber - i * layersLimit);
+        tempModel.Operations = &model->object().Operations[i * layersLimit];
+        const auto modelID = device->createModel(tempModel);
+        const auto requestConfigID = device->createRequestConfig(modelID);
 
-        auto enqueue = [weak_device, request_config_id, acceleration_mode]() -> uint32_t {
-            if (auto device = weak_device.lock()) {
-                return device->enqueue_request(request_config_id, acceleration_mode);
+        auto enqueue = [weakDevice, requestConfigID, accelerationMode]() -> uint32_t {
+            if (auto device = weakDevice.lock()) {
+                return device->enqueueRequest(requestConfigID, accelerationMode);
             }
             THROW_GNA_EXCEPTION << "device is nullptr";
         };
@@ -75,7 +75,7 @@ std::vector<Subrequest> WorkerFactory::create_model_subrequests(std::shared_ptr<
     return subrequests;
 }
 
-std::vector<Subrequest> WorkerFactory::create_model_subrequests_fp32(
+std::vector<Subrequest> WorkerFactory::createModelSubrequestsFP32(
     std::shared_ptr<ModelWrapper> model,
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
     std::vector<Subrequest> subrequests;
@@ -86,7 +86,7 @@ std::vector<Subrequest> WorkerFactory::create_model_subrequests_fp32(
 
     std::weak_ptr<GNAPluginNS::backend::AMIntelDNN> weak_dnn = dnn;
 
-    auto enque_fp32 = [weak_dnn]() -> uint32_t {
+    auto enqueFP32 = [weak_dnn]() -> uint32_t {
         if (auto dnn = weak_dnn.lock()) {
             auto runtime = runtime::FP(dnn);
             runtime.infer();
@@ -96,26 +96,26 @@ std::vector<Subrequest> WorkerFactory::create_model_subrequests_fp32(
         THROW_GNA_EXCEPTION << "dnn is nullptr";
     };
 
-    auto wait_simple = [](uint32_t, int64_t timeout_miliseconds) {
+    auto waitSimple = [](uint32_t, int64_t) {
         return RequestStatus::kCompleted;
     };
 
-    subrequests.emplace_back(std::move(enque_fp32), std::move(wait_simple));
+    subrequests.emplace_back(std::move(enqueFP32), std::move(waitSimple));
     return subrequests;
 }
 
-std::vector<Subrequest> WorkerFactory::create_model_subrequests_trivial() {
+std::vector<Subrequest> WorkerFactory::createModelSubrequestsTrivial() {
     std::vector<Subrequest> subrequests;
 
-    auto enque_simple = []() {
+    auto enqueSimple = []() {
         return kFakeRequestID;
     };
 
-    auto wait_simple = [](uint32_t, int64_t timeout_miliseconds) {
+    auto waitSimple = [](uint32_t, int64_t) {
         return RequestStatus::kCompleted;
     };
 
-    subrequests.emplace_back(std::move(enque_simple), std::move(wait_simple));
+    subrequests.emplace_back(std::move(enqueSimple), std::move(waitSimple));
     return subrequests;
 }
 

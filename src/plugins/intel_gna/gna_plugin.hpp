@@ -56,7 +56,7 @@ protected:
 
     std::shared_ptr<GNADeviceHelper> gnadevice;
 
-    std::shared_ptr<request::WorkerPool> request_pool_;
+    std::shared_ptr<request::WorkerPool> requestWorkerPool_;
 
     /**
      * @brief size of RW segment without extra memory for parallel execution
@@ -219,14 +219,14 @@ protected:
      */
     void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
 
-    bool is_fp32_mode_active() const;
-    std::string effective_gna_compile_target() const;
-    std::shared_ptr<request::ModelWrapper> create_model_wrapper_for_load_network(bool trivial);
-    std::shared_ptr<request::ModelWrapper> create_model_wrapper_for_import_network(uint32_t number_of_operations);
-    std::shared_ptr<request::Worker> create_model_worker_for_load_network(bool trivial, bool fp32_mode);
-    std::shared_ptr<request::Worker> create_model_worker(std::shared_ptr<request::ModelWrapper> model_wrapper,
-                                                     bool trivial,
-                                                     bool fp32_mode);
+    bool isFP32ModeActive() const;
+    std::string effectiveGnaCompileTarget() const;
+    std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
+    std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
+    std::shared_ptr<request::Worker> createWorkerForLoadNetwork(bool trivial, bool fp32Mode);
+    std::shared_ptr<request::Worker> createWorker(std::shared_ptr<request::ModelWrapper> modelWrapper,
+                                                  bool trivial,
+                                                  bool fp32Mode);
 
 #ifdef PLOT
     void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,

@@ -26,20 +26,20 @@ class WorkerFactory {
 public:
     WorkerFactory() = delete;
 
-    static std::shared_ptr<Worker> create_model_worker(std::shared_ptr<ModelWrapper> model,
-                                                       std::shared_ptr<GNADevice> device,
-                                                       const Gna2AccelerationMode acceleration_mode);
-    static std::shared_ptr<Worker> create_model_worker_fp32(std::shared_ptr<ModelWrapper> model,
-                                                            std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn);
-    static std::shared_ptr<Worker> create_model_worker_trivial_topology(std::shared_ptr<ModelWrapper> model);
+    static std::shared_ptr<Worker> createWorker(std::shared_ptr<ModelWrapper> model,
+                                                std::shared_ptr<GNADevice> device,
+                                                const Gna2AccelerationMode accelerationMode);
+    static std::shared_ptr<Worker> createWorkerFP32(std::shared_ptr<ModelWrapper> model,
+                                                    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn);
+    static std::shared_ptr<Worker> createWorkerTrivialTopology(std::shared_ptr<ModelWrapper> model);
 
 private:
-    static std::vector<Subrequest> create_model_subrequests(std::shared_ptr<ModelWrapper> model,
-                                                            std::shared_ptr<GNADevice> device,
-                                                            const Gna2AccelerationMode acceleration_mode);
-    static std::vector<Subrequest> create_model_subrequests_fp32(std::shared_ptr<ModelWrapper> model,
-                                                                 std::shared_ptr<backend::AMIntelDNN> dnn);
-    static std::vector<Subrequest> create_model_subrequests_trivial();
+    static std::vector<Subrequest> createModelSubrequests(std::shared_ptr<ModelWrapper> model,
+                                                          std::shared_ptr<GNADevice> device,
+                                                          const Gna2AccelerationMode accelerationMode);
+    static std::vector<Subrequest> createModelSubrequestsFP32(std::shared_ptr<ModelWrapper> model,
+                                                              std::shared_ptr<backend::AMIntelDNN> dnn);
+    static std::vector<Subrequest> createModelSubrequestsTrivial();
 
     static constexpr const uint32_t kFakeRequestID{1};
 };

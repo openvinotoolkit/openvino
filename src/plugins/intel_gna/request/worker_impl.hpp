@@ -19,40 +19,83 @@ namespace request {
 class ModelWrapper;
 class Subrequest;
 
+/**
+ * @class Implementation of @see Worker interface.
+ */
 class WorkerImpl : public Worker {
 public:
-    explicit WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> model_subrequests);
+    /**
+     * @brief Contrcut {WorkerImpl} object
+     * @param model potiner to represented model
+     * @param modelSubrequests subrequests to enqueued for given model
+     * @throw Exception when model is nullptr or modelSubrequests is empty
+     */
+    explicit WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> modelSubrequests);
 
     WorkerImpl(const WorkerImpl&) = delete;
     WorkerImpl(WorkerImpl&&) = delete;
     WorkerImpl& operator=(const WorkerImpl&) = delete;
     WorkerImpl& operator=(WorkerImpl&&) = delete;
 
+    /**
+     * @brief Destroy {WorkerImpl} object
+     */
+    ~WorkerImpl() override = default;
+
+    /**
+     * @see Worker::model()
+     */
     const Gna2Model* model() const override;
+
+    /**
+     * @see Worker::model()
+     */
     Gna2Model* model() override;
 
-    void enqueue_request() override;
+    /**
+     * @see Worker::enqueueRequest()
+     */
+    void enqueueRequest() override;
 
-    RequestStatus wait(int64_t timeout_miliseconds) override;
+    /**
+     * @see Worker::wait()
+     */
+    RequestStatus wait(int64_t timeoutMilliseconds) override;
 
-    bool is_free() const override;
+    bool isFree() const override;
 
-    uint32_t representing_index() const override;
+    /**
+     * @see Worker::representingIndex()
+     */
+    uint32_t representingIndex() const override;
 
-    void set_representing_index(uint32_t index) override;
+    /**
+     * @see Worker::setRepresentingIndex()
+     */
+    void setRepresentingIndex(uint32_t index) override;
 
-    void set_result(const InferenceEngine::BlobMap& result) override;
-    void set_result(InferenceEngine::BlobMap&& result) override;
-
+    /**
+     * @see Worker::result()
+     */
     InferenceEngine::BlobMap& result() override;
+
+    /**
+     * @see Worker::setResult()
+     */
+    void setResult(const InferenceEngine::BlobMap& result) override;
+
+    /**
+     * @see Worker::setResult()
+     */
+    void setResult(InferenceEngine::BlobMap&& result) override;
 
 private:
     void check_if_free();
 
-    uint32_t representing_index_{0};
-    std::shared_ptr<ModelWrapper> full_model_;
-    std::vector<Subrequest> model_subrequests_;
-    InferenceEngine::BlobMap request_result_;
+    uint32_t representingIndex_{0};
+    std::shared_ptr<ModelWrapper> fullModel_;
+    std::vector<Subrequest> modelSubrequests_;
+    InferenceEngine::BlobMap requestResult_;
 };
 
 }  // namespace request

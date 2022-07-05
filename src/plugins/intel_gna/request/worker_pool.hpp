@@ -12,22 +12,71 @@
 namespace GNAPluginNS {
 namespace request {
 
+/**
+ * @interface Interface of pool of workers. Interface allows to add and retrieve the workers.
+ */
 class WorkerPool {
 public:
+    /**
+     * Destruct {WorkerPool} object
+     */
     virtual ~WorkerPool() = default;
 
-    virtual void add_model_worker(std::shared_ptr<Worker> model) = 0;
+    /**
+     * @brief Add worker to the pool. If more than one worker is added more than request can be queued at the same time.
+     * @worker pointer to worker to tbe added to the pool.
+     */
+    virtual void addModelWorker(std::shared_ptr<Worker> worker) = 0;
 
+    /**
+     * @brief Return number of workers in the pool.
+     */
     virtual size_t size() const = 0;
+
+    /**
+     * @brief Return true if there is no workers in the pool, otherwise return false
+     */
     virtual size_t empty() const = 0;
 
-    virtual Worker& model_worker(uint32_t request_index) = 0;
-    virtual const Worker& model_worker(uint32_t request_index) const = 0;
-    virtual Worker& first_worker() = 0;
-    virtual const Worker& first_worker() const = 0;
-    virtual Worker& last_worker() = 0;
-    virtual const Worker& last_worker() const = 0;
-    virtual std::shared_ptr<Worker> find_free_model_worker() = 0;
+    /**
+     * @brief Return worker for given index.
+     * @param index of worker to be returned
+     * @return reference to the worker for index.
+     */
+    virtual Worker& worker(uint32_t index) = 0;
+
+    /**
+     * @brief Return worker for given index.
+     * @param index of worker to be returned
+     * @return reference to the worker for index.
+     */
+    virtual const Worker& worker(uint32_t index) const = 0;
+
+    /**
+     * @brief Return worker which was added to the pool as the first one
+     */
+    virtual Worker& firstWorker() = 0;
+
+    /**
+     * @brief Return worker which was added to the pool as the first one
+     */
+    virtual const Worker& firstWorker() const = 0;
+
+    /**
+     * @brief Return worker which was added to the pool as the last one
+     */
+    virtual Worker& lastWorker() = 0;
+
+    /**
+     * @brief Return worker which was added to the pool the last one
+     */
+    virtual const Worker& lastWorker() const = 0;
+
+    /**
+     * @brief Return worker which is not busy.
+     * @return pointer to free worker, nullptr in case no free worker was found.
+     */
+    virtual std::shared_ptr<Worker> findFreeModelWorker() = 0;
 };
 
 }  // namespace request

@@ -11,38 +11,38 @@
 namespace GNAPluginNS {
 namespace request {
 
-Subrequest::Subrequest(EnqueueHandler enqueue_handler, WaitHandler wait_handler)
-    : enqueue_handler_(std::move(enqueue_handler)),
-      wait_handler_(std::move(wait_handler)) {
-    if (!enqueue_handler_ || !wait_handler_) {
+Subrequest::Subrequest(EnqueueHandler enqueueHandler, WaitHandler waitHandler)
+    : enqueueHandler_(std::move(enqueueHandler)),
+      waitHandler_(std::move(waitHandler)) {
+    if (!enqueueHandler_ || !waitHandler_) {
         THROW_GNA_EXCEPTION << "handlers cannot be nullptr";
     }
 }
 
-RequestStatus Subrequest::wait(int64_t timeout_miliseconds) {
-    if (!is_pending()) {
+RequestStatus Subrequest::wait(int64_t timeoutMilliseconds) {
+    if (!isPending()) {
         return status_;
     }
 
-    status_ = wait_handler_(request_id_, timeout_miliseconds);
+    status_ = waitHandler_(requestID_, timeoutMilliseconds);
 
     return status_;
 }
 
 void Subrequest::enqueue() {
-    request_id_ = enqueue_handler_();
+    requestID_ = enqueueHandler_();
     status_ = RequestStatus::kPending;
 }
 
-bool Subrequest::is_pending() const {
+bool Subrequest::isPending() const {
     return status_ == RequestStatus::kPending;
 }
 
-bool Subrequest::is_aborted() const {
+bool Subrequest::isAborted() const {
     return status_ == RequestStatus::kAborted;
 }
 
-bool Subrequest::is_completed() const {
+bool Subrequest::isCompleted() const {
     return status_ == RequestStatus::kCompleted;
 }
 

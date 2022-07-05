@@ -16,9 +16,9 @@ class ModelWrapperFactory {
 public:
     using ModelInitializer = std::function<void(Gna2Model* gnaModel)>;
 
-    static std::shared_ptr<ModelWrapper> create_trivial();
-    static std::shared_ptr<ModelWrapper> create_with_number_of_empty_operations(uint32_t number_of_operations);
-    static std::shared_ptr<ModelWrapper> create_initialized(ModelInitializer initializer);
+    static std::shared_ptr<ModelWrapper> createTrivial();
+    static std::shared_ptr<ModelWrapper> createWithNumberOfEmptyOperations(uint32_t number_of_operations);
+    static std::shared_ptr<ModelWrapper> createInitialized(ModelInitializer initializer);
 };
 
 }  // namespace request

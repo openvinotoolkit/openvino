@@ -12,13 +12,12 @@
 namespace GNAPluginNS {
 namespace request {
 
-std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_trivial() {
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::createTrivial() {
     return std::make_shared<ModelWrapper>(ModelWrapper::ConstructionPassKey());
 }
 
-std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_with_number_of_empty_operations(
-    uint32_t number_of_operations) {
-    auto wrapper = create_trivial();
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::createWithNumberOfEmptyOperations(uint32_t number_of_operations) {
+    auto wrapper = createTrivial();
 
     if (number_of_operations == 0) {
         return wrapper;
@@ -43,8 +42,8 @@ std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_with_number_of_empty_o
     return wrapper;
 }
 
-std::shared_ptr<ModelWrapper> ModelWrapperFactory::create_initialized(ModelInitializer initializer) {
-    auto wrapper = create_trivial();
+std::shared_ptr<ModelWrapper> ModelWrapperFactory::createInitialized(ModelInitializer initializer) {
+    auto wrapper = createTrivial();
     initializer(&wrapper->object());
     return wrapper;
 }

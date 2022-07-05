@@ -46,25 +46,25 @@ public:
         std::vector<Subrequest> subrequests;
 
         // Code below could be replaced with LoadNetwork with at least one layer
-        std::weak_ptr<GNADevice> weak_device = gnadevice;
+        std::weak_ptr<GNADevice> weakDevice = gnadevice;
 
         auto enqueue = []() -> uint32_t {
             return 1;
         };
 
-        auto wait = [weak_device](uint32_t request_id, int64_t timeout_milliseconds) {
-            if (auto device = weak_device.lock()) {
-                return device->wait_for_reuqest(request_id, timeout_milliseconds);
+        auto wait = [weakDevice](uint32_t requestID, int64_t timeoutMilliseconds) {
+            if (auto device = weakDevice.lock()) {
+                return device->waitForRequest(requestID, timeoutMilliseconds);
             }
             THROW_GNA_EXCEPTION << "device is nullptr";
         };
 
-        auto model = ModelWrapperFactory::create_with_number_of_empty_operations(1);
+        auto model = ModelWrapperFactory::createWithNumberOfEmptyOperations(1);
         subrequests.emplace_back(enqueue, wait);
-        auto model_worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
+        auto worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
 
-        request_pool_->add_model_worker(model_worker);
-        model_worker->enqueue_request();
+        requestWorkerPool_->addModelWorker(worker);
+        worker->enqueueRequest();
     }
 };
 

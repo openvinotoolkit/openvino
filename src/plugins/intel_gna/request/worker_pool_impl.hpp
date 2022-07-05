@@ -13,27 +13,71 @@
 namespace GNAPluginNS {
 namespace request {
 
+/**
+ * @class Implementation of @see WorkerPool interface.
+ */
 class WorkerPoolImpl : public WorkerPool {
 public:
-    void add_model_worker(std::shared_ptr<Worker> worker) override;
+    /**
+     * @brief Destroy {WorkerPoolImpl} object
+     */
+    ~WorkerPoolImpl() override = default;
 
+    /**
+     * @see WorkerPool::addModelWorker()
+    */
+    void addModelWorker(std::shared_ptr<Worker> worker) override;
+
+    /**
+     * @see WorkerPool::size()
+     */
     size_t size() const override;
+
+    /**
+     * @see WorkerPool::empty()
+     */
     size_t empty() const override;
 
-    Worker& model_worker(uint32_t request_index) override;
-    const Worker& model_worker(uint32_t request_index) const override;
-    Worker& first_worker() override;
-    const Worker& first_worker() const override;
-    Worker& last_worker() override;
-    const Worker& last_worker() const override;
+    /**
+     * @see WorkerPool::worker()
+     */
+    Worker& worker(uint32_t requestIndex) override;
 
-    std::shared_ptr<Worker> find_free_model_worker() override;
+    /**
+     * @see WorkerPool::worker()
+     */
+    const Worker& worker(uint32_t requestIndex) const override;
+
+    /**
+     * @see WorkerPool::firstWorker()
+     */
+    Worker& firstWorker() override;
+
+    /**
+     * @see WorkerPool::firstWorker()
+     */
+    const Worker& firstWorker() const override;
+
+    /**
+     * @see WorkerPool::lastWorker()
+     */
+    Worker& lastWorker() override;
+
+    /**
+     * @see WorkerPool::lastWorker()
+     */
+    const Worker& lastWorker() const override;
+
+    /**
+     * @see WorkerPool::findFreeModelWorker()
+     */
+    std::shared_ptr<Worker> findFreeModelWorker() override;
 
 private:
-    void check_worker_index_valid(uint32_t request_index) const;
-    void check_worker_not_empty() const;
+    void checkWorkerIndexValid(uint32_t requestIndex) const;
+    void checkWorkerNotEmpty() const;
 
-    std::vector<std::shared_ptr<Worker>> model_workers_;
+    std::vector<std::shared_ptr<Worker>> modelWorkers_;
 };
 
 }  // namespace request

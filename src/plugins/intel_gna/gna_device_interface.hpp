@@ -30,14 +30,43 @@ public:
 
     /**
      * @brief Create gna model on device.
-     * @param gan_model gna modle to by created on device
-     * @return model id
+     * @param gna_model gna modle to by created on device
+     * @return model id on device
+     * @throw Exception in case of error
      */
-    virtual uint32_t create_model(Gna2Model& gna_model) const = 0;
-    virtual uint32_t create_request_config(const uint32_t model_id) const = 0;
-    virtual uint32_t max_layers_count() const = 0;
-    virtual uint32_t enqueue_request(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) = 0;
-    virtual GNAPluginNS::RequestStatus wait_for_reuqest(uint32_t id, int64_t millisTimeout) = 0;
+    virtual uint32_t createModel(Gna2Model& gnaModel) const = 0;
+
+    /**
+    * @brief create request configuration for give id of model
+    * @param modelID id of model on device
+    * @return id of configuration for model
+    * @throw Exception in case of error
+    */
+    virtual uint32_t createRequestConfig(const uint32_t modelID) const = 0;
+
+    /**
+    * @brief Add request to the execution queue.
+    * @param requestConfigID id of request configuration to be used for equing request
+    * @param gna2AccelerationMode acceleration mode of GNA device
+    * @return enqueued request id on device
+    * @throw Exception in case of error
+    */
+    virtual uint32_t enqueueRequest(const uint32_t requestConfigID, Gna2AccelerationMode gna2AccelerationMode) = 0;
+
+     /**
+     * @brief Wait for request to be finished.
+     * @param requestID id of request enqueued on device
+     * @param timeoutMilliseconds maximum timeout to be used for waiting
+     * @return status of request given to the methoid. @see GNAPluginNS::RequestStatus.
+     * @throw Exception in case of error
+     */
+    virtual GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) = 0;
+
+    /**
+     * @brief Return maximum number of layers supported by device.
+     * @return maximum layers count
+     **/
+    virtual uint32_t maxLayersCount() const = 0;
 };
 
 }  // namespace GNAPluginNS

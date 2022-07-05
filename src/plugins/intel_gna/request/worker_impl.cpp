@@ -13,44 +13,44 @@
 namespace GNAPluginNS {
 namespace request {
 
-WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> model_subrequests)
-    : full_model_(std::move(model)),
-      model_subrequests_(std::move(model_subrequests)) {
-    if (!full_model_) {
+WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> modelSubrequests)
+    : fullModel_(std::move(model)),
+      modelSubrequests_(std::move(modelSubrequests)) {
+    if (!fullModel_) {
         THROW_GNA_EXCEPTION << "cannot created request worker for nullptr model";
     }
 
-    if (model_subrequests_.empty()) {
+    if (modelSubrequests_.empty()) {
         THROW_GNA_EXCEPTION << "cannot created request worker for empty subrequest list";
     }
 }
 
 const Gna2Model* WorkerImpl::model() const {
-    return &full_model_->object();
+    return &fullModel_->object();
 }
 
 Gna2Model* WorkerImpl::model() {
-    return &full_model_->object();
+    return &fullModel_->object();
 }
 
-void WorkerImpl::enqueue_request() {
+void WorkerImpl::enqueueRequest() {
     check_if_free();
 
-    for (auto& subrequest : model_subrequests_) {
+    for (auto& subrequest : modelSubrequests_) {
         subrequest.enqueue();
     }
 }
 
-RequestStatus WorkerImpl::wait(int64_t timeout_miliseconds) {
+RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
     bool pending = false;
 
     // iterate over all configurations for requst
-    for (auto& subrequest : model_subrequests_) {
-        if (!subrequest.is_pending()) {
+    for (auto& subrequest : modelSubrequests_) {
+        if (!subrequest.isPending()) {
             continue;
         }
 
-        if (subrequest.wait(timeout_miliseconds) == RequestStatus::kPending) {
+        if (subrequest.wait(timeoutMilliseconds) == RequestStatus::kPending) {
             pending = true;
         }
     }
@@ -61,8 +61,8 @@ RequestStatus WorkerImpl::wait(int64_t timeout_miliseconds) {
     }
 
     // return kAborted if at least one subrequest was aborter
-    for (const auto& subrequest : model_subrequests_) {
-        if (subrequest.is_aborted()) {
+    for (const auto& subrequest : modelSubrequests_) {
+        if (subrequest.isAborted()) {
             return RequestStatus::kAborted;
         }
     }
@@ -71,9 +71,9 @@ RequestStatus WorkerImpl::wait(int64_t timeout_miliseconds) {
     return RequestStatus::kCompleted;
 }
 
-bool WorkerImpl::is_free() const {
-    for (const auto& subrequest : model_subrequests_) {
-        if (subrequest.is_pending()) {
+bool WorkerImpl::isFree() const {
+    for (const auto& subrequest : modelSubrequests_) {
+        if (subrequest.isPending()) {
             return false;
         }
     }
@@ -81,29 +81,29 @@ bool WorkerImpl::is_free() const {
     return true;
 }
 
-uint32_t WorkerImpl::representing_index() const {
-    return representing_index_;
+uint32_t WorkerImpl::representingIndex() const {
+    return representingIndex_;
 }
 
-void WorkerImpl::set_representing_index(uint32_t index) {
-    representing_index_ = index;
+void WorkerImpl::setRepresentingIndex(uint32_t index) {
+    representingIndex_ = index;
 }
 
-void WorkerImpl::set_result(const InferenceEngine::BlobMap& result) {
-    request_result_ = result;
+void WorkerImpl::setResult(const InferenceEngine::BlobMap& result) {
+    requestResult_ = result;
 }
 
-void WorkerImpl::set_result(InferenceEngine::BlobMap&& result) {
-    request_result_ = std::move(result);
+void WorkerImpl::setResult(InferenceEngine::BlobMap&& result) {
+    requestResult_ = std::move(result);
 }
 
 InferenceEngine::BlobMap& WorkerImpl::result() {
-    return request_result_;
+    return requestResult_;
 }
 
 void WorkerImpl::check_if_free() {
-    if (!is_free()) {
-        THROW_GNA_EXCEPTION << "Trying to propagte on busy request with id: " << representing_index_;
+    if (!isFree()) {
+        THROW_GNA_EXCEPTION << "Trying to propagte on busy request with id: " << representingIndex_;
     }
 }
 

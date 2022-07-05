@@ -48,7 +48,7 @@ class GNADeviceHelper : public GNAPluginNS::GNADevice {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
-    uint32_t max_layers_count_ = 0;
+    uint32_t maxLayersCount_ = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -95,11 +95,11 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
-    void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
-    uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
-    uint32_t createModel(Gna2Model& gnaModel) const;
+    void setUpActiveList(unsigned req_config_id,
+                         uint32_t layerIndex,
+                         uint32_t* ptr_active_indices,
+                         uint32_t num_active_indices);
     void releaseModel(const uint32_t model_id);
-    uint32_t createRequestConfig(const uint32_t model_id) const;
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
     static bool isGnaHw(const Gna2DeviceVersion dev) {
@@ -114,7 +114,6 @@ public:
     bool enforceLegacyCnnNeeded() const;
     static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
-    GNAPluginNS::RequestStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
         Gna2ModelSueCreekHeader header;
@@ -147,35 +146,35 @@ public:
     }
 
     /**
-     * @see GNADevice::create_model()
+     * @see GNADevice::createModel()
      */
-    uint32_t create_model(Gna2Model& gnaModel) const override;
+    uint32_t createModel(Gna2Model& gnaModel) const override;
 
     /**
-     * @see GNADevice::create_request_config()
+     * @see GNADevice::createRequestConfig()
      */
-    uint32_t create_request_config(const uint32_t model_id) const override;
+    uint32_t createRequestConfig(const uint32_t modelID) const override;
 
     /**
-     * @see GNADevice::max_layer_count()
+     * @see GNADevice::enqueueRequest()
      */
-    uint32_t max_layers_count() const override;
+    uint32_t enqueueRequest(const uint32_t requestConfigID, const Gna2AccelerationMode gna2AccelerationMode) override;
 
     /**
-     * @see GNADevice::enqueue_request()
+     * @see GNADevice::waitForRequest()
      */
-    uint32_t enqueue_request(const uint32_t requestConfigId, const Gna2AccelerationMode gna2AccelerationMode) override;
+    GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
 
     /**
-     * @see GNADevice::wait_for_reuqest()
+     * @see GNADevice::maxLayersCount()
      */
-    GNAPluginNS::RequestStatus wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) override;
+     uint32_t maxLayersCount() const override;
 
 private:
     void open();
 
     void close();
-    uint32_t retrieve_max_layers_count();
+    uint32_t retrieveMaxLayersCount();
 
     static std::string getGnaLibraryVersionPrivate();
     static const std::map <Gna2ItemType, const std::string> errorTypes;
