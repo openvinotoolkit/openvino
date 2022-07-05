@@ -157,6 +157,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         if (ov::is_type<opset1::Convolution>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::GroupConvolution>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::ConvolutionBackpropData>(fq::getDataNode(eltwise)) ||
+            ov::is_type<opset1::MatMul>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::GroupConvolutionBackpropData>(fq::getDataNode(eltwise))) {
             return nullptr;
         }
