@@ -104,11 +104,11 @@ mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ```
 For more information, refer to the [Converting a PaddlePaddle Model](prepare_model/convert_model/Convert_Model_From_Paddle.md) guide.
 
-4. Launch Model Optimizer for an MXNet SSD Inception V3 model and specify first-channel layout for the input:
+4. Launch Model Optimizer for an Apache MXNet SSD Inception V3 model and specify first-channel layout for the input:
 ```sh
 mo --input_model ssd_inception_v3-0000.params --layout NCHW
 ```
-For more information, refer to the [Converting an MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md) guide.
+For more information, refer to the [Converting an Apache MXNet Model](prepare_model/convert_model/Convert_Model_From_MxNet.md) guide.
 
 5. Launch Model Optimizer for a Caffe AlexNet model with input channels in the RGB format which needs to be reversed:
 ```sh
@@ -122,6 +122,6 @@ mo --input_model librispeech_nnet2.mdl --input_shape [1,140]
 ```
 For more information, refer to the [Converting a Kaldi Model](prepare_model/convert_model/Convert_Model_From_Kaldi.md) guide.
 
-- To get conversion recipes for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models,
+- To get conversion recipes for specific TensorFlow, ONNX, PyTorch, Apache MXNet, and Kaldi models,
 refer to the [Model Conversion Tutorials](prepare_model/convert_model/Convert_Model_Tutorials.md).
 - For more information about IR, see [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](IR_and_opsets.md).
