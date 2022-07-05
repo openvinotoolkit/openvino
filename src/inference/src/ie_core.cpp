@@ -181,6 +181,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 }
                 config.erase(it);
             }
+
+            it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                executorManager()->setTbbFlag(flag);
+                config.erase(it);
+            }
         }
 
         void setCacheForDevice(const std::string& dir, const std::string& name) {
@@ -1155,15 +1162,6 @@ public:
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
-
-        for (auto& item : config) {
-            if (item.first == ov::force_tbb_terminate.name()) {
-                auto flag = item.second == CONFIG_VALUE(YES) ? true : false;
-                executorManager()->setTbbFlag(flag);
-                config.erase(item.first);
-                break;
-            }
-        }
         if (config.empty()) {
             return;
         }
@@ -1726,6 +1724,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
             IE_THROW() << "You can only GetConfig of the AUTO itself (without devices). "
                           "GetConfig is also possible for the individual devices before creating the AUTO on top.";
         }
+    }
+
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
