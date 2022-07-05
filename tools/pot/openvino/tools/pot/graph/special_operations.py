@@ -39,7 +39,6 @@ OPERATIONS_WITH_WEIGHTS = [
     {'type': 'MatMul'},
 ]
 
-
 CONCAT_UNIFY_OUTPUTS = [
     {'type': 'ConvolutionBackpropData'},
     {'type': 'Convolution'}
