@@ -16,7 +16,7 @@
 ov::pass::OptimizerGatherND::OptimizerGatherND() {
     MATCHER_SCOPE(OptimizerGatherND);
     auto indices = pattern::wrap_type<op::v0::Constant>();
-    auto data = pattern::any_input();
+    auto data = pattern::any_input(pattern::has_static_shape());
     auto gather_nd = pattern::wrap_type<ov::op::util::GatherNDBase>({data, indices});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -43,13 +43,8 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
             return false;
         }
 
-        // data shape values need to be validated, so it has to be static
         const auto data_input = pattern_to_output.at(data);
         const auto& data_partial_shape = data_input.get_partial_shape();
-        if (data_partial_shape.is_dynamic()) {
-            return false;
-        }
-
         const auto indices_shape = indices_input->get_shape();
         const auto& data_shape = data_partial_shape.get_shape();
         const auto n_dims = indices_input->get_shape().back();
