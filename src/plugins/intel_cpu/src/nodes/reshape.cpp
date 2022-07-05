@@ -111,6 +111,12 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     if (inPrec != outPrec)
         inPrec = outPrec;
 
+    bool canBeInPlace = true;
+
+    // CVS-81059 : disable inPlace in following case since it won't be satisfied by framework
+    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant())
+        canBeInPlace = false;
+
     NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
@@ -121,7 +127,7 @@ void Reshape::initSupportedPrimitiveDescriptors() {
         config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace(0);
+    config.outConfs[0].inPlace(canBeInPlace ? 0 : -1);
     config.outConfs[0].constant(false);
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0)));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
@@ -129,6 +135,24 @@ void Reshape::initSupportedPrimitiveDescriptors() {
 
 void Reshape::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
+}
+
+void Reshape::execute(dnnl::stream strm) {
+    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+
+    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetPtr());
+    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetPtr());
+
+    if (dstPtr != srcPtr) {
+        cpu_memcpy(dstPtr, srcPtr, dstMemPtr->GetSize());
+    }
+}
+
+bool Reshape::isExecutable() const {
+    bool inPlaceEnabled =
+        getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
+    return !inPlaceEnabled;
 }
 
 bool Reshape::created() const {
