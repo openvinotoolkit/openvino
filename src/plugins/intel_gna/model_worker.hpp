@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include <gna2-model-api.h>
+
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cstdint>
 #include <memory>
 
-#include <gna2-model-api.h>
-#include "gna_device_interface.hpp"
+#include "request_status.hpp"
 
 namespace GNAPluginNS {
 class Gna2ModelWrapper;
@@ -23,8 +24,7 @@ public:
 
     virtual void enqueue_request() = 0;
 
-    // TODO define new enum
-    virtual GNARequestWaitStatus wait(int64_t timeout_miliseconds) = 0;
+    virtual RequestStatus wait(int64_t timeout_miliseconds) = 0;
 
     virtual bool is_free() const = 0;
 

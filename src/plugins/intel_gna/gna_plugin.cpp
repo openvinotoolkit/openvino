@@ -1374,10 +1374,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return GNARequestWaitStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
+    return RequestStatus::kCompleted == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-GNARequestWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     // TODO: GNA2: check whether
     if (request_pool_->size() <= request_idx)
         THROW_GNA_EXCEPTION << "Number of request worker[" << request_pool_->size()
@@ -1386,15 +1386,16 @@ GNARequestWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTime
     auto& model_worker = request_pool_->model_worker(request_idx);
 
     if (model_worker.is_free())
-        return GNARequestWaitStatus::kCompleted;
+        return RequestStatus::kCompleted;
 
     const auto wait_status = model_worker.wait(millisTimeout);
 
-    if (wait_status == GNARequestWaitStatus::kAborted) {
-        return GNARequestWaitStatus::kAborted;
+    if (wait_status == RequestStatus::kAborted) {
+        return wait_status;
     }
-    if (wait_status == GNARequestWaitStatus::kPending) {
-        return GNARequestWaitStatus::kPending;
+
+    if (wait_status == RequestStatus::kPending) {
+        return wait_status;
     }
 
     auto& request_result = model_worker.result();
@@ -1527,7 +1528,7 @@ GNARequestWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTime
 #endif
         }
     }
-    return GNARequestWaitStatus::kCompleted;
+    return RequestStatus::kCompleted;
 }
 
 void GNAPlugin::Reset() {

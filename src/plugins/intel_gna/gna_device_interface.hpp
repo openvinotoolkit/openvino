@@ -7,14 +7,10 @@
 #include <cstdint>
 #include <gna2-inference-api.h>
 
+#include "request_status.hpp"
+
 enum Gna2AccelerationMode;
 class Gna2Model;
-
-enum class GNARequestWaitStatus {
-    kCompleted = 0,  // and removed from GNA library queue
-    kAborted = 1,    // for QoS purposes
-    kPending = 2     // for device busy purposes
-};
 
 // Interface name is different to the file naem due the lagacy reason.
 // 1. Implementation file names should be changed in next PR.
@@ -37,7 +33,7 @@ public:
      */
     virtual uint32_t create_model(Gna2Model& gna_model) const = 0;
     virtual uint32_t create_request_config(const uint32_t model_id) const = 0;
-    virtual uint32_t max_layer_count() const = 0;
+    virtual uint32_t max_layers_count() const = 0;
     virtual uint32_t enqueue_request(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) = 0;
-    virtual GNARequestWaitStatus wait_for_reuqest(uint32_t id, int64_t millisTimeout) = 0;
+    virtual GNAPluginNS::RequestStatus wait_for_reuqest(uint32_t id, int64_t millisTimeout) = 0;
 };

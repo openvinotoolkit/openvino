@@ -43,11 +43,12 @@ public:
         // Code below could be replaced with LoadNetwork with at least one layer
         auto acceleration_mode = config.pluginGna2AccMode;
         std::weak_ptr<GNADevice> weak_device = gnadevice;
-        auto enqueue = [](uint32_t request_config_id) -> uint32_t {
+
+        auto enqueue = []() -> uint32_t {
             return 1;
         };
 
-        auto wait = [weak_device](uint32_t request_id, int64_t timeout_milliseconds) -> GNARequestWaitStatus {
+        auto wait = [weak_device](uint32_t request_id, int64_t timeout_milliseconds) {
             if (auto device = weak_device.lock()) {
                 return device->wait_for_reuqest(request_id, timeout_milliseconds);
             }
@@ -55,7 +56,7 @@ public:
         };
 
         auto model = GNAPluginNS::Gna2ModelWrapperFactory::create_with_number_of_empty_operations(1);
-        subrequests.emplace_back(1, enqueue, wait);
+        subrequests.emplace_back(enqueue, wait);
         auto model_worker = std::make_shared<GNAPluginNS::ModelWorkerImpl>(model, std::move(subrequests));
 
         request_pool_->add_model_worker(model_worker);

@@ -41,43 +41,39 @@ void ModelWorkerImpl::enqueue_request() {
     }
 }
 
-GNARequestWaitStatus ModelWorkerImpl::wait(int64_t timeout_miliseconds) {
-    auto wait_status = ModelSubrequest::Status::kCompleted;
-
+RequestStatus ModelWorkerImpl::wait(int64_t timeout_miliseconds) {
     bool pending = false;
 
     // iterate over all configurations for requst
     for (auto& subrequest : model_subrequests_) {
-        if (!subrequest.is_ongoing()) {
+        if (!subrequest.is_pending()) {
             continue;
         }
 
-        wait_status = subrequest.wait(timeout_miliseconds);
-
-        if (wait_status == ModelSubrequest::Status::kOngoing) {
+        if (subrequest.wait(timeout_miliseconds) == RequestStatus::kPending) {
             pending = true;
         }
     }
 
     // return kPending if at least one subrequest is pending
     if (pending) {
-        return GNARequestWaitStatus::kPending;
+        return RequestStatus::kPending;
     }
 
     // return kAborted if at least one subrequest was aborter
     for (const auto& subrequest : model_subrequests_) {
         if (subrequest.is_aborted()) {
-            return GNARequestWaitStatus::kAborted;
+            return RequestStatus::kAborted;
         }
     }
 
     // return kCompleted if all subrequsts are finish and none of them was aborted
-    return GNARequestWaitStatus::kCompleted;
+    return RequestStatus::kCompleted;
 }
 
 bool ModelWorkerImpl::is_free() const {
     for (const auto& subrequest : model_subrequests_) {
-        if (subrequest.is_ongoing()) {
+        if (subrequest.is_pending()) {
             return false;
         }
     }

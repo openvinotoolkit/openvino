@@ -22,10 +22,12 @@
 #include "gna2_model_debug_log.hpp"
 
 #include "backend/am_intel_dnn.hpp"
+#include "backend/gna_limitations.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
 #include "layers/gna_convolution_layer.hpp"
 #include "memory/gna_mem_requests.hpp"
+
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
@@ -49,8 +51,7 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
     // check GNA Library version
     const auto gnaLibVersion = GetGnaLibraryVersion();
 
-    // set maximal layers amount depending on HW version
-    init_max_layers_count();
+    max_layers_count_ = retrieve_max_layers_count();
 }
 
 GNADeviceHelper ::~GNADeviceHelper() {
@@ -59,21 +60,6 @@ GNADeviceHelper ::~GNADeviceHelper() {
     }
 }
 
-void GNADeviceHelper::init_max_layers_count() {
-    switch (getTargetDevice(true)) {
-    case Gna2DeviceVersion1_0:
-        max_layers_count = 1023;
-        break;
-    case Gna2DeviceVersion2_0:
-        max_layers_count = 4096;
-        break;
-    case Gna2DeviceVersion3_0:
-    case Gna2DeviceVersion3_5:
-    default:
-        max_layers_count = 8192;
-        break;
-    }
-}
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
@@ -231,8 +217,6 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 
     GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
 
-    // TODO create jira ticket
-    // It should be investigated if dump for splited model will work properly.
     if (debugLogEnabled) {
         std::string path =
 #ifdef _WIN32
@@ -502,15 +486,15 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
             {{Gna2OperationTypeThreshold, 1}, "Output"}
 };
 
-GNARequestWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GNAPluginNS::RequestStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusWarningDeviceBusy) {
-        return GNARequestWaitStatus::kPending;
+        return GNAPluginNS::RequestStatus::kPending;
     }
     unwaitedRequestIds.erase(reqId);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return GNARequestWaitStatus::kAborted;
+        return GNAPluginNS::RequestStatus::kAborted;
     }
     checkGna2Status(status, "Gna2RequestWait");
 
@@ -519,7 +503,7 @@ GNARequestWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout
         debugLogIndexRequestWait++;
     }
     updateGnaPerfCounters();
-    return GNARequestWaitStatus::kCompleted;
+    return GNAPluginNS::RequestStatus::kCompleted;
 }
 
 GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
@@ -665,14 +649,29 @@ uint32_t GNADeviceHelper::create_request_config(const uint32_t model_id) const {
     return createRequestConfig(model_id);
 }
 
-uint32_t GNADeviceHelper::max_layer_count() const {
-    return max_layers_count;
+uint32_t GNADeviceHelper::max_layers_count() const {
+    return max_layers_count_;
+}
+
+uint32_t GNADeviceHelper::retrieve_max_layers_count() {
+    using namespace GNAPluginNS::GNALimitations;
+
+    switch (getTargetDevice(true)) {
+    case Gna2DeviceVersion1_0:
+        return MaxLayersCountGNA1_0;
+    case Gna2DeviceVersion2_0:
+        return MaxLayersCountGNA2_0;
+    case Gna2DeviceVersion3_0:
+    case Gna2DeviceVersion3_5:
+    default:
+        return max_layers_count_ = MaxLayersCountGNA3_X;
+    }
 }
 
 uint32_t GNADeviceHelper::enqueue_request(const uint32_t requestConfigId, const Gna2AccelerationMode gna2AccelerationMode) {
     return propagate(requestConfigId, gna2AccelerationMode);
 }
 
-GNARequestWaitStatus GNADeviceHelper::wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) {
+GNAPluginNS::RequestStatus GNADeviceHelper::wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) {
     return wait(request_id, timeout_milliseconds);
 }

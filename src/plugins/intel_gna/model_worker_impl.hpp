@@ -11,7 +11,6 @@
 #include <memory>
 #include <vector>
 
-#include "gna_device_interface.hpp"
 #include "model_worker.hpp"
 
 namespace GNAPluginNS {
@@ -32,7 +31,7 @@ public:
 
     void enqueue_request() override;
 
-    GNARequestWaitStatus wait(int64_t timeout_miliseconds) override;
+    RequestStatus wait(int64_t timeout_miliseconds) override;
 
     bool is_free() const override;
 

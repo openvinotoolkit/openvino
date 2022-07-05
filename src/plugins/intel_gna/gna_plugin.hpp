@@ -92,7 +92,7 @@ protected:
                                                      const std::map<std::string, std::string>& config) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     bool Wait(uint32_t idx);
-    GNARequestWaitStatus WaitFor(uint32_t idx, int64_t millisTimeout);
+    RequestStatus WaitFor(uint32_t idx, int64_t millisTimeout);
 
     InferenceEngine::Parameter GetConfig(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;

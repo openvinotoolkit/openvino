@@ -48,7 +48,7 @@ class GNADeviceHelper : public GNADevice {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
-    uint16_t max_layers_count = 1;
+    uint32_t max_layers_count_ = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -83,8 +83,6 @@ public:
     GNADeviceHelper& operator=(GNADeviceHelper&&) = delete;
     ~GNADeviceHelper() override;
 
-    void init_max_layers_count();
-
     void enableDiagnostics();
 
     /**
@@ -116,7 +114,7 @@ public:
     bool enforceLegacyCnnNeeded() const;
     static std::string checkGna2Status(Gna2Status status, const std::string& from, bool returnInsteadThrow = false);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
-    GNARequestWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
+    GNAPluginNS::RequestStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
         Gna2ModelSueCreekHeader header;
@@ -161,7 +159,7 @@ public:
     /**
      * @see GNADevice::max_layer_count()
      */
-    uint32_t max_layer_count() const override;
+    uint32_t max_layers_count() const override;
 
     /**
      * @see GNADevice::enqueue_request()
@@ -171,12 +169,14 @@ public:
     /**
      * @see GNADevice::wait_for_reuqest()
      */
-    GNARequestWaitStatus wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) override;
+    GNAPluginNS::RequestStatus wait_for_reuqest(uint32_t request_id, int64_t timeout_milliseconds) override;
 
 private:
     void open();
 
     void close();
+    uint32_t retrieve_max_layers_count();
+
     static std::string getGnaLibraryVersionPrivate();
     static const std::map <Gna2ItemType, const std::string> errorTypes;
     static const std::map <Gna2ErrorType, const std::string> errorReasons;

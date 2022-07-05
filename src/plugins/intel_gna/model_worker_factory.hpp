@@ -40,7 +40,6 @@ private:
     static std::vector<ModelSubrequest> create_model_subrequests_trivial();
 
     static constexpr const uint32_t kFakeRequestID{1};
-    static constexpr const uint32_t kFakeRequestConfigID{0xffffffff};
 };
 
 }  // namespace GNAPluginNS
