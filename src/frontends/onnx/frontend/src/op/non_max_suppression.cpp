@@ -53,16 +53,16 @@ OutputVector non_max_suppression(const Node& node) {
                      center_point_box == 0 || center_point_box == 1,
                      "Allowed values of the 'center_point_box' attribute are 0 and 1.");
 
-    const auto box_encoding = center_point_box == 0 ? default_opset::NonMaxSuppression::BoxEncodingType::CORNER
-                                                    : default_opset::NonMaxSuppression::BoxEncodingType::CENTER;
+    const auto box_encoding = center_point_box == 0 ? ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER
+                                                    : ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER;
 
-    return {std::make_shared<default_opset::NonMaxSuppression>(boxes,
-                                                               scores,
-                                                               max_output_boxes_per_class,
-                                                               iou_threshold,
-                                                               score_threshold,
-                                                               box_encoding,
-                                                               false)};
+    return {std::make_shared<ov::op::v9::NonMaxSuppression>(boxes,
+                                                            scores,
+                                                            max_output_boxes_per_class,
+                                                            iou_threshold,
+                                                            score_threshold,
+                                                            box_encoding,
+                                                            false)};
 }
 
 }  // namespace set_1
