@@ -551,7 +551,8 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
         if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
             continue;
 
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
+        const bool hasZeroDims = std::count(std::begin(newOutputShape), std::end(newOutputShape), 0) > 0;
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape, hasZeroDims);
         for (size_t j = 0; j < edges.size(); j++) {
             edges[j]->getMemoryPtr()->redefineDesc(memDesc);
         }
