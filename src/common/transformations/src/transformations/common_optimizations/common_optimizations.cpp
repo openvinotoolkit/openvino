@@ -69,6 +69,7 @@
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
+#include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -154,6 +155,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::ConvertConvertLike>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
