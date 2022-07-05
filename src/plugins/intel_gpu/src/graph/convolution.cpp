@@ -19,7 +19,7 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
-static format GetRecommendFormat(layout input_layout, data_types output_type) {
+static format get_recommended_format(layout input_layout, data_types output_type) {
     if (data_type_traits::is_i8_u8(output_type)) {
         switch (input_layout.format) {
             case format::b_fs_yx_fsv16:         return format::b_fs_yx_fsv32;
@@ -214,7 +214,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     // Adjust output format for mixed precision case in onednn
     auto out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        format recommended_fmt = GetRecommendFormat(input_layout, output_type);
+        format recommended_fmt = get_recommended_format(input_layout, output_type);
         if (recommended_fmt != format::any)
             out_fmt = recommended_fmt;
     }
