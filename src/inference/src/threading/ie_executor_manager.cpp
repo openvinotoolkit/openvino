@@ -9,6 +9,8 @@
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
 #        include <tbb/task_scheduler_init.h>
+#    else
+#        include <oneapi/tbb/global_control.h>
 #    endif
 #endif
 
@@ -42,6 +44,8 @@ private:
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
     std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
+#    else
+    std::shared_ptr<oneapi::tbb::task_scheduler_handle> tbbTaskScheduler = nullptr;
 #    endif
 #endif
 };
@@ -56,15 +60,17 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
     std::lock_guard<std::mutex> guard(tbbMutex);
     tbbTerminateFlag = flag;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#    if (TBB_INTERFACE_VERSION < 12000)
     if (tbbTerminateFlag) {
         if (!tbbTaskScheduler) {
+#    if (TBB_INTERFACE_VERSION < 12000)
             tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
+#    else
+            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
+#    endif
         }
     } else {
         tbbTaskScheduler = nullptr;
     }
-#    endif
 #endif
 }
 
@@ -77,13 +83,15 @@ void ExecutorManagerImpl::resetTbb() {
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#    if (TBB_INTERFACE_VERSION < 12000)
         if (tbbTaskScheduler && tbbThreadsCreated) {
+#    if (TBB_INTERFACE_VERSION < 12000)
             tbbTaskScheduler->terminate();
+#    else
+            tbb::finalize(*tbbTaskScheduler, std::nothrow);
+#    endif
         }
         tbbThreadsCreated = false;
         tbbTaskScheduler = nullptr;
-#    endif
 #endif
         tbbTerminateFlag = false;
     }
