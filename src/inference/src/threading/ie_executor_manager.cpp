@@ -169,6 +169,7 @@ public:
         auto manager = _manager.lock();
         if (!manager) {
             _manager = manager = std::make_shared<ExecutorManagerImpl>();
+            manager->setTbbFlag(true);
         }
         return manager;
     }
