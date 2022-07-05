@@ -608,12 +608,10 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             if (new_layout == input_layout)
                 return;
 
-            if (!input.is_type<reorder>() || input.get_users().size() > 1) {
-                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
-                if (new_input.first)
-                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            if (new_input.first) {
+                p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
             }
-
             conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
         }
 
