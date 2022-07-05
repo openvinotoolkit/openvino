@@ -69,10 +69,6 @@ endif()
 # Fluid, G-API, OpenCV HAL
 #
 
-if((${CMAKE_SYSTEM_NAME} MATCHES "Linux") AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11.2))
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
-endif()
-
 add_library(ocv_hal INTERFACE)
 target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
@@ -83,10 +79,6 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
 ov_install_static_lib(ade openvino_common)
 ov_install_static_lib(fluid openvino_common)
-
-if((${CMAKE_SYSTEM_NAME} MATCHES "Linux") AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11.2))
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
-endif()
 
 #
 # Gflags
