@@ -232,6 +232,9 @@ static constexpr char inference_only_message[] =
 
 static const char denormals_optimization_message[] = "Optional. Denormals is optimized by treating as zero";
 
+static constexpr char cpu_experimental_message[] =
+    "Optional. Enable experimental setting for CPU plugin. Setting should be 'brgconv' etc.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -368,6 +371,9 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /// @brief Define flag for denormals handling mode <br>
 DEFINE_bool(dopt, false, denormals_optimization_message);
 
+/// @brief Define flag for using experimental setting for CPU plugin <br>
+DEFINE_string(cpu_experimental, "", cpu_experimental_message);
+
 /**
  * @brief This function show a help message
  */
@@ -402,6 +408,7 @@ static void show_usage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
               << infer_threads_pinning_message << std::endl;
+    std::cout << "    -cpu_experimental         " << cpu_experimental_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif

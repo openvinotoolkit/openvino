@@ -154,6 +154,8 @@ def parse_args():
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     args.add_argument('-dopt', '--denormals_optimization', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Denormals is optimized by treating as zeros.', )
+    args.add_argument('-cpu_experimental', '--cpu_experimental', type=str, required=False, default='',
+                      help="Optional. Enable experimental setting for CPU plugin.")
     parsed_args = parser.parse_args()
 
     return parsed_args

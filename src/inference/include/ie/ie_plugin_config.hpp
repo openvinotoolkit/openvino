@@ -431,6 +431,11 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
+ * @brief Use experimental setting for CPU plugin.
+ */
+DECLARE_CONFIG_KEY(CPU_EXPERIMENTAL);
+
+/**
  * @brief This key defines the directory which will be used to store any data cached by plugins.
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
@@ -449,6 +454,19 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * @endcode
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
+
+/**
+ * @brief The key to decide whether terminate tbb threads when inference engine destructing.
+ *
+ * value type: boolean
+ *   - True explicitly terminate tbb when inference engine destruction
+ *   - False will not involve additional tbb operations when inference engine destruction
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}); // enable
+ * @endcode
+ */
+DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 /**
  * @brief The name for defining if denormals is optimized whenever it is possible

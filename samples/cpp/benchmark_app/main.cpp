@@ -390,6 +390,11 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
+                // use experimental setting
+                if (isFlagSetInCommandLine("cpu_experimental")) {
+                    device_config.emplace(ov::cpu_experimental(FLAGS_cpu_experimental));
+                }
+
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();

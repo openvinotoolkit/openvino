@@ -30,6 +30,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::affinity, "affinity");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::denormals_optimization, "denormals_optimization");
+    wrap_property_RW(m_properties, ov::cpu_experimental, "cpu_experimental");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
