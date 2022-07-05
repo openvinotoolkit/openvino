@@ -363,6 +363,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     };
 
     // if workMode is AUTO
+    // only AUTO uses CheckConfig() to check fullConfig's parameters, MULTI does not
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
@@ -858,6 +859,17 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.second == PluginConfigParams::NO) {
                 context->_batchingDisabled = true;
                 continue;
+            }
+        } else if (kvp.first == ov::auto_batch_timeout) {
+            try {
+                auto batch_timeout = std::stoi(kvp.second);
+                if (batch_timeout < 0) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+                }
+            } catch (...) {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
         } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
             if (kvp.second == PluginConfigParams::YES ||
