@@ -200,7 +200,6 @@ Inference request performance counters provided for the time being:
    * The number of stall cycles spent in hardware
 
 ##  Supported Properties
-The plugin supports the properties listed below.
 
 ### Read-write Properties
 In order to take effect, the following parameters must be set before model compilation or passed as additional arguments to `ov::Core::compile_model()`:

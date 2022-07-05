@@ -103,8 +103,6 @@ To enable the simulation, the `ov::hint::inference_precision` has to be explicit
   
 ## Supported Features
 
-The plugin supports the following features:
-
 ### Multi-device Execution
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
 This can be achieved by specifying `MULTI:CPU,GPU.0` as a target device in case of simultaneous usage of CPU and GPU.
