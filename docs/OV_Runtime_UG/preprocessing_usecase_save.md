@@ -74,7 +74,7 @@ After this, the application code can load a saved file and stop preprocessing. I
 @endsphinxtabset
 
 
-## See Also
+## Additional Resources
 * [Preprocessing Details](@ref openvino_docs_OV_UG_Preprocessing_Details)
 * [Layout API overview](@ref openvino_docs_OV_UG_Layout_Overview)
 * [Model Optimizer - Optimize Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
