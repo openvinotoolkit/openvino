@@ -10,7 +10,6 @@
 
 @endsphinxdirective
 
-## Introduction
 The [Default Quantization](@ref pot_default_quantization_usage) of the Post-training Optimization Tool (POT) is 
 the fastest and easiest way to get a quantized model. It requires only some unannotated representative dataset to be provided in most cases. Therefore, it is recommended to use it as a starting point when it comes to model optimization. However, it can lead to significant accuracy deviation in some cases. The purpose of this article is to provide tips to address this issue.
 
