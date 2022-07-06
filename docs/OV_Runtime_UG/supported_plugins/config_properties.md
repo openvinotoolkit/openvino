@@ -120,7 +120,7 @@ The `ov::Core` methods like:
 * `ov::Core::import_model`
 * `ov::Core::query_model`
 
-accept a variable list of properties as last arguments. Each property in such parameters lists should be used as a function call to pass a property value with a specified property type.
+accept a selection of properties as last arguments. Each of the properties should be used as a function call to pass a property value with a specified property type.
 
 @sphinxtabset
 
