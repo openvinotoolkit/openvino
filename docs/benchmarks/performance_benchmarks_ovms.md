@@ -1,6 +1,6 @@
 # OpenVINO™ Model Server Benchmark Results {#openvino_docs_performance_benchmarks_ovms}
 
-OpenVINO™ Model Server is an open-source, production grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
+OpenVINO™ Model Server is an open-source, production-grade inference platform that exposes a set of models via a convenient inference API over gRPC or HTTP/REST. It employs the OpenVINO™ Runtime libraries from the Intel® Distribution of OpenVINO™ toolkit to extend workloads across Intel® hardware including CPU, GPU and others.
 
 ![OpenVINO™ Model Server](../img/performance_benchmarks_ovms_01.png)
 
@@ -12,9 +12,9 @@ OpenVINO™ Model Server is measured in a multiple-client-single-server configur
 
 - **OpenVINO™ Model Server** -- It is launched as a docker container on the server platform and it listens, and answers to, requests from clients. It is run on the same system as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models served by it are placed in a local file system mounted into the docker container. The OpenVINO™ Model Server instance communicates with other components via ports over a dedicated docker network.
 
-- **Clients** -- They are run in a separated physical machine referred to as a client platform. Clients are implemented in Python3 programming language based on TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it sends a new request. Clients also play a role in the verification of responses.
+- **Clients** - They are run in a separated physical system referred to as a client platform. Clients are implemented in the Python3 programming language based on the TensorFlow API and they work as parallel processes. Each client waits for a response from OpenVINO™ Model Server before it sends a new request. Clients also play a role in verification of responses.
 
-- **Load Balancer** -- It works on the client platform in a docker container by using a HAProxy. The main role of Load Balancer is counting the requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason for locating this part on the client site is to simulate a real life scenario that includes an impact of a physical network on reported metrics.
+- **Load Balancer** -- It works on the client platform in a docker container by using a HAProxy. It is mainly responsible for counting requests forwarded from clients to OpenVINO™ Model Server, estimating its latency, and sharing this information by Prometheus service. The reason for locating this part on the client site is to simulate a real life scenario that includes an impact of a physical network on reported metrics.
 
 - **Execution Controller** -- It is launched on the client platform. It is responsible for synchronization of the whole measurement process, downloading metrics from Load Balancer and presenting the final report of the execution.
 

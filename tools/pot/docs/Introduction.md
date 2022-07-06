@@ -17,7 +17,7 @@
 @endsphinxdirective
 
 
-Post-training model optimization is the process of applying special methods without model retraining or fine-tuning. Post-training 8-bit quantization is a good example. Generally, this process does not require any training datasets or pipelines in the source DL framework. Post-training methods in OpenVINO require:
+Post-training model optimization is the process of applying special methods without model retraining or fine-tuning. Therefore, it does not require either a training dataset or a training pipeline in the source DL framework. In OpenVINO, post-training methods, such as post-training 8-bit quantization, require:
 * A floating-point precision model (FP32 or FP16), converted to the OpenVINO IR format (Intermediate Representation)
 and run on CPU with OpenVINO.
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
@@ -44,7 +44,7 @@ Different hardware platforms support different integer precisions and quantizati
 
 For benchmarking results collected for the models optimized with the POT tool, refer to the [INT8 vs FP32 Comparison on Select Networks and Platforms](@ref openvino_docs_performance_int8_vs_fp32).
 
-## See Also
+## Additional Resources
 
 * [Performance Benchmarks](https://docs.openvino.ai/latest/openvino_docs_performance_benchmarks_openvino.html)
 * [INT8 Quantization by Using Web-Based Interface of the DL Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Int_8_Quantization.html)
