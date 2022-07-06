@@ -576,6 +576,14 @@ std::shared_ptr<IExecutableNetworkInternal> IInferRequestInternal::getPointerToE
     return _exeNetwork;
 }
 
+void IInferRequestInternal::setPointerToSo(const std::shared_ptr<void>& so) {
+    _so = so;
+}
+
+std::shared_ptr<void> IInferRequestInternal::getPointerToSo() const {
+    return _so;
+}
+
 bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
                                                   const Blob::Ptr& userBlob,
                                                   const Blob::Ptr& deviceBlob) {

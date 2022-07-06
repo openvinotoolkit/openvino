@@ -91,5 +91,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
             // Issue: CVS-76980
             R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
+            // Issue: CVS-86976
+            R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
     };
 }

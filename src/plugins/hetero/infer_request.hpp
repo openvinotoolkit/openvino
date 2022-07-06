@@ -56,7 +56,7 @@ public:
 
     SubRequestsList _inferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr> _blobs;
-    std::map<std::string, InferenceEngine::IInferRequestInternal*> _subRequestFromBlobName;
+    std::map<std::string, InferenceEngine::SoIInferRequestInternal> _subRequestFromBlobName;
 
 private:
     void CreateInferRequest(const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames);

@@ -123,6 +123,13 @@ public:
     virtual void SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin);
 
     /**
+     * @brief      Gets the pointer to plugin so.
+     * @note Needed to correctly handle ownership between objects.
+     * @return A shared pointer to the plugin so
+     */
+    virtual std::shared_ptr<void> GetPointerToSo();
+
+    /**
      * @brief Sets configuration for current executable network
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
@@ -183,6 +190,12 @@ protected:
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IInferencePlugin> _plugin;
+
+    /**
+     * @brief A pointer to a plugin library.
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<void> _so;
 };
 
 /**
