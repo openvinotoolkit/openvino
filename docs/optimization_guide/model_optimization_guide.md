@@ -35,5 +35,5 @@ Once the model has been optimized using the aforementioned tools, it can be used
 
 If you are not familiar with model optimization methods, refer to [post-training methods](@ref pot_introduction).
 
-## See also
+## Additional Resources
 - [Deployment optimization](./dldt_deployment_optimization_guide.md)
