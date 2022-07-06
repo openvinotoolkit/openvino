@@ -10,7 +10,6 @@
 
 @endsphinxdirective
 
-## Introduction
 This guide describes how to apply model quantization with the Default Quantization method without accuracy control, using an unannotated dataset. To use this method, you need to create a Python script using an API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. If you are not familiar with Python, try [command-line interface](@ref pot_compression_cli_README) of POT which is designed to quantize models from OpenVINO [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo). The figure below shows the common workflow of the quantization script implemented with POT API.
 
 ![](./images/default_quantization_flow.png)
