@@ -6,7 +6,7 @@ This page demonstrates how to use the Benchmark C++ Tool to estimate deep learni
 		
 
 ## Basic Usage
-To use the C++ benchmark_app, you must first build it following the [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications) instructions and then set up paths and environment variables by following the [Get Ready for Running the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md#get-ready-for-running-the-sample-applications) instructions. Navigate to the directory where the benchmark_app C++ sample binary was built.
+To use the C++ benchmark_app, you must first build it following the [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) instructions and then set up paths and environment variables by following the [Get Ready for Running the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) instructions. Navigate to the directory where the benchmark_app C++ sample binary was built.
 
 > **NOTE**: If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) is available, and you should follow the usage instructions on that page instead.
 
