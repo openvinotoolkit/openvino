@@ -20,7 +20,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 
 ## Supported Networks
 
-**Caffe\***:
+**Caffe**:
 * AlexNet
 * CaffeNet
 * GoogleNet (Inception) v1, v2, v4
@@ -32,7 +32,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 * DenseNet family (121,161,169,201)
 * SSD-300, SSD-512, SSD-MobileNet, SSD-GoogleNet, SSD-SqueezeNet
 
-**TensorFlow\***:
+**TensorFlow**:
 * AlexNet
 * Inception v1, v2, v3, v4
 * Inception ResNet v2
@@ -46,7 +46,7 @@ This chapter provides information on the OpenVINO Runtime plugins that enable in
 * ssd_mobilenet_v1
 * DeepLab-v3+
 
-**MXNet\***:
+**Apache MXNet**:
 * AlexNet and CaffeNet
 * DenseNet family (121,161,169,201)
 * SqueezeNet v1.1
