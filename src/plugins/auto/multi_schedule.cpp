@@ -16,6 +16,7 @@ thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
+    _LogTag = sContext->_LogTag;
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
@@ -241,16 +242,16 @@ MultiSchedule::~MultiSchedule() {
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
             if (_workerRequest.first == "CPU_HELP") {
-                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+                LOG_INFO_TAG("CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
                 if (_cpuHelpFps > 0.0) {
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", _cpuHelpFps);
                 } else if (count >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
                         reqAllEndTimes.back() - reqAllStartTimes.front();
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", count * 1000 / durtation.count());
                 }
             } else {
-                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+                LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
                 auto n = reqAllStartTimes.size();
                 Time time;
                 while (!reqAllStartTimes.empty()) {
@@ -265,7 +266,7 @@ MultiSchedule::~MultiSchedule() {
                 if (n >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
                         reqAllEndTimes.back() - time;
-                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
+                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(),
                         n * 1000 / durtation.count());
                 }
             }
@@ -302,10 +303,25 @@ IInferPtr MultiSchedule::CreateInferRequest() {
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
+    if (_passthroughExeNet) {
+        std::string perfmode;
+        try {
+            perfmode = _passthroughExeNet->GetConfig(
+                                CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
+        } catch(...) {
+            LOG_INFO("query perf hint from passthrough network failed");
+        }
+        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
+        else
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+    }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
                                                execNetwork->_callbackExecutor);
 }
-
+std::string MultiSchedule::GetLogTag() const noexcept {
+    return _LogTag;
+}
 }  // namespace MultiDevicePlugin
 

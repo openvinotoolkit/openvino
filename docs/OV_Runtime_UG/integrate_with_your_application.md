@@ -13,7 +13,8 @@
 @endsphinxdirective
 
 
-Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO Runtime](../install_guides/installing-openvino-runtime.md).
+Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO Runtime](../install_guides/installing-openvino-runtime.md) and set environment variables (run `<INSTALL_DIR>/setupvars.sh` for Linux or `setupvars.bat` for Windows, otherwise, the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls).
+
 
 ![ie_api_use_cpp]
 
@@ -222,6 +223,8 @@ Go over the output tensors and process the inference results.
 
 This step may differ for different projects. In this example, a C++ application is used, together with CMake for project configuration.
 
+For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+
 ### Create a structure for the project:
    ``` sh
    project/
@@ -244,11 +247,6 @@ cd build/
 cmake ../project
 cmake --build .
 ```
-
-> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or `setupvars.bat` for Windows). Otherwise the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls.
-
-You can also specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
-
 
 ## Additional Resources
 

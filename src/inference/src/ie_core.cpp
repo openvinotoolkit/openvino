@@ -127,14 +127,27 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
-    for (auto&& property : properties) {
-        auto parsed = parseDeviceNameIntoConfig(property.first);
+    for (auto item = result.begin(); item != result.end();) {
+        auto parsed = parseDeviceNameIntoConfig(item->first);
+        if (!item->second.is<ov::AnyMap>()) {
+            item++;
+            continue;
+        }
         if (device.find(parsed._deviceName) != std::string::npos) {
-            if (property.second.is<ov::AnyMap>()) {
-                for (auto&& sub_property : property.second.as<ov::AnyMap>()) {
-                    result[sub_property.first] = sub_property.second;
-                }
+            // 1. flatten the scondary property for target device
+            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+                // 1.1 1st level property overides 2nd level property
+                if (result.find(sub_property.first) != result.end())
+                    continue;
+                result[sub_property.first] = sub_property.second;
             }
+            item = result.erase(item);
+        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
+            // 2. remove the secondary property setting for other hard ware device
+            item = result.erase(item);
+        } else {
+            // 3. keep the secondary property for the other virtual devices
+            item++;
         }
     }
     return result;
@@ -166,6 +179,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 for (auto& deviceCfg : _cacheConfigPerDevice) {
                     fillConfig(deviceCfg.second, it->second);
                 }
+                config.erase(it);
+            }
+
+            it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                executorManager()->setTbbFlag(flag);
                 config.erase(it);
             }
         }
@@ -1126,15 +1146,6 @@ public:
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
-
-        for (auto& item : config) {
-            if (item.first == ov::force_tbb_terminate.name()) {
-                auto flag = item.second == CONFIG_VALUE(YES) ? true : false;
-                executorManager()->setTbbFlag(flag);
-                config.erase(item.first);
-                break;
-            }
-        }
         if (config.empty()) {
             return;
         }
@@ -1699,6 +1710,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+    }
+
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
     return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
 }
@@ -1938,7 +1954,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._ptr, remoteContext._so};
+        return {remoteContext._ptr, {remoteContext._so}};
     });
 }
 
@@ -1950,7 +1966,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._ptr, remoteContext._so};
+        return {remoteContext._ptr, {remoteContext._so}};
     });
 }
 

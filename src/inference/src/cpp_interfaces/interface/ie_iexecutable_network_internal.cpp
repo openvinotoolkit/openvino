@@ -91,6 +91,10 @@ void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInfer
     _plugin = plugin;
 }
 
+std::shared_ptr<void> IExecutableNetworkInternal::GetPointerToSo() {
+    return _so;
+}
+
 void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
     IE_THROW(NotImplemented);
 }

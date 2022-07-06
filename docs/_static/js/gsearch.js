@@ -265,7 +265,7 @@ function addPagination(query, selectedVersion, currentPage, previousPage, nextPa
         var $previous = $('<a>', {
           'text': 'Previous',
           'class': 'gs-cursor-page-previous',
-          'href': 'search.html?query=' + query + '&page=' + previousPage + '&version=' + selectedVersion
+          'href': 'search.html?page=' + previousPage + '&query=' + query + '&version=' + selectedVersion
         });
         $cursor.append($previous);
     }
@@ -274,7 +274,7 @@ function addPagination(query, selectedVersion, currentPage, previousPage, nextPa
     for(var i = 0; i < pageList.length; i++) {
         $page = $('<a>', {
           'class': 'gs-cursor-page',
-          'href': 'search.html?query=' + query + '&page=' + pageList[i] + '&version=' + selectedVersion,
+          'href': 'search.html?page=' + pageList[i] + '&query=' + query + '&version=' + selectedVersion,
           'text': pageList[i]
         });
         if (currentPage === pageList[i]) {
@@ -287,7 +287,7 @@ function addPagination(query, selectedVersion, currentPage, previousPage, nextPa
         var $next = $('<a>', {
           'text': 'Next',
           'class': 'gs-cursor-page-next',
-          'href': 'search.html?query=' + query + '&page=' + nextPage + '&version=' + selectedVersion
+          'href': 'search.html?page=' + nextPage + '&query=' + query + '&version=' + selectedVersion
         });
         $cursor.append($next);
     }
