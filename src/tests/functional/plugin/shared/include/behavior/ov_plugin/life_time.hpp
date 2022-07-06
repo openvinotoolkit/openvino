@@ -36,7 +36,6 @@ public:
     std::string targetDevice;
     std::string deathTestStyle;
 };
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
