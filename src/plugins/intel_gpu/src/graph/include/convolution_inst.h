@@ -6,6 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 #include <memory>
 #include <string>
@@ -25,7 +26,9 @@ public:
           transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
-          deformable_mode(this->get_primitive()->deformable_mode) {
+          deformable_mode(this->get_primitive()->deformable_mode),
+          required_input0(format::type::any),
+          required_output(format::type::any) {
         support_padding_all(true);
     }
 
@@ -127,6 +130,8 @@ private:
     uint32_t groups;
     uint32_t deformable_groups;
     bool deformable_mode;
+    format::type required_input0;
+    format::type required_output;
 };
 
 using convolution_node = typed_program_node<convolution>;

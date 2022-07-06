@@ -315,6 +315,14 @@ private:
     reorder_factory& _rf;
 };
 
+class set_layouts : public base_pass {
+public:
+    set_layouts() : base_pass("set_layouts") {};
+
+private:
+    void run(program& p) override;
+};
+
 class trim_to_outputs : public base_pass {
 public:
     trim_to_outputs() : base_pass("trimmed") {}

@@ -514,6 +514,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
+        apply_opt_pass<set_layouts>();
+
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.

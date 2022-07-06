@@ -129,6 +129,36 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
     }
 }
 
+// Let's reduce code duplication
+ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
+    switch (fmt) {
+        case dnnl::memory::format_tag::nchw: return cldnn::format::bfyx;
+        case dnnl::memory::format_tag::ncdhw: return cldnn::format::bfzyx;
+        case dnnl::memory::format_tag::nhwc: return cldnn::format::byxf;
+        case dnnl::memory::format_tag::undef: return cldnn::format::b_fs_yx_fsv2;
+        case dnnl::memory::format_tag::aBcd4b: return cldnn::format::b_fs_yx_fsv4;
+        case dnnl::memory::format_tag::nChw16c: return cldnn::format::b_fs_yx_fsv16;
+        case dnnl::memory::format_tag::aBcd32b: return cldnn::format::b_fs_yx_fsv32;
+        case dnnl::memory::format_tag::aBcde4b: return cldnn::format::b_fs_zyx_fsv4;
+        case dnnl::memory::format_tag::nCdhw16c: return cldnn::format::b_fs_zyx_fsv16;
+        case dnnl::memory::format_tag::aBcde32b: return cldnn::format::b_fs_zyx_fsv32;
+        case dnnl::memory::format_tag::NChw16n16c: return cldnn::format::bs_fs_yx_bsv16_fsv16;
+        case dnnl::memory::format_tag::NChw32n32c: return cldnn::format::bs_fs_yx_bsv32_fsv32;
+        case dnnl::memory::format_tag::ABcd4a4b: return cldnn::format::bs_fs_yx_bsv4_fsv4;
+        case dnnl::memory::format_tag::ABcd8a4b: return cldnn::format::bs_fs_yx_bsv8_fsv4;
+        case dnnl::memory::format_tag::ABcd8a2b: return cldnn::format::bs_fs_yx_bsv8_fsv2;
+        case dnnl::memory::format_tag::ABcd4a2b: return cldnn::format::bs_fs_yx_bsv4_fsv2;
+        case dnnl::memory::format_tag::NChw32n16c: return cldnn::format::bs_fs_yx_bsv32_fsv16;
+        case dnnl::memory::format_tag::NCdhw32n16c: return cldnn::format::bs_fs_zyx_bsv32_fsv16;
+        case dnnl::memory::format_tag::NCdhw32n32c: return cldnn::format::bs_fs_zyx_bsv32_fsv32;
+        case dnnl::memory::format_tag::NCdhw16n16c: return cldnn::format::bs_fs_zyx_bsv16_fsv16;
+        case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::bs_fs_zyx_bsv8_fsv4;
+        case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::bs_fs_zyx_bsv8_fsv2;
+        default: throw std::invalid_argument("[clDNN] Unsupported onednn layout");
+    }
+}
+
+
 std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
@@ -325,7 +355,7 @@ static bool isSame(dnnl::memory::desc desc, dnnl::memory::format_tag fmt) {
     return true;
 }
 
-static dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
+dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
     // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
     //                force search here. Please avoid of using this method.
     const auto ndims = desc.dims().size();
