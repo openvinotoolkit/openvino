@@ -702,7 +702,7 @@ public:
         }
     }
 
-    void CleanUpInIECore(std::string &deviceName, std::map<std::string, std::string> &config) {
+    void CleanUpInIECore(std::string& deviceName, std::map<std::string, std::string>& config) {
         // auto-batching is not applicable, if there is auto_batch_timeout, delete it
         if (deviceName.find("BATCH") == std::string::npos) {
             const auto& batch_timeout_mode = config.find(ov::auto_batch_timeout.name());
