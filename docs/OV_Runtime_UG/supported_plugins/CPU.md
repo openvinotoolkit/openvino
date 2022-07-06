@@ -76,7 +76,7 @@ To check if the CPU device can support the `bfloat16` data type, use the [query 
 
 @endsphinxtabset
 
-If the model was converted to `bf16`, the `ov::hint::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
+If the model has been converted to `bf16`, the `ov::hint::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
