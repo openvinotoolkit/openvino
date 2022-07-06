@@ -1041,10 +1041,12 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
         tensor_remote_uv.emplace_back(cldnn_context.create_tensor(param_input_uv->get_element_type(), fake_image_data_uv[i].get_shape(), img_uv[i]));
     }
 
-    inf_req_remote.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
-    inf_req_remote.set_tensors(*param_input_uv->output(0).get_tensor().get_names().begin(), tensor_remote_uv);
+    for (size_t i = 0; i < 5; ++i) {    // to test repeating set_tensors/infer functionality
+        inf_req_remote.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
+        inf_req_remote.set_tensors(*param_input_uv->output(0).get_tensor().get_names().begin(), tensor_remote_uv);
 
-    inf_req_remote.infer();
+        inf_req_remote.infer();
+    }
 
     auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
     ASSERT_NO_THROW(output_tensor_shared.data());
