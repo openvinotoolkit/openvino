@@ -47,7 +47,8 @@ To make the configuration process much easier and its performance optimization m
 The Performance Hints functionality makes configuration transparent to the application, for example, anticipates the need for explicit (application-side) batching or streams, and facilitates parallel processing of separate infer requests for different input sources 
 
 
-Additional materials:
+## Additional Resources
+
 * [Using Async API and running multiple inference requests in parallel to leverage throughput](@ref throughput_app_design).
 * [The throughput approach implementation details for specific devices](dldt_deployment_optimization_internals.md) 
 * [Details on throughput](dldt_deployment_optimization_tput.md)
