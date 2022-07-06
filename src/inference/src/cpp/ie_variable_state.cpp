@@ -65,7 +65,7 @@ VariableState::~VariableState() {
     _impl = {};
 }
 
-VariableState::VariableState(const ie::IVariableStateInternal::Ptr& impl, const std::shared_ptr<void>& so)
+VariableState::VariableState(const ie::IVariableStateInternal::Ptr& impl, const std::vector<std::shared_ptr<void>>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
@@ -80,7 +80,7 @@ std::string VariableState::get_name() const {
 }
 
 Tensor VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return {std::const_pointer_cast<ie::Blob>(_impl->GetState()), _so});
+    OV_VARIABLE_CALL_STATEMENT(return {std::const_pointer_cast<ie::Blob>(_impl->GetState()), {_so}});
 }
 
 void VariableState::set_state(const Tensor& state) {
