@@ -70,15 +70,61 @@ QUANTILE_WEIGHTS_RANGE_ESTIMATOR_CONFIG = {
     }}
 
 
+DEFAULT_OUTPUTS_RANGE_ESTIMATOR_CONFIG = {
+    'perchannel': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min', 'granularity': 'pertensor'},
+            'max': {'aggregator': 'max', 'type': 'abs_max'}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'max', 'type': 'max'}
+        }
+    },
+    'pertensor': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'abs_max'}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'mean', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'max'}
+        }
+    }}
+
+
+QUANTILE_OUTPUTS_RANGE_ESTIMATOR_CONFIG = {
+    'perchannel': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min', 'granularity': 'pertensor'},
+            'max': {'aggregator': 'max', 'type': 'abs_quantile', 'outlier_prob': 1e-4}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'min', 'type': 'quantile', 'outlier_prob': 1e-4},
+            'max': {'aggregator': 'max', 'type': 'quantile', 'outlier_prob': 1e-4}
+        }
+    },
+    'pertensor': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'abs_quantile', 'outlier_prob': 1e-4}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'mean', 'type': 'quantile', 'outlier_prob': 1e-4},
+            'max': {'aggregator': 'mean', 'type': 'quantile', 'outlier_prob': 1e-4}
+        }
+    }}
+
+
 RANGE_ESTIMATOR_CONFIG_PRESETS = {
     'default': {
         'activations': DEFAULT_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
-        'outputs': DEFAULT_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
+        'outputs': DEFAULT_OUTPUTS_RANGE_ESTIMATOR_CONFIG,
         'weights': DEFAULT_WEIGHTS_RANGE_ESTIMATOR_CONFIG,
     },
     'quantile': {
         'activations': QUANTILE_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
-        'outputs': QUANTILE_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
+        'outputs': QUANTILE_OUTPUTS_RANGE_ESTIMATOR_CONFIG,
         'weights': QUANTILE_WEIGHTS_RANGE_ESTIMATOR_CONFIG,
     }
 }

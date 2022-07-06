@@ -845,8 +845,6 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if port.disconnected():
             continue
 
-        in_port_type = port.get_source().node.type
-
         # Temporary WA while blobs_as_inputs option isn't work properly
         if node.type in blobs_as_inputs_nodes_type:
             if 'bin' in node.in_edges()[idx]:
@@ -857,6 +855,7 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
         # This condition blocks FQ insertion after the keep_shape_ops (KSO) generated sub-graph
         # to avoid quantization of integer-like tensors
+        in_port_type = port.get_source().node.type
         if in_port_type != 'Const' and port.data.get_value() is not None:
             continue
 
