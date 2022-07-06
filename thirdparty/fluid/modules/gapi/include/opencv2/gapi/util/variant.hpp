@@ -509,8 +509,10 @@ namespace util
         return v.index() == util::variant<Types...>::template index_of<T>();
     }
 
+#ifdef __linux__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     template<typename... Us> bool operator==(const variant<Us...> &lhs,
                                              const variant<Us...> &rhs)
     {
@@ -525,7 +527,9 @@ namespace util
             return false;
         return (eqs[lhs.index()])(lhs.memory, rhs.memory);
     }
+#ifdef __linux__
 #pragma GCC diagnostic pop
+#endif
 
     template<typename... Us> bool operator!=(const variant<Us...> &lhs,
                                              const variant<Us...> &rhs)
