@@ -85,6 +85,7 @@
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -120,6 +121,7 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
+#include "utils/denormals.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -131,6 +133,12 @@
 # elif !(__GNUC_PREREQ(4, 3) && !defined(__APPLE__))
 #  include <cpuid.h>
 # endif
+#endif
+
+#if defined(__linux__)
+#include <sys/auxv.h>
+#include <signal.h>
+#include <sys/mman.h>
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -165,8 +173,71 @@ static std::string getDeviceFullName() {
     return brand_string;
 }
 
+#if defined(__linux__)
+
+#ifndef AT_MINSIGSTKSZ
+#define AT_MINSIGSTKSZ 51
+#endif
+
+class SigAltStackSetup {
+    stack_t new_stack{0};
+    stack_t old_stack{0};
+
+public:
+    SigAltStackSetup() {
+        memset(&old_stack, 0, sizeof(old_stack));
+        memset(&new_stack, 0, sizeof(new_stack));
+
+        auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
+        auto new_size = minsigstksz + SIGSTKSZ;
+        void * altstack =  mmap(NULL, new_size, PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        if (altstack == MAP_FAILED) {
+            return;
+        }
+        new_stack.ss_size = new_size;
+        new_stack.ss_sp = altstack;
+        auto rc = sigaltstack(&new_stack, &old_stack);
+        if (rc) {
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+            return;
+        }
+    }
+
+    ~SigAltStackSetup() {
+        stack_t current_stack;
+        if (new_stack.ss_sp) {
+            // restore old stack if new_stack is still the current one
+            if (sigaltstack(NULL, &current_stack) == 0) {
+                if (current_stack.ss_sp == new_stack.ss_sp) {
+                    sigaltstack(&old_stack, NULL);
+                }
+            }
+            munmap(new_stack.ss_sp, new_stack.ss_size);
+            new_stack.ss_sp = nullptr;
+            new_stack.ss_size = 0;
+        }
+    }
+};
+
+class CPUSpecialSetup {
+    SigAltStackSetup ss;
+
+public:
+    CPUSpecialSetup() = default;
+};
+#else
+class CPUSpecialSetup {
+public:
+    CPUSpecialSetup() = default;
+};
+#endif
+
 Engine::Engine() :
-    deviceFullName(getDeviceFullName()) {
+    deviceFullName(getDeviceFullName()),
+    specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 }
@@ -413,6 +484,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
     pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     pass_config->disable<ngraph::pass::ConvertROIAlign9To3>();
+    pass_config->disable<ngraph::pass::SoftSignDecomposition>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
@@ -723,6 +795,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+    static Xbyak::util::Cpu cpu;
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+            flush_to_zero(true);
+            denormals_as_zero(true);
+        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+            flush_to_zero(false);
+            denormals_as_zero(false);
+        }
     }
 
     return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());

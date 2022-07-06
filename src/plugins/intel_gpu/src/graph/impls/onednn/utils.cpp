@@ -147,7 +147,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
-int64_t get_f_offset(cldnn::layout l, dnnl::memory::desc&& desc) {
+int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
@@ -456,6 +456,10 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 } else if (compare_strides(order, {1, 0, 2, 3, 4})) {
                     return cldnn::format::is_os_zyx_isa8_osv8_isv2;
                 }
+            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
+                blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4 &&
+                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
+                return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
             }
         }
 
@@ -493,7 +497,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
 }
 
 template <typename T>
-void make_per_tensor_if_possible(cldnn::data_node& node) {
+bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
     auto ptr = node.get_attached_memory_ptr();
     auto engine = ptr->get_engine();
     auto& stream = engine->get_program_stream();
@@ -501,19 +505,19 @@ void make_per_tensor_if_possible(cldnn::data_node& node) {
     mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
     auto val = old_data[0];
     for (size_t i = 1; i < num_elems; i++) {
-        if (val != old_data[i])
-            return;
+        if (val != old_data[i]) {
+            zp_val = DNNL_RUNTIME_S32_VAL;
+            return false;
+        }
     }
 
-    auto l = layout {node.get_output_layout().data_type, node.get_output_layout().format, tensor{1, 1, 1, 1}};
-    auto new_mem = engine->allocate_memory(l);
-    mem_lock<T, mem_lock_type::write> new_data{new_mem, stream};
-    new_data[0] = val;
-    node.attach_memory(new_mem, false);
+    zp_val = val;
+    return true;
 }
 
-template void make_per_tensor_if_possible<int8_t>(cldnn::data_node& node);
-template void make_per_tensor_if_possible<uint8_t>(cldnn::data_node& node);
+template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
+template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+
 
 }  // namespace onednn
 }  // namespace cldnn

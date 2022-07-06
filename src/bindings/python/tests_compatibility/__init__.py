@@ -130,7 +130,6 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
-xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 
@@ -138,11 +137,8 @@ xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mo
 xfail_issue_78741 = xfail_test(reason="Cannot get dims for non-static shapes. "
                                       "Requires dynamism support enabled.")
 
-xfail_issue_81974 = xfail_test(reason="RuntimeError: OpenVINO does not support the following ONNX "
-                                      "operations: GridSample, Optional, SequenceConstruct, "
-                                      "OptionalHasElement, SequenceInsert")
-
 xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
+skip_issue_86384 = pytest.mark.skip(reason="If op compatibility tests failing only when triggering whole test suite")

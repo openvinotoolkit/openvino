@@ -987,6 +987,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_single_box) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_v9_single_box) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_v9_single_box.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input(std::vector<float>({0.0f, 0.0f, 1.0f, 1.0f}));  // boxes
+    test_case.add_input(std::vector<float>({0.9f}));                    // scores
+    test_case.add_input(std::vector<int64_t>({3}));                     // max_output_boxes_per_class
+    test_case.add_input(std::vector<float>({0.5f}));                    // iou_threshold
+    test_case.add_input(std::vector<float>({0.0f}));                    // score_threshold
+
+    test_case.add_expected_output<int64_t>(Shape{1, 3}, {0, 0, 0});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum.onnx"));
 
@@ -5177,5 +5193,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_grid_sample) {
          3.8000f,  7.9000f,  8.7000f, 9.5000f, 10.3000f, 5.3000f, 5.4000f, 11.1000f, 11.9000f,
          12.7000f, 13.5000f, 6.9000f, 3.0000f, 6.1500f,  6.5500f, 6.9500f, 7.3500f,  3.7500});
 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_concat_empty_init) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/concat_empty_init.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
+    test_case.add_expected_output<int64_t>(Shape{2}, std::vector<int64_t>{1, 2});
     test_case.run();
 }

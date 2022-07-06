@@ -85,7 +85,7 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     """Helper function to prepare inputs for inference.
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
-    if the item is of type `np.ndarray`, `np.number`, `int`, `float`.
+    if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
     """
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
@@ -100,6 +100,9 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
             new_inputs[key] = value
+        # If value object has __array__ attribute, load it to Tensor using np.array.
+        elif hasattr(value, "__array__"):
+            update_tensor(np.array(value, copy=True), request, key)
         # Throw error otherwise.
         else:
             raise TypeError(f"Incompatible input data of type {type(value)} under {key} key!")
@@ -109,7 +112,7 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer(self, inputs: Any = None) -> dict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -125,13 +128,14 @@ class InferRequest(InferRequestBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
@@ -155,12 +159,15 @@ class InferRequest(InferRequestBase):
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
             update_tensor(inputs, self)
             return super().infer({})
+        elif hasattr(inputs, "__array__"):
+            update_tensor(np.array(inputs, copy=True), self)
+            return super().infer({})
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
     def start_async(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         userdata: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
@@ -179,13 +186,14 @@ class InferRequest(InferRequestBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
         """
@@ -200,6 +208,9 @@ class InferRequest(InferRequestBase):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
             update_tensor(inputs, self)
+            return super().start_async({}, userdata)
+        elif hasattr(inputs, "__array__"):
+            update_tensor(np.array(inputs, copy=True), self)
             return super().start_async({}, userdata)
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
@@ -282,7 +293,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
     def start_async(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         userdata: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
@@ -297,13 +308,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         (1) `numpy.array`
         (2) `openvino.runtime.Tensor`
+        (3) array-like object with `__array__` attribute
 
         Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
         :param inputs: Data to be set on input tensors of the next available InferRequest.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :type inputs: Any, optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
         """
@@ -314,8 +326,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
                 normalize_inputs(self[self.get_idle_request_id()], inputs), userdata,
             )
         elif isinstance(inputs, (list, tuple)):
-            super().start_async
-            (
+            super().start_async(
                 normalize_inputs(
                     self[self.get_idle_request_id()],
                     {index: input for index, input in enumerate(inputs)},
@@ -326,6 +337,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
             super().start_async(inputs, userdata)
         elif isinstance(inputs, (np.ndarray, np.number, int, float)):
             update_tensor(inputs, self[self.get_idle_request_id()])
+            super().start_async({}, userdata)
+        elif hasattr(inputs, "__array__"):
+            update_tensor(np.array(inputs, copy=True), self[self.get_idle_request_id()])
             super().start_async({}, userdata)
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
