@@ -16,7 +16,7 @@ To proceed with this article, make sure you have read how to use [Default Quanti
 
 > **NOTE**: The Accuracy-aware Quantization algorithm's behavior is different for the GNA `target_device`. In this case it searches for the best configuration and selects between INT8 and INT16 precisions for weights of each layer. The algorithm works for the `performance` preset only. It is not useful for the `accuracy` preset, since the whole model is already in INT16 precision.
 
-Script for Accuracy-aware Quantization includes four steps:
+A script for Accuracy-aware Quantization includes four steps:
 1. Prepare data and dataset interface.
 2. Define accuracy metric.
 3. Select quantization parameters.
