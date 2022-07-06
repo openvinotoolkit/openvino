@@ -6,9 +6,9 @@ The Arm® CPU plugin is developed in order to enable deep neural networks infere
 
 > **NOTE**: This is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
 
-The Arm® CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in pre-built form. The plugin should be built from the source code for use. Plugin build procedure is described on [How to build Arm® CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin) guide. 
+The Arm® CPU plugin is not a part of the Intel® Distribution of OpenVINO™ toolkit and is not distributed in the pre-built form. The plugin should be built from the source code for use. Plugin build procedure is described in [How to build Arm® CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin) guide. 
 
-The set of supported layers is defined on the [Operation set specification](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification) page.
+The set of supported layers is defined on the [Op-set specification page](https://github.com/openvinotoolkit/openvino_contrib/wiki/ARM-plugin-operation-set-specification).
 
 
 ## Supported Inference Data Types

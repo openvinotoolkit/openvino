@@ -14,10 +14,10 @@
 
 ## Introduction
 
-When the input data does not fit to Neural Network model input tensor perfectly, this means that additional operations/steps are needed to transform the data to format expected by a model. These operations are known as "preprocessing".
+When input data does not fit the model input tensor perfectly, additional operations/steps are needed to transform the data to the format expected by the model. These operations are known as "preprocessing".
 
 ### Example
-Consider the following standard example: deep learning model expects input with the `{1, 3, 224, 224}` shape, `FP32` precision, `RGB` color channels order, and it requires data normalization (subtract mean and divide by scale factor). However, there is just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means that operations below must be performed:
+Consider the following standard example: deep learning model expects input with the `{1, 3, 224, 224}` shape, `FP32` precision, `RGB` color channels order, and it requires data normalization (subtract mean and divide by scale factor). However, there is just a `640x480` `BGR` image (data is `{480, 640, 3}`). This means that the following operations must be performed:
  - Convert `U8` buffer to `FP32`.
  - Transform to `planar` format: from `{1, 480, 640, 3}` to `{1, 3, 480, 640}`.
  - Resize image from 640x480 to 224x224.
@@ -28,18 +28,18 @@ Consider the following standard example: deep learning model expects input with 
 ![](img/preprocess_not_fit.png)
 
 
-Even though all these steps can be relatively easy to implement manually in the application code before actual inference, it is possible to do it with Preprocessing API. Advantages of using this API are:
+Even though it is relatively easy to implement all these steps in the application code manually, before actual inference, it is also possible with the use of Preprocessing API. Advantages of using the API are:
  - Preprocessing API is easy to use.
  - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
 ## Preprocessing API
 
 Intuitively, preprocessing API consists of the following parts:
- 1. 	**Tensor** -- It declares user data format, like shape, [layout](./layout_overview.md), precision, color format from actual user's data.
- 2. 	**Steps** - It describes sequence of preprocessing steps which need to be applied to user data.
- 3. 	**Model** - It specifies model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
+ 1. 	**Tensor** - declares user data format, like shape, [layout](./layout_overview.md), precision, color format from actual user's data.
+ 2. 	**Steps** - describes sequence of preprocessing steps which need to be applied to user data.
+ 3. 	**Model** - specifies model data format. Usually, precision and shape are already known for model, only additional information, like [layout](./layout_overview.md) can be specified.
 
-> **NOTE**: Graph modifications of a model shall be performed after a model is read from a disk and **before** it is loaded on actual device.
+> **NOTE**: Graph modifications of a model shall be performed after the model is read from a drive and **before** it is loaded on the actual device.
 
 ### PrePostProcessor Object
 
@@ -113,7 +113,7 @@ Now, if the model input has `{1,3,224,224}` shape, preprocessing will be able to
 
 ### Preprocessing Steps
 
-Now, sequence of preprocessing steps can be defined:
+Now, the sequence of preprocessing steps can be defined:
 
 @sphinxtabset
 
@@ -142,7 +142,7 @@ Perform the following:
 
 ### Integrating Steps into a Model
 
-Model can be finally built, once the preprocessing steps have been finished. It is possible to print `PrePostProcessor` configuration on screen for debugging purposes:
+Once the preprocessing steps have been finished the model can be finally built. It is possible to display `PrePostProcessor` configuration for debugging purposes:
 
 @sphinxtabset
 
@@ -161,7 +161,7 @@ Model can be finally built, once the preprocessing steps have been finished. It 
 @endsphinxtabset
 
 
-After this, a `model` will accept `U8` input with `{1, 480, 640, 3}` shape and `BGR` channels order. All conversion steps will be integrated into execution graph. Now, model can be loaded on the device and the image can be passed to the model without any data manipulation in the application.
+The `model` will accept `U8` input with the shape of `{1, 480, 640, 3}` and the `BGR` channel order. All conversion steps will be integrated into the execution graph. Now, model can be loaded on the device and the image can be passed to the model without any data manipulation in the application.
 
 
 ## Additional Resources

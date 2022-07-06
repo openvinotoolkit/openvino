@@ -1,12 +1,11 @@
 # High-level Performance Hints {#openvino_docs_OV_UG_Performance_Hints}
 
-Each of [supported devices](supported_plugins/Device_Plugins.md) in OpenVINO™ offers low-level performance settings. Tweaking the detailed configuration requires deep understanding of the architecture.
-While the performance may be optimal for a specific combination of a device and an inferred model, the resulting configuration may not necessarily be optimal for another device or model.
-The OpenVINO performance hints are the new way to configure performance with *portability* in mind. As the hints are supported by every OpenVINO device, this is a future-proof solution that is fully compatible with the [automatic device selection](./auto_device_selection.md).
+Even though all [supported devices](supported_plugins/Device_Plugins.md) in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases. 
+The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the [automatic device selection inference mode](./auto_device_selection.md) and designed with *portability* in mind. 
 
 The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
 
-Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO` (`CPU_THROUGHPUT_AUTO` in the pre-OpenVINO 2.0 terminology) was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
+Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO` (`CPU_THROUGHPUT_AUTO` in the pre-API 2.0 terminology) was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 ## Performance Hints: Latency and Throughput
@@ -22,7 +21,7 @@ Keep in mind that a typical model may take significantly more time to load with 
 
 ## Performance Hints: How It Works
 Internally, every device "translates" the value of the hint to the actual performance settings.
-For example, the `ov::hint::PerformanceMode::THROUGHPUT` selects number of CPU or GPU streams.
+For example, the `ov::hint::PerformanceMode::THROUGHPUT` selects the number of CPU or GPU streams.
 Additionally, the optimal batch size is selected for the GPU and the [automatic batching](../OV_Runtime_UG/automatic_batching.md) is applied whenever possible. To check whether the device supports it, refer to the [devices/features support matrix](./supported_plugins/Device_Plugins.md) article.
 
 The resulting (device-specific) settings can be queried back from the instance of the `ov:Compiled_Model`.  
@@ -41,7 +40,7 @@ Be aware that the `benchmark_app` outputs the actual settings for the `THROUGHPU
    ```
 
 ## Using the Performance Hints: Basic API
-In the example code snippet below, the `ov::hint::PerformanceMode::THROUGHPUT` is specified for the `ov::hint::performance_mode` property for the `compile_model`:
+In the example code snippet below, `ov::hint::PerformanceMode::THROUGHPUT` is specified for the `ov::hint::performance_mode` property for `compile_model`:
 @sphinxdirective
 
 .. tab:: C++
@@ -78,7 +77,7 @@ As mentioned earlier, this will limit the batch size for the GPU and the number 
 @endsphinxdirective
 
 ## Optimal Number of Inference Requests
-The hints are used on presumption that the application queries the `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
+The hints are used on the presumption that the application queries `ov::optimal_number_of_infer_requests` to create and run the returned number of requests simultaneously:
 @sphinxdirective
 
 .. tab:: C++
@@ -95,9 +94,9 @@ The hints are used on presumption that the application queries the `ov::optimal_
 
 @endsphinxdirective
 
-While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**. It is recommended for efficiency (device utilization) reasons. 
+While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the `ov::optimal_number_of_infer_requests` of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons. 
 
-Keep in mind that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests (at the same minimal latency) as the number of NUMA nodes in the machine.
+Keep in mind that `ov::hint::PerformanceMode::LATENCY` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as the number of NUMA nodes in the system.
 To make your application fully scalable, make sure to query the `ov::optimal_number_of_infer_requests` directly.
 
 ## Prefer Async API
@@ -106,7 +105,7 @@ The API of the inference requests offers Sync and Async execution. The `ov::Infe
  
 ## Combining the Hints and Individual Low-Level Settings
 While sacrificing the portability to some extent, it is possible to combine the hints with individual device-specific settings. 
-For example, use the device to prepare a configuration `ov::hint::PerformanceMode::THROUGHPUT` while overriding any specific value:  
+For example, use `ov::hint::PerformanceMode::THROUGHPUT` to prepare a general configuration and override any of its specific values:  
 @sphinxdirective
 
 .. tab:: C++
@@ -124,7 +123,7 @@ For example, use the device to prepare a configuration `ov::hint::PerformanceMod
 
 @endsphinxdirective
 
-## Testing the Performance of the Hints with the Benchmark_App
+## Testing Performance of the Hints with the Benchmark_App
 The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md) versions, is the best way to evaluate the functionality of the performance hints for a particular device:
  - benchmark_app **-hint tput** -d 'device' -m 'path to your model'
  - benchmark_app **-hint latency** -d 'device' -m 'path to your model'

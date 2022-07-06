@@ -5,16 +5,16 @@ Previous sections covered the topic of the [preprocessing steps](@ref openvino_d
 
 For many applications, it is also important to minimize read/load time of a model. Therefore, performing integration of preprocessing steps every time on application startup, after `ov::runtime::Core::read_model`, may seem inconvenient. In such cases, once pre and postprocessing steps have been added, it can be useful to store new execution model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
-Most of existing preprocessing steps can also be performed via command-line options, using Model Optimizer tool. For details on such command-line options, refer to the [Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md).
+Most available preprocessing steps can also be performed via command-line options, using Model Optimizer. For details on such command-line options, refer to the [Optimizing Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md).
 
 ## Code example - Saving Model with Preprocessing to OpenVINO IR
 
-When some preprocessing steps cannot be integrated into execution graph using Model Optimizer command-line options (for example, `YUV`->`RGB` color space conversion, `Resize`, etc.), it is possible to write a simple code which:
- - Reads the original model (OpenVINO IR, ONNX, Paddle).
+When some preprocessing steps cannot be integrated into the execution graph using Model Optimizer command-line options (for example, `YUV`->`RGB` color space conversion, `Resize`, etc.), it is possible to write a simple code which:
+ - Reads the original model (OpenVINO IR, ONNX, PaddlePaddle).
  - Adds the preprocessing/postprocessing steps.
- - Saves resulting model as IR (`.xml`/`.bin`).
+ - Saves resulting model as IR (`.xml` and `.bin`).
 
-Consider the example, where an original `ONNX` model takes one `float32` input with the `{1, 3, 224, 224}` shape, with the `RGB` channels order, and with mean/scale values applied. In contrast, the application provides `BGR` image buffer with a not fixed size and input images as batches, each containing 2 images. Below is the model conversion code that can be applied in the model preparation script for such a case.
+Consider the example, where an original ONNX model takes one `float32` input with the `{1, 3, 224, 224}` shape, the `RGB` channel order, and mean/scale values applied. In contrast, the application provides `BGR` image buffer with a non-fixed size and input images as batches of two. Below is the model conversion code that can be applied in the model preparation script for such a case.
 
 - Includes / Imports
 

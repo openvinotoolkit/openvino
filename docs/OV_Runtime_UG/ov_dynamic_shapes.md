@@ -10,7 +10,7 @@
 
 @endsphinxdirective
 
-As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing the input shapes before model compilation in the `Core::compile_model`.
+As it was demonstrated in the [Changing Input Shapes](ShapeInference.md) article, there are models that support changing input shapes before model compilation in `Core::compile_model`.
 Reshaping models provides an ability to customize the model input shape for the exact size required in the end application.
 This article explains how the ability of model to reshape can further be leveraged in more dynamic scenarios.
 
@@ -18,7 +18,7 @@ This article explains how the ability of model to reshape can further be leverag
 
 Conventional "static" model reshaping works well when it can be done once per many model inference calls with the same shape.
 However, this approach does not perform efficiently if the input tensor shape is changed on every inference call. Calling the `reshape()` and `compile_model()` methods each time a new size comes is extremely time-consuming.
-A popular example would be an inference of natural language processing models (like BERT) with arbitrarily-sized user input sequences.
+A popular example would be inference of natural language processing models (like BERT) with arbitrarily-sized user input sequences.
 In this case, the sequence length cannot be predicted and may change every time inference is called.
 Dimensions that can be frequently changed are called *dynamic dimensions*.
 Dynamic shapes should be considered, when a real shape of input is not known at the time of the `compile_model()` method call.
@@ -76,9 +76,9 @@ Dynamic dimensions may appear in the input model without calling the `reshape` m
 Many DL frameworks support undefined dimensions.
 If such a model is converted with Model Optimizer or read directly by the `Core::read_model`, undefined dimensions are preserved.
 Such dimensions are automatically treated as dynamic ones.
-Therefore, there is no need to call the `reshape` method if undefined dimensions are already configured in the original model or in the IR file.
+Therefore, there is no need to call the `reshape` method, if undefined dimensions are already configured in the original or the IR model.
 
-If the input model has undefined dimensions that will not change during the inference, it is recommended to set them to static values, using the same `reshape` method of the model.
+If the input model has undefined dimensions that will not change during inference. It is recommended to set them to static values, using the same `reshape` method of the model.
 From the API perspective, any combination of dynamic and static dimensions can be configured.
 
 Model Optimizer provides identical capability to reshape the model during the conversion, including specifying dynamic dimensions.
@@ -139,9 +139,9 @@ This is similar to the [regular steps](integrate_with_your_application.md). Howe
 In the example above, the `set_input_tensor` is used to specify input tensors.
 The real dimension of the tensor is always static, because it is a particular tensor and it does not have any dimension variations in contrast to model inputs.
 
-Similar to static shapes, the `get_input_tensor` can be used instead of the `set_input_tensor`.
-In contrast to static input shapes, when using the `get_input_tensor` for dynamic inputs, the `set_shape` method for the returned tensor should be called to define the shape and allocate memory.
-Without doing so, the tensor returned by the `get_input_tensor` is an empty tensor. The shape of the tensor is not initialized and memory is not allocated, because infer request does not have information about the real shape that will be provided.
+Similar to static shapes, `get_input_tensor` can be used instead of `set_input_tensor`.
+In contrast to static input shapes, when using `get_input_tensor` for dynamic inputs, the `set_shape` method for the returned tensor should be called to define the shape and allocate memory.
+Without doing so, the tensor returned by `get_input_tensor` is an empty tensor. The shape of the tensor is not initialized and memory is not allocated, because infer request does not have information about the real shape that will be provided.
 Setting shape for an input tensor is required when the corresponding input has at least one dynamic dimension, regardless of the bounds.
 Contrary to previous example, the following one shows the same sequence of two infer requests, using `get_input_tensor` instead of `set_input_tensor`:
 

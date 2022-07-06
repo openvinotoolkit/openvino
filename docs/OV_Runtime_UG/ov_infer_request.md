@@ -30,7 +30,7 @@ The `ov::InferRequest` supports synchronous and asynchronous modes for inference
 
 ### Synchronous Mode
 
-You can use the `ov::InferRequest::infer`, which blocks the application execution, to infer a model in the synchronous mode:
+You can use `ov::InferRequest::infer`, which blocks the application execution, to infer a model in the synchronous mode:
 
 @sphinxtabset
 
@@ -50,7 +50,7 @@ You can use the `ov::InferRequest::infer`, which blocks the application executio
 
 ### Asynchronous Mode
 
-Asynchronous mode can improve overall application frame-rate. It is possible, because rather than wait for inference to complete, the app can keep working on the host, while the accelerator is busy. The `ov::InferRequest::start_async` can be used to infer a model in the asynchronous mode:
+The asynchronous mode can improve application's overall frame-rate, by making it work on the host while the accelerator is busy, instead of waiting for inference to complete. To infer a model in the asynchronous mode, use `ov::InferRequest::start_async`:
 
 @sphinxtabset
 
@@ -148,7 +148,7 @@ You can use the `ov::InferRequest::cancel` method if you want to abort execution
 @anchor in_out_tensors
 ## Working with Input and Output tensors
 
-The `ov::InferRequest` allows you to get input/output tensors by tensor name, index, port and without any arguments in case if a model has only one input or output.
+`ov::InferRequest` allows you to get input/output tensors by tensor name, index, port, and without any arguments, if a model has only one input or output.
 
   * `ov::InferRequest::get_input_tensor`, `ov::InferRequest::set_input_tensor`, `ov::InferRequest::get_output_tensor`, `ov::InferRequest::set_output_tensor` methods without arguments can be used to get or set input/output tensor for a model with only one input/output:
 
@@ -228,8 +228,8 @@ Presented below are examples of what the Infer Request can be used for.
 
 ### Cascade of Models
 
-The `ov::InferRequest` can be used to organize cascade of models. Infer Requests are required for each model.
-In this case you can get output tensor from the first request, using the `ov::InferRequest::get_tensor` and set it as input for the second request, using the `ov::InferRequest::set_tensor`. Keep in mind that shared tensors across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
+`ov::InferRequest` can be used to organize a cascade of models. Infer Requests are required for each model.
+In this case, you can get the output tensor from the first request, using `ov::InferRequest::get_tensor` and set it as input for the second request, using `ov::InferRequest::set_tensor`. Keep in mind that tensors shared across compiled models can be rewritten by the first model if the first infer request is run once again, while the second model has not started yet.
 
 @sphinxtabset
 
@@ -249,7 +249,7 @@ In this case you can get output tensor from the first request, using the `ov::In
 
 ### Using of ROI Tensors
 
-It is possible to re-use shared input by several models. You do not need to allocate separate input tensor for a model if it processes a ROI object located inside of already allocated input of a previous model. For instance, when the first model detects objects in a video frame (stored as input tensor) and the second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use pre-allocated input tensor (used by the first model) by the second model and just crop ROI without allocation of new memory, using the `ov::Tensor` with passing of the `ov::Tensor` and the `ov::Coordinate` as parameters.
+It is possible to re-use shared input in several models. You do not need to allocate a separate input tensor for a model if it processes a ROI object located inside of an already allocated input of a previous model. For instance, when the first model detects objects in a video frame (stored as an input tensor) and the second model accepts detected bounding boxes (ROI inside of the frame) as input. In this case, it is allowed to re-use a pre-allocated input tensor (used by the first model) by the second model and just crop ROI without allocation of new memory, using `ov::Tensor` with passing `ov::Tensor` and `ov::Coordinate` as parameters.
 
 @sphinxtabset
 
@@ -267,9 +267,9 @@ It is possible to re-use shared input by several models. You do not need to allo
 
 @endsphinxtabset
 
-### Using of Remote Tensors
+### Using Remote Tensors
 
-By using the `ov::RemoteContext` you can create a remote tensor to work with remote device memory.
+By using `ov::RemoteContext` you can create a remote tensor to work with remote device memory.
 
 @sphinxtabset
 

@@ -11,30 +11,26 @@ Therefore, the model can be reshaped for some predefined big sequence length onc
 This approach is called *padding*.
 
 However, padding is not applicable to every model and every use case.
-Be aware of the internals of the model before you apply padding. Otherwise, if the model is not designed to handle dummy element gracefully in a padding area,
-then the results of inference may be totally scrambled, or accuracy is significantly affected.
+Be aware of the internals of the model before you apply padding. Otherwise, if the model is not designed to handle dummy elements gracefully in a padding area, the results of inference may be entirely scrambled, or accuracy significantly affected.
 The model can even crash during inference.
 
-Apart from a bad developer experience,
-the main disadvantage of padding is a poor performance due to the time-consuming processing of dummy elements in the padding area,
-even if the model is properly designed for padding.
-The reason is that such models are usually designed in a way where calculations in the padded area still happen, not affecting the end result.
+The main disadvantage of padding, apart from impacting developer experience, is poor performance. Even if the model is properly designed for padding, it is often designed in such a way that the time-consuming processing of dummy elements in the padded area still occurs, not affecting the end result but decreasing inference speed.
 
 ## Multiple Pre-compiled Models
 
 Another approach to handle arbitrary sized inputs is to pre-compile several models reshaped for different input shapes.
 This method works well if the number of different shapes is small enough to afford increased time for multiple reshapes and compilations
 as well as increased amount of consumed memory.
-As this method cannot be scaled well, it is used in a combination with the padding.
+As this method cannot be scaled well, it is used in combination with padding.
 Hence, the model with the most suitable input shape among pre-reshaped models is chosen.
 It gives a smaller padding area in comparison to a single model.
 
 ## Dimension Partitioning
 
-Another practical but still a complicated approach is to divide the input tensor into multiple chunks along the dynamic dimension.
+Another practical but still complicated approach is to divide the input tensor into multiple chunks along the dynamic dimension.
 For example, if there is a batch of independent inputs as a single tensor.
-Run multiple inferences, if arbitrary division along batch dimension is possible (for batch dimension it should be possible by the dimension purpose).
-Use the approach with several pre-compiled models, choosing sized inputs to have the minimum number of inferences,
+If arbitrary division along batch dimension is possible, and it should be possible by the dimension purpose,
+run multiple inferences. Use the approach with several pre-compiled models, choosing sized inputs to have the minimum number of inferences,
 having a particular batch size in the input tensor.
 
 For example, if there are models pre-compiled for batch sizes `1`, `2`, `4` and `8`,

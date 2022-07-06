@@ -120,9 +120,9 @@ C++ references:
 
 #### Converting Precision
 
-In Computer Vision, image is represented by an array of unsigned 8-but integer values (for each color), but model accepts floating point tensors.
+In Computer Vision, the image is represented by an array of unsigned 8-bit integer values (for each color), but the model accepts floating point tensors.
 
-To integrate precision conversion into an execution graph as a pre-processing step, simply do the following:
+To integrate precision conversion into an execution graph as a pre-processing step:
 
 @sphinxtabset
 
@@ -168,7 +168,7 @@ Conversion can be done implicitly, using the [layout](./layout_overview.md) of a
 @endsphinxtabset
 
 
-For a manual transpose of axes without the use of a [layout](./layout_overview.md) in the code, simply do the following:
+For a manual transpose of axes without the use of a [layout](./layout_overview.md) in the code:
 
 @sphinxtabset
 
@@ -196,7 +196,7 @@ C++ references:
 
 #### Resizing Image
 
-Resizing of an image is a typical pre-processing step for computer vision tasks. With pre-processing API, this step can also be integrated into execution graph and performed on a target device.
+Resizing an image is a typical pre-processing step for computer vision tasks. With pre-processing API, this step can also be integrated into an execution graph and performed on a target device.
 
 To resize the input image, it is needed to define `H` and `W` dimensions of the [layout](./layout_overview.md)
 
@@ -288,11 +288,11 @@ C++ references:
 
 ### Custom Operations
 
-Pre-processing API also allows adding custom preprocessing steps into execution graph. Custom step is a function, which accepts current `input` node and returns new node after adding preprocessing step.
+Pre-processing API also allows adding `custom` preprocessing steps into an execution graph. The `custom` function accepts the current `input` node, applies the defined preprocessing operations, and returns a new node.
 
-> **Note:** Custom pre-processing function should only insert node(s) after the input, it will be done during model compilation. This function will NOT be called during execution phase. This may seem serious and require some knowledge of [OpenVINO™ operations](../ops/opset.md).
+> **Note:** Custom pre-processing function should only insert node(s) after the input. It is done during model compilation. This function will NOT be called during the execution phase. This may appear to be complicated and require knowledge of [OpenVINO™ operations](../ops/opset.md).
 
-If there is a need to insert some additional operations to the execution graph right after the input, like some specific crops and/or resizes - Pre-processing API can be a good choice to implement this.
+If there is a need to insert additional operations to the execution graph right after the input, like some specific crops and/or resizes - Pre-processing API can be a good choice to implement this.
 
 @sphinxtabset
 
@@ -322,12 +322,12 @@ Pre-processing uses the following flow: **User tensor** -> **Steps** -> **Model 
 
 Post-processing uses the reverse: **Model output** -> **Steps** -> **User tensor**.
 
-Compared to pre-processing, there are not so many operations needed for post-processing stage. Currently, only the following post-processing operations are supported:
+Compared to pre-processing, there are not as many operations needed for the post-processing stage. Currently, only the following post-processing operations are supported:
  - Convert a [layout](./layout_overview.md).
  - Convert an element type.
  - Customize operations.
 
-Usage of these operations is similar to pre-processing. Below is an example:
+Usage of these operations is similar to pre-processing. See the following example:
 
 @sphinxtabset
 
