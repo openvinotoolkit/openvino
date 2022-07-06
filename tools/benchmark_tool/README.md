@@ -8,7 +8,7 @@ This page demonstrates how to use the Benchmark Python Tool to estimate deep lea
 
 The Python benchmark_app is automatically installed when you install OpenVINO Developer Tools using [PyPI](../../docs/install_guides/installing-openvino-pip.md). Before running `benchmark_app`, make sure the `openvino_env` virtual environment is activated, and navigate to the directory where your model is located.
 
-The benchmarking application works with OpenVINO models in IR format (model.xml and model.bin) or ONNX format (model.onnx). You can use it with your own models or pre-trained ones. You can choose among both [public](@ref omz_models_group_public) and [Intel](@ref omz_models_group_intel) models from the Open Model Zoo, which you can download using [Model Downloader](@ref omz_tools_downloader). Before running the tool, make sure the model is either converted to the OpenVINO format, using Model Optimizer, or is in the ONNX format.
+The benchmarking application works with models in the OpenVINO IR (`model.xml` and `model.bin`) and ONNX (`model.onnx`) formats. Make sure to [convert your models] (../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) if necessary. 
 
 To run benchmarking with default options on a model, use the following command:
 
