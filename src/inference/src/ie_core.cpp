@@ -181,6 +181,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 }
                 config.erase(it);
             }
+
+            it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                executorManager()->setTbbFlag(flag);
+                config.erase(it);
+            }
         }
 
         void setCacheForDevice(const std::string& dir, const std::string& name) {
@@ -1139,15 +1146,6 @@ public:
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
-
-        for (auto& item : config) {
-            if (item.first == ov::force_tbb_terminate.name()) {
-                auto flag = item.second == CONFIG_VALUE(YES) ? true : false;
-                executorManager()->setTbbFlag(flag);
-                config.erase(item.first);
-                break;
-            }
-        }
         if (config.empty()) {
             return;
         }
@@ -1712,6 +1710,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         }
     }
 
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+    }
+
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
     return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
 }
@@ -1951,7 +1954,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._ptr, remoteContext._so};
+        return {remoteContext._ptr, {remoteContext._so}};
     });
 }
 
@@ -1963,7 +1966,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._ptr, remoteContext._so};
+        return {remoteContext._ptr, {remoteContext._so}};
     });
 }
 

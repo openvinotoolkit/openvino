@@ -456,8 +456,18 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
     }
 
-    if (_inputs.find(name) != _inputs.end()) {
-        _inputs.erase(name);
+    if (is_surface) {
+        for (size_t i = 0; i < blobs.size(); ++i) {
+            std::string new_name = name + "_" + std::to_string(i);
+
+            if (_inputs.find(new_name) != _inputs.end()) {
+                _inputs.erase(new_name);
+            }
+        }
+    } else {
+        if (_inputs.find(name) != _inputs.end()) {
+            _inputs.erase(name);
+        }
     }
 
     if (is_remote) {

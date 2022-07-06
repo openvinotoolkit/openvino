@@ -3,6 +3,10 @@
 //
 
 #include "non_zero.h"
+
+#include <nodes/common/cpu_memcpy.h>
+
+#include <ie_parallel.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 
@@ -11,6 +15,9 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
+static constexpr int elementsStride = blockSize / sizeof(int);
 
 bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -62,20 +69,48 @@ void NonZero::initSupportedPrimitiveDescriptors() {
 }
 
 template <typename T>
-size_t NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
+std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& inShape) {
     T zero = 0;
-    size_t count = 0;
+    std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
-    if (inShape.getRank() == 0) {
-        if (src[0] != zero)
-            count = 1;
-    } else {
-        for (size_t i = 0; i < inSize; i++) {
-            if (src[i] != zero)
-                count++;
-        }
+    size_t inRank = inShape.getRank();
+
+    switch (inRank) {
+    case 0: {
+        size_t count = src[0] != zero ? 1 : 0;
+        counts.push_back(count);
+        break;
     }
-    return count;
+    case 1: {
+        size_t count = 0;
+        for (size_t i = 0; i < inSize; i++) {
+            if (src[i] != zero) {
+                count++;
+            }
+        }
+        counts.push_back(count);
+        break;
+    }
+    default: {
+        threadsCount = parallel_get_num_threads();
+        if (inSize < blockSize * threadsCount)
+            threadsCount = 1;
+
+        counts.resize(threadsCount);
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+            size_t count = 0;
+            for_1d(ithr, nthr, inSize, [&](size_t i) {
+                if (src[i] != zero) {
+                    count++;
+                }
+            });
+
+            counts[ithr] = count;
+        });
+        break;
+    }
+    }
+    return counts;
 }
 namespace {
 struct NonZeroContext {
@@ -106,37 +141,257 @@ void NonZero::execute(dnnl::stream strm) {
 }
 template <typename T>
 void NonZero::executeSpecified() {
-    T zero = 0;
-    T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T zero = 0;
+    const T *src = reinterpret_cast<T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
-    size_t nonZeroCount = getNonZeroElementsCount(src, inShape);
+    std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
+    std::vector<size_t> destIndices(nonZeroCounts.size());
+    size_t totalNonZeroCount = 0;
+
+    for (size_t i = 0; i < nonZeroCounts.size(); ++i) {
+        destIndices[i] = totalNonZeroCount;
+        totalNonZeroCount += nonZeroCounts[i];
+    }
 
     if (isDynamicNode()) {
-        VectorDims newDims{inRank, nonZeroCount};
+        VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int *dst = reinterpret_cast<int *>(dstMemPtr->GetPtr());
-    size_t inSize = inShape.getElementsCount();
-    auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    if (nonZeroCount == 0)
+    int* dst = reinterpret_cast<int*>(dstMemPtr->GetPtr());
+    if (totalNonZeroCount == 0)
         return;
-    if (inShape.getRank() == 0) {
+
+    std::vector<int> srcDims(inRank);
+    std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {
+        return static_cast<int>(x);
+    });
+
+    switch (inRank) {
+    case 0:
         dst[0] = 0;
-    } else {
-        size_t colIndex = 0, outIndex = 0;
-        for (size_t i = 0; i < inSize; i++) {
+        break;
+    case 1: {
+        size_t outputIndex = 0;
+        for (int i = 0; i < srcDims[0]; ++i) {
             if (src[i] != zero) {
-                size_t temp = i;
-                for (size_t j = 0; j < inRank; j++) {
-                    outIndex = j * nonZeroCount + colIndex;
-                    dst[outIndex] = temp / srcStrides[j];
-                    temp = temp % srcStrides[j];
-                }
-                colIndex++;
+                dst[outputIndex] = i;
+                outputIndex++;
             }
         }
+        break;
+    }
+    case 2: {
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT  64
+            constexpr auto elementsCount = elementsStride * 2;  // elementsStride * inRank
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
+            int counter = 0;
+#undef ELEMENTS_COUNT
+
+            size_t& outputIndex = destIndices[ithr];
+
+            for_2d(ithr, nthr, srcDims[0], srcDims[1], [&](size_t, size_t inputIndex, int i0, int i1) {
+                if (src[inputIndex] != zero) {
+                    cache[counter] = i0;
+                    cache[counter + elementsStride] = i1;
+                    counter++;
+
+                    if (counter >= elementsStride) {
+                        cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                        cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+
+                        outputIndex += elementsStride;
+                        counter = 0;
+                    }
+                }
+            });
+
+            if (counter != 0) {
+                cpu_memcpy(&dst[outputIndex], cache, counter * sizeof(int));
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], counter * sizeof(int));
+            }
+        });
+        break;
+    }
+    case 3: {
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 96
+            constexpr auto elementsCount = elementsStride * 3;  // elementsStride * inRank
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
+            int counter = 0;
+#undef ELEMENTS_COUNT
+
+            size_t& outputIndex = destIndices[ithr];
+            for_3d(ithr,
+                   nthr,
+                   srcDims[0],
+                   srcDims[1],
+                   srcDims[2],
+                   [&](size_t, size_t inputIndex, int i0, int i1, int i2) {
+                       if (src[inputIndex] != zero) {
+                            cache[counter] = i0;
+                            cache[counter + elementsStride] = i1;
+                            cache[counter + elementsStride * 2] = i2;
+                            counter++;
+
+                            if (counter >= elementsStride) {
+                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+
+                                outputIndex += elementsStride;
+                                counter = 0;
+                            }
+                       }
+                   });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+            }
+        });
+        break;
+    }
+    case 4: {
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
+
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 128
+            constexpr auto elementsCount = elementsStride * 4;  // elementsStride * inRank
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
+            int counter = 0;
+#undef ELEMENTS_COUNT
+
+            size_t& outputIndex = destIndices[ithr];
+            for_4d(
+                ithr,
+                nthr,
+                srcDims[0],
+                srcDims[1],
+                srcDims[2],
+                srcDims[3],
+                [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3) {
+                    if (src[inputIndex] != zero) {
+                        cache[counter] = i0;
+                        cache[counter + elementsStride] = i1;
+                        cache[counter + elementsStride * 2] = i2;
+                        cache[counter + elementsStride * 3] = i3;
+                        counter++;
+
+                        if (counter >= elementsStride) {
+                            cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                            cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                            cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
+
+                            outputIndex += elementsStride;
+                            counter = 0;
+                        }
+                    }
+                });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], remainingBlockSize);
+            }
+        });
+        break;
+    }
+    case 5: {
+        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
+        size_t x4totalNonZeroCount = totalNonZeroCount * 4;
+
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+#define ELEMENTS_COUNT 160
+            constexpr auto elementsCount = elementsStride * 5;  // elementsStride * inRank
+            static_assert(elementsCount == ELEMENTS_COUNT, "Recalculate ELEMENTS_COUNT!");
+
+            int cache[ELEMENTS_COUNT];
+            int counter = 0;
+#undef ELEMENTS_COUNT
+
+            size_t& outputIndex = destIndices[ithr];
+            for_5d(ithr,
+                   nthr,
+                   srcDims[0],
+                   srcDims[1],
+                   srcDims[2],
+                   srcDims[3],
+                   srcDims[4],
+                   [&](size_t, size_t inputIndex, int i0, int i1, int i2, int i3, int i4) {
+                        if (src[inputIndex] != zero) {
+                            cache[counter] = i0;
+                            cache[counter + elementsStride] = i1;
+                            cache[counter + elementsStride * 2] = i2;
+                            cache[counter + elementsStride * 3] = i3;
+                            cache[counter + elementsStride * 4] = i4;
+                            counter++;
+
+                            if (counter >= elementsStride) {
+                                cpu_memcpy(&dst[outputIndex], cache, blockSize);
+                                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], blockSize);
+                                cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], blockSize);
+
+                                outputIndex += elementsStride;
+                                counter = 0;
+                            }
+                        }
+                   });
+
+            if (counter != 0) {
+                const auto remainingBlockSize = counter * sizeof(int);
+
+                cpu_memcpy(&dst[outputIndex], cache, remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + totalNonZeroCount], &cache[elementsStride], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x2totalNonZeroCount], &cache[elementsStride * 2], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x3totalNonZeroCount], &cache[elementsStride * 3], remainingBlockSize);
+                cpu_memcpy(&dst[outputIndex + x4totalNonZeroCount], &cache[elementsStride * 4], remainingBlockSize);
+            }
+        });
+        break;
+    }
+    default: {
+        size_t inSize = inShape.getElementsCount();
+        auto srcStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+
+        parallel_nt(threadsCount, [&](int ithr, int nthr) {
+            size_t& colIndex = destIndices[ithr];
+            for_1d(ithr, nthr, inSize, [&](size_t, size_t i) {
+                if (src[i] != zero) {
+                    size_t outIndex = 0;
+                    size_t temp = i;
+                    for (size_t j = 0; j < inRank; j++) {
+                        outIndex = j * totalNonZeroCount + colIndex;
+                        dst[outIndex] = static_cast<int>(temp / srcStrides[j]);
+                        temp = temp % srcStrides[j];
+                    }
+                    colIndex++;
+                }
+            });
+        });
+        break;
+    }
     }
 }
 
