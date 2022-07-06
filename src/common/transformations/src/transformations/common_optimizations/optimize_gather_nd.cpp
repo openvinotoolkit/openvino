@@ -45,7 +45,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
 
         const auto data_input = pattern_to_output.at(data);
         const auto& data_partial_shape = data_input.get_partial_shape();
-        const auto indices_shape = indices_input->get_shape();
+        const auto& indices_shape = indices_input->get_shape();
         const auto& data_shape = data_partial_shape.get_shape();
         const auto n_dims = indices_input->get_shape().back();
         std::vector<int64_t> meaningful_indices;
