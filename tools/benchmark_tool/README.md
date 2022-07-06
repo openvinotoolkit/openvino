@@ -28,7 +28,7 @@ The benchmark app allows users to provide high-level "performance hints" for set
 
 The performance hints do not require any device-specific settings and they are completely portable between devices. Parameters are automatically configured based on whichever device is being used. This allows users to easily port applications between hardware targets without having to re-determine the best runtime parameters for the new device.
 
-The performance hint is set by using `-hint latency` or `-hint throughput` when running benchmark_app:
+If not specified, throughput is used as the default. To set the hint explicitly, use `-hint latency` or `-hint throughput` when running benchmark_app:
 
 ```
 benchmark_app -m model.xml -hint latency
