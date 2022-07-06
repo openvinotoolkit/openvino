@@ -59,7 +59,7 @@ For example, to run benchmarking on GPU, use:
 ./benchmark_app -m model.xml -d GPU
 ```
 
-You may also specify "AUTO" as the device, and benchmark_app will automatically select the best device to run benchmarking on. For more information, see the [Automatic device selection](../../../docs/OV_Runtime_UG/auto_device_selection.md) page.
+You may also specify "AUTO" as the device, in which case the benchmark_app will automatically select the best device for benchmarking and support it with the CPU at the model loading stage. This may result in increased performance, thus, should be used purposefully. For more information, see the [Automatic device selection](../../../docs/OV_Runtime_UG/auto_device_selection.md) page.
 
 (Note: If the latency or throughput hint is set, it will automatically configure streams and batch sizes for optimal performance based on the specified device.)
 
