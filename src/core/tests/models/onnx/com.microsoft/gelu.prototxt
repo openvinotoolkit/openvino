@@ -1,4 +1,4 @@
-ir_version: 3
+ir_version: 8
 producer_name: "nGraph ONNX Importer"
 graph {
   node {
@@ -42,5 +42,5 @@ graph {
   }
 }
 opset_import {
-  version: 7
+  version: 10
 }
