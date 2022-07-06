@@ -75,8 +75,7 @@ ov::pass::OptimizerGatherND::OptimizerGatherND() {
         }
 
         // reshape the tensor for Gather node
-        std::vector<int64_t> new_shape;
-        std::copy(data_shape.begin() + n_dims, data_shape.end(), std::back_inserter(new_shape));
+        std::vector<int64_t> new_shape(data_shape.begin() + n_dims, data_shape.end());
         // fill the rest of the values into the first dimension
         new_shape.insert(new_shape.begin(), -1);
         const auto new_shape_node =
