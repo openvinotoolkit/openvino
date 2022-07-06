@@ -137,7 +137,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         auto& output = outputs[resultIndex];
         output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize((shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() + 7) >> 3);
+        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
 

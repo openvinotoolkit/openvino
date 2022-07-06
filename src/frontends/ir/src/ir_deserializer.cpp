@@ -342,7 +342,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 IE_THROW() << "Empty weights data in bin file or bin file cannot be found!";
             if (m_weights->size() < offset + size)
                 IE_THROW() << "Incorrect weights in bin file!";
-            if (size < ((ngraph::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
                 IE_THROW() << "Attribute and shape size are inconsistent for " << type << " op!";
 
             char* data = m_weights->get_ptr<char>() + offset;

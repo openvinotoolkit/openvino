@@ -213,7 +213,7 @@ void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
 
 ov::op::v0::Constant::Constant(const element::Type& type, const ov::Shape& shape, const void* data)
     : Constant(false, type, shape) {
-    size_t size = (shape_size(m_shape) * m_element_type.bitwidth() + 7) >> 3;
+    size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
     std::memcpy(get_data_ptr_nc(), data, size);
 }
 
