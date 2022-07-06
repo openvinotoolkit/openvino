@@ -79,20 +79,18 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             endforeach()
         endforeach()
     elseif(tbb_downloaded)
-        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
-
         if(WIN32)
             install(DIRECTORY "${TBB}/bin"
-                    DESTINATION "${IE_TBB_DIR_INSTALL}"
+                    DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb)
         else()
             install(DIRECTORY "${TBB}/lib"
-                    DESTINATION "${IE_TBB_DIR_INSTALL}"
+                    DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb)
         endif()
 
         install(FILES "${TBB}/LICENSE"
-                DESTINATION "${IE_TBB_DIR_INSTALL}"
+                DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
 
         # install development files
@@ -100,18 +98,19 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         ie_cpack_add_component(tbb_dev REQUIRED)
         list(APPEND core_dev_components tbb_dev)
 
+        set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
         install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                      "${TBB}/cmake/TBBConfigVersion.cmake"
-                DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
+                    "${TBB}/cmake/TBBConfigVersion.cmake"
+                DESTINATION runtime/${IE_TBB_DIR_INSTALL}
                 COMPONENT tbb_dev)
         install(DIRECTORY "${TBB}/include"
-                DESTINATION "${IE_TBB_DIR_INSTALL}"
+                DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb_dev)
 
         if(WIN32)
             # .lib files are needed only for Windows
             install(DIRECTORY "${TBB}/lib"
-                    DESTINATION "${IE_TBB_DIR_INSTALL}"
+                    DESTINATION runtime/3rdparty/tbb
                     COMPONENT tbb_dev)
         endif()
     else()
@@ -124,16 +123,15 @@ endif()
 
 # install tbbbind for static OpenVINO case
 if(install_tbbbind)
-    set(IE_TBBBIND_DIR_INSTALL "runtime/3rdparty/tbb_bind_2_5")
-
     install(DIRECTORY "${TBBBIND_2_5}/lib"
-            DESTINATION "${IE_TBBBIND_DIR_INSTALL}"
+            DESTINATION runtime/3rdparty/tbb_bind_2_5
             COMPONENT tbb)
     install(FILES "${TBBBIND_2_5}/LICENSE"
-            DESTINATION "${IE_TBBBIND_DIR_INSTALL}"
+            DESTINATION runtime/3rdparty/tbb_bind_2_5
             COMPONENT tbb)
 
+    set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
     install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
-            DESTINATION "${IE_TBBBIND_DIR_INSTALL}/cmake"
+            DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
             COMPONENT tbb_dev)
 endif()

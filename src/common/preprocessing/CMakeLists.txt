@@ -202,7 +202,7 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}/ COMPONENT ${OV_CPACK_COMP_CORE})
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
 else()
-    ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(${TARGET_NAME} core)
 endif()

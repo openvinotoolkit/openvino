@@ -26,13 +26,6 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 # cpack
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # Note: skip all dependencies scripts in Debian package mode
-    # This is not native for Debian and we have thoughts to convert
-    # such scripts to documentation "Post-Install steps" / "Configure devices"
-    return()
-endif()
-
 # install setupvars
 
 ie_cpack_add_component(setupvars REQUIRED)
