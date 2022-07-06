@@ -39,6 +39,7 @@ NNCF provides various examples and tutorials that demonstrate usage of optimizat
 ### Tutorials
 - [Quantization-aware training of PyTorch model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training)
 - [Quantization-aware training of TensorFlow model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/305-tensorflow-quantization-aware-training)
+- [Post-training quantization of PyTorch model](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/112-pytorch-post-training-quantization-nncf)
 
 ### Samples
 - PyTorch: 
