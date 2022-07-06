@@ -176,6 +176,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     bool is_2d = (input_layout.format.spatial_num() == 2);
     bool is_3d = (input_layout.format.spatial_num() == 3);
     if (node.get_preferred_impl_type() == impl_types::onednn) {
+        #if 1
         if (data_type_traits::is_i8_u8(output_type)) {
             if (is_2d) {
                 if (input_layout.format == format::b_fs_yx_fsv16)
@@ -207,6 +208,9 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                     out_fmt = input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
             }
         }
+        #endif
+
+        out_fmt = node.get_required_output();
     }
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in

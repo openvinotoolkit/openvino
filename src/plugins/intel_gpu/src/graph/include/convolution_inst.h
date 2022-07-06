@@ -123,6 +123,11 @@ public:
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
+    format::type get_required_input0() const { return required_input0; }
+    format::type get_required_output() const { return required_output; }
+    void set_required_input0(format::type type) { required_input0 = type; }
+    void set_required_output(format::type type) { required_output = type; }
+
 private:
     int32_t split;
     bool depthwise_sep_opt;

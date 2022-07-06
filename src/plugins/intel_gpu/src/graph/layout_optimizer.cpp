@@ -1063,6 +1063,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
+#if 1
         std::function<bool(const program_node&)> has_any_convolutions_below;
         has_any_convolutions_below = [&](const program_node& node) -> bool {
             for (auto& usr : node.get_users()) {
@@ -1131,6 +1132,9 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         //        expected_format = cldnn::format::b_fs_yx_fsv32;
         //    }
         //}
+#endif
+        // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
+        expected_format = node.get_required_output();
     } else {
         /* *************************** Native impls format selection part ************************** */
         if (use_onednn_impls && i8_u8_input) {

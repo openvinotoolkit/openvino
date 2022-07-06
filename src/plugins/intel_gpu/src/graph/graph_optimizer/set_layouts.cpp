@@ -72,8 +72,6 @@ static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descript
     }
 }
 
-dnnl::memory::format_tag cldnn::onednn::get_format_by_desc(dnnl::memory::desc desc);
-
 void set_layouts::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::SetLayouts");
 
@@ -91,5 +89,7 @@ void set_layouts::run(program& p) {
         auto src_fmt = onednn::convert_data_format(onednn::get_format_by_desc(prim_desc.src_desc()));
         auto dst_fmt = onednn::convert_data_format(onednn::get_format_by_desc(prim_desc.dst_desc()));
         std::cout << "Mingyuki: " << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
+        node.set_required_input0(src_fmt);
+        node.set_required_output(dst_fmt);
     }
 }
