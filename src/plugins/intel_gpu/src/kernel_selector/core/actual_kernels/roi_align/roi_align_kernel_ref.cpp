@@ -90,14 +90,14 @@ JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) 
     if (params.aligned_mode == roi_aligned_mode::ASYMMETRIC) {
         jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
         jit.AddConstant(MakeJitConstant("OFFSET_DST", 0.f));
-        jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0f));
     } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL_FOR_NN) {
         jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
-        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
         jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
     } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL) {
-        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5));
-        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5));
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5f));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
         jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
     }
 
