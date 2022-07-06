@@ -10,17 +10,17 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API OptimizerGatherND;
+class TRANSFORMATIONS_API GatherNDDecomposition;
 
 }  // namespace pass
 }  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Optimize GatherND by replacing it with Reshape and Gather
+ * @brief Decompose GatherND by replacing it with Reshape and Gather
  */
-class ov::pass::OptimizerGatherND : public ngraph::pass::MatcherPass {
+class ov::pass::GatherNDDecomposition : public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("OptimizerGatherND", "0");
-    OptimizerGatherND();
+    OPENVINO_RTTI("GatherNDDecomposition", "0");
+    GatherNDDecomposition();
 };

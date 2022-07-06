@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/optimize_gather_nd.hpp>
+#include <transformations/op_conversions/gathernd_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validinputs) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_2by2indices_validinputs) {
     {
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 0});
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validinputs) {
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1});
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_validinputs) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_invalidinputs) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_2by2indices_invalidinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2}, {1, 0, 0, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -49,11 +49,11 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by2indices_invalidinputs) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validinputs) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_2by1indices_validinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -61,7 +61,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validinputs) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by1indices_validinputs) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_invalidinputs) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_2by0indices_invalidinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2});
@@ -84,11 +84,11 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_invalidinputs) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validinputs) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_2by0indices_validinputs) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
@@ -96,7 +96,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validinputs) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1});
@@ -111,7 +111,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_2by0indices_validinputs) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_1leadingdim) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_1leadingdim) {
     {
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1, 1}, {1, 0});
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_1leadingdim) {
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_1leadingdim) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_3leadingdims) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_3leadingdims) {
     {
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1, 1, 1, 1}, {1, 0});
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -142,7 +142,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_3leadingdims) {
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
@@ -157,7 +157,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_3leadingdims) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_nonzerobatchdim) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -166,11 +166,11 @@ TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices, batch_dims);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_zerobatchdim) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -179,7 +179,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices, batch_dims);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 2});
@@ -194,7 +194,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim_complexexample1) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_nonzerobatchdim_complexexample1) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4});
@@ -203,11 +203,11 @@ TEST_F(TransformationTestsF, OptimizeGatherND_nonzerobatchdim_complexexample1) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices, batch_dims);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_complexexample2) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_zerobatchdim_complexexample2) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 1}, {1, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4});
@@ -216,7 +216,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_complexexample2) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices, batch_dims);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1, 3, 4});
@@ -231,7 +231,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_zerobatchdim_complexexample2) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_complexexample3) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_complexexample3) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2, 3}, {0, 0, 3, 0, 0, 1, 0, 0, 4, 0, 0, 2});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 5});
@@ -239,7 +239,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_complexexample3) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {-1});
@@ -254,7 +254,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_complexexample3) {
     }
 }
 
-TEST_F(TransformationTestsF, OptimizeGatherND_complexexample4) {
+TEST_F(TransformationTestsF, GatherNDDecomposition_complexexample4) {
     {
         const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2, 2}, {0, 1, 0, 3, 0, 2, 0, 0});
         const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 4, 1});
@@ -262,7 +262,7 @@ TEST_F(TransformationTestsF, OptimizeGatherND_complexexample4) {
         const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::OptimizerGatherND>();
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
     {
         const auto shape = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {-1, 1});
@@ -274,5 +274,29 @@ TEST_F(TransformationTestsF, OptimizeGatherND_complexexample4) {
         const auto gather = std::make_shared<ngraph::opset8::Gather>(reshape, indices, axis);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, GatherNDDecomposition_dynamic_data_shape) {
+    {
+        const auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2, 2, 2}, {0, 1, 0, 3, 0, 2, 0, 0});
+        const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
+
+        const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data});
+
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
+    }
+}
+
+TEST_F(TransformationTestsF, GatherNDDecomposition_dynamic_indices_shape) {
+    {
+        const auto indices = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ov::PartialShape::dynamic());
+        const auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 4, 1});
+
+        const auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(data, indices);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_nd}, ngraph::ParameterVector{data, indices});
+
+        manager.register_pass<ov::pass::GatherNDDecomposition>();
     }
 }

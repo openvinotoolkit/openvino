@@ -12,6 +12,7 @@
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/control_flow/unroll_if.hpp>
+#include <transformations/op_conversions/gathernd_decomposition.hpp>
 #include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
@@ -164,6 +165,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
+    decomp->add_matcher<ov::pass::GatherNDDecomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions

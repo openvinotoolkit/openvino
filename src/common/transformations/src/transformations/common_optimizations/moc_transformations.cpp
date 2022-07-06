@@ -37,7 +37,6 @@
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
-#include <transformations/common_optimizations/optimize_gather_nd.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
@@ -146,7 +145,6 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
-    common_fusions->add_matcher<ov::pass::OptimizerGatherND>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();
