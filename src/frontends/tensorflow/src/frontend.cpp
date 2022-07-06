@@ -108,10 +108,6 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
-            // TODO: Implement more general approach. Skipping Constants that have input edges
-            if (operation_decoder->get_op_type() == "Const") {
-                break;
-            }
             std::string producer_name;
             size_t producer_port_idx;
             try {
@@ -121,6 +117,9 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
                                 producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
                                 '\n');
+            }
+            if (producer_name.at(0) == '^') {
+                break;
             }
             // TODO: re-implement the logic below once Place graph structure is implemented
             // Using Place graph structure (OpPlace, In/OutPortPlace places and their connections) can give
