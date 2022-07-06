@@ -56,10 +56,10 @@ void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_
     //
     // ========================
     if (data != nullptr) {
-        if (pads_zeroing)
-            prim->set_data_handle(const_cast<void*>(data));
-        else
-            prim->set_data_handle_no_pads_proc(const_cast<void*>(data));
+        prim->set_data_handle(const_cast<void*>(data));
+        if (pads_zeroing) {
+            FillZero();
+        }
     }
 }
 
@@ -145,11 +145,12 @@ void Memory::setDataHandle(void *data) {
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
     prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+    FillZero();
 }
 
 void Memory::update() {
     if (isAllocated()) {
-        prim->set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
+        prim->set_data_handle(mgrHandle->getRawPtr());
     }
 }
 
