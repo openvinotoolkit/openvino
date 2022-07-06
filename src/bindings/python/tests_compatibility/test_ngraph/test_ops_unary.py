@@ -9,6 +9,8 @@ from ngraph.impl import Shape, Type
 from tests_compatibility.runtime import get_runtime
 from tests_compatibility.test_ngraph.util import run_op_node
 
+R_TOLERANCE = 1e-6  # global relative tolerance
+
 
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
@@ -244,38 +246,34 @@ def test_gelu_tanh_operator_with_array():
     assert np.allclose(result, expected, 1e-6, 1e-6)
 
 
-@pytest.mark.parametrize(
-    "numpy_type",
-    [
-        np.float64,
-        np.float32,
-        np.float16,
-    ],
-)
-def test_softsign_with_parameters(numpy_type):
-    data = np.random.rand(4, 2).astype(numpy_type)
+type_tolerance = [
+    (np.float64, 1e-6),
+    (np.float32, 1e-6),
+    (np.float16, 1e-3),
+]
+
+
+@pytest.mark.parametrize("type_tolerance", type_tolerance)
+def test_softsign_with_parameters(type_tolerance):
+    dtype, atol = type_tolerance
+    data = np.random.uniform(-1.0, 1.0, (32, 5)).astype(dtype)
+
     expected = np.divide(data, np.abs(data) + 1)
 
     runtime = get_runtime()
-    param = ng.parameter(data.shape, numpy_type, name="Data")
+    param = ng.parameter(data.shape, dtype, name="Data")
     result = runtime.computation(ng.softsign(param, "SoftSign"), param)(data)
 
-    assert np.allclose(result, expected, 1e-6, 1e-3)
+    assert np.allclose(result, expected, R_TOLERANCE, atol)
 
 
-@pytest.mark.parametrize(
-    "data_type",
-    [
-        np.float64,
-        np.float32,
-        np.float16,
-    ],
-)
-def test_softsign_with_array(data_type):
-    data = np.random.rand(32, 5).astype(data_type)
+@pytest.mark.parametrize("type_tolerance", type_tolerance)
+def test_softsign_with_array(type_tolerance):
+    dtype, atol = type_tolerance
+    data = np.random.uniform(-1.0, 1.0, (32, 5)).astype(dtype)
     expected = np.divide(data, np.abs(data) + 1)
 
     runtime = get_runtime()
     result = runtime.computation(ng.softsign(data, "SoftSign"))()
 
-    assert np.allclose(result, expected, 1e-6, 1e-6)
+    assert np.allclose(result, expected, R_TOLERANCE, atol)
