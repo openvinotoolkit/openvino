@@ -227,6 +227,15 @@ def fe_input_user_data_repack(
     else:
         assert input_user_shapes is None
     # TODO: implement freeze_placeholder (issue 58560)
+    if framework == 'onnx' and freeze_placeholder is not None:
+        for name, value in freeze_placeholder.items():
+            node = decode_name_with_port(input_model, name, framework, IOType.Input)
+            if value in ['True', 'False']:
+                value = np.array(value, dtype=np.bool)
+            else:
+                value = np.array(value, dtype=np.float32)
+            input_model.set_tensor_value(node, value)
+        return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 
 

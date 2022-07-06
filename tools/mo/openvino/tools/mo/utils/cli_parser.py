@@ -1072,7 +1072,9 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
             plh_with_value = plh_with_value.split('->')
             if len(plh_with_value) != 2:
                 raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
-                            "\"node1_name->value1,node2_name->value2\"")
+                            "\"node1_name->value1,node2_name->value2\""
+                            " or for multiple values --freeze_placeholder_with_value " 
+                            "\"node1_name->[value1 value2],node2_name->[value3 value4]\"")
             node_name = plh_with_value[0]
             value = plh_with_value[1]
             if node_name in placeholder_values and placeholder_values[node_name] != value:
