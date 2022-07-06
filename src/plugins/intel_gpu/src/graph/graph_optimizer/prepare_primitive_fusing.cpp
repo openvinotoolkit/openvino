@@ -856,8 +856,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                  input_hi.get_output_layout().feature() == 1)))) &&
                                  all_ones(input_data.as<binary_convolution>().get_primitive()->dilation);
 
-            auto expected_format = _lo.get_preferred_format(input_data);
-
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
@@ -866,7 +864,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             (_lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_dependency(1).get_output_layout()) &&
                              !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
-                           expected_format == cldnn::format::bs_fs_yx_bsv32_fsv16 /* Allow quantization fusing for onednn */ ||
+                           _lo.get_optimization_attributes().use_onednn_impls ||
                            (in_dt_is_i8_u8 && out_dt_is_i8_u8));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
