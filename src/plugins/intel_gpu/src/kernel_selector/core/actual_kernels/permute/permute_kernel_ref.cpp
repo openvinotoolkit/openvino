@@ -29,6 +29,18 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     return k;
 }
 
+bool is_fsv(const kernel_selector::Tensor::DataLayout layout) {
+    switch (layout) {
+    case Tensor::DataLayout::b_fs_yx_fsv16:
+    case Tensor::DataLayout::b_fs_zyx_fsv16:
+    case Tensor::DataLayout::b_fs_yx_fsv32:
+    case Tensor::DataLayout::b_fs_zyx_fsv32:
+        return true;
+    default:
+        return false;
+    }
+}
+
 CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
@@ -38,8 +50,10 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
                                                                      {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
     const auto& in =  params.inputs[0];
-
-    dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
+    if (is_fsv(in_layout))
+        dispatchData.gws = {in.Feature().v, in.X().v * in.Y().v, in.Z().v * in.W().v * in.Batch().v};
+    else
+        dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
@@ -154,7 +168,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     jit.AddConstant(MakeJitConstant("IN_IDX", "INPUT0_GET_INDEX(" + input_order + ")"));
-
+    jit.AddConstant(MakeJitConstant("IS_FSV", is_fsv(params.inputs[0].GetLayout())));
     if (reorder_to_different_dim) {
         auto reordered_order = GetReorderedOutputOrder(params, permute_out_idx, dim_change);
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + reordered_order + ")"));
