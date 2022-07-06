@@ -42,7 +42,7 @@ There are two alternatives in case of substantial accuracy degradation after app
 ### Tuning Hyperparameters of the Default Quantization
 The Default Quantization algorithm provides multiple hyperparameters which can be used in order to improve accuracy results for the fully-quantized model. 
 Below is a list of best practices that can be applied to improve accuracy without a substantial performance reduction with respect to default settings:
-1.  The first recommended option is to change the *preset* from `performance` to `mixed`. This enables asymmetric quantization of 
+1.  The first recommended option is to change the `preset` from `performance` to `mixed`. This enables asymmetric quantization of 
 activations and can be helpful for models with non-ReLU activation functions, for example, YOLO, EfficientNet, etc.
 2.  The second option is the `use_fast_bias`. Setting this option to `false` enables a different bias correction method which is generally more accurate
 and applied after model quantization, as a part of the Default Quantization algorithm.
