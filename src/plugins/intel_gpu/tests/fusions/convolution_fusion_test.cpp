@@ -464,24 +464,24 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(
 }));
 
 
-class conv_fp32_scale : public ConvFusingTest {};
-TEST_P(conv_fp32_scale, basic) {
+class conv_fp32_eltwise : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // convolution_test_params{ CASE_CONV_FP32_1, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_2, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 3 },
@@ -935,7 +935,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern01_simple_sub) {
     execute(p);
 }
 
-TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
+TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_eltwise) {
     if (engine.get_device_info().supports_immad) {
         return;
     }
@@ -945,15 +945,15 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
         input_layout("input", get_input_layout(p)),
         data("eltwise_data1", get_mem(get_output_layout(p))),
         data("eltwise_data2", get_mem(get_output_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         data("bias", get_mem(get_bias_layout(p))),
         data("weights", get_mem(get_weights_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("eltwise1_sum", "conv_prim", "eltwise_data1", eltwise_mode::sum),
         eltwise("eltwise2_sub", "conv_prim", "eltwise1_sum", eltwise_mode::sub),
         eltwise("eltwise3_prod", "eltwise2_sub", "eltwise_data2", eltwise_mode::prod),
-        scale("scale", "eltwise3_prod", "scale_data"),
-        concatenation("concat", { "scale", "scale" }, 1),
+        eltwise("eltwise", { "eltwise3_prod", "eltwise_data" }, eltwise_mode::prod),
+        concatenation("concat", { "eltwise", "eltwise" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
@@ -1231,7 +1231,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16, ::testin
     convolution_test_params{ CASE_CONV_FP32_9, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_11, 2, 3 },
     convolution_test_params{ CASE_CONV_FP32_12, 2, 3 },
-    // convolution_test_params{ CASE_CONV_FP32_13, 2, 3 }, - leads to mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
+    // convolution_test_params{ CASE_CONV_FP32_13, 2, 3 }, - leads to mvn_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
 
     convolution_test_params{ CASE_CONV_FP16_6, 2, 3 },
     convolution_test_params{ CASE_CONV_FP16_7, 2, 3 },
@@ -1295,8 +1295,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_quantize_u8, ::testing::ValuesIn
     convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
 }));
 
-class conv_fp32_scale_quantize_i8 : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_quantize_i8, basic) {
+class conv_fp32_eltwise_quantize_i8 : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1306,20 +1306,20 @@ TEST_P(conv_fp32_scale_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
     // Output elements are in range [-127, 127]
-    // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
+    // 1.0f difference is allowed, since quantize can return different values in ref and eltwise_shift kernels
     // due to big error of division (in ref kernel).
     tolerance = 1.0f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
     convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
@@ -1328,8 +1328,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_quantize_i8, ::testing::Va
     convolution_test_params{ CASE_CONV_FP16_3, 2, 4 },
 }));
 
-class conv_fp32_scale_activation_quantize_i8 : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
+class conv_fp32_eltwise_activation_quantize_i8 : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise_activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1339,11 +1339,11 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
@@ -1351,7 +1351,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
     convolution_test_params{ CASE_CONV_FP32_2, 2, 5 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 5 },
@@ -1360,8 +1360,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8, ::
     convolution_test_params{ CASE_CONV_FP16_3, 2, 5 },
 }));
 
-class conv_fp32_scale_activation_quantize_u8_eltwise_fp32 : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
+class conv_fp32_eltwise_activation_quantize_u8_eltwise_fp32 : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise_activation_quantize_u8_eltwise_fp32, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1371,12 +1371,12 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  p.default_type),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
@@ -1385,7 +1385,7 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_activation_quantize_u8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
     convolution_test_params{ CASE_CONV_FP32_2, 2, 6 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 6 },
@@ -1394,8 +1394,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_elt
     convolution_test_params{ CASE_CONV_FP16_3, 2, 6 },
 }));
 
-class conv_fp32_scale_activation_quantize_i8_activation : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
+class conv_fp32_eltwise_activation_quantize_i8_activation : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise_activation_quantize_i8_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1405,12 +1405,12 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", "slope_data", activation_func::relu_negative_slope),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         activation("activation_quantize", "quantize", activation_func::relu),
         reorder("reorder_bfyx", "activation_quantize", p.default_format, data_types::f32)
     );
@@ -1419,7 +1419,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_2, 2, 6 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 6 },
 
@@ -1428,8 +1428,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_act
 }));
 
 
-class conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
+class conv_fp32_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8 : public ConvFusingTest {};
+TEST_P(conv_fp32_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1443,12 +1443,12 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
         data("out_lo1", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("out_hi1", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(layout{ data_types::i8, p.input_format, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
         quantize("quantize_1", "sum", "in_lo1", "in_hi1", "out_lo1", "out_hi1", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize_1", p.default_format, data_types::f32)
@@ -1458,7 +1458,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_2, 2, 7 },
     convolution_test_params{ CASE_CONV_FP32_3, 2, 7 },
 }));
@@ -1523,17 +1523,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes, :
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 4 },
 }));
 
-class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
-TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
+class conv_eltwise_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
+TEST_P(conv_eltwise_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         convolution("conv", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        data("scale_data", get_mem(get_per_channel_layout(p))),
-        scale("scale", "conv", "scale_data"),
-        activation("activation", "scale", activation_func::hyperbolic_tan),
+        data("eltwise_data", get_mem(get_per_channel_layout(p))),
+        eltwise("eltwise", { "conv", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::hyperbolic_tan),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
         eltwise("eltw", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1548,7 +1548,7 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_eltwise_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 6 },
@@ -1563,72 +1563,33 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantiz
 /* ---------------------------------------- INT8 convolution cases ------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-class conv_int8_scale : public ConvFusingTest {};
-TEST_P(conv_int8_scale, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-TEST_P(conv_int8_scale, fp16_scale_out) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data", optional_data_type{ data_types::f16 }),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
-
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
-}));
-
 class conv_int8_eltwise : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 TEST_P(conv_int8_eltwise, fp16_eltwise_out) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod, data_types::f16 ),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -1657,20 +1618,20 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise, ::testing::ValuesIn(std
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
 }));
 
-class conv_int8_scale_shift_swish : public ConvFusingTest {};
-TEST_P(conv_int8_scale_shift_swish, basic) {
+class conv_int8_eltwise_shift_swish : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_shift_swish, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         data("shift_data", get_mem(get_per_channel_layout(p), 1)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        eltwise("scale0", { "conv_prim", "scale_data" }, eltwise_mode::prod),
-        eltwise("scale1", { "conv_prim", "scale_data" }, eltwise_mode::prod),
-        eltwise("shift0", { "scale0", "shift_data" }, eltwise_mode::sum),
-        eltwise("shift1", { "scale1", "shift_data" }, eltwise_mode::sum),
+        eltwise("eltwise0", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        eltwise("eltwise1", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        eltwise("shift0", { "eltwise0", "shift_data" }, eltwise_mode::sum),
+        eltwise("shift1", { "eltwise1", "shift_data" }, eltwise_mode::sum),
         activation("sigmoid", "shift0", activation_func::logistic),
         eltwise("mul", { "shift1", "sigmoid" }, eltwise_mode::prod),
         reorder("reorder_bfyx", "mul", p.default_format, data_types::f32)
@@ -1680,7 +1641,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 8 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 8 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 8 },
@@ -2021,8 +1982,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_quantize_u8, ::testing::ValuesIn
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
 }));
 
-class conv_int8_scale_quantize_i8 : public ConvFusingTest {};
-TEST_P(conv_int8_scale_quantize_i8, basic) {
+class conv_int8_eltwise_quantize_i8 : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2032,20 +1993,20 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
     // Output elements are in range [-127, 127]
-    // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
+    // 1.0f difference is allowed, since quantize can return different values in ref and eltwise_shift kernels
     // due to big error of division (in ref kernel).
     tolerance = 1.0f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
@@ -2071,8 +2032,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8, ::testing::Va
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 4 },
 }));
 
-class conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
-TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
+class conv_int8_eltwise_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2082,10 +2043,10 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
     implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
@@ -2095,7 +2056,7 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_quantize_i8_conv_b_fs_yx_fsv4_int8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_S8S8_11, 2, 4 },
 }));
 
@@ -2116,7 +2077,7 @@ TEST_P(conv_int8_relu_quantize, i8) {
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
     // Output elements are in range [-127, 127]
-    // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
+    // 1.0f difference is allowed, since quantize can return different values in ref and eltwise_shift kernels
     // due to big error of division (in ref kernel).
     tolerance = 1.0f;
     execute(p);
@@ -2164,8 +2125,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_relu_quantize, ::testing::Values
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 4 },
 }));
 
-class conv_int8_scale_activation_quantize_i8 : public ConvFusingTest {};
-TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
+class conv_int8_eltwise_activation_quantize_i8 : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2175,11 +2136,11 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
@@ -2187,7 +2148,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 5 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
@@ -2209,8 +2170,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8, ::
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 5 },
 }));
 
-class conv_int8_scale_activation_quantize_i8_eltwise_fp32 : public ConvFusingTest {};
-TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
+class conv_int8_eltwise_activation_quantize_i8_eltwise_fp32 : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_activation_quantize_i8_eltwise_fp32, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2220,12 +2181,12 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
@@ -2234,7 +2195,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_activation_quantize_i8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 6 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 6 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 6 },
@@ -2256,8 +2217,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_elt
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 6 },
 }));
 
-class conv_int8_scale_activation_quantize_i8_activation : public ConvFusingTest {};
-TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
+class conv_int8_eltwise_activation_quantize_i8_activation : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_activation_quantize_i8_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2267,12 +2228,12 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", "slope_data", activation_func::relu_negative_slope),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         activation("activation_quantize", "quantize", activation_func::relu),
         reorder("reorder_bfyx", "activation_quantize", p.default_format, data_types::f32)
     );
@@ -2281,7 +2242,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 6 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 6 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 6 },
@@ -2304,9 +2265,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_act
 }));
 
 
-class conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public ConvFusingTest {};
+class conv_int8_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8 : public ConvFusingTest {};
 // With some input values accuracy error might be = 2, so the test is disabled.
-TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED_basic) {
+TEST_P(conv_int8_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED_basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2320,12 +2281,12 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED
         data("out_lo1", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("out_hi1", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(layout{ data_types::i8, p.input_format, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", activation_func::exp),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
         quantize("quantize_1", "sum", "in_lo1", "in_hi1", "out_lo1", "out_hi1", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize_1", p.default_format, data_types::f32)
@@ -2335,7 +2296,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 7 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 7 },
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 7 },
@@ -2357,8 +2318,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_elt
     convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 7 },
 }));
 
-class conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public ConvFusingTest {};
-TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops) {
+class conv_int8_eltwise_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2372,13 +2333,13 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         data("out_lo1", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("out_hi1", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         data("eltwise_data", get_mem(layout{ data_types::i8, format::b_fs_yx_fsv4, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", "slope_data", activation_func::relu_negative_slope),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
         quantize("quantize_1", "sum", "in_lo1", "in_hi1", "out_lo1", "out_hi1", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize_1", p.default_format, data_types::f32)
@@ -2391,7 +2352,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
     execute(p);
 }
 
-TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops_mixed_types) {
+TEST_P(conv_int8_eltwise_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops_mixed_types) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2405,13 +2366,13 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         data("out_lo1", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("out_hi1", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(layout{ data_types::f16, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } })),
         data("eltwise_data", get_mem(layout{ data_types::u8, format::b_fs_yx_fsv4, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation_eltwise", "eltwise", "slope_data", activation_func::relu_negative_slope),
+        quantize("quantize", "activation_eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
         quantize("quantize_1", "sum", "in_lo1", "in_hi1", "out_lo1", "out_hi1", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize_1", p.default_format, data_types::f32)
@@ -2424,7 +2385,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_3, 2, 7 },
     convolution_test_params{ CASE_CONV_U8S8_5, 2, 7 },
     convolution_test_params{ CASE_CONV_S8S8_3, 2, 7 },
@@ -2692,24 +2653,24 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_activation, ::testing::ValuesIn(
 }));
 
 
-class conv_fp16_scale : public ConvFusingForceKernelTest {};
-TEST_P(conv_fp16_scale, basic) {
+class conv_fp16_eltwise : public ConvFusingForceKernelTest {};
+TEST_P(conv_fp16_eltwise, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale, ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_eltwise, ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
     bc_force_kernel_params{ CASE_CONV_FP16_13, 2, 3, "convolution_gpu_fs_byx_fsv32" },
 }));
 
@@ -2922,10 +2883,10 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -2, 2)),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()) ),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()) ),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod, data_types::u8),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod, data_types::u8),
+        crop("crop", "eltwise", get_output_layout(p).size, { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -3173,21 +3134,21 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize_oned
     convolution_test_params{ CASE_CONV_S8S8_15, 2, 5 },
 }));
 
-class conv_int8_scale_shift_swish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
-TEST_P(conv_int8_scale_shift_swish_onednn, bsv32_fsv32) {
+class conv_int8_eltwise_shift_swish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_int8_eltwise_shift_swish_onednn, bsv32_fsv32) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -1, 1)),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         data("shift_data", get_mem(get_per_channel_layout(p), 1)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        eltwise("scale0", { "conv_prim", "scale_data" }, eltwise_mode::sum),
-        eltwise("shift0", { "scale0", "shift_data" }, eltwise_mode::sum),
+        eltwise("eltwise0", { "conv_prim", "eltwise_data" }, eltwise_mode::sum),
+        eltwise("shift0", { "eltwise0", "shift_data" }, eltwise_mode::sum),
         activation("sigmoid", "shift0", activation_func::swish),
-        eltwise("scale1", { "sigmoid", "scale_data" }, eltwise_mode::sum),
-        eltwise("shift1", { "scale1", "shift_data" }, eltwise_mode::sum),
+        eltwise("eltwise1", { "sigmoid", "eltwise_data" }, eltwise_mode::sum),
+        eltwise("shift1", { "eltwise1", "shift_data" }, eltwise_mode::sum),
         reorder("reorder_bfyx", "shift1", p.default_format, data_types::f32)
     );
 
@@ -3198,7 +3159,7 @@ TEST_P(conv_int8_scale_shift_swish_onednn, bsv32_fsv32) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_shift_swish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 7 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 7 },
     convolution_test_params{ CASE_CONV_S8S8_1, 2, 7 },
@@ -3212,8 +3173,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn, ::test
     convolution_test_params{ CASE_CONV_S8S8_15, 2, 7 },
 }));
 
-class conv_int8_eltwise_scale_onednn : public WeightsPrimitiveFusingTestOneDNN {};
-TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
+class conv_int8_eltwise_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_int8_eltwise_eltwise_onednn, u8_eltwise_prod_out_reuse) {
     auto p = GetParam();
 
     create_topologies(
@@ -3221,11 +3182,11 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
         data("weights", get_mem(get_weights_layout(p), -2, 2)),
         data("bias", get_mem(get_bias_layout(p))),
         data("sum_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
         eltwise("sum", { "conv_prim", "sum_data" }, eltwise_mode::sum, data_types::f32),
-        eltwise("scale", { "sum", "scale_data" }, eltwise_mode::prod, data_types::f32),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        eltwise("eltwise", { "sum", "eltwise_data" }, eltwise_mode::prod, data_types::f32),
+        crop("crop", "eltwise", get_output_layout(p).size, { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -3244,12 +3205,12 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
 
     // First network.execute() call
     compare(network_not_fused, network_fused, p);
-    // Second network.execute() call to make sure that scales have not been wrongly overwritten within first iteration
+    // Second network.execute() call to make sure that eltwises have not been wrongly overwritten within first iteration
     // and don't affect final result of second iteration
     compare(network_not_fused, network_fused, p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_scale_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_15, 2, 5 },
 }));
 
@@ -3361,9 +3322,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_non_lin
 
 // Before optimization: binary_add + eltw_linear
 // After optimization: binary_add
-// Limitations: alpha = 1 and scale = 1 in eltw_linear; binary_add is a constant compile-time buffer
-// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:binary_add:f32:2+eltwise_linear:1:-127+eltwise_clip:-127:127
-// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:binary_add:f32:2+eltwise_clip:-127:127
+// Limitations: alpha = 1 and eltwise = 1 in eltw_linear; binary_add is a constant compile-time buffer
+// DNNL_VERBOSE log without optimization: attr-oeltwise:2 attr-post-ops:binary_add:f32:2+eltwise_linear:1:-127+eltwise_clip:-127:127
+// DNNL_VERBOSE log with optimization:    attr-oeltwise:2 attr-post-ops:binary_add:f32:2+eltwise_clip:-127:127
 class post_ops_optimizations_onednn_binary_add_eltw_linear : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(post_ops_optimizations_onednn_binary_add_eltw_linear, basic) {
     auto p = GetParam();
@@ -3413,8 +3374,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_add_e
 // Before optimization: binary_mul + eltw_linear
 // After optimization: binary_mul
 // Limitations: beta = 0 in eltw_linear; binary_mul is a constant compile-time buffer
-// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:binary_mul:f32:2+eltwise_linear:2.01575+eltwise_clip:0:512
-// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:binary_mul:f32:2+eltwise_clip:0:512
+// DNNL_VERBOSE log without optimization: attr-oeltwise:2 attr-post-ops:binary_mul:f32:2+eltwise_linear:2.01575+eltwise_clip:0:512
+// DNNL_VERBOSE log with optimization:    attr-oeltwise:2 attr-post-ops:binary_mul:f32:2+eltwise_clip:0:512
 class post_ops_optimizations_onednn_binary_mul_eltw_linear : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(post_ops_optimizations_onednn_binary_mul_eltw_linear, basic) {
     auto p = GetParam();
@@ -3461,13 +3422,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_mul_e
     convolution_test_params{ CASE_CONV_S8S8_14, 2, 4 },
 }));
 
-// Before optimization: o_scale + eltw_linear
-// After optimization: o_scale
+// Before optimization: o_eltwise + eltw_linear
+// After optimization: o_eltwise
 // Limitations: beta = 0 in eltw_linear
-// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:eltwise_linear:2.01575+eltwise_clip:0:512
-// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:eltwise_clip:0:512
-class post_ops_optimizations_onednn_oscale_eltw_linear : public WeightsPrimitiveFusingTestOneDNN {};
-TEST_P(post_ops_optimizations_onednn_oscale_eltw_linear, basic) {
+// DNNL_VERBOSE log without optimization: attr-oeltwise:2 attr-post-ops:eltwise_linear:2.01575+eltwise_clip:0:512
+// DNNL_VERBOSE log with optimization:    attr-oeltwise:2 attr-post-ops:eltwise_clip:0:512
+class post_ops_optimizations_onednn_oeltwise_eltw_linear : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_oeltwise_eltw_linear, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3486,7 +3447,7 @@ TEST_P(post_ops_optimizations_onednn_oscale_eltw_linear, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_oscale_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_oeltwise_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
     convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
@@ -3766,9 +3727,9 @@ public:
         bo_not_fused = bo_fused;
         // implementation_desc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
         bo_not_fused.set_option(build_option::force_implementations({
-            { "quantize1", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
-            { "quantize2", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
-            { "quantize3", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } } }));
+            { "quantize1", { p.output_format, "quantize_gpu_eltwise_shift_opt", impl_types::ocl } },
+            { "quantize2", { p.output_format, "quantize_gpu_eltwise_shift_opt", impl_types::ocl } },
+            { "quantize3", { p.output_format, "quantize_gpu_eltwise_shift_opt", impl_types::ocl } } }));
 
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
