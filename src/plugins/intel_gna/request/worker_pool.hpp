@@ -42,6 +42,7 @@ public:
      * @brief Return worker for given index.
      * @param index of worker to be returned
      * @return reference to the worker for index.
+     * @throw exception in case index is invalid
      */
     virtual Worker& worker(uint32_t index) = 0;
 
@@ -49,26 +50,31 @@ public:
      * @brief Return worker for given index.
      * @param index of worker to be returned
      * @return reference to the worker for index.
+     * @throw exception in case index is invalid
      */
     virtual const Worker& worker(uint32_t index) const = 0;
 
     /**
      * @brief Return worker which was added to the pool as the first one
+     * @throw exception in case no worker in pool
      */
     virtual Worker& firstWorker() = 0;
 
     /**
      * @brief Return worker which was added to the pool as the first one
+     * @throw exception in case no worker in pool
      */
     virtual const Worker& firstWorker() const = 0;
 
     /**
      * @brief Return worker which was added to the pool as the last one
+     * @throw exception in case no worker in pool
      */
     virtual Worker& lastWorker() = 0;
 
     /**
      * @brief Return worker which was added to the pool the last one
+     * @throw exception in case no worker in pool
      */
     virtual const Worker& lastWorker() const = 0;
 

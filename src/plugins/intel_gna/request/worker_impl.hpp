@@ -28,9 +28,9 @@ public:
      * @brief Contrcut {WorkerImpl} object
      * @param model potiner to represented model
      * @param modelSubrequests subrequests to enqueued for given model
-     * @throw Exception when model is nullptr or modelSubrequests is empty
+     * @throw Exception when model is nullptr,modelSubrequests is empty or any element in modelSubrequests is nullptr
      */
-    explicit WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> modelSubrequests);
+    explicit WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<std::shared_ptr<Subrequest>> modelSubrequests);
 
     WorkerImpl(const WorkerImpl&) = delete;
     WorkerImpl(WorkerImpl&&) = delete;
@@ -62,6 +62,9 @@ public:
      */
     RequestStatus wait(int64_t timeoutMilliseconds) override;
 
+    /**
+     * @see Worker::isFree()
+     */
     bool isFree() const override;
 
     /**
@@ -94,7 +97,7 @@ private:
 
     uint32_t representingIndex_{0};
     std::shared_ptr<ModelWrapper> fullModel_;
-    std::vector<Subrequest> modelSubrequests_;
+    std::vector<std::shared_ptr<Subrequest>> modelSubrequests_;
     InferenceEngine::BlobMap requestResult_;
 };
 

@@ -11,7 +11,7 @@
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
 #include "request/model_wrapper_factory.hpp"
-#include "request/subrequest.hpp"
+#include "request/subrequest_impl.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_impl.hpp"
 #include "request/worker_pool.hpp"
@@ -25,10 +25,6 @@ class GNAWaitTest : public ::testing::Test {};
 
 class GNAPluginForGNAWaitTest : public GNAPlugin {
 public:
-    // Test should be rewritten.
-    // Curretnly they expect to call to Gna2RequestWait but this may happen only
-    // if network is loaded and rquestes is queued
-
     // Prepare underlining object to enable GNAInferRequest::Wait() working
     GNAPluginForGNAWaitTest() {
         using namespace GNAPluginNS;
@@ -41,11 +37,9 @@ public:
         outputs_data_map_["fakeOut"] = fakePtr;
         inputs_data_map_["fakeIn"] = fakeInfo;
 
+        std::vector<std::shared_ptr<Subrequest>> subrequests;
 
-
-        std::vector<Subrequest> subrequests;
-
-        // Code below could be replaced with LoadNetwork with at least one layer
+        // In the future code below could replaced with LoadNetwork with at least one layer and QueueInference
         std::weak_ptr<GNADevice> weakDevice = gnadevice;
 
         auto enqueue = []() -> uint32_t {
@@ -60,7 +54,7 @@ public:
         };
 
         auto model = ModelWrapperFactory::createWithNumberOfEmptyOperations(1);
-        subrequests.emplace_back(enqueue, wait);
+        subrequests.push_back(std::make_shared<SubrequestImpl>(std::move(enqueue), std::move(wait)));
         auto worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
 
         requestWorkerPool_->addModelWorker(worker);

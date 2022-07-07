@@ -12,7 +12,9 @@
 namespace GNAPluginNS {
 namespace request {
 
-// TODO move/copy or pointer?
+/**
+ * @interface Interface representing subrequest of worker.
+ */
 class Subrequest {
 public:
     /**
@@ -29,50 +31,34 @@ public:
      */
     using WaitHandler = std::function<RequestStatus(uint32_t requestID, int64_t timeoutMilliseconds)>;
 
+    virtual ~Subrequest() = default;
+
     /**
-     * @brief Construct {Subrequest}
-     * @param enqueueHandler callback to be invoked on enqueue
-     * @param enqueueHandler callback to be invoked on wait
+     * @brief Wait until subrequest will be finished for given timeout.
+     * @param timeoutMilliseconds timeout in milliseconds
+     * @return status of execution of subrequest @see GNAPluginNS::RequestStatus
      */
-    Subrequest(EnqueueHandler enqueueHandler, WaitHandler waitHandler);
-
-    Subrequest(const Subrequest&) = default;
-    Subrequest(Subrequest&&) = default;
-    Subrequest& operator=(const Subrequest&) = default;
-    Subrequest& operator=(Subrequest&&) = default;
+    virtual RequestStatus wait(int64_t timeoutMilliseconds) = 0;
 
     /**
-    * @brief Wait until subrequest will be finished for given timeout.
-    * @param timeoutMilliseconds timeout in milliseconds
-    * @return status of execution of subrequest @see GNAPluginNS::RequestStatus
-    */
-    RequestStatus wait(int64_t timeoutMilliseconds);
+     * @brief Add subrequest to execution queue.
+     */
+    virtual void enqueue() = 0;
 
     /**
-    * @brief Add subrequest to execution queue.
-    */
-    void enqueue();
-
-    /**
-    * @brief Return true if subrequest is pending, otherwise return false
-    */
-    bool isPending() const;
+     * @brief Return true if subrequest is pending, otherwise return false
+     */
+    virtual bool isPending() const = 0;
 
     /**
      * @brief Return true if subrequest is aborted, otherwise return false
      */
-    bool isAborted() const;
+    virtual bool isAborted() const = 0;
 
     /**
      * @brief Return true if subrequest is completed, otherwise return false
      */
-    bool isCompleted() const;
-
-private:
-    RequestStatus status_{RequestStatus::kNone};
-    uint32_t requestID_{0};
-    EnqueueHandler enqueueHandler_;
-    WaitHandler waitHandler_;
+    virtual bool isCompleted() const = 0;
 };
 
 }  // namespace request

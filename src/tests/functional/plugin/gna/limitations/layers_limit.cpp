@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,10 @@ using namespace InferenceEngine;
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<std::string,                         // Device name
-                   std::map<std::string, std::string>,  // common config
-                   std::map<std::string, std::string>,  // Configuration
-                   size_t                               // number of layers
-                   >
-    GNALayersLimitTestParams;
+using GNALayersLimitTestParams = std::tuple<std::string,                         // Device name
+                                            std::map<std::string, std::string>,  // common config
+                                            std::map<std::string, std::string>,  // Configuration
+                                            size_t>;                             // number of layers
 
 class GNALayersLimitTest : public testing::WithParamInterface<GNALayersLimitTestParams>,
                            public LayerTestsUtils::LayerTestsCommon {
@@ -56,6 +54,7 @@ protected:
 
         std::vector<std::shared_ptr<ov::op::v1::Add>> add_nodes_x;
         std::vector<std::shared_ptr<ov::op::v1::Add>> add_nodes_y;
+
         add_nodes_x.push_back(add_x);
         add_nodes_y.push_back(add_y);
 
@@ -68,21 +67,13 @@ protected:
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(add_nodes_x.back()),
                                      std::make_shared<ngraph::opset8::Result>(add_nodes_y.back())};
-
         function = std::make_shared<ngraph::Function>(results, params, "layers_limit");
-    }
+    };
 };
 
-class GNALayersLimit10Test : public GNALayersLimitTest {};
 class GNALayersLimit20Test : public GNALayersLimitTest {};
 class GNALayersLimit30Test : public GNALayersLimitTest {};
 
-TEST_P(GNALayersLimitTest, CompareWithRefs) {
-    Run();
-}
-TEST_P(GNALayersLimit10Test, CompareWithRefs) {
-    Run();
-}
 TEST_P(GNALayersLimit20Test, CompareWithRefs) {
     Run();
 }
@@ -100,36 +91,25 @@ std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", 
 std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}}};
 
-
-// for GNA v2.0 limit is 4086
-std::vector<size_t> layer_limits_20{4095, 4096, 4097};
+// for GNA v2.0 limit is 4096
+std::vector<size_t> layer_limits_20{2, 4096, 4100};
 // for GNA v3.0 limit is 8191
-std::vector<size_t> layer_limits_30{8191, 8192, 8193};
-// small and big values
-std::vector<size_t> layer_numbers{2, 9000};
+std::vector<size_t> layer_limits_30{2, 8192, 8194};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                         GNALayersLimitTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(common_config),
-                                            ::testing::Values(common_config),
-                                            ::testing::ValuesIn(layer_numbers)),
-                         GNALayersLimitTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                         GNALayersLimit20Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(common_config),
-                                            ::testing::ValuesIn(configs_20),
-                                            ::testing::ValuesIn(layer_limits_20)),
-                         GNALayersLimitTest::getTestCaseName);
+ INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                          GNALayersLimit20Test,
+                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                             ::testing::Values(common_config),
+                                             ::testing::ValuesIn(configs_20),
+                                             ::testing::ValuesIn(layer_limits_20)),
+                          GNALayersLimitTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                         GNALayersLimit30Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(common_config),
-                                            ::testing::ValuesIn(configs_30),
-                                            ::testing::ValuesIn(layer_limits_30)),
-                         GNALayersLimitTest::getTestCaseName);
-
+ INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
+                          GNALayersLimit30Test,
+                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                             ::testing::Values(common_config),
+                                             ::testing::ValuesIn(configs_30),
+                                             ::testing::ValuesIn(layer_limits_30)),
+                          GNALayersLimitTest::getTestCaseName);
 }  // namespace LayerTestsDefinitions

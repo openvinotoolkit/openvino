@@ -9,7 +9,7 @@
 #include "gna_plugin_log.hpp"
 #include "request/model_wrapper.hpp"
 #include "runtime/gna_float_runtime.hpp"
-#include "subrequest.hpp"
+#include "subrequest_impl.hpp"
 #include "worker_impl.hpp"
 
 namespace GNAPluginNS {
@@ -25,22 +25,33 @@ std::shared_ptr<Worker> WorkerFactory::createWorker(std::shared_ptr<ModelWrapper
 
 std::shared_ptr<Worker> WorkerFactory::createWorkerFP32(std::shared_ptr<ModelWrapper> model,
                                                         std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
-    return std::make_shared<WorkerImpl>(model, createModelSubrequestsFP32(model, std::move(dnn)));
+    return std::make_shared<WorkerImpl>(model, createModelSubrequestsFP32(std::move(dnn)));
 }
 
 std::shared_ptr<Worker> WorkerFactory::createWorkerTrivialTopology(std::shared_ptr<ModelWrapper> model) {
     return std::make_shared<WorkerImpl>(std::move(model), createModelSubrequestsTrivial());
 }
 
-std::vector<Subrequest> WorkerFactory::createModelSubrequests(std::shared_ptr<ModelWrapper> model,
-                                                              std::shared_ptr<GNADevice> device,
-                                                              const Gna2AccelerationMode accelerationMode) {
-    std::vector<Subrequest> subrequests;
+std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequests(
+    std::shared_ptr<ModelWrapper> model,
+    std::shared_ptr<GNADevice> device,
+    const Gna2AccelerationMode accelerationMode) {
+    if (!model) {
+        THROW_GNA_EXCEPTION << "model is nullptr";
+    }
+
     if (!device) {
         THROW_GNA_EXCEPTION << "device is nullptr";
     }
 
+    std::vector<std::shared_ptr<Subrequest>> subrequests;
+
     uint16_t layersLimit = device->maxLayersCount();
+
+    if (layersLimit == 0) {
+        THROW_GNA_EXCEPTION << "received max layer count equal 0 from device";
+    }
+
     auto submodelsNumber = model->object().NumberOfOperations / layersLimit;
     submodelsNumber += (model->object().NumberOfOperations % layersLimit) ? 1 : 0;
     auto totalOperationsNumber = model->object().NumberOfOperations;
@@ -70,19 +81,19 @@ std::vector<Subrequest> WorkerFactory::createModelSubrequests(std::shared_ptr<Mo
             THROW_GNA_EXCEPTION << "device is nullptr";
         };
 
-        subrequests.emplace_back(std::move(enqueue), wait);
+        auto subrequest = std::make_shared<SubrequestImpl>(std::move(enqueue), wait);
+        subrequests.push_back(std::move(subrequest));
     }
     return subrequests;
 }
 
-std::vector<Subrequest> WorkerFactory::createModelSubrequestsFP32(
-    std::shared_ptr<ModelWrapper> model,
+std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequestsFP32(
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn) {
-    std::vector<Subrequest> subrequests;
-
     if (!dnn) {
         THROW_GNA_EXCEPTION << "dnn is nullptr";
     }
+
+    std::vector<std::shared_ptr<Subrequest>> subrequests;
 
     std::weak_ptr<GNAPluginNS::backend::AMIntelDNN> weak_dnn = dnn;
 
@@ -100,12 +111,13 @@ std::vector<Subrequest> WorkerFactory::createModelSubrequestsFP32(
         return RequestStatus::kCompleted;
     };
 
-    subrequests.emplace_back(std::move(enqueFP32), std::move(waitSimple));
+    auto subrequest = std::make_shared<SubrequestImpl>(std::move(enqueFP32), std::move(waitSimple));
+    subrequests.push_back(std::move(subrequest));
     return subrequests;
 }
 
-std::vector<Subrequest> WorkerFactory::createModelSubrequestsTrivial() {
-    std::vector<Subrequest> subrequests;
+std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequestsTrivial() {
+    std::vector<std::shared_ptr<Subrequest>> subrequests;
 
     auto enqueSimple = []() {
         return kFakeRequestID;
@@ -114,8 +126,8 @@ std::vector<Subrequest> WorkerFactory::createModelSubrequestsTrivial() {
     auto waitSimple = [](uint32_t, int64_t) {
         return RequestStatus::kCompleted;
     };
-
-    subrequests.emplace_back(std::move(enqueSimple), std::move(waitSimple));
+    auto subrequest = std::make_shared<SubrequestImpl>(std::move(enqueSimple), std::move(waitSimple));
+    subrequests.push_back(std::move(subrequest));
     return subrequests;
 }
 

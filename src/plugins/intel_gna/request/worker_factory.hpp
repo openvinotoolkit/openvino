@@ -33,14 +33,14 @@ public:
                                                     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn);
     static std::shared_ptr<Worker> createWorkerTrivialTopology(std::shared_ptr<ModelWrapper> model);
 
-private:
-    static std::vector<Subrequest> createModelSubrequests(std::shared_ptr<ModelWrapper> model,
-                                                          std::shared_ptr<GNADevice> device,
-                                                          const Gna2AccelerationMode accelerationMode);
-    static std::vector<Subrequest> createModelSubrequestsFP32(std::shared_ptr<ModelWrapper> model,
-                                                              std::shared_ptr<backend::AMIntelDNN> dnn);
-    static std::vector<Subrequest> createModelSubrequestsTrivial();
+    static std::vector<std::shared_ptr<Subrequest>> createModelSubrequests(std::shared_ptr<ModelWrapper> model,
+                                                                           std::shared_ptr<GNADevice> device,
+                                                                           const Gna2AccelerationMode accelerationMode);
+    static std::vector<std::shared_ptr<Subrequest>> createModelSubrequestsFP32(
+        std::shared_ptr<backend::AMIntelDNN> dnn);
+    static std::vector<std::shared_ptr<Subrequest>> createModelSubrequestsTrivial();
 
+private:
     static constexpr const uint32_t kFakeRequestID{1};
 };
 

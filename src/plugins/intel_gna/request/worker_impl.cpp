@@ -13,7 +13,7 @@
 namespace GNAPluginNS {
 namespace request {
 
-WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subrequest> modelSubrequests)
+WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<std::shared_ptr<Subrequest>> modelSubrequests)
     : fullModel_(std::move(model)),
       modelSubrequests_(std::move(modelSubrequests)) {
     if (!fullModel_) {
@@ -22,6 +22,12 @@ WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<Subreque
 
     if (modelSubrequests_.empty()) {
         THROW_GNA_EXCEPTION << "cannot created request worker for empty subrequest list";
+    }
+
+    for (const auto& sunrequest : modelSubrequests_) {
+        if (!sunrequest) {
+            THROW_GNA_EXCEPTION << "subrequsts cannot be nullptr";
+        }
     }
 }
 
@@ -37,7 +43,7 @@ void WorkerImpl::enqueueRequest() {
     check_if_free();
 
     for (auto& subrequest : modelSubrequests_) {
-        subrequest.enqueue();
+        subrequest->enqueue();
     }
 }
 
@@ -46,11 +52,11 @@ RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
 
     // iterate over all configurations for requst
     for (auto& subrequest : modelSubrequests_) {
-        if (!subrequest.isPending()) {
+        if (!subrequest->isPending()) {
             continue;
         }
 
-        if (subrequest.wait(timeoutMilliseconds) == RequestStatus::kPending) {
+        if (subrequest->wait(timeoutMilliseconds) == RequestStatus::kPending) {
             pending = true;
         }
     }
@@ -62,7 +68,7 @@ RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
 
     // return kAborted if at least one subrequest was aborter
     for (const auto& subrequest : modelSubrequests_) {
-        if (subrequest.isAborted()) {
+        if (subrequest->isAborted()) {
             return RequestStatus::kAborted;
         }
     }
@@ -73,7 +79,7 @@ RequestStatus WorkerImpl::wait(int64_t timeoutMilliseconds) {
 
 bool WorkerImpl::isFree() const {
     for (const auto& subrequest : modelSubrequests_) {
-        if (subrequest.isPending()) {
+        if (subrequest->isPending()) {
             return false;
         }
     }

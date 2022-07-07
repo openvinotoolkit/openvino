@@ -28,14 +28,14 @@ public:
     virtual ~Worker() = default;
 
     /**
-    * @brief Return pointer to gna model represented by worker
-    */
-    virtual const Gna2Model* model() const = 0;
-
-    /**
      * @brief Return pointer to gna model represented by worker
      */
     virtual Gna2Model* model() = 0;
+
+    /**
+    * @brief Return pointer to gna model represented by worker
+    */
+    virtual const Gna2Model* model() const = 0;
 
     /**
      * @brief Enqueue request to requests queue for contained model.

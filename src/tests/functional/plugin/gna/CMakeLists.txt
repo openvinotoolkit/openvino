@@ -3,9 +3,6 @@
 #
 
 set(TARGET_NAME gnaFuncTests)
-if (MSVC)
-   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:100000000")
-endif ()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}

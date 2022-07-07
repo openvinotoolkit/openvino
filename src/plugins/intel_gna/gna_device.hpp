@@ -95,10 +95,6 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
-    void setUpActiveList(unsigned req_config_id,
-                         uint32_t layerIndex,
-                         uint32_t* ptr_active_indices,
-                         uint32_t num_active_indices);
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();

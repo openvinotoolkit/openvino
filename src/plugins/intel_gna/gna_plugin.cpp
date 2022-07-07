@@ -1006,8 +1006,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     void* pParallelExecutionData = nullptr;
 
-    // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at
-    // lest
+    // reserving more bytes for intermediate data in parallel case
+    // TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRegionBytes(REGION_SCRATCH);
     rwSegmentSize += gnamem->getRegionBytes(REGION_INPUTS);
     rwSegmentSize += gnamem->getRegionBytes(REGION_OUTPUTS);
@@ -1390,14 +1390,15 @@ bool GNAPlugin::Wait(uint32_t request_idx) {
 
 RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     // TODO: GNA2: check whether
-    if (requestWorkerPool_->size() <= request_idx)
-        THROW_GNA_EXCEPTION << "Number of request worker[" << requestWorkerPool_->size()
-                            << "], requested request worker index[" << request_idx << "]";
+    if (requestWorkerPool_->size() <= request_idx) {
+        return RequestStatus::kCompleted;
+    }
 
     auto& worker = requestWorkerPool_->worker(request_idx);
 
-    if (worker.isFree())
+    if (worker.isFree()) {
         return RequestStatus::kCompleted;
+    }
 
     const auto waitStatus = worker.wait(millisTimeout);
 
@@ -1645,7 +1646,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
                   transpose_inputs_info,
                   transpose_outputs_info);
 
-    trivialTopology = (requestWorkerPool_->firstWorker().model()->NumberOfOperations == 0);
+    trivialTopology = (model->object().NumberOfOperations == 0);
 
     requestWorkerPool_->addModelWorker(createWorker(model, trivialTopology, isFP32ModeActive()));
 

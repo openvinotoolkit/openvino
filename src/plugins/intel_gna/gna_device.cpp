@@ -134,12 +134,6 @@ std::string GNADeviceHelper::GetGnaLibraryVersion() {
     return gnaLibraryVersion;
 }
 
-void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
-    checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
-}
-
 void GNADeviceHelper::enableDiagnostics() {
     debugLogEnabled = true;
 }
