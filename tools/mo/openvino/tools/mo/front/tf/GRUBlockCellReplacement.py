@@ -26,69 +26,52 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             tf_gru_block_cell.in_port(0).get_connection().set_destination(new_gru_cell.in_port(0))
             tf_gru_block_cell.in_port(1).get_connection().set_destination(new_gru_cell.in_port(1))
 
-            concat_w = Concat(graph, {'name': original_name + '/Concat_W',
-                                        'axis': 1}).create_node()
-
-            concat_w.add_input_port(0)
-            concat_w.add_input_port(1)
-
-            concat_b = Concat(graph, {'name': original_name + '/Concat_B',
-                                                   'axis': 0}).create_node()
-
-            concat_b.add_input_port(0)
-            concat_b.add_input_port(1)
-
-            tf_gru_block_cell.in_port(2).get_connection().set_destination(concat_w.in_port(0))
-            tf_gru_block_cell.in_port(3).get_connection().set_destination(concat_w.in_port(1))
-
-            tf_gru_block_cell.in_port(4).get_connection().set_destination(concat_b.in_port(0))
-            tf_gru_block_cell.in_port(5).get_connection().set_destination(concat_b.in_port(1))
-
             # W (Weights)
             # z - update, r - reset, h - hidden
             # Convert gate order "rzh" -> "zrh"
-            split_rzh_w = AttributedSplit(graph, {'name': original_name + '/Split_rzh_W', 'axis': 1, 'num_splits': 3}).create_node()
+            split_rz_w = AttributedSplit(graph, {'name': original_name + '/Split_W_rz', 'axis': 1, 'num_splits': 2}).create_node()
 
-            split_rzh_w.out_port(1)
-            concat_zrh_w = Concat(graph, {'name': original_name + '/Concat_zrh_W',
+            # W_rz -> W_r, W_z
+            tf_gru_block_cell.in_port(2).get_connection().set_destination(split_rz_w.in_port(0))
+
+            concat_zrh_w = Concat(graph, {'name': original_name + '/Concat_W_zrh',
                                                    'axis': 1}).create_node()
             concat_zrh_w.add_input_port(0)
             concat_zrh_w.add_input_port(1)
             concat_zrh_w.add_input_port(2)
 
-            # r at 0 -> r at 1
-            split_rzh_w.out_port(0).connect(concat_zrh_w.in_port(1))
+            # W_r -> r at 1
+            split_rz_w.out_port(0).connect(concat_zrh_w.in_port(1))
 
-            # z at 1 -> z at 0
-            split_rzh_w.out_port(1).connect(concat_zrh_w.in_port(0))
+            # W_z -> z at 0
+            split_rz_w.out_port(1).connect(concat_zrh_w.in_port(0))
 
-            # h at 2 -> h at 2
-            split_rzh_w.out_port(2).connect(concat_zrh_w.in_port(2))
+            # W_h -> h at 2
+            tf_gru_block_cell.in_port(3).get_connection().set_destination(concat_zrh_w.in_port(2))
 
-            concat_w.out_port(0).connect(split_rzh_w.in_port(0))
 
             # B (Bias)
             # z - update, r - reset, h - hidden
             # Convert gate order "rzh" -> "zrh"
-            split_rzh_b = AttributedSplit(graph, {'name': original_name + '/Split_rzh_B', 'axis': 0, 'num_splits': 3}).create_node()
+            split_rz_b = AttributedSplit(graph, {'name': original_name + '/Split_B_rz', 'axis': 0, 'num_splits': 2}).create_node()
 
-            split_rzh_b.out_port(1)
-            concat_zrh_b = Concat(graph, {'name': original_name + '/Concat_zrh_B',
+            # B_rz -> B_r, B_z
+            tf_gru_block_cell.in_port(4).get_connection().set_destination(split_rz_b.in_port(0))
+
+            concat_zrh_b = Concat(graph, {'name': original_name + '/Concat_B_zrh',
                                                    'axis': 0}).create_node()
             concat_zrh_b.add_input_port(0)
             concat_zrh_b.add_input_port(1)
             concat_zrh_b.add_input_port(2)
 
-            # r at 0 -> r at 1
-            split_rzh_b.out_port(0).connect(concat_zrh_b.in_port(1))
+            # B_r -> r at 1
+            split_rz_b.out_port(0).connect(concat_zrh_b.in_port(1))
 
-            # z at 1 -> z at 0
-            split_rzh_b.out_port(1).connect(concat_zrh_b.in_port(0))
+            # B_z -> z at 0
+            split_rz_b.out_port(1).connect(concat_zrh_b.in_port(0))
 
-            # h at 2 -> h at 2
-            split_rzh_b.out_port(2).connect(concat_zrh_b.in_port(2))
-
-            concat_b.out_port(0).connect(split_rzh_b.in_port(0))
+            # B_h -> h at 2
+            tf_gru_block_cell.in_port(5).get_connection().set_destination(concat_zrh_b.in_port(2))
 
             permute_order = int64_array([1, 0])
             transpose_w = create_op_node_with_second_input(graph, Transpose, permute_order,
