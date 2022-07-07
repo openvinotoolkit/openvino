@@ -135,7 +135,7 @@ bool PluginInfo::load() {
 bool PluginInfo::load_internal() {
     std::shared_ptr<void> so;
     try {
-        so = ov::util::load_shared_object(m_file_path.c_str(), ov::util::SharedObjectDeferCloser());
+        so = ov::util::load_shared_object(m_file_path.c_str());
     } catch (const std::exception& ex) {
         OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
         return false;
