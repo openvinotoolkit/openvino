@@ -273,7 +273,7 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
+    /* if (InferenceEngine::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
     } else if (InferenceEngine::with_cpu_x86_avx2()) {
@@ -283,7 +283,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     } else if (InferenceEngine::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
-    } else {
+    } else*/ {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"ref"}, "ref"});
     }
     return resCPUParams;
@@ -330,22 +330,23 @@ const std::vector<double> cubeCoefs = {
 
 const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         emptyFusingSpec,
-        fusingSwish,
-        fusingFakeQuantizePerTensorRelu,
+        //fusingSwish,
+        //fusingFakeQuantizePerTensorRelu,
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
+    /*
     if (InferenceEngine::with_cpu_x86_avx512f()) {
         return {
             {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
             {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}
         };
-    } else {
+    } else {*/
         return {
             // default config as an stub for target without avx512, otherwise all tests with BF16 in its name are skipped
             {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
         };
-    }
+    //}
 }
 
 const std::vector<std::vector<size_t>> pads4D = {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -19,22 +19,18 @@ namespace LayerTestsDefinitions {
 using ConfigMap = typename std::map<std::string, std::string>;
 
 using NonZeroLayerTestParamsSet = typename std::tuple<
-    ov::test::InputShape,                 // Input tensors shape
+    InferenceEngine::SizeVector,          // Input shapes
     InferenceEngine::Precision,           // Input precision
-    std::string,                          // Device name
+    LayerTestsUtils::TargetDevice,        // Device name
     ConfigMap>;                           // Additional network configuration
 
 class NonZeroLayerTest : public testing::WithParamInterface<NonZeroLayerTestParamsSet>,
-                         virtual public ov::test::SubgraphBaseTest {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NonZeroLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-
-protected:
-    size_t startFrom = 0, range = 3;
 };
 
 }  // namespace LayerTestsDefinitions

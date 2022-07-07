@@ -11,19 +11,12 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 TEST_P(NonZeroLayerTest, Serialize) {
-    serialize();
+    Serialize();
 }
 
-std::vector<ov::test::InputShape> inputDims = {
-    {{}, {{7}}},
-    {{}, {{1000}}},
-    {{}, {{3, 5}}},
-    {{}, {{65, 33}}},
-    {{}, {{33, 65}}},
-    {{}, {{1, 1000}}},
-    {{}, {{223, 217, 21}}},
-    {{}, {{3, 4, 5, 1}}},
-    {{}, {{3, 4, 1, 5, 1}}}};
+std::vector<InferenceEngine::SizeVector> inputDims = {
+    {7},       {1000},         {3, 5},       {65, 33},       {33, 65},
+    {1, 1000}, {223, 217, 21}, {3, 4, 5, 1}, {3, 4, 1, 5, 1}};
 
 std::vector<InferenceEngine::Precision> inputPrecisions = {
     InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8,
