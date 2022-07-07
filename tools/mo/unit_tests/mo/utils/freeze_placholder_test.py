@@ -3,6 +3,7 @@
 
 import unittest
 from unittest.mock import patch, Mock
+import pytest
 
 from openvino.runtime import Core
 from openvino.tools.mo.main import prepare_ir
@@ -10,6 +11,7 @@ from openvino.frontend import (
     FrontEndManager,
     FrontEnd,
 )  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.error import Error
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import argparse
 import os
@@ -189,3 +191,40 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             results = req.infer(inputs)
             vals = list(results.values())
             assert np.allclose(vals, expected)
+
+    @generate(
+        *[
+            (
+                "mul_out->[1.0 15.0 1.0]",
+                True,
+            ),
+        ]
+    )
+    def test_freeze_placeholder_not_input_node_error(self, input_freezing_value, use_new_fe):
+        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_new_fe=use_new_fe)
+            args.input_model = "test_model_2.onnx"
+            args.freeze_placeholder_with_value = input_freezing_value
+
+            with pytest.raises(Error) as e:
+                _, model = prepare_ir(args)
+            assert "is not an input node. Only input nodes can be freezed!" in str(e.value)
+
+    @generate(
+        *[
+            (
+                "test_node->[1.0 15.0 1.0]",
+                True,
+            ),
+        ]
+    )
+    def test_freeze_placeholder_wrong_node_name(self, input_freezing_value, use_new_fe):
+        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+            args = base_args_config(use_new_fe=use_new_fe)
+            args.input_model = "test_model_2.onnx"
+            args.freeze_placeholder_with_value = input_freezing_value
+            with pytest.raises(Error) as e:
+                _, model = prepare_ir(args)
+            assert "No node with name" in str(e.value)

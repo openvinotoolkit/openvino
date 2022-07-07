@@ -11,7 +11,6 @@ import traceback
 from collections import OrderedDict
 from copy import deepcopy
 import json
-from turtle import pd
 
 try:
     import openvino_telemetry as tm
