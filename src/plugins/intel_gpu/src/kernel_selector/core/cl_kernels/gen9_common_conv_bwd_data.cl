@@ -365,7 +365,6 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                     FILTER_TYPE8 blockB00 = DT_FILTER_BLOCK_READ8(wei1, 0);
                     FILTER_TYPE8 blockB01 = DT_FILTER_BLOCK_READ8(wei1, 8 * IC_BLOCK);
                     INPUT0_TYPE blockA[IW_BLOCK];
-                    INPUT0_TYPE blockA_temp;
 
                     __attribute__((
                             opencl_unroll_hint(IW_BLOCK))) // attr:no-format
@@ -390,15 +389,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                             blockA[i] = 0.0;
                             continue;
                         }
-                        int f_idx = g * OC;
-                        int subgroup_local_id = get_sub_group_local_id();
-                        if (f_idx + ocb + subgroup_local_id >= (int)INPUT0_FEATURE_NUM) {
-                            blockA[i] = 0.0;
-                            continue;
-                        }
                         blockA[i] = DT_INPUT_BLOCK_READ(diff_dst1, ow * OC_BLOCK);
-                        // blockA_temp = DT_INPUT_BLOCK_READ(diff_dst1, ow * OC_BLOCK);
-                        // blockA[i] = select((half)blockA_temp, (half)0.0, (short)isgreaterequal((float)(f_idx + ocb + subgroup_local_id), (float)INPUT0_FEATURE_NUM));
                     }
 
                     __attribute__((

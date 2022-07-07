@@ -294,7 +294,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
-    if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+    if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (_node.get_selected_impl()->can_reuse_memory == false)) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
