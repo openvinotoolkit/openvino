@@ -108,6 +108,14 @@ def get_configs(args):
                             'aggregator': 'max'
                         }
                     }
+                },
+                'outputs': {
+                    'range_estimator': {
+                        'max': {
+                            'type': 'abs_max',
+                            'aggregator': 'max'
+                        }
+                    }
                 }
             }
         }

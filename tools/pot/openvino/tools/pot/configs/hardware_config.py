@@ -38,6 +38,7 @@ class HardwareConfig(list):
             json_config = json.load(f, object_pairs_hook=OrderedDict)
             hw_config = cls()
             hw_config.append(Dict(('target_device', json_config['target_device'])))
+            hw_config.append(Dict(('primary_bitwidth', json_config.get('primary_bitwidth', 8))))
 
             configs = {}
             for algorithm_name, algorithm_config in json_config.get('config', {}).items():
