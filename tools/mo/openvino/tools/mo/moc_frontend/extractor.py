@@ -227,14 +227,23 @@ def fe_input_user_data_repack(
     else:
         assert input_user_shapes is None
     # TODO: implement freeze_placeholder (issue 58560)
+    # At the moment set_tensor_value is implemented only for onnx
     if framework == 'onnx' and freeze_placeholder is not None:
         for name, value in freeze_placeholder.items():
             node = decode_name_with_port(input_model, name, framework, IOType.Input)
-            if value in ['True', 'False']:
+            if node is None:
+                raise Error(
+                    "Cannot find location {} in the input model".format(input_name)
+                )
+            if input_user_data_types.get(name) is not None:
+                value = np.array(value, dtype=input_user_data_types[name])
+            elif value in ['True', 'False']:
                 value = np.array(value, dtype=np.bool)
             else:
                 value = np.array(value, dtype=np.float32)
-            input_model.set_tensor_value(node, value)
+            # Only input layer
+            if node.is_input():
+                input_model.set_tensor_value(node, value)
         return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 

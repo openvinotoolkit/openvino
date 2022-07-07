@@ -403,10 +403,9 @@ class TestMoFallback(unittest.TestCase):
             prepare_ir(args)
             assert str(ex) == 'Legacy transformations configuration is not supported for the new frontend'
 
-    @generate(*[('in1->[5.0 5.0 7.0 8.0],in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in1,in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in1->[1.0 2.0 3.0 4.0],in2', True, None, 'onnx_frontend', None),
-                ('in1->[1.0 2.0 3.0 4.0],in2', None, True, 'mo_legacy', None),
+    @generate(*[('in1->[5.0 5.0 7.0 8.0],in2->[1.0 2.0 3.0 4.0]', False, None, 'mo_legacy', 'input_freezing'), #fallback
+                ('in1,in2->[1.0 2.0 3.0 4.0]', False, None, 'mo_legacy', 'input_freezing'), #fallback
+                ('in1->[1.0 2.0 3.0 4.0],in2', False, True, 'mo_legacy', None),
     ])
     def test_fallback_if_input_freezing_used(self, input, use_new_fe, use_legacy, conversion_method, fallback_reason):
         with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
@@ -417,17 +416,18 @@ class TestMoFallback(unittest.TestCase):
 
             prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
+            # onnx supports freezing placholders
+            if args.framework != "onnx":
+                tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+                if fallback_reason:
                     tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+                else:
+                    with pytest.raises(AssertionError): # not called
+                        tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
 
 
-    @generate(*[('in2->[1.0 2.0 3.0 4.0]', None, None, 'mo_legacy', 'input_freezing'), #fallback
-                ('in2->[1.0 2.0 3.0 4.0]', True, None, 'onnx_frontend', None),
-                ('in2->[1.0 2.0 3.0 4.0]', None, True, 'mo_legacy', None),
+    @generate(*[('in2->[1.0 2.0 3.0 4.0]', False, None, 'mo_legacy', 'input_freezing'), #fallback
+                ('in2->[1.0 2.0 3.0 4.0]', False, True, 'mo_legacy', None),
     ])
     def test_fallback_if_input_freezing_used_in_deprecated_way(self, input_freezing_value, use_new_fe, use_legacy, conversion_method, fallback_reason):
         with patch('openvino.tools.mo.main.get_default_frontends') as default_fe:
@@ -438,9 +438,11 @@ class TestMoFallback(unittest.TestCase):
 
             prepare_ir(args)
 
-            tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
-            if fallback_reason:
-                tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
-            else:
-                with pytest.raises(AssertionError): # not called
+            # onnx supports freezing placholders
+            if args.framework != "onnx":
+                tm.Telemetry.send_event.assert_any_call('mo', 'conversion_method', conversion_method)
+                if fallback_reason:
                     tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
+                else:
+                    with pytest.raises(AssertionError): # not called
+                        tm.Telemetry.send_event.assert_any_call('mo', 'fallback_reason', fallback_reason)
