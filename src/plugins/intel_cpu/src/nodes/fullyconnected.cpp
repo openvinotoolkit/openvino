@@ -165,7 +165,7 @@ void FullyConnected::getSupportedDescriptors() {
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
+    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (inputDataType == memory::data_type::f32) {
         outputDataType = memory::data_type::f32;
@@ -393,9 +393,46 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
         return binaryShape;
     };
 
-    for (auto &node : fusedWith) {
+    const auto channelAxis = getFusingAxis();
+    size_t OC = getOutputShapeAtPort(0).getDims()[channelAxis];
+
+    for (int i = 0; i < fusedWith.size(); i++) {
+        auto& node = fusedWith[i];
+
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
+            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
+
+            if (fusedWith.size() == 1 && !scale.empty()) {
+                attr.set_output_scales(1 << 1, scale);
+                continue;
+            }
+
+            if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
+                if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
+                    outputDataType == memory::data_type::u8 &&
+                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
+                    std::vector<float> outScales;
+                    int mask = 1 << 1;
+                    attr.get_output_scales(mask, outScales);
+                    for (int j = 0; j < outScales.size(); j++) {
+                        outScales[j] *= scale[0];
+                    }
+                    attr.set_output_scales(mask, outScales);
+                    ops.get()->entry_[0].sum.scale = scale[0];
+                    continue;
+                }
+
+                if (ops.len() != 0 && ops.kind(ops.len() - 1) == primitive::kind::eltwise &&
+                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
+                    auto len = ops.len();
+                    ops.get()->entry_[len - 1].eltwise.scale = scale[0];
+                    continue;
+                }
+            }
+
+            fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), postOpsArgs,
+                    node == fusedWith[fusedWith.size() - 1], outputDataType);
+
             continue;
         }
 
@@ -421,6 +458,8 @@ bool FullyConnected::created() const {
 const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgemm_avx512_amx,
+            impl_desc_type::brgemm_avx512,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,
@@ -446,14 +485,6 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             impl_desc_type::jit_sse42,
             impl_desc_type::ref,
     };
-
-    // WA: brgemm kernel contains bug that may lead to segfault in case of added post-ops and unaligned number of channels
-    const size_t simdWidth = 16;
-    auto inputDims = getInputShapeAtPort(DATA_ID).getDims();
-    if (inputDims.back() != Shape::UNDEFINED_DIM && inputDims.back() % simdWidth == 0) {
-        priorities.insert(priorities.begin() + 1, impl_desc_type::brgemm_avx512_amx);
-        priorities.insert(priorities.begin() + 2, impl_desc_type::brgemm_avx512);
-    }
 
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())

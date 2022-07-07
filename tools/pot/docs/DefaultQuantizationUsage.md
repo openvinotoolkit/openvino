@@ -63,14 +63,15 @@ Default Quantization algorithm has mandatory and optional parameters which are d
     "name": "DefaultQuantization",
     "params": {
         "target_device": "ANY",
-        "stat_subset_size": 300
+        "stat_subset_size": 300,
+        "stat_batch_size": 1
     },
 }
 ```  
-- The `target_device` - only two options are currently available: 
-  * The `"ANY"` (or `"CPU"`) -  to quantize a model for CPU, GPU, or VPU.
-  * The `"GNA"` - for inference on GNA.
-- The `stat_subset_size` - size of a data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
+
+- `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
+- `"stat_subset_size"` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
+- `"stat_batch_size"` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
 
 For full specification, see the the [Default Quantization method](@ref pot_compression_algorithms_quantization_default_README).
 
@@ -100,7 +101,8 @@ algorithms = [
         "name": "DefaultQuantization",
         "params": {
             "target_device": "ANY",
-            "stat_subset_size": 300
+            "stat_subset_size": 300,
+            "stat_batch_size": 1
         },
     }
 ]

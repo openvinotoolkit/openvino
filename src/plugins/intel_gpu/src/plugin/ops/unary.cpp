@@ -85,7 +85,7 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
         if (!ngraph::op::util::get_single_value(slope_node, slope))
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
-    } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
+    } else if (out_shape.size() >= 2) {
         auto inputs = p.GetInputPrimitiveIDs(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName,
@@ -263,6 +263,10 @@ static void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gelu>
     CreateUnaryEltwiseOp(p, op, activationFunc, {});
 }
 
+static void CreateSoftSignOp(Program& p, const std::shared_ptr<ngraph::op::v9::SoftSign>& op) {
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::softsign, {});
+}
+
 static void CreateGeluOp(Program &p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
     CreateUnaryEltwiseOp(p, op,  cldnn::activation_func::gelu, {});
 }
@@ -322,6 +326,7 @@ REGISTER_FACTORY_IMPL(v7, Gelu);
 REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
+REGISTER_FACTORY_IMPL(v9, SoftSign);
 
 }  // namespace intel_gpu
 }  // namespace runtime

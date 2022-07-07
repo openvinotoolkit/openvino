@@ -33,6 +33,7 @@
 
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -516,6 +517,10 @@ public:
         algorithm = alg;
     }
 
+    void setCPUExperimental(const std::set<std::string>& experimental) {
+        cpuExperimental = experimental;
+    }
+
     virtual bool canFuse(const NodePtr& node) const {
         return false;
     }
@@ -636,6 +641,8 @@ protected:
 
     Algorithm algorithm = Algorithm::Default;
 
+    std::set<std::string> cpuExperimental;
+
     bool isInQuantizedGraph = false;
 
     friend class Edge;
@@ -705,6 +712,7 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
+    void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;

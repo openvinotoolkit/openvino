@@ -46,7 +46,7 @@ This chapter provides information on the OpenVINO™ Runtime plugins that enable
 * ssd_mobilenet_v1
 * DeepLab-v3+
 
-**MXNet**:
+**Apache MXNet**:
 * AlexNet and CaffeNet
 * DenseNet family (121,161,169,201)
 * SqueezeNet v1.1

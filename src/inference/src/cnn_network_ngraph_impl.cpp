@@ -33,6 +33,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
@@ -147,6 +148,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         m.register_pass<ngraph::pass::FixRtInfo>();
         m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
         m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
+        m.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork
@@ -453,7 +455,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
+                manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertNMS9ToNMSIEInternal>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();

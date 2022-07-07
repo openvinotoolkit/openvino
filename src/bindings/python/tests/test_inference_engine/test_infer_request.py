@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -13,7 +14,9 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
-from ..conftest import model_path, read_image
+# TODO: reformat into absolute paths
+from ..conftest import model_path
+from ..test_utils.test_utils import generate_image
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -88,7 +91,7 @@ def test_get_profiling_info(device):
     model = core.read_model(test_net_xml, test_net_bin)
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
     tensor_name = compiled.input("data").any_name
     request.infer({tensor_name: img})
@@ -109,7 +112,7 @@ def test_tensor_setter(device):
     compiled_2 = core.compile_model(model=model, device_name=device)
     compiled_3 = core.compile_model(model=model, device_name=device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     request1 = compiled_1.create_infer_request()
@@ -119,10 +122,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request1.infer({0: tensor})
-    k = list(res)[0]
-    res_1 = np.sort(res[k])
+    key = list(res)[0]
+    res_1 = np.sort(res[key])
     t2 = request1.get_tensor("fc_out")
-    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
     request = compiled_2.create_infer_request()
     res = request.infer({"data": tensor})
@@ -140,10 +143,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request.infer()
-    k = list(res)[0]
-    res_1 = np.sort(res[k])
+    key = list(res)[0]
+    res_1 = np.sort(res[key])
     t2 = request1.get_tensor(model.outputs[0])
-    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[key].data, atol=1e-2, rtol=1e-2)
 
 
 def test_set_tensors(device):
@@ -151,7 +154,7 @@ def test_set_tensors(device):
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
 
-    data1 = read_image()
+    data1 = generate_image()
     tensor1 = Tensor(data1)
     data2 = np.ones(shape=(1, 10), dtype=np.float32)
     tensor2 = Tensor(data2)
@@ -199,8 +202,8 @@ def test_set_tensors(device):
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
-@pytest.mark.dynamic_library
-@pytest.mark.template_extension
+@pytest.mark.dynamic_library()
+@pytest.mark.template_extension()
 def test_batched_tensors(device):
     core = Core()
     # TODO: remove when plugins will support set_input_tensors
@@ -256,8 +259,8 @@ def test_batched_tensors(device):
         # Reference values for each batch:
         _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
 
-        for j in range(0, batch):
-            assert np.array_equal(actual[j], _tmp)
+        for idx in range(0, batch):
+            assert np.array_equal(actual[idx], _tmp)
 
 
 def test_inputs_outputs_property(device):
@@ -280,7 +283,7 @@ def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     request = compiled.create_infer_request()
 
     request.start_async({0: img})
@@ -300,7 +303,7 @@ def test_start_async(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     compiled = core.compile_model(model, device)
-    img = read_image()
+    img = generate_image()
     jobs = 3
     requests = []
     for _ in range(jobs):
@@ -340,7 +343,9 @@ def test_infer_list_as_inputs(device):
     request.infer(inputs)
     check_fill_inputs(request, inputs)
 
-    inputs = [np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)]
+    inputs = [
+        np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)
+    ]
     request.infer(inputs)
     check_fill_inputs(request, inputs)
 
@@ -351,7 +356,7 @@ def test_infer_mixed_keys(device):
     core.set_property(device, {"PERF_COUNT": "YES"})
     model = core.compile_model(model, device)
 
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
 
     data2 = np.ones(shape=img.shape, dtype=np.float32)
@@ -359,10 +364,10 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res[model.output()]) == 2
+    assert np.argmax(res[model.output()]) == 9
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -386,7 +391,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -411,7 +416,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype):
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -432,7 +437,7 @@ def test_infer_single_input(device, ov_type, numpy_dtype):
     assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
-@pytest.mark.parametrize("ov_type, numpy_dtype", [
+@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),
     (Type.f16, np.float16),
@@ -468,7 +473,7 @@ def test_infer_queue(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
@@ -486,6 +491,7 @@ def test_infer_queue_is_ready(device):
 
     def callback(request, _):
         time.sleep(0.001)
+
     infer_queue.set_callback(callback)
     assert infer_queue.is_ready()
     infer_queue.start_async()
@@ -504,7 +510,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     def callback(request, _):
         request.get_tensor("Unknown")
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(RuntimeError) as e:
@@ -526,7 +532,7 @@ def test_infer_queue_fail_on_py_model(device):
     def callback(request, _):
         request = request + 21
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
 
     with pytest.raises(TypeError) as e:
@@ -564,9 +570,11 @@ def test_infer_queue_get_idle_handle(device):
                           np.float16])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-                           "Memory layers fully supported only on CPU")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+    "Memory layers fully supported only on CPU",
+)
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
     if device == "CPU":
@@ -585,7 +593,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     assert mem_state.name == "var_id_667"
     # todo: Uncomment after fix 45611,
     #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
-    # assert mem_state.state.tensor_desc.precision == data_type
+    # Code: assert mem_state.state.tensor_desc.precision == data_type
 
     for i in range(1, 10):
         if mode == "set_init_memory_state":
@@ -607,8 +615,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), \
-            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
 def test_get_results(device):
@@ -636,7 +643,7 @@ def test_results_async_infer(device):
         jobs_done[job_id]["finished"] = True
         jobs_done[job_id]["latency"] = request.latency
 
-    img = read_image()
+    img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
         infer_queue.start_async({"data": img}, i)
@@ -646,13 +653,16 @@ def test_results_async_infer(device):
     outputs = request.infer({0: img})
 
     for i in range(num_request):
-        np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
+        assert np.allclose(list(outputs.values()), list(infer_queue[i].results.values()))
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
-                    reason="Device independent test")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
+    reason="Device independent test",
+)
 def test_infer_float16(device):
-    model = bytes(b"""<net name="add_model" version="10">
+    model = bytes(
+        b"""<net name="add_model" version="10">
     <layers>
     <layer id="0" name="x" type="Parameter" version="opset1">
         <data element_type="f16" shape="2,2,2"/>
@@ -713,15 +723,15 @@ def test_infer_float16(device):
 </net>""")
     core = Core()
     model = core.read_model(model=model)
-    p = PrePostProcessor(model)
-    p.input(0).tensor().set_element_type(Type.f16)
-    p.input(0).preprocess().convert_element_type(Type.f16)
-    p.input(1).tensor().set_element_type(Type.f16)
-    p.input(1).preprocess().convert_element_type(Type.f16)
-    p.output(0).tensor().set_element_type(Type.f16)
-    p.output(0).postprocess().convert_element_type(Type.f16)
+    ppp = PrePostProcessor(model)
+    ppp.input(0).tensor().set_element_type(Type.f16)
+    ppp.input(0).preprocess().convert_element_type(Type.f16)
+    ppp.input(1).tensor().set_element_type(Type.f16)
+    ppp.input(1).preprocess().convert_element_type(Type.f16)
+    ppp.output(0).tensor().set_element_type(Type.f16)
+    ppp.output(0).postprocess().convert_element_type(Type.f16)
 
-    model = p.build()
+    model = ppp.build()
     compiled = core.compile_model(model, device)
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
     request = compiled.create_infer_request()
@@ -818,3 +828,87 @@ def test_infer_dynamic_model(device):
     shape3 = [1, 40]
     request.infer(np.random.normal(size=shape3))
     assert request.get_input_tensor().shape == Shape(shape3)
+
+
+def test_array_like_input_request(device):
+    class ArrayLikeObject:
+        # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
+        def __init__(self, array) -> None:
+            self.data = array
+
+        def __array__(self):
+            return np.array(self.data)
+
+    request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    model_input_object = ArrayLikeObject(input_data.tolist())
+    model_input_list = [ArrayLikeObject(input_data.tolist())]
+
+    # Test single array-like object in InferRequest().Infer()
+    res_object = request.infer(model_input_object)
+    assert np.array_equal(res_object[request.model_outputs[0]], np.abs(input_data))
+
+    # Test list of array-like objects to use normalize_inputs()
+    res_list = request.infer(model_input_list)
+    assert np.array_equal(res_list[request.model_outputs[0]], np.abs(input_data))
+
+
+def test_array_like_input_async(device):
+    class ArrayLikeObject:
+        # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
+        def __init__(self, array) -> None:
+            self.data = array
+
+        def __array__(self):
+            return np.array(self.data)
+
+    request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    model_input_object = ArrayLikeObject(input_data.tolist())
+    model_input_list = [ArrayLikeObject(input_data.tolist())]
+    # Test single array-like object in InferRequest().start_async()
+    request.start_async(model_input_object)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
+
+    # Test list of array-like objects in InferRequest().start_async()
+    request.start_async(model_input_list)
+    request.wait()
+    assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
+
+
+def test_array_like_input_async_infer_queue(device):
+    class ArrayLikeObject:
+        # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
+        def __init__(self, array) -> None:
+            self.data = array
+
+        def __array__(self):
+            return np.array(self.data)
+
+    jobs = 8
+    ov_type = Type.f32
+    input_shape = [2, 2]
+    input_data = [[-2, -1], [0, 1]]
+    param = ops.parameter(input_shape, ov_type)
+    layer = ops.abs(param)
+    model = Model([layer], [param])
+    core = Core()
+    compiled_model = core.compile_model(model, "CPU")
+
+    model_input_object = ArrayLikeObject(input_data)
+    model_input_list = [ArrayLikeObject(input_data)]
+
+    # Test single array-like object in AsyncInferQueue.start_async()
+    infer_queue_object = AsyncInferQueue(compiled_model, jobs)
+    for _i in range(jobs):
+        infer_queue_object.start_async(model_input_object)
+    infer_queue_object.wait_all()
+    for i in range(jobs):
+        assert np.array_equal(infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
+
+    # Test list of array-like objects in AsyncInferQueue.start_async()
+    infer_queue_list = AsyncInferQueue(compiled_model, jobs)
+    for _i in range(jobs):
+        infer_queue_list.start_async(model_input_list)
+    infer_queue_list.wait_all()
+    for i in range(jobs):
+        assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))

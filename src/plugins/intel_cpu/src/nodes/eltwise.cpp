@@ -209,7 +209,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        if (isa == x64::avx512_common)
+        if (isa == x64::avx512_core)
             vpxord(vmm_zero, vmm_zero, vmm_zero);
 
         for (int i = 0; i < jep.inputs_number; i++) {
@@ -463,7 +463,8 @@ private:
         OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
-        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter));
+        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -520,7 +521,8 @@ private:
         OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
-        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter));
+        OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -708,7 +710,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
-                if (isa == x64::avx512_common) {
+                if (isa == x64::avx512_core) {
                     vpmovsdw(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -721,8 +723,8 @@ private:
                 }
                 break;
             case Precision::U16:
-                if (isa == x64::avx512_common) {
-                    vmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdw(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -735,8 +737,7 @@ private:
                 }
                 break;
             case Precision::I8:
-                if (isa == x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == x64::avx512_core) {
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -750,7 +751,8 @@ private:
                 }
                 break;
             case Precision::U8:
-                if (isa == x64::avx512_common) {
+                if (isa == x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1021,6 +1023,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftRelu;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
+    }},
+    {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        node.algorithm = Algorithm::EltwiseSoftSign;
     }},
 };
 
@@ -1303,8 +1308,8 @@ public:
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(),
                        [](size_t& offset) { return offset * sizeof(float);});
 
-        if (mayiuse(x64::avx512_common)) {
-            _pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(jep, eltwise_data, ops_list, post_ops));
+        if (mayiuse(x64::avx512_core)) {
+            _pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_core>(jep, eltwise_data, ops_list, post_ops));
         } else if (mayiuse(x64::avx2)) {
             _pKernel.reset(new jit_uni_eltwise_generic<x64::avx2>(jep, eltwise_data, ops_list, post_ops));
         } else if (mayiuse(x64::sse41)) {
@@ -1505,6 +1510,7 @@ public:
                     case Algorithm::EltwisePowerStatic:       *dst_ptr_f = powf(_opData.beta * src_f[0] + _opData.gamma, _opData.alpha); break;
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
+                    case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
                     default: IE_THROW() << "Unsupported operation type for Eltwise executor";
                 }
             }
@@ -1608,6 +1614,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseHsigmoid:
         case Algorithm::EltwiseRoundHalfToEven:
         case Algorithm::EltwiseRoundHalfAwayFromZero:
+        case Algorithm::EltwiseSoftSign:
             return 1;
         case Algorithm::EltwiseAdd:
         case Algorithm::EltwiseSubtract:
@@ -1780,7 +1787,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
             // same for disabled collapse dims
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-                size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
+                size_t blockSize = mayiuse(x64::avx512_core) ? 16 : 8;
 
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
@@ -1839,7 +1846,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(portConfig);
 
         impl_desc_type impl_type;
-        if (mayiuse(x64::avx512_common)) {
+        if (mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
@@ -2075,19 +2082,10 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
                                     || parentNode->getType() == Type::BinaryConvolution)
                                         && getAlgorithm() == Algorithm::EltwiseAdd &&
             dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
-    if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
+    if ((scales.empty() && shifts.empty()) &&
+        !specialConvolutionAddFusing &&
+        canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
-        if ((parentNode->getType() == Type::FullyConnected
-                || parentNode->getType() == Type::MatMul)
-            && one_of(getAlgorithm(), Algorithm::EltwiseAdd,
-                                      Algorithm::EltwiseSubtract,
-                                      Algorithm::EltwiseMultiply,
-                                      Algorithm::EltwiseDivide,
-                                      Algorithm::EltwiseMulAdd,
-                                      Algorithm::EltwisePowerStatic,
-                                       Algorithm::EltwisePrelu)) {
-            std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
-        }
     }
     Node::fuseInto(parentNode);
 }

@@ -22,7 +22,7 @@ DefaultQuantization Algorithm has mandatory and optional parameters. For more de
     non-ReLU based CNN.  
 - `"stat_subset_size"` - size of a subset to calculate activations statistics used for quantization. The whole dataset 
 is used if no parameter is specified. It is recommended to use not less than 300 samples.
-
+- `"stat_batch_size"` - size of a batch to calculate activations statistics used for quantization. It has a value of 1 if no parameter is specified.
 
 ### Optional parameters
 All other options should be considered as an advanced mode and require deep knowledge of the quantization process. Below

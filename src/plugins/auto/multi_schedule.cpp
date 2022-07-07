@@ -16,6 +16,7 @@ thread_local const char* MultiSchedule::_thisPreferredDeviceName = "";
 
 void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
     _cpuHelpReleaseTime = std::chrono::steady_clock::now();
+    _LogTag = sContext->_LogTag;
     _multiSContext = std::dynamic_pointer_cast<MultiScheduleContext>(sContext);
     for (auto&& networkValue : _multiSContext->_networksPerDevice) {
         auto& device  = networkValue.first;
@@ -27,67 +28,94 @@ void MultiSchedule::init(const ScheduleContext::Ptr& sContext) {
 }
 
 Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInferRequest** workerInferRequest) {
-    Pipeline pipeline = {
-        // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
-        Stage {
-            /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
-                // by default, no preferred device:
-                _thisPreferredDeviceName = "";
-                auto execNetwork = _multiSContext->_executableNetwork.lock();
-                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
-                for (const auto& it : execNetwork->GetInputsInfo()) {
-                    auto b = syncInferRequest->GetBlob(it.first);
-                    auto r = b->as<IE::RemoteBlob>();
-                    if (r) {
-                        const auto name = r->getDeviceName();
-                        const auto res = std::find_if(
-                            _multiSContext->_devicePrioritiesInitial.cbegin(),
-                            _multiSContext->_devicePrioritiesInitial.cend(),
-                        [&name](const MultiDevicePlugin::DeviceInformation & d) {
-                            return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." +
-                                    d.defaultDeviceID)) == name;
-                        });
-                        if (_multiSContext->_devicePrioritiesInitial.cend() == res) {
-                            IE_THROW() <<
-                                "None of the devices (for which current MULTI-device configuration was "
-                                "initialized) supports a remote blob created on the device named " << name;
-                        } else {
-                            // it is ok to take the c_str() here (as pointed in the executable_network.hpp we need to use const char*)
-                            // as the original strings are from the "persistent" vector (with the right lifetime)
-                            _thisPreferredDeviceName = res->deviceName.c_str();
-                            break;
+    Pipeline pipeline;
+    if (_passthroughExeNet) {
+        struct RequestExecutor : ITaskExecutor {
+            explicit RequestExecutor(InferenceEngine::SoIInferRequestInternal& inferRequest) : _inferRequest(inferRequest) {
+                _inferRequest->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
+                    _exceptionPtr = exceptionPtr;
+                    auto capturedTask = std::move(_task);
+                    capturedTask();
+                });
+            }
+            void run(InferenceEngine::Task task) override {
+                _task = std::move(task);
+                _inferRequest->StartAsync();
+            };
+            InferenceEngine::SoIInferRequestInternal& _inferRequest;
+            std::exception_ptr _exceptionPtr;
+            InferenceEngine::Task _task;
+        };
+        auto requestExecutor =
+            std::make_shared<RequestExecutor>(std::static_pointer_cast<MultiDeviceInferRequest>(syncInferRequest)->GetSharedRequest());
+        pipeline.emplace_back(requestExecutor, [requestExecutor] {
+            if (nullptr != requestExecutor->_exceptionPtr) {
+                std::rethrow_exception(requestExecutor->_exceptionPtr);
+            }
+        });
+    } else {
+        pipeline = {
+            // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
+            Stage {
+                /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
+                    // by default, no preferred device:
+                    _thisPreferredDeviceName = "";
+                    auto execNetwork = _multiSContext->_executableNetwork.lock();
+                    // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
+                    for (const auto& it : execNetwork->GetInputsInfo()) {
+                        auto b = syncInferRequest->GetBlob(it.first);
+                        auto r = b->as<IE::RemoteBlob>();
+                        if (r) {
+                            const auto name = r->getDeviceName();
+                            const auto res = std::find_if(
+                                _multiSContext->_devicePrioritiesInitial.cbegin(),
+                                _multiSContext->_devicePrioritiesInitial.cend(),
+                            [&name](const MultiDevicePlugin::DeviceInformation & d) {
+                                return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." +
+                                        d.defaultDeviceID)) == name;
+                            });
+                            if (_multiSContext->_devicePrioritiesInitial.cend() == res) {
+                                IE_THROW() <<
+                                    "None of the devices (for which current MULTI-device configuration was "
+                                    "initialized) supports a remote blob created on the device named " << name;
+                            } else {
+                                // it is ok to take the c_str() here (as pointed in the executable_network.hpp we need to use const char*)
+                                // as the original strings are from the "persistent" vector (with the right lifetime)
+                                _thisPreferredDeviceName = res->deviceName.c_str();
+                                break;
+                            }
                         }
                     }
-                }
-            }},
-        // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
-        // then sets the device-agnostic blobs to the actual (device-specific) request
-        Stage {
-            /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
-                *workerInferRequest = _thisWorkerInferRequest;
-                auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
-                multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
-                INFO_RUN([workerInferRequest]() {
-                    (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
-               });
-            }},
-        // final task in the pipeline:
-        Stage {
-            /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
-                if (nullptr != (*workerInferRequest)->_exceptionPtr) {
-                    std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
-                }
-                if (_multiSContext->_needPerfCounters) {
-                    auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
-                        (syncInferRequest);
-                    multiSyncInferRequest->_perfMap =
-                        (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
-                }
-                INFO_RUN([workerInferRequest]() {
-                   (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                }},
+            // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
+            // then sets the device-agnostic blobs to the actual (device-specific) request
+            Stage {
+                /*TaskExecutor*/std::dynamic_pointer_cast<IE::ITaskExecutor>(shared_from_this()), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
+                    *workerInferRequest = _thisWorkerInferRequest;
+                    auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
+                    multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
+                    INFO_RUN([workerInferRequest]() {
+                        (*workerInferRequest)->_startTimes.push_back(std::move(std::chrono::steady_clock::now()));
                 });
-            }}
-    };
+                }},
+            // final task in the pipeline:
+            Stage {
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
+                    if (nullptr != (*workerInferRequest)->_exceptionPtr) {
+                        std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
+                    }
+                    if (_multiSContext->_needPerfCounters) {
+                        auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
+                            (syncInferRequest);
+                        multiSyncInferRequest->_perfMap =
+                            (*workerInferRequest)->_inferRequest->GetPerformanceCounts();
+                    }
+                    INFO_RUN([workerInferRequest]() {
+                    (*workerInferRequest)->_endTimes.push_back(std::move(std::chrono::steady_clock::now()));
+                    });
+                }}
+        };
+    }
     return pipeline;
 }
 
@@ -214,16 +242,16 @@ MultiSchedule::~MultiSchedule() {
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
             if (_workerRequest.first == "CPU_HELP") {
-                LOG_INFO("[AUTOPLUGIN]CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
+                LOG_INFO_TAG("CPU_HELP:infer:%ld", _cpuHelpInferCount + count);
                 if (_cpuHelpFps > 0.0) {
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", _cpuHelpFps);
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", _cpuHelpFps);
                 } else if (count >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
                         reqAllEndTimes.back() - reqAllStartTimes.front();
-                    LOG_INFO("[AUTOPLUGIN]CPU_HELP:fps:%lf", count * 1000 / durtation.count());
+                    LOG_INFO_TAG("CPU_HELP:fps:%lf", count * 1000 / durtation.count());
                 }
             } else {
-                LOG_INFO("[AUTOPLUGIN]%s:infer:%ld", _workerRequest.first.c_str(), count);
+                LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
                 auto n = reqAllStartTimes.size();
                 Time time;
                 while (!reqAllStartTimes.empty()) {
@@ -238,7 +266,7 @@ MultiSchedule::~MultiSchedule() {
                 if (n >= 1) {
                     std::chrono::duration<double, std::milli> durtation =
                         reqAllEndTimes.back() - time;
-                    LOG_INFO("[AUTOPLUGIN]%s:fps:%lf", _workerRequest.first.c_str(),
+                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(),
                         n * 1000 / durtation.count());
                 }
             }
@@ -252,6 +280,8 @@ IInferPtr MultiSchedule::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     SoInfer request_to_share_blobs_with;
     IE::RemoteContext::Ptr ctx = nullptr;
+    if (_passthroughExeNet)
+        request_to_share_blobs_with = {_passthroughExeNet->CreateInferRequest(), _passthroughExeNet._so};
     return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
 }
 
@@ -259,27 +289,39 @@ IInferPtr MultiSchedule::CreateInferRequestImpl(IE::InputsDataMap networkInputs,
     IE::OutputsDataMap networkOutputs) {
     SoInfer request_to_share_blobs_with;
     IE::RemoteContext::Ptr ctx = nullptr;
+    if (_passthroughExeNet)
+        request_to_share_blobs_with = {_passthroughExeNet->CreateInferRequest(), _passthroughExeNet._so};
     return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
 IInferPtr MultiSchedule::CreateInferRequest() {
     auto execNetwork = std::dynamic_pointer_cast<MultiExecutableNetwork>(
             _multiSContext->_executableNetwork.lock());
-    if (_passthroughExeNet) {
-        auto res = _passthroughExeNet->CreateInferRequest();
-        res->setPointerToExecutableNetworkInternal(execNetwork);
-        return res;
-    }
     IInferPtr syncRequestImpl;
     if (_multiSContext->_core && _multiSContext->_core->isNewAPI())
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_parameters, execNetwork->_results);
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(execNetwork->_networkInputs, execNetwork->_networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(execNetwork);
+    if (_passthroughExeNet) {
+        std::string perfmode;
+        try {
+            perfmode = _passthroughExeNet->GetConfig(
+                                CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
+        } catch(...) {
+            LOG_INFO("query perf hint from passthrough network failed");
+        }
+        if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT))
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
+        else
+            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+    }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,
                                                execNetwork->_callbackExecutor);
 }
-
+std::string MultiSchedule::GetLogTag() const noexcept {
+    return _LogTag;
+}
 }  // namespace MultiDevicePlugin
 

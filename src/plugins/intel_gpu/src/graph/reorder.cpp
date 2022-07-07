@@ -7,6 +7,8 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
 #include <algorithm>
 #include <string>
@@ -152,6 +154,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
+        ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
         return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);

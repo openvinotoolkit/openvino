@@ -143,10 +143,10 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
             mov(reg_table, l_table);
         }
 
-        if (isa == cpu::x64::avx512_common || jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceOr)
+        if (isa == cpu::x64::avx512_core || jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceOr)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        if ((isa == cpu::x64::avx512_common && jcp_.reduce_mode == Algorithm::ReduceAnd) || jcp_.reduce_mode == Algorithm::ReduceOr) {
+        if ((isa == cpu::x64::avx512_core && jcp_.reduce_mode == Algorithm::ReduceAnd) || jcp_.reduce_mode == Algorithm::ReduceOr) {
             uni_vmovups(vmm_aux, table_val(0));
         }
 
@@ -346,7 +346,7 @@ private:
             }
             // reduce
             reduce_main_loop();
-            if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_common) {
+            if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_core) {
                 uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
                 uni_vandps(vmm_dst, vmm_dst, vmm_aux);
             }
@@ -547,7 +547,7 @@ private:
         switch (jcp_.src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     kxnord(k_mask, k_mask, k_mask);
                     vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
                 } else if (isa == cpu::x64::avx2) {
@@ -739,7 +739,7 @@ private:
     inline void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
         switch (jcp_.reduce_mode) {
             case Algorithm::ReduceAnd:
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
                     vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
                 } else {
@@ -772,7 +772,7 @@ private:
                 uni_vaddps(vmm_dst, vmm_dst, vmm_src);
                 break;
             case Algorithm::ReduceOr:
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
                     vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
                     vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
                 }
@@ -834,7 +834,7 @@ private:
     }
 
     inline void store_dst_vector() {
-        if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_common) {
+        if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_core) {
             uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
 
@@ -920,8 +920,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
-                if (isa == cpu::x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == cpu::x64::avx512_core) {
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -935,7 +934,8 @@ private:
                 }
                 break;
             case memory::data_type::u8:
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1127,7 +1127,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             mov(reg_oc_off, ptr[reg_params + GET_OFF_POST(oc_off)]);
         }
 
-        if (isa == cpu::x64::avx512_common)
+        if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         if (jcp_.layout == ReduceLayoutType::reduce_blocked) {
@@ -1539,8 +1539,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
-                if (isa == cpu::x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                if (isa == cpu::x64::avx512_core) {
                     vpmovsdb(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1554,7 +1553,8 @@ private:
                 }
                 break;
             case memory::data_type::u8:
-                if (isa == cpu::x64::avx512_common) {
+                if (isa == cpu::x64::avx512_core) {
+                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
                     vpmovusdb(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
@@ -1837,7 +1837,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     if (jit_mode) {
         impl_desc_type impl_type = impl_desc_type::jit_sse42;
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(cpu::x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
@@ -1847,7 +1847,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         if ((getInputShapeAtPort(REDUCE_DATA).getRank() == 4 || getInputShapeAtPort(REDUCE_DATA).getRank() == 5) &&
                 getInputShapeAtPort(REDUCE_DATA).getMinDims()[1] > 1) {
             if (keep_dims) {
-                if (mayiuse(cpu::x64::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_core)) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::nCsp16c, input_prec, output_prec, impl_type);
                 } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
@@ -1855,7 +1855,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                     pushDesc(LayoutType::nCsp8c, LayoutType::nCsp8c, input_prec, output_prec, impl_type);
                 }
             } else {
-                if (mayiuse(cpu::x64::avx512_common)) {
+                if (mayiuse(cpu::x64::avx512_core)) {
                     pushDesc(LayoutType::nspc, LayoutType::ncsp, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::ncsp, input_prec, output_prec, impl_type);
                 } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
@@ -1897,8 +1897,8 @@ void Reduce::prepareParams() {
     auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 
-        if (mayiuse(cpu::x64::avx512_common)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(key.jcp, *attr.get()));
+        if (mayiuse(cpu::x64::avx512_core)) {
+            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(key.jcp, *attr.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
@@ -1973,8 +1973,8 @@ void Reduce::createPrimitive() {
         updateLastInputDims();
     }
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
         blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
@@ -2600,8 +2600,8 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
 inline void Reduce::create_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
     memory::format_tag format = (layout == ReduceLayoutType::reduce_nspc) ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
-                                        : (rank == 4 ? (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
-                                                     : (mayiuse(cpu::x64::avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
+                                        : (rank == 4 ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
+                                                     : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
     prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());

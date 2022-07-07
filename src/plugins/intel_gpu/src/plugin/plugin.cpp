@@ -615,7 +615,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
                 return val;
         }
     } else {
-        IE_THROW() << "Unsupported config key : " << name;
+        IE_THROW() << "3-Unsupported config key : " << name;
     }
 }
 
@@ -865,7 +865,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         return decltype(ov::optimal_batch_size)::value_type {batch};
     } else if (name == ov::device::uuid) {
-        ov::device::UUID uuid;
+        ov::device::UUID uuid = {};
         std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
         return decltype(ov::device::uuid)::value_type {uuid};
     } else if (name == ov::device::full_name) {

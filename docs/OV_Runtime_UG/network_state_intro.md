@@ -210,7 +210,7 @@ If the original framework does not have a special API for working with states, a
 **ONNX and frameworks supported via ONNX format:** `LSTM`, `RNN`, and `GRU` original layers are converted to the `TensorIterator` operation. The `TensorIterator` body contains `LSTM`/`RNN`/`GRU Cell`. The `Peepholes` and `InputForget` modifications are not supported, while the `sequence_lengths` optional input is.
 `ONNX Loop` layer is converted to the OpenVINO Loop operation.
 
-**MXNet:** `LSTM`, `RNN`, `GRU` original layers are converted to `TensorIterator` operation. The `TensorIterator` body contains `LSTM`/`RNN`/`GRU Cell` operations.
+**Apache MXNet:** `LSTM`, `RNN`, `GRU` original layers are converted to `TensorIterator` operation. The `TensorIterator` body contains `LSTM`/`RNN`/`GRU Cell` operations.
 
 **TensorFlow:** The `BlockLSTM` is converted to `TensorIterator` operation. The `TensorIterator` body contains `LSTM Cell` operation, whereas `Peepholes` and `InputForget` modifications are not supported.
 The `While` layer is converted to `TensorIterator`. The `TensorIterator` body can contain any supported operations. However, when count of iterations cannot be calculated in shape inference (Model Optimizer conversion) time, the dynamic cases are not supported.

@@ -374,6 +374,10 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
+            if (isFlagSetInCommandLine("dopt")) {
+                device_config.emplace(ov::denormals_optimization(true));
+            }
+
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
                 if (!isFlagSetInCommandLine("pin")) {
@@ -384,6 +388,11 @@ int main(int argc, char* argv[]) {
                                    << " device since multi-scenario with GPU device is used." << slog::endl;
                         it_affinity->second = ov::Affinity::NONE;
                     }
+                }
+
+                // use experimental setting
+                if (isFlagSetInCommandLine("cpu_experimental")) {
+                    device_config.emplace(ov::cpu_experimental(FLAGS_cpu_experimental));
                 }
 
                 // for CPU execution, more throughput-oriented execution via streams
@@ -487,6 +496,12 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
