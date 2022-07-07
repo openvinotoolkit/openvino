@@ -184,10 +184,16 @@ def run(args):
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
 
+                if is_flag_set_in_command_line('dopt'):
+                    config[device]['DENORMALS_OPTIMIZATION'] = 'YES'
+
             if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
+
+                if is_flag_set_in_command_line('cpu_experimental'):
+                    config[device]['CPU_EXPERIMENTAL'] = args.cpu_experimental
 
                 if is_flag_set_in_command_line('pin'):
                     ## set to user defined value
