@@ -283,6 +283,7 @@ public:
         GenerateProposalsParams<T> param;
         format::type data_layout;
         std::tie(param, data_layout) = this->GetParam();
+        const bool need_reorder = data_layout != format::bfyx;
 
         const auto data_type = type_to_data_type<T>::value;
         const auto rois_num_type = type_to_data_type<ROIS_NUM_T>::value;
@@ -310,12 +311,12 @@ public:
         set_values(input_scores, getValues<T>(scores));
 
         const primitive_id output_roi_scores_id = "OutputRoiScores";
-        auto output_roi_scores =
-                engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(param.post_nms_count)}});
+        const layout rois_scores_layout{data_type, data_layout, tensor{batch(num_batches * param.post_nms_count)}};
+        auto output_roi_scores = engine.allocate_memory(rois_scores_layout);
 
         const primitive_id output_rois_num_id = "OutputRoisNum";
-        auto output_rois_num =
-                engine.allocate_memory({rois_num_type, format::bfyx, tensor{batch(num_batches)}});
+        const layout rois_num_layout{rois_num_type, data_layout, tensor{batch(num_batches)}};
+        auto output_rois_num = engine.allocate_memory(rois_num_layout);
 
         const primitive_id reorder_im_info_id = input_im_info_id + "Reordered";
         const primitive_id reorder_anchors_id = input_anchors_id + "Reordered";
@@ -371,20 +372,35 @@ public:
         const cldnn::mem_lock<T> rois_ptr(rois, get_test_stream());
         ASSERT_EQ(rois_ptr.size(), num_batches * param.post_nms_count * 4);
 
-        const cldnn::mem_lock<T> roi_scores_ptr(output_roi_scores, get_test_stream());
+        const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type, const layout& from_layout) {
+            if (!need_reorder) {
+                return mem;
+            }
+            cldnn::topology reorder_topology;
+            reorder_topology.add(input_layout("data", from_layout));
+            reorder_topology.add(reorder("plane_data", "data", format::bfyx, data_type));
+            cldnn::network reorder_net{engine, reorder_topology};
+            reorder_net.set_input_data("data", mem);
+            const auto second_output_result = reorder_net.execute();
+            const auto plane_data_mem = second_output_result.at("plane_data").get_memory();
+            return plane_data_mem;
+        };
+
+        const cldnn::mem_lock<T> roi_scores_ptr(
+                get_plane_data(output_roi_scores, data_type, rois_scores_layout), get_test_stream());
         ASSERT_EQ(roi_scores_ptr.size(), num_batches * param.post_nms_count);
 
-        const cldnn::mem_lock<ROIS_NUM_T> rois_num_ptr(output_rois_num, get_test_stream());
+        const cldnn::mem_lock<ROIS_NUM_T> rois_num_ptr(
+                get_plane_data(output_rois_num, rois_num_type, rois_num_layout), get_test_stream());
         ASSERT_EQ(rois_num_ptr.size(), num_batches);
 
-        const auto& expected_roi_scores = param.expected_roi_scores;
         const auto& expected_rois = param.expected_rois;
+        const auto& expected_roi_scores = param.expected_roi_scores;
         const auto& expected_rois_num = param.expected_rois_num;
 
         for (size_t j = 0; j < expected_rois_num.size(); ++j) {
             EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
         }
-
 
         for (size_t i = 0; i < param.post_nms_count; ++i) {
             EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;

@@ -267,7 +267,7 @@ KERNEL(generate_proposals_ref_stage_2)
         }
     }
 
-    num_outputs[batch] = count;
+    num_outputs[INPUT5_GET_INDEX(batch, 0, 0, 0)] = count;
 
     for (uint i = 0; i < count; ++i) {
         out_indices[batch * POST_NMS_COUNT + i] = index_out[batch * POST_NMS_COUNT + i];
@@ -287,14 +287,14 @@ KERNEL(generate_proposals_ref_stage_3)
 
     uint roi_index = 0;
     for (uint batch = 0; batch < INPUT0_BATCH_NUM; ++batch) {
-        for (uint i = 0; i < num_outputs[batch]; ++i) {
+        for (uint i = 0; i < num_outputs[INPUT5_GET_INDEX(batch, 0, 0, 0)]; ++i) {
             const uint box_index = (batch * NUM_PROPOSALS + out_indices[batch * POST_NMS_COUNT + i]) * PROPOSAL_SIZE;
 
             rois[OUTPUT_GET_INDEX(roi_index, 0, 0, 0)] = boxes[box_index + 0];
             rois[OUTPUT_GET_INDEX(roi_index, 1, 0, 0)] = boxes[box_index + 1];
             rois[OUTPUT_GET_INDEX(roi_index, 2, 0, 0)] = boxes[box_index + 2];
             rois[OUTPUT_GET_INDEX(roi_index, 3, 0, 0)] = boxes[box_index + 3];
-            roi_scores[roi_index] = boxes[box_index + 4];
+            roi_scores[INPUT4_GET_INDEX(roi_index, 0, 0, 0)] = boxes[box_index + 4];
             ++roi_index;
         }
     }
