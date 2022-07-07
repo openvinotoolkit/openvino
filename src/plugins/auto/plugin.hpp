@@ -68,6 +68,7 @@ private:
     static void CheckConfig(const std::map<std::string, std::string>& config,
                             AutoScheduleContext::Ptr& context,
                             std::map<std::string, std::string>& filterConfig);
+    static std::vector<std::string > ParsePrioritiesDevices(std::string priorities, const char separator = ',');
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,

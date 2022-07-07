@@ -138,6 +138,15 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     }
 }
 
+TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, SetPropertyComplieModelWithIncorrectProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(device_name, properties));
+    ASSERT_THROW(core->compile_model(model, device_name, compileModelProperties), ov::Exception);
+}
+
+TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorrectProperties) {
+    ASSERT_THROW(core->compile_model(model, device_name, properties), ov::Exception);
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

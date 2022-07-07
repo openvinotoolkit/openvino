@@ -31,11 +31,68 @@ const std::vector<ov::AnyMap> auto_multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")}
 };
 
+
+const std::vector<ov::AnyMap> multi_properties = {
+        {ov::device::priorities("CPU", "GPU")},
+};
+
+const std::vector<ov::AnyMap> auto_properties = {
+        {ov::device::priorities("CPU", "GPU")},
+        {ov::device::priorities("-CPU", "GPU")},
+        {ov::device::priorities("CPU", "-GPU")}
+};
+
+
+const std::vector<ov::AnyMap> auto_Multi_compiled_empty_properties = {
+        {}
+};
+
+const std::vector<ov::AnyMap> auto_Multi_compiled_Incorrect_properties = {
+        {}
+};
+
+const std::vector<ov::AnyMap> multi_plugin_Incorrect_properties = {
+        {ov::device::priorities("NONE")}
+};
+const std::vector<ov::AnyMap> auto_plugin_Incorrect_properties = {
+        {ov::device::priorities("NONE", "GPU")},
+        {ov::device::priorities("-", "GPU")},
+        {ov::device::priorities("-NONE", "CPU")},
+        {ov::device::priorities("-CPU", "-NONE")},
+        {ov::device::priorities("-NONE", "-NONE")}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(auto_multi_properties)),
         OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(auto_properties)),
+        OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MultiBehaviorTests, OVPropertiesTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                ::testing::ValuesIn(multi_properties)),
+        OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorIncorrectPropertiesTests, OVSetPropComplieModleWihtIncorrectPropTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(auto_plugin_Incorrect_properties),
+                ::testing::ValuesIn(auto_Multi_compiled_empty_properties)),
+        OVSetPropComplieModleWihtIncorrectPropTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MultiBehaviorIncorrectPropertiesTests, OVSetPropComplieModleWihtIncorrectPropTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                ::testing::ValuesIn(multi_plugin_Incorrect_properties),
+                ::testing::ValuesIn(auto_Multi_compiled_empty_properties)),
+        OVSetPropComplieModleWihtIncorrectPropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> gpu_plugin_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),

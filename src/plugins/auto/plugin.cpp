@@ -84,16 +84,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     std::vector<DeviceInformation> metaDevices;
 
     // parsing the string and splitting to tokens
-    std::vector<std::string> devicesWithRequests;
-    // parsing the string and splitting the comma-separated tokens
-    std::string::size_type i = 0;
-    std::string::size_type idelimeter;
-    while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
-        devicesWithRequests.push_back(priorities.substr(i, idelimeter - i));
-        i = idelimeter + 1;
-    }
-    // last token in the string (which has no comma after that)
-    devicesWithRequests.push_back(priorities.substr(i, priorities.length() - i));
+    std::vector<std::string> devicesWithRequests = ParsePrioritiesDevices(priorities);
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
@@ -711,17 +702,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
         }
     } else {
-        // parsing the string and splitting the comma-separated tokens
-        std::string::size_type i = 0;
-        std::string::size_type idelimeter;
-        std::vector<std::string> deviceVec;
         auto priorities = deviceListConfig->second;
-        while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
-            deviceVec.push_back(priorities.substr(i, idelimeter - i));
-            i = idelimeter + 1;
-        }
-        // last token in the string (which has no comma after that)
-        deviceVec.push_back(priorities.substr(i, priorities.length() - i));
+        // parsing the string and splitting the comma-separated tokens
+        std::vector<std::string> deviceVec = ParsePrioritiesDevices(priorities);
         std::vector<std::string> devicesToBeDeleted;
         auto updateDeviceVec = [&](const std::string& delPattern = "") {
             auto iter = deviceVec.begin();
@@ -786,7 +769,38 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 
     return allDevices;
 }
-
+std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(std::string priorities, const char separator) {
+    std::vector<std::string> devices;
+    std::string::size_type pos = 0;
+    std::string::size_type endpos = 0;
+    auto isAvailableDevice = [&](std::string& deviceName) -> bool {
+        if (deviceName.empty())
+            return false;
+        auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
+        std::cout << "Real Device name: " << realDevName << std::endl;
+        if (realDevName.empty()) {
+            return false;
+        }
+        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+            return false;
+        }
+        return true;
+    };
+    while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
+        auto subStr = priorities.substr(pos, endpos - pos);
+        if (!isAvailableDevice(subStr)) {
+            IE_THROW() << "Unavailable device name: " << subStr;
+        }
+        devices.push_back(subStr);
+        pos = endpos + 1;
+    }
+    auto subStr = priorities.substr(pos, priorities.length() - pos);
+    if (!isAvailableDevice(subStr)) {
+        IE_THROW() << "Unavailable device name: " << subStr;
+    }
+    devices.push_back(subStr);
+    return devices;
+}
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
                                              AutoScheduleContext::Ptr& context,
                                              std::map<std::string, std::string>& filterConfig) {
@@ -866,6 +880,9 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
         } else if (supported_configKeys.end() ==
                    std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
             IE_THROW() << "Unsupported config key: " << kvp.first;
+        } else if (kvp.first == ov::device::priorities) {
+            // check if the device in ov::device::priorities is available.
+            ParsePrioritiesDevices(kvp.second);
         } else if (kvp.first.find("AUTO_") == 0) {
             continue;
         }
