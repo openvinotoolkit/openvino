@@ -69,6 +69,7 @@ namespace {
                     res.push_back(ov::hint::allow_auto_batching.name());
                     res.push_back(ov::log::level.name());
                     res.push_back(ov::intel_auto::device_bind_buffer.name());
+                    res.push_back(ov::auto_batch_timeout.name());
                     return res;
                 }();
 }  // namespace
@@ -269,6 +270,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
                                                     RW_property(ov::device::priorities.name()),
                                                     RW_property(ov::enable_profiling.name()),
                                                     RW_property(ov::hint::allow_auto_batching.name()),
+                                                    RW_property(ov::auto_batch_timeout.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name())
         };
@@ -343,7 +345,25 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::vector<DeviceInformation> metaDevices;
     bool workModeAuto = GetName() == "AUTO";
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    // If the user sets the property, insert the property into the deviceConfig
+    auto insertPropToConfig = [&](std::string property,
+                                  std::string& deviceName,
+                                  std::map<std::string, std::string>& deviceConfig) {
+        auto tmpiter =
+            std::find_if(fullConfig.begin(), fullConfig.end(), [&](const std::pair<std::string, std::string>& config) {
+                return (config.first == property);
+            });
+        if (tmpiter != fullConfig.end()) {
+            deviceConfig.insert({tmpiter->first, tmpiter->second});
+            LOG_INFO_TAG("device:%s, config:%s=%s",
+                         deviceName.c_str(),
+                         tmpiter->first.c_str(),
+                         tmpiter->second.c_str());
+        }
+    };
+
     // if workMode is AUTO
+    // only AUTO uses CheckConfig() to check fullConfig's parameters, MULTI does not
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
@@ -396,11 +416,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(), config.second.c_str());
                  }
              }
-             auto tmpiter = std::find_if(fullConfig.begin(), fullConfig.end(), [](const std::pair<std::string, std::string>& config) {
-                            return (config.first == CONFIG_KEY(ALLOW_AUTO_BATCHING));
-                            });
-             if (tmpiter != fullConfig.end())
-                 deviceConfig.insert({tmpiter->first, tmpiter->second});
+             insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, deviceConfig);
+             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, deviceConfig);
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -450,6 +467,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                     multiSContext->_batchingDisabled = true;
                 p.config.insert({tmpiter->first, tmpiter->second});
             }
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
             SoExecutableNetworkInternal exec_net;
@@ -845,6 +863,17 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.second == PluginConfigParams::NO) {
                 context->_batchingDisabled = true;
                 continue;
+            }
+        } else if (kvp.first == ov::auto_batch_timeout) {
+            try {
+                auto batch_timeout = std::stoi(kvp.second);
+                if (batch_timeout < 0) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+                }
+            } catch (...) {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
         } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
             if (kvp.second == PluginConfigParams::YES ||
