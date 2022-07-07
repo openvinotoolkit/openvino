@@ -111,7 +111,7 @@ For more details on how to get a quantized model, refer to [Model Optimization](
 
 Floating-point precision of a GPU primitive is selected based on operation precision in IR except [compressed f16 IR form](../../MO_DG/prepare_model/FP16_Compression.md) which is executed in the f16 precision.
 
-> **NOTE**: Hardware acceleration for i8/u8 precision may be unavailable on some platforms. In that case a model is executed in the floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via the `ov::device::capabilities` property.
+> **NOTE**: The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for i8/u8 precision may be unavailable on older generation platforms. In that case a model is executed in the floating-point precision taken from IR. Hardware support of u8/i8 acceleration can be queried via the `ov::device::capabilities` property.
 
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out the supported data types for all detected devices.
 
