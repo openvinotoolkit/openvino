@@ -4,24 +4,23 @@
 
 #include "dft.h"
 
-#include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
-
-#include <cmath>
 #include <string>
 #include <thread>
 #include <vector>
+#include <cmath>
+#include <dnnl_extension_utils.h>
 
 #include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include <ngraph/opsets/opset7.hpp>
 
-#include "common/cpu_memcpy.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
+#include "common/cpu_memcpy.h"
+#include <ngraph/opsets/opset7.hpp>
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -385,8 +384,8 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+               Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -441,15 +440,14 @@ void DFT::initSupportedPrimitiveDescriptors() {
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizeTensorPrec != Precision::I32 && signalSizeTensorPrec != Precision::I64) {
-            IE_THROW() << layerErrorPrefix
-                       << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
+            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators(
-        {{LayoutType::ncsp, Precision::FP32}, {LayoutType::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
+                                                       {LayoutType::ncsp, Precision::I32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
@@ -465,7 +463,7 @@ inline float getImaginaryFromComplexProd(float lhsReal, float lhsImag, float rhs
 
 /*
     Returns true while we can iterate
-    Specified axis is skipped in counters
+    Specified axis is skipped in counters   
 */
 inline bool nextIterationStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange, size_t axis) {
     auto itCounter = counters.rbegin();
@@ -514,12 +512,8 @@ size_t calculateOffsetFromStrides(const std::vector<size_t>& coords, const std::
     return offset;
 }
 
-void gatherToBufferND(float* buffer,
-                      const float* data,
-                      size_t axis,
-                      const std::vector<size_t>& dimIndexes,
-                      const std::vector<size_t>& shape,
-                      const std::vector<size_t>& strides) {
+void gatherToBufferND(float* buffer, const float* data, size_t axis, const std::vector<size_t>& dimIndexes,
+                                     const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -530,12 +524,8 @@ void gatherToBufferND(float* buffer,
     }
 }
 
-void applyBufferND(const float* buffer,
-                   float* output,
-                   size_t axis,
-                   const std::vector<size_t>& dimIndexes,
-                   const std::vector<size_t>& shape,
-                   const std::vector<size_t>& strides) {
+void applyBufferND(const float* buffer, float* output, size_t axis, const std::vector<size_t>& dimIndexes,
+                                  const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -581,7 +571,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
     } while (copyStep(iterationCounter, iterationRange));
 }
 
-}  // namespace
+} // namespace
 
 void DFT::execute(dnnl::stream strm) {
     if (!execPtr) {
@@ -688,13 +678,7 @@ void DFT::DFTExecutor::dftNd(float* output,
                     std::vector<float> gatheredData(outputLen * 2);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
-
-                    gatherToBufferND(gatheredData.data(),
-                                     output,
-                                     currentAxis,
-                                     parallelIterationCounter,
-                                     outputShape,
-                                     outputStrides);
+                    gatherToBufferND(gatheredData.data(), output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
                     const auto* bufferPtr =
                         fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse);
                     applyBufferND(bufferPtr, output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
@@ -704,12 +688,7 @@ void DFT::DFTExecutor::dftNd(float* output,
         } else {
             std::vector<float> gatheredData(outputLen);
             do {
-                gatherToBufferND(gatheredData.data(),
-                                 output,
-                                 currentAxis,
-                                 iterationCounter,
-                                 outputShape,
-                                 outputStrides);
+                gatherToBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
                 naiveDFT(gatheredData.data(), outputLen, inverse);
                 applyBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
