@@ -336,8 +336,8 @@ class FakeQuantizePropagation(BackReplacementPattern):
                         input_type = ('Split', 'VariadicSplit', 'Concat')
                         input_name = (input_node.name, input_parent_name)
                 if input_type == 'FakeQuantize':
-                    if input_node['fq_group'] == 'outputs' and fq['fq_group'] == 'activations':
-                        input_node['fq_group'] = 'activations'
+                    if fq['fq_config_priority'] == 'high' and input_node['fq_config_priority'] == 'low':
+                        input_node['fq_group'] = fq['fq_group']
                     for fq_config in fq['fq_configs']:
                         if fq_config not in input_node['fq_configs']:
                             input_node['fq_configs'].append(fq_config)
@@ -877,7 +877,11 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if hw_config is not None and hw_config[node_type]:
             fq_configs = hw_config[node_type][fq_group]
 
-        fq_options = {'fq_group': fq_group, 'fq_configs': copy(fq_configs)}
+        fq_options = {
+            'fq_group': fq_group,
+            'fq_configs': copy(fq_configs),
+            'fq_config_priority': 'high'
+        }
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
         # Insert FakeQuantize after input
@@ -896,6 +900,9 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
 
 def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
+    activation_nodes_type = ['Power', 'Sigmoid', 'Tanh', 'ReLU', 'PReLU',
+                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign']
+
     new_fq = []
     for out_port_id, port in node.out_ports().items():
         if port.disconnected():
@@ -916,7 +923,18 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
                                                                                   out_port_id=out_port_id,
                                                                                   next_port_id=next_port_id)
             fq_configs = hw_config[node.type]['outputs'] if hw_config is not None and hw_config[node.type] else []
-            fq_options = {'fq_group': 'outputs', 'fq_configs': copy(fq_configs)}
+
+            fq_config_priority = 'low'
+            if node.type in activation_nodes_type + ['Parameter']:
+                fq_config_priority = 'high'
+            else:
+                fq_config_priority = 'low'
+
+            fq_options = {
+                'fq_group': 'outputs',
+                'fq_configs': copy(fq_configs),
+                'fq_config_priority': fq_config_priority
+            }
             fq_output = create_fake_quantize_node(graph, fq_name, **fq_options)
 
             in_port = next_port.get_source()
