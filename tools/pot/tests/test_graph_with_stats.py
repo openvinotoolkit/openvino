@@ -8,7 +8,7 @@ import pytest
 from addict import Dict
 from openvino.tools.pot.data_loaders.creator import create_data_loader
 from openvino.tools.pot.engines.creator import create_engine
-from openvino.tools.pot.graph import load_model, save_model
+from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.pipeline.initializer import create_pipeline
 
 from .utils.check_graph import check_model
