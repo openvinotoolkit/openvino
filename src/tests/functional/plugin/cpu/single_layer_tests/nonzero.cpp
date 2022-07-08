@@ -186,7 +186,7 @@ std::vector<InputShape> inShapesDynamic = {
                 {16, 48, 9, 12, 2}
             }
         },
-        {   
+        {
             // dynamic shape
             {-1, {1, 50}, -1, {1, 30}, -1},
             { // target static shapes
