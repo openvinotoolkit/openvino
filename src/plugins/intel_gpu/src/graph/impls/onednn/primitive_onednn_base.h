@@ -17,6 +17,7 @@
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
 
+#include <fstream>
 #include <vector>
 #include <list>
 #include <utility>
@@ -25,6 +26,75 @@
 
 namespace cldnn {
 namespace onednn {
+
+static std::mutex cacheAccessMutex;
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+std::wstring multiByteCharToWString(const char* str) {
+#ifdef _WIN32
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
+    std::wstring result = wstring_encoder.from_bytes(str);
+    return result;
+#endif  // _WIN32
+}
+#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+
+
+static std::vector<uint8_t> load_cache_blob_from_disk(std::string path) {
+    std::lock_guard<std::mutex> lock(cacheAccessMutex);
+
+    #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = multiByteCharToWString(path.c_str());
+    const wchar_t* filename = widefilename.c_str();
+    FILE *fp = _wfopen(filename, L"rb");
+#else
+    const char* filename = path.c_str();
+    FILE *fp = fopen(filename, "rb");
+#endif
+
+    if (fp) {
+        fseek(fp, 0, SEEK_END);
+        auto sz = ftell(fp);
+        if (sz < 0) {
+            fclose(fp);
+            return {};
+        }
+        auto nsize = static_cast<size_t>(sz);
+
+        fseek(fp, 0, SEEK_SET);
+
+        std::vector<uint8_t> ret(nsize);
+
+        auto res = fread(ret.data(), sizeof(uint8_t), nsize, fp);
+        (void)res;
+        fclose(fp);
+        return ret;
+    }
+
+    return {};
+}
+
+static void store_cache_blob_on_disk(std::string path, std::vector<uint8_t> cache_blob) {
+    std::lock_guard<std::mutex> lock(cacheAccessMutex);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = multiByteCharToWString(path.c_str());
+    const wchar_t* filename = widefilename.c_str();
+#else
+    const char* filename = path.c_str();
+#endif
+    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
+    if (out_file.is_open()) {
+        out_file.write(reinterpret_cast<const char*>(&cache_blob[0]), cache_blob.size());
+    } else {
+        throw std::runtime_error("Could not store cl_cache to " + path);
+    }
+}
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
@@ -44,10 +114,54 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _outer(arg),
           _desc(desc),
           _attrs(attrs),
-          _pd(pd),
-          _prim(pd) { }
+          _pd(pd) {
+            build_primitive();
+        }
 
     bool is_cpu() const override { return false; }
+
+private:
+    std::string get_cache_outpath() const {
+        auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
+        if (path.empty()) {
+            return {};
+        }
+
+        if (path.back() != '/' && path.back() != '\\') {
+            path += "/";
+        }
+        return path;
+    }
+
+    std::string get_cache_filepath(std::vector<uint8_t> key) const {
+        auto path = get_cache_outpath();
+        if (path.empty()) {
+            return {};
+        }
+
+        std::string key_str(key.begin(), key.end());
+        size_t hash = std::hash<std::string>()(key_str);
+        return path + std::to_string(hash) + ".onednn.cl_cache";
+    }
+
+    void build_primitive() {
+        auto cache_outpath = get_cache_outpath();
+        if (cache_outpath.empty()) {
+            _prim = PrimType(_pd);
+        } else {
+            std::vector<uint8_t> key = _pd.get_cache_blob_id();
+            assert(!key.empty());
+
+            std::vector<uint8_t> cache = load_cache_blob_from_disk(get_cache_filepath(key));
+            if (cache.empty()) {
+                _prim = PrimType(_pd);
+                cache = _prim.get_cache_blob();
+                store_cache_blob_on_disk(get_cache_filepath(key), cache);
+            } else {
+                _prim = PrimType(_pd, cache);
+            }
+        }
+    }
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
