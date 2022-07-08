@@ -16,12 +16,12 @@ protected:
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
         std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = GetParam();
 
-        auto inputShape = shapes.first;
+        const auto& inputShape = shapes.first;
         const std::size_t inputDim = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-        std::vector<size_t> inputDims{1, inputDim};
+        const std::vector<size_t> inputDims{1, inputDim};
         activationType = activationDecl.first;
-        auto constantsValue = activationDecl.second;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        const auto& constantsValue = activationDecl.second;
+        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputDims});
         params[0]->set_friendly_name("Input");
 
@@ -30,11 +30,11 @@ protected:
             threshold = 1.0;
         }
 
-        auto inputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape);
-        auto inputReshape = std::make_shared<ngraph::opset1::Reshape>(params[0], inputReshapePattern, false);
-        auto activation = ngraph::builder::makeActivation(inputReshape, ngPrc, activationType, shapes.second, constantsValue);
-        auto outputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inputDims);
-        auto outputReshape = std::make_shared<ngraph::opset1::Reshape>(activation, outputReshapePattern, false);
+        const auto inputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{inputShape.size()}, inputShape);
+        const auto inputReshape = std::make_shared<ngraph::opset1::Reshape>(params[0], inputReshapePattern, false);
+        const auto activation = ngraph::builder::makeActivation(inputReshape, ngPrc, activationType, shapes.second, constantsValue);
+        const auto outputReshapePattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inputDims);
+        const auto outputReshape = std::make_shared<ngraph::opset1::Reshape>(activation, outputReshapePattern, false);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{outputReshape}, params);
     }
