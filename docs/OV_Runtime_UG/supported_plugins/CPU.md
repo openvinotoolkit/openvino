@@ -224,23 +224,23 @@ The plugin supports the following properties:
 ### Read-write Properties
 All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
-- ov::enable_profiling
-- ov::hint::inference_precision
-- ov::hint::performance_mode
-- ov::hint::num_request
-- ov::num_streams
-- ov::affinity
-- ov::inference_num_threads
-- ov::intel_cpu::denormals_optimization
+- `ov::enable_profiling`
+- `ov::hint::inference_precision`
+- `ov::hint::performance_mode`
+- `ov::hint::num_request`
+- `ov::num_streams`
+- `ov::affinity`
+- `ov::inference_num_threads`
+
 
 ### Read-only properties
-- ov::cache_dir
-- ov::supported_properties
-- ov::available_devices
-- ov::range_for_async_infer_requests
-- ov::range_for_streams
-- ov::device::full_name
-- ov::device::capabilities
+- `ov::cache_dir`
+- `ov::supported_properties`
+- `ov::available_devices`
+- `ov::range_for_async_infer_requests`
+- `ov::range_for_streams`
+- `ov::device::full_name`
+- `ov::device::capabilities`
 
 ## External Dependencies
 For some performance-critical DL operations, the CPU plugin uses optimized implementations from the oneAPI Deep Neural Network Library ([oneDNN](https://github.com/oneapi-src/oneDNN)).
