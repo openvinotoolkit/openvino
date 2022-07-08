@@ -1839,5 +1839,47 @@ size_t jit_erf_emitter::aux_vecs_count() const {
     return 5ul;
 }
 
+/// SOFT SIGN ///
+jit_soft_sign_emitter::jit_soft_sign_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+jit_soft_sign_emitter::jit_soft_sign_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_soft_sign_emitter::get_inputs_num() const { return 1; }
+
+void jit_soft_sign_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void jit_soft_sign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_src = Vmm(in_vec_idxs[0]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    h->uni_vmovups(vmm_dst, vmm_src);                             // y = x
+    h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));  // x = abs(x)
+    h->uni_vaddps(vmm_src, vmm_src, table_val("one"));            // x++
+    h->uni_vdivps(vmm_dst, vmm_dst, vmm_src);                     // y = y/x
+}
+
+void jit_soft_sign_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("positive_mask", 0x7fffffff, true);
+}
 }   // namespace intel_cpu
 }   // namespace ov
