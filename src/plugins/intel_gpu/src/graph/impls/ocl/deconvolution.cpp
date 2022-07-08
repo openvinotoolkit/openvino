@@ -107,6 +107,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto deconv = new deconvolution_impl(arg, best_kernels[0]);
+        deconv->can_reuse_memory = best_kernels[0].can_reuse_memory;
 
         return deconv;
     }

@@ -284,6 +284,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
+    bool memory_reuse_by_user = true;
+    for (auto user : _node.get_users()) {
+        if (user->get_selected_impl()->can_reuse_memory == false) {
+            memory_reuse_by_user = false;
+        }
+    }
+
+
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     auto use_lockable_memory = is_output_buffer(_node) || _node.get_selected_impl()->is_cpu() || is_any_user_cpu(_node.get_users()) ||
@@ -294,7 +302,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
-    if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+    if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }

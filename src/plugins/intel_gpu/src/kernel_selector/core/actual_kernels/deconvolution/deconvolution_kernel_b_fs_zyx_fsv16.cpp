@@ -126,14 +126,6 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
     const auto& params = static_cast<const deconvolution_params&>(p);
     const auto feature_block_size = 16;
 
-#ifdef _WIN32
-    // NaN value in non-valid area from input makes an issue when Windows OS. This is WA to avoid the issue.
-    // The issue happens when input feature size = 8.
-    // TO-DO: Make the kernel handling this input case
-    if (params.inputs[0].Feature().v == 8)
-        return false;
-#endif
-
     // Check that padding features doesn't miss-align the blocks
     if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
@@ -283,4 +275,51 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     return jit;
 }
 
+KernelsData DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
+    assert(params.GetType() == KernelType::DECONVOLUTION);
+
+    if (!Validate(params, options)) {
+        return{};
+    }
+
+    const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);
+    DispatchData dispatchData = SetDefault(orgParams);
+    KernelData kd = KernelData::Default<deconvolution_params>(params);
+    deconvolution_params& newParams = *static_cast<deconvolution_params*>(kd.params.get());
+
+    bool succeed = UpdateWeightsParams(newParams,
+                                       options,
+                                       GetPreferredWeightsLayout(newParams),
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey(),
+                                       newParams.groups);
+
+    if (!succeed) {
+        return {};
+    }
+
+    if (orgParams.inputs[0].Feature().v % 16 != 0) {
+        kd.can_reuse_memory = false; // Set memory_reuse = false when input feature size is not 16 aligned.
+    }
+
+    auto cldnn_jit = GetJitConstants(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    auto& kernel = kd.kernels[0];
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     DEFAULT,
+                     true,
+                     !newParams.bias.empty(),
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+
+    return {kd};
+}
 }  // namespace kernel_selector
