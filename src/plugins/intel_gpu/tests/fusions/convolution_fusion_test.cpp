@@ -473,7 +473,7 @@ TEST_P(conv_fp32_scale, basic) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -952,7 +952,7 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
         eltwise("eltwise1_sum", "conv_prim", "eltwise_data1", eltwise_mode::sum),
         eltwise("eltwise2_sub", "conv_prim", "eltwise1_sum", eltwise_mode::sub),
         eltwise("eltwise3_prod", "eltwise2_sub", "eltwise_data2", eltwise_mode::prod),
-        scale("scale", "eltwise3_prod", "scale_data"),
+        eltwise("scale", { "eltwise3_prod", "scale_data" }, eltwise_mode::prod),
         concatenation("concat", { "scale", "scale" }, 1),
         reorder("reorder_bfyx", "concat", p.default_format, data_types::f32)
     );
@@ -1308,7 +1308,7 @@ TEST_P(conv_fp32_scale_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -1341,7 +1341,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
@@ -1374,7 +1374,7 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  p.default_type),
@@ -1408,7 +1408,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         activation("activation_quantize", "quantize", activation_func::relu),
@@ -1446,7 +1446,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(layout{ data_types::i8, p.input_format, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
@@ -1532,7 +1532,7 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
         data("bias", get_mem(get_bias_layout(p))),
         convolution("conv", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         data("scale_data", get_mem(get_per_channel_layout(p))),
-        scale("scale", "conv", "scale_data"),
+        eltwise("scale", { "conv", "scale_data" }, eltwise_mode::prod),
         activation("activation", "scale", activation_func::hyperbolic_tan),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
         eltwise("eltw", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
@@ -1572,7 +1572,7 @@ TEST_P(conv_int8_scale, basic) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -1588,7 +1588,7 @@ TEST_P(conv_int8_scale, fp16_scale_out) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data", optional_data_type{ data_types::f16 }),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
@@ -2034,7 +2034,7 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -2084,7 +2084,7 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
@@ -2177,7 +2177,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
@@ -2223,7 +2223,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum,  data_types::f32),
@@ -2270,7 +2270,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("slope_data", get_mem(get_per_channel_layout(p))),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         activation("activation_quantize", "quantize", activation_func::relu),
@@ -2323,7 +2323,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
         data("eltwise_data", get_mem(layout{ data_types::i8, p.input_format, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", activation_func::exp),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
@@ -2376,7 +2376,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         data("slope_data", get_mem(get_per_channel_layout(p))),
         data("eltwise_data", get_mem(layout{ data_types::i8, format::b_fs_yx_fsv4, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
@@ -2409,7 +2409,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         data("slope_data", get_mem(layout{ data_types::f16, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } })),
         data("eltwise_data", get_mem(layout{ data_types::u8, format::b_fs_yx_fsv4, p.out_shape })),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation_scale", "scale", "slope_data", activation_func::relu_negative_slope),
         quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         eltwise("sum", { "quantize", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
@@ -2701,7 +2701,7 @@ TEST_P(conv_fp16_scale, basic) {
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
-        scale("scale", "conv_prim", "scale_data"),
+        eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod),
         reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
