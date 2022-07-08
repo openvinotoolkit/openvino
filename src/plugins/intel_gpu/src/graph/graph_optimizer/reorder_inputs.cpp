@@ -584,84 +584,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // For supporting optimized onednn first conv, the input format from prev reorder to this conv is changed to a recommended format by onednn.
         auto& input = conv_node.input();
         auto input_layout = input.get_output_layout();
-        auto output_layout = conv_node.get_output_layout();
-        auto conv_format = output_layout.format;
-        auto group_size = conv_node.get_groups();
-        bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
-        if (conv_node.impl_type == impl_types::onednn &&
-            lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
+        if (conv_node.impl_type == impl_types::onednn && input_layout.format != conv_node.get_required_input0()) {
             auto new_layout = input_layout;
-            auto dims = new_layout.format.dimension();
-            if (new_layout.data_type == data_types::f16) {
-                if (dims == 5)
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
-                else
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
-            } else if (data_type_traits::is_i8_u8(new_layout.data_type)) {
-                if (dims == 5)
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
-                else
-                    new_layout.format = (input_layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
-            }
-            // TODO: handling other types for first conv
-
-            if (new_layout == input_layout)
-                return;
-
-            if (!input.is_type<reorder>() || input.get_users().size() > 1) {
-                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
-                if (new_input.first)
-                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
-            }
-
-            conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
-        }
-
-        // reorder for onednn mixed-precision conv
-        // If the layouts are like below, change input layout to fsv32.
-        // From:
-        //   (bsv32_fsv16.u8) --> conv --> (bsv32_fsv16.fp16)
-        // To:
-        //   (bsv32_fsv16.u8) --> reorder --> (bsv32_fsv32.u8) --> conv --> (bsv32_fsv16.fp16)
-        //
-        // Do not apply such change for b=1 first conv
-        enum class __data_type {i8_u8, floating_point};
-        // Errata for mixed precision in onednn
-        // data_type, wrong_format, correct_format
-        std::vector<std::tuple<__data_type, format, format>> errata = {
-            {__data_type::i8_u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32},
-            {__data_type::i8_u8, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv32},
-            {__data_type::i8_u8, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv32},
-            {__data_type::i8_u8, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv32},
-            {__data_type::floating_point, format::b_fs_yx_fsv32, format::b_fs_yx_fsv16},
-            {__data_type::floating_point, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16},
-            {__data_type::floating_point, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv16},
-            {__data_type::floating_point, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16}};
-        for (auto &e : errata) {
-            auto prev_node = conv_node.get_dependencies().front();
-            auto prev_layout = prev_node->get_output_layout();
-            auto conv_layout = conv_node.get_output_layout();
-            auto is_target_dt_in_errata = (std::get<0>(e) == __data_type::i8_u8 && data_type_traits::is_i8_u8(prev_layout.data_type)) ||
-                                          (std::get<0>(e) == __data_type::floating_point && data_type_traits::is_floating_point(prev_layout.data_type));
-            auto wrong_format = std::get<1>(e);
-            auto correct_format = std::get<2>(e);
-            if (lo.get_optimization_attributes().use_onednn_impls
-                    && is_target_dt_in_errata
-                    && conv_layout.format == wrong_format
-                    && prev_layout.format == wrong_format
-                    && !(prev_layout.size.batch[0] == 1 && prev_layout.size.feature[0] <= 4)) {
-                auto new_layout = prev_layout;
-                new_layout.format = correct_format;
-                auto new_input = rf.get_reorder(prev_node->id(),
-                                                prev_layout,
-                                                new_layout);
-
-                if (new_input.first)
-                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
-
-                // Prevent layout propagation as we are using mixed precision for conv
-                conv_node.get_dependencies().front()->set_output_layout(new_layout, false);
-            }
+            new_layout.format = conv_node.get_required_input0();
+            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            if (new_input.first)
+                p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
         }
 
         // When the conv node is of onednn impl type and eltwise sum with full tensor is fused,
