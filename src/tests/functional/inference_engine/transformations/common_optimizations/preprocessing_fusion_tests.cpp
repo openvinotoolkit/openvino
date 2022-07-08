@@ -1170,8 +1170,8 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
         disable_rt_info_check();
     }
     {
-        auto conv1_with_gather = create_conv_with_gather(input,weights, {2, 1, 0});
-        auto conv2 = create_conv(conv1_with_gather,weights);
+        auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});
+        auto conv2 = create_conv(conv1_with_gather, weights);
         function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
