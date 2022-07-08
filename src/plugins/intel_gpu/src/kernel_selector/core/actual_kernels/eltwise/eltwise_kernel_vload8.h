@@ -15,6 +15,11 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION
+        };
+    }
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
