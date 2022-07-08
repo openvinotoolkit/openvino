@@ -369,6 +369,52 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
     }
 }
 
+static format get_required_input0(const program_node *node) {
+    if (!node->is_type<convolution>())
+        return format::any;
+
+    auto &conv = node->as<convolution>();
+    return conv.get_required_input0();
+}
+
+static format get_required_output(const program_node *node) {
+    if (!node->is_type<convolution>())
+        return format::any;
+
+    auto &conv = node->as<convolution>();
+    return conv.get_required_input0();
+}
+
+static format get_target_output_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
+    // 1. Check required_output
+    auto ret = get_required_output(node);
+    if (ret != format::any)
+        return ret;
+    
+    // 2. Check fmt
+    if (fmt_map.count(node) > 0)
+        return fmt_map.at(node);
+
+    // 3. Use output_layout
+    return node->get_output_layout().format;
+}
+
+static format get_target_input0_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
+    // 1. Check required_input
+    auto ret = get_required_input0(node);
+    if (ret != format::any)
+        return ret;
+    
+    // 2. Check fmt
+    if (fmt_map.count(node) > 0)
+        return fmt_map.at(node);
+
+    // 3. Use output_layout
+    return node->get_output_layout().format;
+    
+}
+
+// If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
     auto fmt = fmt_map.at(node);
@@ -381,14 +427,16 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
             continue;
 
-        auto next_layout = next->get_output_layout();
-        auto current_layout = node->get_output_layout();
+        // We have three (potentially) conflicting information here for format
+        //    node->get_output_layout().format : It is not up-to-date at this moment. It is just the default format (bfyx)
+        //    fmt_map.at(node).format          : It is queried with get_preferred_layout. However, it has only output format.
+        //    node.get_required_input0/output  : If it is valid(!= any), it is up-to-date. It has input format, too.
+        // So the priority is required_input0/output --> fmt_map --> output_layout().format
 
-        auto first_layout = travel_direction_wrapper<dir>::first(current_layout, next_layout);
-        auto in_layout = first_layout;
-        auto out_layout = first_layout;
-
-        travel_direction_wrapper<dir>::first(in_layout, out_layout).format = fmt;
+        auto in_layout = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
+        auto out_layout = in_layout;
+        in_layout.format = get_target_output_format(fmt_map, travel_direction_wrapper<dir>::first(node, next));
+        out_layout.format = get_target_input0_format(fmt_map, travel_direction_wrapper<dir>::second(node, next));
 
         // When the input is fed into different convolutions, create separate cache entry
         bool needs_split_reorder = false;
