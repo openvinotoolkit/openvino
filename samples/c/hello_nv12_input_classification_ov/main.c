@@ -170,8 +170,6 @@ int main(int argc, char** argv) {
     ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
     ov_preprocess_input_process_steps_t* input_process = NULL;
     ov_preprocess_input_model_info_t* p_input_model = NULL;
-    ov_preprocess_output_info_t* output_info = NULL;
-    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
     ov_compiled_model_t* compiled_model = NULL;
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
@@ -259,6 +257,10 @@ int main(int argc, char** argv) {
 
     // -------- Step 6. Prepare input data  --------
     img_size = input_width * (input_height * 3 / 2);
+    if (!img_size) {
+        fprintf(stderr, "[ERROR] Invalid Image size, line %d\n", __LINE__);
+        goto err;
+    }
     img_data = (unsigned char*)calloc(img_size, sizeof(unsigned char));
     if (NULL == img_data) {
         fprintf(stderr, "[ERROR] calloc returned NULL, line %d\n", __LINE__);
@@ -309,10 +311,6 @@ err:
         ov_infer_request_free(infer_request);
     if (compiled_model)
         ov_compiled_model_free(compiled_model);
-    if (output_tensor_info)
-        ov_preprocess_output_tensor_info_free(output_tensor_info);
-    if (output_info)
-        ov_preprocess_output_info_free(output_info);
     if (p_input_model)
         ov_preprocess_input_model_info_free(p_input_model);
     if (input_process)
