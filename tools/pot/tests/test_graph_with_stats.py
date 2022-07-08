@@ -8,21 +8,21 @@ import pytest
 from addict import Dict
 from openvino.tools.pot.data_loaders.creator import create_data_loader
 from openvino.tools.pot.engines.creator import create_engine
-from openvino.tools.pot.graph import load_model
+from openvino.tools.pot.graph import load_model, save_model
 from openvino.tools.pot.pipeline.initializer import create_pipeline
 
 from .utils.check_graph import check_model
 from .utils.config import merge_configs
 
 TEST_MODELS = [
-    ('resnet_example', 'pytorch')
-    ('resnet_example', 'pytorch', 'Ranger', 'ANY'),
+    ('resnet_example', 'pytorch', 'DefaultQuantization', 'CPU'),
+    ('resnet_example', 'pytorch', 'RangeSupervision', 'ANY'),
     ('act_act_example', 'pytorch', 'DefaultQuantization', 'GNA')
 ]
 
 
 @pytest.fixture(scope='module', params=TEST_MODELS,
-                ids=['{}_{}_{}'.format(*m) for m in TEST_MODELS])
+                ids=['_'.join(m) for m in TEST_MODELS])
 def _params(request):
     return request.param
 
@@ -32,7 +32,7 @@ def test_graph_with_stats(_params, tmp_path, models):
 
     algorithm_config = Dict({
         'algorithms': [{
-            'name': 'algo_name',
+            'name': algo_name,
             'params': {
                 'target_device': target_device,
                 'preset': 'performance',
