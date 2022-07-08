@@ -104,10 +104,29 @@ void print_model_input_output_info(ov_model_t* model) {
  */
 
 bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
-    char* p_end = NULL;
+    const char* _size = size_str;
     size_t _width = 0, _height = 0;
-    _width = strtoul(size_str, &p_end, 10);
-    _height = strtoul(p_end + 1, NULL, 10);
+    while (_size && *_size != 'x' && *_size != '\0') {
+        if ((*_size <= '9') && (*_size >= '0')) {
+            _width = (_width * 10) + (*_size - '0');
+            _size++;
+        } else {
+            goto err;
+        }
+    }
+
+    if (_size)
+        _size++;
+
+    while (_size && *_size != '\0') {
+        if ((*_size <= '9') && (*_size >= '0')) {
+            _height = (_height * 10) + (*_size - '0');
+            _size++;
+        } else {
+            goto err;
+        }
+    }
+
     if (_width > 0 && _height > 0) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
@@ -118,11 +137,13 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
             return false;
         }
     } else {
-        printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
-               "actual: %s\n",
-               size_str);
-        return false;
+        goto err;
     }
+err:
+    printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
+           "actual: %s\n",
+           size_str);
+    return false;
 }
 
 size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
