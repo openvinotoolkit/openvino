@@ -778,7 +778,7 @@ public:
                     ric.set_is_final(true);
                     ric_attr::set(input, ric);
                 } else {
-                    return false;
+                    continue;
                 }
             }
             MATCHER_SCOPE_ENABLE(Constant);

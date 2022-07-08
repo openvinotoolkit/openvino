@@ -1139,12 +1139,10 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
 }
 
 TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
+    auto input = create_param({1, 3, 16, 16});
     {
-        auto input = create_param({1, 3, 16, 16});
-        auto weights = create_weights({3, 3, 1, 1});
-        auto conv1 = create_conv(input, weights);
-        auto conv2 = create_conv(conv1, weights);
-
+        auto conv1 = create_conv(input, create_weights({3, 3, 1, 1}));
+        auto conv2 = create_conv(conv1, create_weights({3, 3, 1, 1}));
         function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
@@ -1152,10 +1150,28 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         disable_rt_info_check();
     }
     {
-        auto input = create_param({1, 3, 16, 16});
-        auto weights = create_weights({3, 3, 1, 1});
-        auto conv1 = create_conv_with_gather(input, weights, {2, 1, 0});
+        auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
+        auto conv2 = create_conv(conv1_with_gather, create_weights({3, 3, 1, 1}));
+        function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
+    auto input = create_param({1, 3, 16, 16});
+    auto weights = create_weights({3, 3, 1, 1});
+    {
+        auto conv1 = create_conv(input, weights);
         auto conv2 = create_conv(conv1, weights);
+        function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        disable_rt_info_check();
+    }
+    {
+        auto conv1_with_gather = create_conv_with_gather(input,weights, {2, 1, 0});
+        auto conv2 = create_conv(conv1_with_gather,weights);
         function_ref = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{ input });
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
