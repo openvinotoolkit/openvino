@@ -120,6 +120,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
     message_list.emplace_back("OV_GPU_ForceImplType", "Force implementation type of a target primitive or layer. [primitive or layout_name]:[impl_type]"
                               "For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:ocl and reduce:onednn are supported");
+    message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -150,7 +151,8 @@ debug_configuration::debug_configuration()
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
-        , forced_impl_type(std::string()) {
+        , forced_impl_type(std::string())
+        , max_kernels_per_batch(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -171,6 +173,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("AfterProc", after_proc_str);
     get_gpu_debug_env_var("SerialCompile", serialize_compile);
     get_gpu_debug_env_var("ForceImplType", forced_impl_type);
+    get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
 
     if (help > 0) {
         print_help_messages();
