@@ -112,7 +112,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         return opset;
     };
 
-        auto SnippetsOpset = []() {
+    auto SnippetsOpset = []() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
