@@ -3,16 +3,19 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_detection_output.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "common_test_utils/data_utils.hpp"
+
 #include <common_test_utils/ov_tensor_utils.hpp>
+
+#include "common_test_utils/data_utils.hpp"
+#include "ngraph_functions/builders.hpp"
 
 namespace ov {
 namespace test {
 namespace subgraph {
 
 namespace {
-    std::ostream& operator <<(std::ostream& ss, const ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes& attributes) {
+std::ostream& operator<<(std::ostream& ss,
+                         const ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes& attributes) {
     ss << "score_threshold=" << attributes.score_threshold << "_";
     ss << "nms_threshold=" << attributes.nms_threshold << "_";
     ss << "max_delta_log_wh=" << attributes.max_delta_log_wh << "_";
@@ -23,26 +26,25 @@ namespace {
     ss << "deltas_weights=" << CommonTestUtils::vec2str(attributes.deltas_weights);
     return ss;
 }
-} // namespace
+}  // namespace
 
 std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
+    const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
     std::vector<ov::test::InputShape> inputShapes;
     ngraph::opset6::ExperimentalDetectronDetectionOutput::Attributes attributes;
     ElementType netPrecision;
     std::string targetName;
-    std::tie(
-        inputShapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        netPrecision,
-        targetName) = obj.param;
+    std::tie(inputShapes,
+             attributes.score_threshold,
+             attributes.nms_threshold,
+             attributes.max_delta_log_wh,
+             attributes.num_classes,
+             attributes.post_nms_count,
+             attributes.max_detections_per_image,
+             attributes.class_agnostic_box_regression,
+             attributes.deltas_weights,
+             netPrecision,
+             targetName) = obj.param;
 
     std::ostringstream result;
 
@@ -65,18 +67,20 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 
     ElementType netPrecision;
     std::string targetName;
-    std::tie(
-        inputShapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        netPrecision,
-        targetName) = this->GetParam();
+    std::tie(inputShapes,
+             attributes.score_threshold,
+             attributes.nms_threshold,
+             attributes.max_delta_log_wh,
+             attributes.num_classes,
+             attributes.post_nms_count,
+             attributes.max_detections_per_image,
+             attributes.class_agnostic_box_regression,
+             attributes.deltas_weights,
+             netPrecision,
+             targetName) = this->GetParam();
+
+    if (netPrecision == element::f16)
+        abs_threshold = 0.01;
 
     inType = outType = netPrecision;
     targetDevice = targetName;
@@ -84,49 +88,74 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
     init_input_shapes(inputShapes);
 
     auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
-    auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto experimentalDetectron = std::make_shared<ngraph::opset6::ExperimentalDetectronDetectionOutput>(
-        params[0], // input_rois
-        params[1], // input_deltas
-        params[2], // input_scores
-        params[3], // input_im_info
-        attributes);
-    function = std::make_shared<ov::Model>(
-        ov::OutputVector{experimentalDetectron->output(0), experimentalDetectron->output(1)},
-        "ExperimentalDetectronDetectionOutput");
+    auto paramsOuts =
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto experimentalDetectron =
+        std::make_shared<ngraph::opset6::ExperimentalDetectronDetectionOutput>(params[0],  // input_rois
+                                                                               params[1],  // input_deltas
+                                                                               params[2],  // input_scores
+                                                                               params[3],  // input_im_info
+                                                                               attributes);
+    function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectron->output(0),
+                                                            experimentalDetectron->output(1),
+                                                            experimentalDetectron->output(2)},
+                                           "ExperimentalDetectronDetectionOutput");
 }
 
-void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    static const std::vector<ov::Tensor> inputTensors = {
-        // 16 x 4 = 64
-        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 4}, {
-            1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-        }),
-        // 16 x 8
-        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 8}, {
-            5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+namespace {
 
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-        }),
+template <typename T>
+std::vector<T> getValues(const std::vector<float>& values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template <typename T>
+std::vector<ov::Tensor> generateInputTensors() {
+    const auto netPrecision = ov::element::from<T>();
+    std::vector<ov::Tensor> inputTensors = {
+        // 16 x 4 = 64
+        ov::test::utils::create_tensor<T>(
+            netPrecision,
+            Shape{16, 4},
+            getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f,
+                          1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f})),
+        // 16 x 8
+        ov::test::utils::create_tensor<T>(
+            netPrecision,
+            Shape{16, 8},
+            getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 5.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  1.0f})),
         // 16 x 2 = 32
-        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{16, 2}, {
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-        }),
+        ov::test::utils::create_tensor<T>(
+            netPrecision,
+            Shape{16, 2},
+            getValues<T>({0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.8f, 0.9f, 0.5f,
+                          0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                          0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f})),
         // 1 x 3 = 3
-        ov::test::utils::create_tensor<float>(ov::element::f32, Shape{1, 3}, {1.0f, 1.0f, 1.0f})
-    };
+        ov::test::utils::create_tensor<T>(netPrecision, Shape{1, 3}, getValues<T>({16.0f, 12.0f, 1.0f}))};
+
+    return inputTensors;
+}
+}  // namespace
+
+void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(
+    const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    const auto netPrecision = std::get<9>(GetParam());
+
+    const std::vector<ov::Tensor> inputTensors =
+        (netPrecision == element::f16) ? generateInputTensors<ov::float16>() : generateInputTensors<float>();
 
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -139,6 +168,6 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(const std::v
     }
 }
 
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

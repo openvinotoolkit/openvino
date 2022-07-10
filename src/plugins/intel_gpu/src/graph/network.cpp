@@ -154,23 +154,23 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
 }
 template <>
 void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
-    auto&& size = mem->get_layout().size;
+    auto&& l = mem->get_layout();
 
     file_stream << "shape: ";
-    file_stream << size.batch[0] << " ";
-    file_stream << size.feature[0] << " ";
-    file_stream << size.spatial[1] << " ";
-    file_stream << size.spatial[0] << " ";
-    file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+    file_stream << l.batch() << " ";
+    file_stream << l.feature() << " ";
+    file_stream << l.spatial(1) << " ";
+    file_stream << l.spatial(0) << " ";
+    file_stream << "(" << l.batch() * l.feature() * l.spatial(1) * l.spatial(0) << ")" << std::endl;
 
     mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
-    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
-        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(size.feature[0], 32); ++f) {
-            for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
-                for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                    for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+    for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
+            for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
+                for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                    for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
                         cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
                         size_t input_it = mem->get_layout().get_linear_offset(t);
                         file_stream << mem_ptr[input_it] << std::endl;
@@ -694,7 +694,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             auto& node = _program->get_node(inst->id());
             const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name)) {
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }

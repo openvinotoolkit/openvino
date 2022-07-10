@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/onnx/extension/conversion.hpp"
+
 #include "conversion_extension.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
+#include "openvino/op/add.hpp"
 #include "so_extension.hpp"
 
 using namespace ov::frontend;
@@ -17,8 +20,8 @@ class ONNXFrontendWrapper : public ov::frontend::onnx::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
         ov::frontend::onnx::FrontEnd::add_extension(extension);
         if (auto conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
-            EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
-                      m_conversion_extensions.end())
+            EXPECT_NE(std::find(m_extensions.conversions.begin(), m_extensions.conversions.end(), conv_ext),
+                      m_extensions.conversions.end())
                 << "ConversionExtension is not registered.";
             // TODO: check that operator is actually registered in ONNX FE
             // EXPECT_NE(m_op_translators.find(conv_ext->get_op_type()), m_op_translators.end())
@@ -50,3 +53,30 @@ INSTANTIATE_TEST_SUITE_P(ONNXConversionExtensionTest,
                          FrontEndConversionExtensionTest,
                          ::testing::Values(getTestData()),
                          FrontEndConversionExtensionTest::getTestCaseName);
+
+TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
+    const auto ext = std::make_shared<onnx::ConversionExtension>(
+        "CustomAdd",
+        "custom.op",
+        [](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+            auto op = std::make_shared<ov::op::v1::Add>(node.get_input(0), node.get_input(1));
+            op->get_rt_info().insert({"added_by_extension", true});
+            return {op};
+        });
+
+    auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
+    fe->add_extension(ext);
+
+    const auto input_model = fe->load(ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"}));
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = fe->convert(input_model));
+
+    for (const auto& op : model->get_ops()) {
+        if (const auto& add = std::dynamic_pointer_cast<ov::op::v1::Add>(op)) {
+            EXPECT_TRUE(add->get_rt_info().count("added_by_extension") == 1);
+            return;
+        }
+    }
+    FAIL() << "Expected operation not found in the converted model";
+}

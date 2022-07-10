@@ -111,6 +111,12 @@ public:
     /// Return the op that generates output i
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
+    /// \brief Clones the original model
+    std::shared_ptr<ov::Model> clone() const;
+
+    /// \brief Reference to frontend maanager
+    std::shared_ptr<void> m_femgr;
+
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
     ov::Output<ov::Node> output();

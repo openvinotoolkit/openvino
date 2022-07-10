@@ -45,6 +45,7 @@ $(document).ready(function () {
         addTableSort();
     }
     addLegalNotice();
+    updateSearchForm();
     createSphinxTabSets();
 });
 
@@ -108,6 +109,10 @@ function getCurrentVersion() {
     return encodeURI(wordAfterDomain);
 }
 
+function updateSearchForm() {
+    var currentVersion = getCurrentVersion();
+    $('.searchForm').append('<input type="hidden" name="version" value="' + currentVersion  + '">');
+}
 
 function createVersions() {
     var currentVersion = getCurrentVersion();

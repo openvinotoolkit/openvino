@@ -10,35 +10,34 @@
 
 @endsphinxdirective
 
-## Introduction
 The [Default Quantization](@ref pot_default_quantization_usage) of the Post-training Optimization Tool (POT) is 
-the fastest and easiest way to get a quantized model because it requires only some unannotated representative dataset to be provided in most cases. Thus, it is recommended to use it as a starting point when it comes to model optimization. However, it can lead to significant accuracy deviation in some cases. This document is aimed at providing tips to address this issue.
+the fastest and easiest way to get a quantized model. It requires only some unannotated representative dataset to be provided in most cases. Therefore, it is recommended to use it as a starting point when it comes to model optimization. However, it can lead to significant accuracy deviation in some cases. The purpose of this article is to provide tips to address this issue.
 
-> **NOTE**: POT uses inference on the CPU during model optimization. It means the ability to infer the original
-> floating-point model is a prerequisite for model optimization. 
-> It is also worth mentioning that in the case of 8-bit quantization it is recommended to run POT on the same CPU
+> **NOTE**: POT uses inference on the CPU during model optimization. It means that ability to infer the original
+> floating-point model is essential for model optimization. 
+> It is also worth mentioning that in case of the 8-bit quantization, it is recommended to run POT on the same CPU
 > architecture when optimizing for CPU or VNNI-based CPU when quantizing for a non-CPU device, such as GPU, VPU, or GNA.
 > It should help to avoid the impact of the [saturation issue](@ref pot_saturation_issue) that occurs on AVX and SSE based CPU devices. 
 
 ## Improving accuracy after the Default Quantization
-Parameters of the Default Quantization algorithm with basic settings are shown below:
+Parameters of the Default Quantization algorithm with basic settings are presented below:
 ```python
 {
     "name": "DefaultQuantization", # Optimization algorithm name
     "params": {
         "preset": "performance", # Preset [performance, mixed] which controls 
                                  # the quantization scheme. For the CPU: 
-                                 # performance - symmetric quantization  of weights and activations
-                                 # mixed - symmetric weights and asymmetric activations
+                                 # performance - symmetric quantization  of weights and activations.
+                                 # mixed - symmetric weights and asymmetric activations.
         "stat_subset_size": 300  # Size of subset to calculate activations statistics that can be used
-                                 # for quantization parameters calculation
+                                 # for quantization parameters calculation.
     }
 }
 ```
 
-In the case of substantial accuracy degradation after applying this method there are two alternatives:
-1.  Hyperparameters tuning
-2.  AccuracyAwareQuantization algorithm
+There are two alternatives in case of substantial accuracy degradation after applying this method:
+1.  Hyperparameters tuning.
+2.  AccuracyAwareQuantization algorithm.
 
 ### Tuning Hyperparameters of the Default Quantization
 The Default Quantization algorithm provides multiple hyperparameters which can be used in order to improve accuracy results for the fully-quantized model. 
@@ -98,10 +97,10 @@ A fragment of Accuracy-aware Quantization configuration with default settings is
 
 Since the Accuracy-aware Quantization calls the Default Quantization at the first step it means that all the parameters of the latter one are also valid and can be applied to the accuracy-aware scenario.
 
-> **NOTE**: In general case, possible speedup after applying the Accuracy-aware Quantization algorithm is less than after the Default Quantization when the model gets fully quantized.
+> **NOTE**: In general, the potential increase in speed with the Accuracy-aware Quantization algorithm is not as high  as with the Default Quantization, when the model gets fully quantized.
 
 ### Reducing the performance gap of Accuracy-aware Quantization
-To improve model performance after Accuracy-aware Quantization, you can try the `"tune_hyperparams"` setting and set it to `True`. It will enable searching for optimal quantization parameters before reverting layers to the "backup" precision. Note, that this can increase the overall quantization time.
+To improve model performance after Accuracy-aware Quantization, try the `"tune_hyperparams"` setting and set it to `True`. It will enable searching for optimal quantization parameters before reverting layers to the "backup" precision. Note that this may impact the overall quantization time, though.
 
 If you do not achieve the desired accuracy and performance after applying the 
 Accuracy-aware Quantization algorithm or you need an accurate fully-quantized model, we recommend either using Quantization-Aware Training from [NNCF](@ref tmo_introduction).

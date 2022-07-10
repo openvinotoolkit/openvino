@@ -64,6 +64,7 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
         detection_output_v8_node->set_friendly_name(detection_output_v1_node->get_friendly_name());
         ngraph::copy_runtime_info(detection_output_v1_node, detection_output_v8_node);
         ngraph::replace_node(detection_output_v1_node, detection_output_v8_node);
+        MATCHER_SCOPE_ENABLE(ConvertDetectionOutput1ToDetectionOutput8);
         return true;
     };
 

@@ -1,56 +1,95 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import pytest
-import numpy as np
 
 import tests
 
 from pathlib import Path
+from sys import platform
+from openvino.runtime import Core
 
 
-def image_path():
-    path_to_repo = os.environ["DATA_PATH"]
-    path_to_img = os.path.join(path_to_repo, "validation_set", "224x224", "dog.bmp")
-    return path_to_img
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(image_path())
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1)).astype(np.float32)
-    image = image.reshape((n, c, h, w))
-    return image
+def get_model_with_template_extension():
+    core = Core()
+    ir = bytes(b"""<net name="Activation" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32" names="in_data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="Identity" version="extension">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="out_data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+    if platform == "win32":
+        core.add_extension(library_path="openvino_template_extension.dll")
+    else:
+        core.add_extension(library_path="libopenvino_template_extension.so")
+    return core, core.read_model(ir)
 
 
 def model_path(is_myriad=False):
-    path_to_repo = os.environ["MODELS_PATH"]
-    if not is_myriad:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp32.bin")
+    base_path = os.path.dirname(__file__)
+    if is_myriad:
+        test_xml = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.xml")
+        test_bin = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.bin")
     else:
-        test_xml = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.xml")
-        test_bin = os.path.join(path_to_repo, "models", "test_model", "test_model_fp16.bin")
+        test_xml = os.path.join(base_path, "test_utils", "utils", "test_model_fp32.xml")
+        test_bin = os.path.join(base_path, "test_utils", "utils", "test_model_fp32.bin")
     return (test_xml, test_bin)
 
 
 def model_onnx_path():
-    path_to_repo = os.environ["MODELS_PATH"]
-    test_onnx = os.path.join(path_to_repo, "models", "test_model", "test_model.onnx")
+    base_path = os.path.dirname(__file__)
+    test_onnx = os.path.join(base_path, "test_utils", "utils", "test_model.onnx")
     return test_onnx
 
 
 def plugins_path():
-    path_to_repo = os.environ["DATA_PATH"]
-    plugins_xml = os.path.join(path_to_repo, "ie_class", "plugins.xml")
-    plugins_win_xml = os.path.join(path_to_repo, "ie_class", "plugins_win.xml")
-    plugins_osx_xml = os.path.join(path_to_repo, "ie_class", "plugins_apple.xml")
+    base_path = os.path.dirname(__file__)
+    plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
+    plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
+    plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_apple.xml")
     return (plugins_xml, plugins_win_xml, plugins_osx_xml)
 
 

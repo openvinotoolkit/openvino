@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -12,7 +13,7 @@ from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper,numpy_function",
+    ("ng_api_helper", "numpy_function"),
     [
         (ov.add, np.add),
         (ov.divide, np.divide),
@@ -48,7 +49,7 @@ def test_binary_op(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper,numpy_function",
+    ("ng_api_helper", "numpy_function"),
     [
         (ov.add, np.add),
         (ov.divide, np.divide),
@@ -83,7 +84,7 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper,numpy_function",
+    ("ng_api_helper", "numpy_function"),
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],
 )
 def test_binary_logical_op(ng_api_helper, numpy_function):
@@ -105,7 +106,7 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    "ng_api_helper,numpy_function",
+    ("ng_api_helper", "numpy_function"),
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],
 )
 def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
@@ -126,7 +127,7 @@ def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    "operator,numpy_function",
+    ("operator", "numpy_function"),
     [
         (operator.add, np.add),
         (operator.sub, np.subtract),
@@ -158,7 +159,7 @@ def test_binary_operators(operator, numpy_function):
 
 
 @pytest.mark.parametrize(
-    "operator,numpy_function",
+    ("operator", "numpy_function"),
     [
         (operator.add, np.add),
         (operator.sub, np.subtract),
@@ -190,20 +191,20 @@ def test_binary_operators_with_scalar(operator, numpy_function):
 
 
 def test_multiply():
-    A = np.arange(48, dtype=np.int32).reshape((8, 1, 6, 1))
-    B = np.arange(35, dtype=np.int32).reshape((7, 1, 5))
+    param_a = np.arange(48, dtype=np.int32).reshape((8, 1, 6, 1))
+    param_b = np.arange(35, dtype=np.int32).reshape((7, 1, 5))
 
-    expected = np.multiply(A, B)
-    result = run_op_node([A, B], ov.multiply)
+    expected = np.multiply(param_a, param_b)
+    result = run_op_node([param_a, param_b], ov.multiply)
 
     assert np.allclose(result, expected)
 
 
 def test_power_v1():
-    A = np.arange(48, dtype=np.float32).reshape((8, 1, 6, 1))
-    B = np.arange(20, dtype=np.float32).reshape((4, 1, 5))
+    param_a = np.arange(48, dtype=np.float32).reshape((8, 1, 6, 1))
+    param_b = np.arange(20, dtype=np.float32).reshape((4, 1, 5))
 
-    expected = np.power(A, B)
-    result = run_op_node([A, B], ov.power)
+    expected = np.power(param_a, param_b)
+    result = run_op_node([param_a, param_b], ov.power)
 
     assert np.allclose(result, expected)

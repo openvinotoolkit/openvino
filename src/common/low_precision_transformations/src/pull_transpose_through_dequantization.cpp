@@ -13,6 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 
@@ -92,6 +93,7 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
     const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
     const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
 
+    MATCHER_SCOPE(PullTransposeThroughDequantization);
     const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
         ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
         ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
@@ -123,10 +125,10 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
             }
         }
-
+        MATCHER_SCOPE_ENABLE(PullTransposeThroughDequantization);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherTranspose, "PullTransposeThroughDequantization");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherTranspose, matcher_name);
     this->register_matcher(m, callback);
 }

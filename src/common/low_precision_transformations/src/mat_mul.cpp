@@ -13,12 +13,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
 MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(MatMulTransformation);
     auto mul1 = pattern::wrap_type<opset1::Multiply>();
     auto mul2 = pattern::wrap_type<opset1::Multiply>();
     auto fq2 = pattern::wrap_type<opset1::FakeQuantize>();
@@ -29,10 +31,11 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(MatMulTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

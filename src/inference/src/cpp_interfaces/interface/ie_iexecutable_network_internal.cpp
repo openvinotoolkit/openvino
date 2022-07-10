@@ -61,7 +61,7 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
     try {
         asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (!asyncRequestImpl)
         asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
@@ -89,6 +89,10 @@ std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo()
 
 void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin) {
     _plugin = plugin;
+}
+
+std::shared_ptr<void> IExecutableNetworkInternal::GetPointerToSo() {
+    return _so;
 }
 
 void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {

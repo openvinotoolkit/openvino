@@ -8,16 +8,17 @@
 namespace cldnn {
 namespace ocl {
 
-#define REGISTER_OCL(prim)                      \
-    static detail::attach_##prim##_impl attach_##prim
+#define REGISTER_OCL(prim) static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
     REGISTER_OCL(activation);
+    REGISTER_OCL(adaptive_pooling);
     REGISTER_OCL(arg_max_min);
     REGISTER_OCL(average_unpooling);
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
+    REGISTER_OCL(bucketize);
     REGISTER_OCL(concatenation);
     REGISTER_OCL(convolution);
     REGISTER_OCL(crop);
@@ -27,7 +28,11 @@ void register_implementations() {
     REGISTER_OCL(deformable_interp);
     REGISTER_OCL(depth_to_space);
     REGISTER_OCL(detection_output);
+    REGISTER_OCL(dft);
     REGISTER_OCL(batch_to_space);
+    REGISTER_OCL(experimental_detectron_detection_output);
+    REGISTER_OCL(experimental_detectron_generate_proposals_single_image);
+    REGISTER_OCL(experimental_detectron_prior_grid_generator);
     REGISTER_OCL(experimental_detectron_roi_feature_extractor);
     REGISTER_OCL(experimental_detectron_topk_rois);
     REGISTER_OCL(eltwise);
@@ -56,9 +61,11 @@ void register_implementations() {
     REGISTER_OCL(reorder);
     REGISTER_OCL(reorg_yolo);
     REGISTER_OCL(reshape);
+    REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
+    REGISTER_OCL(roll);
     REGISTER_OCL(scale);
     REGISTER_OCL(scatter_update);
     REGISTER_OCL(scatter_nd_update);

@@ -9,7 +9,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
+#include "itt.hpp"
+
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
+    MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
@@ -159,9 +162,10 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         new_ops.push_back(fc);
         ngraph::copy_runtime_info(matmul, new_ops);
         ngraph::replace_node(matmul, fc);
+        MATCHER_SCOPE_ENABLE(ConvertMatMulToFC);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, "ConvertMatMulToFC");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, matcher_name);
     this->register_matcher(m, callback);
 }

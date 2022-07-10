@@ -159,6 +159,9 @@ Options:
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_network.
+  -dopt [DENORMALS_OPTIMIZATION], --denormals_optimization [DENORMALS_OPTIMIZATION]
+                        Optional. Denormals is optimized by treating as zeros.
+  -cpu_experimental SETTING     Optional. Enable experimental setting for CPU plugin. SETTING should be "brgconv" etc.
 ```
 Running the application with the empty list of options yields the usage message given above and an error message.
 

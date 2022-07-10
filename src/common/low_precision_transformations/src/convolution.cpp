@@ -14,12 +14,14 @@
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include <transformations/rt_info/disable_constant_folding.hpp>
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
+    MATCHER_SCOPE(ConvolutionTransformation);
     auto matcher = ngraph::pattern::wrap_type<opset1::Convolution>({
         ngraph::pattern::wrap_type<opset1::Multiply>(),
         std::make_shared<pattern::op::Or>(OutputVector {
@@ -34,10 +36,11 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ConvolutionTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

@@ -11,12 +11,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(UnsqueezeTransformation);
     auto matcher = pattern::wrap_type<opset1::Unsqueeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -24,10 +26,11 @@ UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTr
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(UnsqueezeTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "UnsqueezeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

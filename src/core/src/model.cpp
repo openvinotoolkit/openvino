@@ -34,6 +34,13 @@ BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
+namespace ov {
+namespace frontend {
+class FrontEndManager;
+std::shared_ptr<FrontEndManager> get_frontend_manager();
+}  // namespace frontend
+}  // namespace ov
+
 namespace {
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
@@ -192,6 +199,7 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Model::prerequirements");
 
     m_shared_rt_info = std::make_shared<SharedRTInfo>();
+    m_femgr = ov::frontend::get_frontend_manager();
 
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
@@ -969,6 +977,10 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
         result->insert_info(m_shared_rt_info);  // Just for consistency, not required for Result nodes
     }
     return result->output(0);
+}
+
+std::shared_ptr<ov::Model> ov::Model::clone() const {
+    return ov::clone_model(*this);
 }
 
 namespace bs_util {

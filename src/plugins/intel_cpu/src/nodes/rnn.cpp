@@ -19,7 +19,7 @@
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -43,14 +43,14 @@ static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op)
          : rnn_direction::unidirectional;
 }
 
-static mkldnn::algorithm ie2dnnl(const std::string& act_type) {
-    return act_type == "sigmoid" ? mkldnn::algorithm::eltwise_logistic
-         : act_type == "tanh"    ? mkldnn::algorithm::eltwise_tanh
-         : act_type == "relu"    ? mkldnn::algorithm::eltwise_relu
-         : mkldnn::algorithm::undef;
+static dnnl::algorithm ie2dnnl(const std::string& act_type) {
+    return act_type == "sigmoid" ? dnnl::algorithm::eltwise_logistic
+         : act_type == "tanh"    ? dnnl::algorithm::eltwise_tanh
+         : act_type == "relu"    ? dnnl::algorithm::eltwise_relu
+         : dnnl::algorithm::undef;
 }
 
-static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
+static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
     if (one_of(op->get_type_info(),
             ov::op::v3::GRUCell::get_type_info_static(),
             ov::op::v5::GRUSequence::get_type_info_static())) {
@@ -58,19 +58,19 @@ static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         auto gruSeqOp = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) ||
                 (gruSeqOp && gruSeqOp->get_linear_before_reset()))
-            return mkldnn::algorithm::lbr_gru;
+            return dnnl::algorithm::lbr_gru;
         else
-            return mkldnn::algorithm::vanilla_gru;
+            return dnnl::algorithm::vanilla_gru;
     } else if (one_of(op->get_type_info(),
             ov::op::v0::LSTMCell::get_type_info_static(),
             ov::op::v4::LSTMCell::get_type_info_static(),
             ov::op::v0::LSTMSequence::get_type_info_static(),
             ov::op::v5::LSTMSequence::get_type_info_static())) {
-        return mkldnn::algorithm::vanilla_lstm;
+        return dnnl::algorithm::vanilla_lstm;
     } else if (one_of(op->get_type_info(),
             ov::op::v0::RNNCell::get_type_info_static(),
             ov::op::v5::RNNSequence::get_type_info_static())) {
-        return mkldnn::algorithm::vanilla_rnn;
+        return dnnl::algorithm::vanilla_rnn;
     } else {
         IE_THROW() << "Operation " << op->get_type_name() << " with name '" << op->get_friendly_name() << "' has unsupported cell type.";
     }
@@ -88,20 +88,20 @@ inline size_t gatesCount(const algorithm& alg) {
     }
 }
 
-inline size_t statesCount(const mkldnn::algorithm& alg) {
+inline size_t statesCount(const dnnl::algorithm& alg) {
     switch (alg) {
-        case mkldnn::algorithm::vanilla_rnn:
-        case mkldnn::algorithm::vanilla_gru:
-        case mkldnn::algorithm::lbr_gru:         return 1;
-        case mkldnn::algorithm::vanilla_lstm:    return 2;
+        case dnnl::algorithm::vanilla_rnn:
+        case dnnl::algorithm::vanilla_gru:
+        case dnnl::algorithm::lbr_gru:         return 1;
+        case dnnl::algorithm::vanilla_lstm:    return 2;
         default:
             IE_THROW() << "Unsupported cell type";
             return 0;
     }
 }
 
-inline bool haveCellState(const mkldnn::algorithm& alg) {
-    return alg == mkldnn::algorithm::vanilla_lstm;
+inline bool haveCellState(const dnnl::algorithm& alg) {
+    return alg == dnnl::algorithm::vanilla_lstm;
 }
 
 const std::map<Precision, Precision> RNN::weightsByLayerPrec {
@@ -117,8 +117,10 @@ const std::map<Precision, Precision> RNN::weightsByLayerPrec {
 struct RNNKey {
     const std::vector<DnnlBlockedMemoryDescPtr> inDataDescs;
     const std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
-    const std::vector<mkldnn::memory::desc> wDescs;
-    mkldnn::algorithm cellType;
+    const std::vector<dnnl::memory::desc> wDescs;
+    dnnl::algorithm cellType;
+    dnnl::algorithm cellAct;
+    dnnl::rnn_direction direction;
 
     size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
@@ -142,13 +144,16 @@ size_t RNNKey::hash() const {
         seed = hash_combine(seed, get_md_hash(desc.data));
     }
     seed = hash_combine(seed, cellType);
+    seed = hash_combine(seed, cellAct);
+    seed = hash_combine(seed, direction);
     return seed;
 }
 
 bool RNNKey::operator==(const RNNKey& rhs) const {
     if (inDataDescs.size() != rhs.inDataDescs.size() || outDataDescs.size() != rhs.outDataDescs.size() || wDescs.size() != rhs.wDescs.size() ||
-            cellType != rhs.cellType)
+            cellType != rhs.cellType || cellAct != rhs.cellAct || direction != rhs.direction) {
         return false;
+    }
 
     for (size_t i = 0lu; i < inDataDescs.size(); i++) {
         if (inDataDescs[i] != rhs.inDataDescs[i] && (inDataDescs[i] == nullptr || rhs.inDataDescs[i] == nullptr ||
@@ -156,8 +161,8 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
             return false;
     }
     for (size_t i = 0lu; i < outDataDescs.size(); i++) {
-        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] ||
-                outDataDescs[i]->getDnnlDesc() == rhs.outDataDescs[i]->getDnnlDesc()))
+        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] == nullptr ||
+                outDataDescs[i]->getDnnlDesc() != rhs.outDataDescs[i]->getDnnlDesc()))
             return false;
     }
     for (size_t i = 0lu; i < wDescs.size(); i++) {
@@ -245,7 +250,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-RNN::RNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
+RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
         Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -293,7 +298,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, Weights
         cell_act = ie2dnnl(rnnCellBase->get_activations()[0]);  // Works only for RNN with one gate
 
     G = gatesCount(cell_type);
-    Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
+    Gb = (cell_type != dnnl::algorithm::lbr_gru) ? G : G + 1;
     S = statesCount(cell_type);
     SC = rnnCellBase->get_hidden_size();
     N = {getInputShapeAtPort(0).getMinDims()[0], getInputShapeAtPort(0).getMaxDims()[0]};
@@ -389,7 +394,7 @@ void RNN::fillCellDesc() {
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, memory::data_type::f32, memory::format_tag::nc));
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, memory::data_type::f32, memory::format_tag::nc));
     }
-    if (one_of(cell_type, mkldnn::algorithm::vanilla_rnn, mkldnn::algorithm::vanilla_gru, mkldnn::algorithm::lbr_gru, mkldnn::algorithm::vanilla_lstm)) {
+    if (one_of(cell_type, dnnl::algorithm::vanilla_rnn, dnnl::algorithm::vanilla_gru, dnnl::algorithm::lbr_gru, dnnl::algorithm::vanilla_lstm)) {
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, memory::data_type::f32, memory::format_tag::nc));
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, memory::data_type::f32, memory::format_tag::nc));
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, memory::data_type::f32, memory::format_tag::x));
@@ -481,8 +486,7 @@ void RNN::fillSequenceDesc() {
     outCandidate.reserve(3);
 
     if (nativeOrder) {
-        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape{{T.minVal, N.minVal, SC}, {T.maxVal, N.maxVal, SC}},
-                                                                          dataType, memory::format_tag::tnc));
+        outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), dataType, memory::format_tag::abcd));
     } else if (N.isStatic() && N.maxVal == 1) {
         // WA to avoid reorder after sequence for some models
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeNTSC, dataType, memory::format_tag::tnc));
@@ -626,10 +630,10 @@ void RNN::copyWeightsData() {
      *   Gate order
      *   ====== LSTM ======
      *   Caffe - IFOC, ONNX   - IOFC
-     *   IE    - FICO, mkldnn - IFCO
+     *   IE    - FICO, onednn - IFCO
      *
      *   ====== GRU ======
-     *   IE - URO, mkldnn - URO
+     *   IE - URO, onednn - URO
      */
     const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
     const int gate_map_gru[]  = {0, 1, 2, 3};
@@ -638,22 +642,22 @@ void RNN::copyWeightsData() {
     const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
     const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
     const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
-    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
+    if (cell_type == dnnl::algorithm::vanilla_lstm) {
         gate_map = gate_map_lstm;
         if (G > gate_map_lstm_size) {
             THROW_ERROR << ". G isn't equal to the size of gate_map.";
         }
-    } else if (cell_type == mkldnn::algorithm::vanilla_gru) {
+    } else if (cell_type == dnnl::algorithm::vanilla_gru) {
         gate_map = gate_map_gru;
         if (G > gate_map_gru_size) {
             THROW_ERROR << ". G isn't equal to the size of gate_map";
         }
-    } else if (cell_type == mkldnn::algorithm::lbr_gru) {
+    } else if (cell_type == dnnl::algorithm::lbr_gru) {
         gate_map = gate_map_gru;
         if (G > gate_map_gru_size) {
             THROW_ERROR << ". G isn't equal to the size of gate_map.";
         }
-    } else if (cell_type == mkldnn::algorithm::vanilla_rnn) {
+    } else if (cell_type == dnnl::algorithm::vanilla_rnn) {
         gate_map = gate_map_rnn;
         if (G > gate_map_rnn_size) {
             THROW_ERROR << ". G isn't equal to the size of gate_map.";
@@ -671,7 +675,7 @@ void RNN::copyWeightsData() {
     } else if (dataPrecision == Precision::FP32) {
         // WA To avoid different weights layer and iter formats in FP32 case
         if (T.minVal > 1 || N.maxVal < optimalBatchSize)
-            wFormat = mkldnn::memory::format_tag::ldigo;
+            wFormat = dnnl::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else {// TODO FP16 and INT8 support
         THROW_ERROR << "has unsupported data type: " << dataPrecision;
@@ -685,7 +689,7 @@ void RNN::fillDescs() {
     descs.clear();
 
     switch (cell_type) {
-        case mkldnn::algorithm::vanilla_rnn: {
+        case dnnl::algorithm::vanilla_rnn: {
             DnnlDesriptor desc(std::make_shared<vanilla_rnn_forward::desc>(
                                         prop_kind::forward_scoring,
                                         cell_act,
@@ -699,7 +703,7 @@ void RNN::fillDescs() {
                     /* Out State     */ outDataDescs[RNNInOutKind::HiddenState]->getDnnlDesc()));
             descs.push_back(desc);
         } break;
-        case mkldnn::algorithm::vanilla_gru: {
+        case dnnl::algorithm::vanilla_gru: {
             DnnlDesriptor desc(std::make_shared<gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
@@ -712,7 +716,7 @@ void RNN::fillDescs() {
                     /* Out State     */ outDataDescs[RNNInOutKind::HiddenState]->getDnnlDesc()));
             descs.push_back(desc);
         } break;
-        case mkldnn::algorithm::lbr_gru: {
+        case dnnl::algorithm::lbr_gru: {
             DnnlDesriptor desc(std::make_shared<lbr_gru_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
@@ -725,7 +729,7 @@ void RNN::fillDescs() {
                     /* Out State     */ outDataDescs[RNNInOutKind::HiddenState]->getDnnlDesc()));
             descs.push_back(desc);
         } break;
-        case mkldnn::algorithm::vanilla_lstm: {
+        case dnnl::algorithm::vanilla_lstm: {
             DnnlDesriptor desc(std::make_shared<lstm_forward::desc>(
                                         prop_kind::forward_scoring,
                                         direction,
@@ -752,11 +756,11 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
         auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision);
         auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
+        wDescs[0] = dnnl::memory::desc(weightsDims, dataType, wFormat);
         auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
+        wDescs[1] = dnnl::memory::desc(statesDims, dataType, wFormat);
         auto biasDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
-        wDescs[2] = mkldnn::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
+        wDescs[2] = dnnl::memory::desc(biasDims, memory::data_type::f32, memory::format_tag::ldgo);
 
         fillDescs();
     }
@@ -812,36 +816,36 @@ void RNN::prepareParams() {
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
     if (SL != 1 || B < optimalBatchSize) {
-        if (wFormat != mkldnn::memory::format_tag::ldigo) {
-            wFormat = mkldnn::memory::format_tag::ldigo;
+        if (wFormat != dnnl::memory::format_tag::ldigo) {
+            wFormat = dnnl::memory::format_tag::ldigo;
             wFormatWasChanged = true;
         }
-    } else if (wFormat != mkldnn::memory::format_tag::any) {
-        wFormat = mkldnn::memory::format_tag::any;
+    } else if (wFormat != dnnl::memory::format_tag::any) {
+        wFormat = dnnl::memory::format_tag::any;
         wFormatWasChanged = true;
     }
     if (wFormatWasChanged) {
         auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        wDescs[0] = mkldnn::memory::desc(weightsDims, dataType, wFormat);
+        wDescs[0] = dnnl::memory::desc(weightsDims, dataType, wFormat);
         auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = mkldnn::memory::desc(statesDims, dataType, wFormat);
+        wDescs[1] = dnnl::memory::desc(statesDims, dataType, wFormat);
     }
 
-    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type };
+    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction };
 
-    auto builder = [this](const RNNKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
         fillDescs();
 
-        if (key.cellType == mkldnn::algorithm::vanilla_rnn) {
+        if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
             return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, getEngine()));
-        } else if (key.cellType == mkldnn::algorithm::vanilla_gru) {
+        } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
             return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, getEngine()));
-        } else if (key.cellType == mkldnn::algorithm::lbr_gru) {
+        } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
             return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, getEngine()));
-        } else if (key.cellType == mkldnn::algorithm::vanilla_lstm) {
+        } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
             return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, getEngine()));
         } else {
@@ -859,21 +863,21 @@ void RNN::prepareParams() {
     prim = result.first;
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), mkldnn::primitive_attr());
+        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), dnnl::primitive_attr());
         prepareMemory(itpd);
         wasMemoryPrepared = true;
     }
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
-void RNN::execute(mkldnn::stream strm) {
+void RNN::execute(dnnl::stream strm) {
     if (!prim)
         THROW_ERROR << "does not have initialized primitive to execute.";
 
@@ -914,7 +918,7 @@ void RNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
-void RNN::executeDynamicImpl(mkldnn::stream strm) {
+void RNN::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -926,7 +930,7 @@ std::vector<VectorDims> RNN::shapeInfer() const {
     auto originOutputShapes = Node::shapeInfer();
 
     // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (getType() == Type::RNNSeq && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+    if (getType() == Type::RNNSeq && !hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
         originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
     }
     return originOutputShapes;

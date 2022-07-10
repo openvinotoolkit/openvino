@@ -16,12 +16,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 SubtractTransformation::SubtractTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(SubtractTransformation);
     auto convert = pattern::wrap_type<opset1::Convert>();
     auto multiply = pattern::wrap_type<opset1::Multiply>();
     auto subParent = std::make_shared<pattern::op::Or>(OutputVector{ convert, multiply });
@@ -32,10 +34,11 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(SubtractTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(subtract, "SubtractTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(subtract, matcher_name);
     this->register_matcher(m, callback);
 }
 

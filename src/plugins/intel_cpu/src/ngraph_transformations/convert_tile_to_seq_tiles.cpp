@@ -12,7 +12,10 @@
 
 #include <ngraph/rt_info.hpp>
 
+#include "itt.hpp"
+
 ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
+    MATCHER_SCOPE(ConvertTileToSeqTiles);
     auto tile = ngraph::pattern::wrap_type<ngraph::opset1::Tile>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
                                                                   ngraph::pattern::wrap_type<ngraph::opset1::Constant>()});
 
@@ -85,9 +88,10 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
         ngraph::copy_runtime_info(tile, new_ops);
         ngraph::replace_node(tile, {last_node});
+        MATCHER_SCOPE_ENABLE(ConvertTileToSeqTiles);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "ConvertTileToSeqTiles");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_comparator.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+
+#include <gtest/gtest.h>
+#include "ie_common.h"
 
 #include <algorithm>
 #include <cassert>
@@ -20,6 +23,10 @@
 #include <typeinfo>
 #include <vector>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+
+
 namespace {
 inline namespace tools {
 bool is_type_relaxed(const std::string& type) {
@@ -31,12 +38,12 @@ bool compare_type_info(const ngraph::DiscreteTypeInfo& info1, const ngraph::Disc
     if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (info1.version != info2.version)) {
         return false;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
     const std::string info1Name =
-        is_type_relaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
+            is_type_relaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
     const std::string info2Name =
-        is_type_relaxed(info2.name) && (info2.parent != nullptr) ? info2.parent->name : info2.name;
+            is_type_relaxed(info2.name) && (info2.parent != nullptr) ? info2.parent->name : info2.name;
     return info1Name == info2Name;
 }
 
@@ -121,9 +128,9 @@ public:
     explicit NodeAndInputDescription(const InputNode& input,
                                      const Parameter* parameter,
                                      const InputDescripton* description)
-        : m_input(input),
-          m_parameter(not_null(parameter)),
-          m_description(not_null(description)) {}
+            : m_input(input),
+              m_parameter(not_null(parameter)),
+              m_description(not_null(description)) {}
 
     static bool equal_descriptions(const InputDescripton* lhs, const InputDescripton* rhs) {
         if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
@@ -172,7 +179,7 @@ public:
             }
             for (size_t i = 0; i != param_shape.size(); ++i) {
                 const auto expected_axis_size =
-                    i == slice_description->m_axis ? slice_description->m_part_size * num_iterations : param_shape[i];
+                        i == slice_description->m_axis ? slice_description->m_part_size * num_iterations : param_shape[i];
                 if (input_shape[i] != expected_axis_size) {
                     return false;
                 }
@@ -215,9 +222,9 @@ public:
     explicit NodeAndOutputDescription(const OutputNode& output,
                                       const Result* result,
                                       const OutputDescription* description)
-        : m_output(output),
-          m_result(not_null(result)),
-          m_description(not_null(description)) {}
+            : m_output(output),
+              m_result(not_null(result)),
+              m_description(not_null(description)) {}
 
     static bool equal_descriptions(const OutputDescription* lhs, const OutputDescription* rhs) {
         if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
@@ -302,11 +309,34 @@ public:
     using Id = uint64_t;
 
     explicit BackEdge(const Parameter* parameter, const Result* result)
-        : m_parameter(not_null(parameter)),
-          m_result(not_null(result)) {}
+            : m_parameter(not_null(parameter)),
+              m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
+        if (m_parameter->get_element_type() != m_result->output(0).get_element_type()) {
+            return false;
+        }
+        const auto& param_shape = m_parameter->get_partial_shape();
+        const auto& result_shape = m_result->output(0).get_partial_shape();
+        const auto& param_rank = param_shape.rank();
+        const auto& result_rank = result_shape.rank();
+        if (!param_rank.compatible(result_rank)) {
+            return false;
+        }
+        if (param_rank.is_static() && result_rank.is_static()) {
+            if (param_rank.get_length() != result_rank.get_length()) {
+                return false;
+            }
+            for (int i=0; i < param_rank.get_length(); ++i) {
+                if (param_shape[i].is_static() && param_shape[i].get_length() == 0) {
+                    continue; // zero-dim-shape is acceptable for subgraph op param and can be not compatible with a result shape
+                }
+                if (!param_shape[i].compatible(result_shape[i])) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     friend bool operator==(const BackEdge& lhs, const BackEdge& rhs) {
@@ -539,103 +569,113 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
      * + Check node attributes by Visitor API
      */
 
-    auto f_results = f->get_results();
-    auto f_ref_results = f_ref->get_results();
+    if (should_compare(CmpValues::NODES)) {
+        auto f_results = f->get_results();
+        auto f_ref_results = f_ref->get_results();
 
-    auto cmp = less_by_name;
-    // In case if Result source output has more than one name so the Result may have any of this names as a friendly
-    // name An in case of multiple names we sort Result operation using their parent node names
-    if (std::any_of(f_results.begin(),
-                    f_results.end(),
-                    [](const std::shared_ptr<ngraph::Node>& node) {
-                        const auto& t = node->input_value(0).get_tensor_ptr();
-                        return t->get_names().size() > 1;
-                    }) ||
-        std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node>& node) {
-            const auto& t = node->input_value(0).get_tensor_ptr();
-            return t->get_names().size() > 1;
-        })) {
-        cmp = less_by_parent_name;
-    }
+        auto cmp = less_by_name;
+        // In case if Result source output has more than one name so the Result may have any of this names as a friendly
+        // name An in case of multiple names we sort Result operation using their parent node names
+        if (std::any_of(f_results.begin(),
+                        f_results.end(),
+                        [](const std::shared_ptr<ngraph::Node> &node) {
+                            const auto &t = node->input_value(0).get_tensor_ptr();
+                            return t->get_names().size() > 1;
+                        }) ||
+            std::any_of(f_ref_results.begin(), f_ref_results.end(), [](const std::shared_ptr<ngraph::Node> &node) {
+                const auto &t = node->input_value(0).get_tensor_ptr();
+                return t->get_names().size() > 1;
+            })) {
+            cmp = less_by_parent_name;
+        }
 
-    std::sort(f_results.begin(), f_results.end(), cmp);
-    std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
+        std::sort(f_results.begin(), f_results.end(), cmp);
+        std::sort(f_ref_results.begin(), f_ref_results.end(), cmp);
 
-    if (f_results.size() != f_ref_results.size()) {
-        return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
-                             to_str(f_ref_results.size()));
-    }
+        if (f_results.size() != f_ref_results.size()) {
+            return Result::error("Number of results is different: " + to_str(f_results.size()) + " and " +
+                                 to_str(f_ref_results.size()));
+        }
 
-    const auto& f_sinks = f->get_sinks();
-    const auto& f_ref_sinks = f_ref->get_sinks();
-    if (f_sinks.size() != f_ref_sinks.size()) {
-        return Result::error("Number of sinks is different: " + to_str(f_sinks.size()) + " and " +
-                             to_str(f_ref_sinks.size()));
-    }
+        const auto &f_sinks = f->get_sinks();
+        const auto &f_ref_sinks = f_ref->get_sinks();
+        if (f_sinks.size() != f_ref_sinks.size()) {
+            return Result::error("Number of sinks is different: " + to_str(f_sinks.size()) + " and " +
+                                 to_str(f_ref_sinks.size()));
+        }
 
-    // Compare sinks
-    if (f_sinks.size() == 1) {
-        q.push({f_sinks[0].get(), f_ref_sinks[0].get()});
-        used.insert(f_sinks[0].get());
-    } else {
-        // Cast to Assign and find those that have same variable_id suffix
-        for (const auto& sink1 : f_sinks) {
-            auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
-            if (!assign1) {
-                return Result::error("Sink '" + name(sink1) +
-                                     "' is not a variable - graph comparison is not supported");
-            }
-            auto name1 = assign1->get_variable_id();
-            std::shared_ptr<ov::op::Sink> found_sink2;
-            for (const auto& sink2 : f_ref_sinks) {
-                auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
-                if (!assign2) {
-                    return Result::error("Sink '" + name(sink2) +
+        // Compare sinks
+        if (f_sinks.size() == 1) {
+            q.push({f_sinks[0].get(), f_ref_sinks[0].get()});
+            used.insert(f_sinks[0].get());
+        } else {
+            // Cast to Assign and find those that have same variable_id suffix
+            for (const auto &sink1 : f_sinks) {
+                auto assign1 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink1);
+                if (!assign1) {
+                    return Result::error("Sink '" + name(sink1) +
                                          "' is not a variable - graph comparison is not supported");
                 }
-                auto name2 = assign2->get_variable_id();
-                if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
-                    found_sink2 = sink2;
-                    break;
+                auto name1 = assign1->get_variable_id();
+                std::shared_ptr<ov::op::Sink> found_sink2;
+                for (const auto &sink2 : f_ref_sinks) {
+                    auto assign2 = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(sink2);
+                    if (!assign2) {
+                        return Result::error("Sink '" + name(sink2) +
+                                             "' is not a variable - graph comparison is not supported");
+                    }
+                    auto name2 = assign2->get_variable_id();
+                    if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                        found_sink2 = sink2;
+                        break;
+                    }
+                }
+                if (!found_sink2) {
+                    return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
+                }
+                q.push({sink1.get(), found_sink2.get()});
+                used.insert(sink1.get());
+            }
+        }
+
+        for (size_t i = 0; i < f_results.size(); ++i) {
+            if (should_compare(CmpValues::NAMES)) {
+                if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
+                    name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
+                    return Result::error(
+                            "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) +
+                            " and " +
+                            name(f_ref_results[i]->get_input_node_shared_ptr(0)));
                 }
             }
-            if (!found_sink2) {
-                return Result::error("No suitable sink is found for: " + name(sink1) + ", var=" + name1);
+            q.push({f_results[i].get(), f_ref_results[i].get()});
+            used.insert(f_results[i].get());
+        }
+
+        std::stringstream errors;
+
+        while (!q.empty()) {
+            ngraph::Node *const node1 = q.front().first;
+            ngraph::Node *const node2 = q.front().second;
+            q.pop();
+
+            const auto result = compare(node1, node2, errors);
+            if (!result.valid) {
+                return result;
             }
-            q.push({sink1.get(), found_sink2.get()});
-            used.insert(sink1.get());
+
+            add_nodes_inputs_to_queue(node1, node2);
         }
+        const auto msg = errors.str();
+        return msg.empty() ? Result::ok() : Result::error(msg);
+
+    } else if (should_compare(CmpValues::ACCURACY)) {
+        auto status = accuracy_check(f_ref, f);
+        return status.status ? Result::ok() : Result::error(status.message);
+
+    } else {
+        return Result::error("CmpValues are invalid");
     }
-
-    for (size_t i = 0; i < f_results.size(); ++i) {
-        if (should_compare(CmpValues::NAMES)) {
-            if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
-                name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
-                return Result::error(
-                    "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) + " and " +
-                    name(f_ref_results[i]->get_input_node_shared_ptr(0)));
-            }
-        }
-        q.push({f_results[i].get(), f_ref_results[i].get()});
-        used.insert(f_results[i].get());
-    }
-
-    std::stringstream errors;
-
-    while (!q.empty()) {
-        ngraph::Node* const node1 = q.front().first;
-        ngraph::Node* const node2 = q.front().second;
-        q.pop();
-
-        const auto result = compare(node1, node2, errors);
-        if (!result.valid) {
-            return result;
-        }
-
-        add_nodes_inputs_to_queue(node1, node2);
-    }
-    const auto msg = errors.str();
-    return msg.empty() ? Result::ok() : Result::error(msg);
 }
 
 Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
@@ -759,7 +799,7 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
 void Comparator::compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
     if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(*node1, *node2, err_log)) {
         err_log << "Different runtime info detected\n" + name(node1) + " and " + name(node2) +
-                       " not equal runtime info.\n";
+                   " not equal runtime info.\n";
     }
 
     if (should_compare(CmpValues::ATTRIBUTES)) {
@@ -805,123 +845,115 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     }
 }
 
-void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string& name) {
-    output.get_tensor_ptr()->set_names({name});
-}
-
-void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string>& names) {
-    output.get_tensor_ptr()->set_names(names);
-}
-
 namespace attributes {
 namespace detail {
-void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
-    if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
-        insert(name, inputs->get());
-    } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
-        insert(name, outputs->get());
-    } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
-        // drop comparison, no more info than port indexes which will be check in
-        // subgraph::compare_io
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                   &adapter)) {
-        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
-        const auto end = beg + a->get()->size();
-        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
-    } else if (auto framework_node_attr =
-                   ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
-        insert(name, framework_node_attr->get());
-    } else if (auto variable_ptr =
-                   ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
-        insert(name, variable_ptr->get());
-    } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
-        insert(name, shape_ptr->get());
-    } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
-        insert(name, dim_ptr->get());
-    } else {
-        m_read_result += "store   attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
-                         adapter.get_type_info().name + "']";
+    void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+            insert(name, inputs->get());
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+            insert(name, outputs->get());
+        } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+            // drop comparison, no more info than port indexes which will be check in
+            // subgraph::compare_io
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
+            const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+            const auto end = beg + a->get()->size();
+            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
+        } else if (auto framework_node_attr =
+                ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            insert(name, framework_node_attr->get());
+        } else if (auto variable_ptr =
+                ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+            insert(name, variable_ptr->get());
+        } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            insert(name, shape_ptr->get());
+        } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            insert(name, dim_ptr->get());
+        } else {
+            m_read_result += "store   attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
+                             adapter.get_type_info().name + "']";
+        }
     }
-}
-template <typename AttrValue>
-void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& attr_value) {
-    if (should_return()) {
-        return;
-    }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<AttrValue>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
+    template <typename AttrValue>
+    void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& attr_value) {
+        if (should_return()) {
+            return;
+        }
+        m_visited_attributes.insert(name);
+        const auto ref_value = m_attr_ref.get<AttrValue>(name);
+        if (!ref_value) {
+            m_cmp_result += "missing attribute name: '" + name + "'";
+            return;
+        }
+
+        if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
+            m_cmp_result += "mismatch in value: '" + name + "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
+        }
     }
 
-    if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-        m_cmp_result += "mismatch in value: '" + name + "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
-                        str::Get<AttrValue>::value(attr_value);
-    }
-}
+    void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
+                                                  const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+        if (should_return()) {
+            return;
+        }
+        m_visited_attributes.insert(name);
+        const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
+        if (!ref_value) {
+            m_cmp_result += "missing attribute name: '" + name + "'";
+            return;
+        }
 
-void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
-                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
-    if (should_return()) {
-        return;
-    }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
+        if (buffer->size() != ref_value->size() ||
+            std::memcmp(ref_value->data(), buffer->get_ptr(), ref_value->size()) != 0) {
+            m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
+            return;
+        }
     }
 
-    if (buffer->size() != ref_value->size() ||
-        std::memcmp(ref_value->data(), buffer->get_ptr(), ref_value->size()) != 0) {
-        m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
-        return;
+    void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
+        if (should_return()) {
+            return;
+        }
+        m_visited_attributes.insert(name);
+        const auto ref_value = m_attr_ref.get<std::shared_ptr<ngraph::Function>>(name);
+        if (!ref_value) {
+            m_cmp_result += "missing attribute name: '" + name + "'";
+            return;
+        }
+        Comparator c(m_check_flags);
+        const auto result = c.compare(*ref_value, adapter.get());
+        if (!result.valid) {
+            m_cmp_result += result.message;
+        }
     }
-}
 
-void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
-    if (should_return()) {
-        return;
+    void ReadAndCompareAttributes::verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+            verify(name, inputs->get());
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+            verify(name, outputs->get());
+        } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+            // drop comparison, no more info than port indexes which will be check in
+            // subgraph::compare_io
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
+            verify_mem_buf(name, a->get());
+        } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            verify(name, attrs->get());
+        } else if (auto variable_ptr =
+                ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+            verify(name, variable_ptr->get());
+        } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+            verify(name, shape_ptr->get());
+        } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+            verify(name, dim_ptr->get());
+        } else {
+            m_cmp_result += "compare attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
+                            adapter.get_type_info().name + "']";
+        }
     }
-    m_visited_attributes.insert(name);
-    const auto ref_value = m_attr_ref.get<std::shared_ptr<ngraph::Function>>(name);
-    if (!ref_value) {
-        m_cmp_result += "missing attribute name: '" + name + "'";
-        return;
-    }
-    Comparator c(m_check_flags);
-    const auto result = c.compare(*ref_value, adapter.get());
-    if (!result.valid) {
-        m_cmp_result += result.message;
-    }
-}
-
-void ReadAndCompareAttributes::verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
-    if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
-        verify(name, inputs->get());
-    } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
-        verify(name, outputs->get());
-    } else if (ngraph::is_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
-        // drop comparison, no more info than port indexes which will be check in
-        // subgraph::compare_io
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                   &adapter)) {
-        verify_mem_buf(name, a->get());
-    } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
-        verify(name, attrs->get());
-    } else if (auto variable_ptr =
-                   ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
-        verify(name, variable_ptr->get());
-    } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
-        verify(name, shape_ptr->get());
-    } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
-        verify(name, dim_ptr->get());
-    } else {
-        m_cmp_result += "compare attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
-                        adapter.get_type_info().name + "']";
-    }
-}
 
 }  // namespace detail
 
@@ -937,3 +969,42 @@ Comparator::Result compare(ngraph::Node* node1, ngraph::Node* node2, Comparator:
 }
 
 }  // namespace attributes
+
+AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_function,
+                                   const std::shared_ptr<ov::Model>& cur_function) {
+    if (ref_function->is_dynamic() || cur_function->is_dynamic()) {
+        return AccuracyCheckResult{true, ""};
+    }
+    try {
+        IE_ASSERT(ref_function->get_parameters().size() == cur_function->get_parameters().size());
+
+        std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
+        std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;
+        for (size_t i = 0; i < ref_function->get_parameters().size(); i++) {
+            const auto &tensor = ov::test::utils::create_and_fill_tensor(
+                    ref_function->get_parameters()[i]->get_element_type(),
+                    ref_function->get_parameters()[i]->get_shape());
+            ref_input_data[ref_function->get_parameters()[i]] = tensor;
+            cur_input_data[cur_function->get_parameters()[i]] = tensor;
+        }
+
+        auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
+        auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
+
+        IE_ASSERT(ref_outputs.size() == outputs.size());
+
+        for (int i = 0; i < ref_outputs.size(); i++) {
+            ov::test::utils::compare(ref_outputs[i], outputs[i],
+                                     std::numeric_limits<double>::max(),
+                                     std::numeric_limits<double>::max());
+        }
+    }
+    catch (const std::runtime_error &re) {
+        return AccuracyCheckResult{false, re.what()};
+    } catch (const std::exception &ex) {
+        return AccuracyCheckResult{false, ex.what()};
+    } catch (...) {
+        return AccuracyCheckResult{false, ""};
+    }
+    return AccuracyCheckResult{true, ""};
+}

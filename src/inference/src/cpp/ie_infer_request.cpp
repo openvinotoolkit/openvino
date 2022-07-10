@@ -134,7 +134,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
 }
 
 #define CATCH_IE_EXCEPTION_RETURN(StatusCode, ExceptionType) \
-    catch (const ExceptionType&) {                           \
+    catch (const ::InferenceEngine::ExceptionType&) {        \
         return StatusCode;                                   \
     }
 
@@ -357,6 +357,7 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
+    std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
         OPENVINO_ASSERT(!_impl->GetBlobs(name),
@@ -365,7 +366,9 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         name,
                         "'");
         auto blob = _impl->GetBlob(name);
-        return {blob, _so};
+        soVec = {_so, _impl->getPointerToSo()};
+        Tensor tensor = {blob, soVec};
+        return tensor;
     });
 }
 
@@ -492,9 +495,11 @@ void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback
 
 std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
+    std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
+        soVec = {_so, _impl->getPointerToSo()};
         for (auto&& state : _impl->QueryState()) {
-            variable_states.emplace_back(VariableState{state, _so});
+            variable_states.emplace_back(VariableState{state, soVec});
         }
     })
     return variable_states;

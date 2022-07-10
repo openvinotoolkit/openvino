@@ -15,12 +15,14 @@
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(ConcatTransformation);
     auto matcher = ngraph::pattern::wrap_type<opset1::Concat>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -28,11 +30,11 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(ConcatTransformation);
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConcatTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
