@@ -32,9 +32,6 @@ public:
         bool normalized = true;
         // specify eta parameter for adaptive NMS in generate proposals
         float nms_eta = 1.0;
-        // specify whether static output shapes should be used.
-        // Set to true for plugins that do not support dynamic shapes.
-        bool static_output = false;
     };
 
     GenerateProposals() = default;

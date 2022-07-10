@@ -246,3 +246,4 @@ REGISTER_FACTORY(v9, GenerateProposals);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
+REGISTER_FACTORY(internal, GenerateProposalsIEInternal);

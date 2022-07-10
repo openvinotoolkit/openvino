@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/generate_proposals.hpp"
+#include "intel_gpu/primitives/generate_proposals.hpp"
+
+#include <ngraph_ops/generate_proposals_ie_internal.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
-#include "intel_gpu/primitives/generate_proposals.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
 namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-static void CreateGenerateProposalsOp(Program& p, const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op) {
+static void CreateGenerateProposalsIEInternalOp(
+    Program& p,
+    const std::shared_ptr<ngraph::op::internal::GenerateProposalsIEInternal>& op) {
     p.ValidateInputs(op, {4});
     if (op->get_output_size() != 3) {
         IE_THROW() << "GenerateProposals requires 3 outputs";
@@ -54,10 +57,18 @@ static void CreateGenerateProposalsOp(Program& p, const std::shared_ptr<ngraph::
     inputs.push_back(mutable_id_w_2);
 
     const cldnn::generate_proposals prim{layer_name,
-                                         inputs[0], inputs[1], inputs[2], inputs[3],
-                                         mutable_id_w_1, mutable_id_w_2,
-                                         attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count,
-                                         attrs.normalized, attrs.nms_eta,
+                                         inputs[0],
+                                         inputs[1],
+                                         inputs[2],
+                                         inputs[3],
+                                         mutable_id_w_1,
+                                         mutable_id_w_2,
+                                         attrs.min_size,
+                                         attrs.nms_threshold,
+                                         attrs.pre_nms_count,
+                                         attrs.post_nms_count,
+                                         attrs.normalized,
+                                         attrs.nms_eta,
                                          DataTypeFromPrecision(op->get_roi_num_type()),
                                          op_friendly_name};
 
@@ -76,7 +87,7 @@ static void CreateGenerateProposalsOp(Program& p, const std::shared_ptr<ngraph::
     p.AddPrimitiveToProfiler(prim, op);
 }
 
-REGISTER_FACTORY_IMPL(v9, GenerateProposals);
+REGISTER_FACTORY_IMPL(internal, GenerateProposalsIEInternal);
 
 }  // namespace intel_gpu
 }  // namespace runtime
