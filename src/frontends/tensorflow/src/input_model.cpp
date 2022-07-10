@@ -295,11 +295,11 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::getPlaceByTensorName(cons
 }
 
 std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& place) {
-    if (auto var_place = std::dynamic_pointer_cast<TensorPlace>(place)) {
+    if (auto var_place = Place::dynamic_pointer_cast<TensorPlace>(place)) {
         return var_place;
-    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlace>(place)) {
+    } else if (auto in_port_place = Place::dynamic_pointer_cast<InPortPlace>(place)) {
         return in_port_place->get_source_tensor_tf();
-    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlace>(place)) {
+    } else if (auto out_port_place = Place::dynamic_pointer_cast<OutPortPlace>(place)) {
         return out_port_place->get_target_tensor_tf();
     }
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlaceTF.");

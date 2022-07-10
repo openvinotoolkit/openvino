@@ -130,7 +130,7 @@ void InputModel::InputModelImpl::loadPlaces() {
             // Determine outputs and inputs
             if (op.type() == "feed") {
                 const auto& place = op_place->get_output_port_paddle("Out", 0);
-                const auto& var_place = std::dynamic_pointer_cast<TensorPlace>(place->get_target_tensor_paddle());
+                const auto& var_place = Place::dynamic_pointer_cast<TensorPlace>(place->get_target_tensor_paddle());
                 const auto& tensor_desc = var_place->get_desc().type().lod_tensor().tensor();
                 const auto& dims = tensor_desc.dims();
 
@@ -230,7 +230,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
     // Marking nodes from outputs to inputs/constants
     for (const auto& output : getOutputs()) {
         if (!output->is_input()) {
-            auto paddle_output_op = std::dynamic_pointer_cast<OpPlace>(output->get_producing_operation());
+            auto paddle_output_op = Place::dynamic_pointer_cast<OpPlace>(output->get_producing_operation());
             FRONT_END_GENERAL_CHECK(paddle_output_op != nullptr, "Output doesn't have producing operation");
             if (!visited.count(paddle_output_op.get())) {
                 visited.insert(paddle_output_op.get());
@@ -247,7 +247,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
                 auto tensor = port->get_source_tensor();
                 if (tensor && !tensor->is_input() && !m_tensor_values.count(tensor->get_names()[0])) {
                     std::shared_ptr<OpPlace> paddle_op =
-                        std::dynamic_pointer_cast<OpPlace>(tensor->get_producing_operation());
+                        Place::dynamic_pointer_cast<OpPlace>(tensor->get_producing_operation());
                     if (paddle_op && !visited.count(paddle_op.get())) {
                         visited.insert(paddle_op.get());
                         q.push(paddle_op.get());
@@ -365,11 +365,11 @@ Place::Ptr InputModel::InputModelImpl::getPlaceByTensorName(const std::string& t
 
 namespace {
 std::shared_ptr<TensorPlace> castToTensorPlace(const Place::Ptr& place) {
-    if (auto var_place = std::dynamic_pointer_cast<TensorPlace>(place)) {
+    if (auto var_place = Place::dynamic_pointer_cast<TensorPlace>(place)) {
         return var_place;
-    } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlace>(place)) {
+    } else if (auto in_port_place = Place::dynamic_pointer_cast<InPortPlace>(place)) {
         return in_port_place->get_source_tensor_paddle();
-    } else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlace>(place)) {
+    } else if (auto out_port_place = Place::dynamic_pointer_cast<OutPortPlace>(place)) {
         return out_port_place->get_target_tensor_paddle();
     }
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacepaddle.");

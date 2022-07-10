@@ -453,7 +453,7 @@ TEST(Paddle_Places, check_ops_tensors_by_idx) {
         EXPECT_NE(prod_op, nullptr);
 
         auto target_tensor = op->get_target_tensor(0);
-        EXPECT_EQ(tensor_place, target_tensor);
+        EXPECT_TRUE(tensor_place->is_equal(target_tensor));
 
         auto source_tensor = op->get_source_tensor(0);
         EXPECT_NE(source_tensor, nullptr);

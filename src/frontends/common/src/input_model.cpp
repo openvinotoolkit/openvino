@@ -16,43 +16,30 @@ std::vector<Place::Ptr> InputModel::get_inputs() const {
     if (!m_actual) {
         return {};
     }
-
-    std::vector<Place::Ptr> inputs;
-    for (auto& in : m_actual->get_inputs()) {
-        inputs.push_back(std::make_shared<GenericPlace>(in, m_shared_object));
-    }
-
-    FRONTEND_RETURN_STATEMENT("get_inputs", inputs)
+    FRONTEND_RETURN_STATEMENT("get_inputs", transform_pimpls<Place>(m_actual->get_inputs()))
 }
 
 std::vector<Place::Ptr> InputModel::get_outputs() const {
     if (!m_actual) {
         return {};
     }
-
-    std::vector<Place::Ptr> outputs;
-    for (auto& out : m_actual->get_outputs()) {
-        outputs.push_back(std::make_shared<GenericPlace>(out, m_shared_object));
-    }
-    FRONTEND_RETURN_STATEMENT("get_outputs", outputs)
+    FRONTEND_RETURN_STATEMENT("get_outputs", transform_pimpls<Place>(m_actual->get_outputs()))
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
     if (!m_actual) {
         return {};
     }
-    FRONTEND_RETURN_STATEMENT(
-        "get_place_by_tensor_name",
-        std::make_shared<GenericPlace>(m_actual->get_place_by_tensor_name(tensor_name), m_shared_object))
+    FRONTEND_RETURN_STATEMENT("get_place_by_tensor_name",
+                              make_shared_w_pimpl<Place>(m_actual->get_place_by_tensor_name(tensor_name)))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (!m_actual) {
         return {};
     }
-    FRONTEND_RETURN_STATEMENT(
-        "get_place_by_operation_name",
-        std::make_shared<GenericPlace>(m_actual->get_place_by_operation_name(operation_name), m_shared_object))
+    FRONTEND_RETURN_STATEMENT("get_place_by_operation_name",
+                              make_shared_w_pimpl<Place>(m_actual->get_place_by_operation_name(operation_name)))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operation_name,
@@ -62,9 +49,8 @@ Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::str
     }
     FRONTEND_RETURN_STATEMENT(
         "get_place_by_operation_name_and_input_port",
-        std::make_shared<GenericPlace>(
-            m_actual->get_place_by_operation_name_and_input_port(operation_name, input_port_index),
-            m_shared_object))
+        make_shared_w_pimpl<Place>(
+            m_actual->get_place_by_operation_name_and_input_port(operation_name, input_port_index)))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
@@ -74,9 +60,8 @@ Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::st
     }
     FRONTEND_RETURN_STATEMENT(
         "get_place_by_operation_name_and_output_port",
-        std::make_shared<GenericPlace>(
-            m_actual->get_place_by_operation_name_and_output_port(operation_name, output_port_index),
-            m_shared_object))
+        make_shared_w_pimpl<Place>(
+            m_actual->get_place_by_operation_name_and_output_port(operation_name, output_port_index)))
 }
 
 void InputModel::set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
@@ -122,8 +107,7 @@ void InputModel::cut_and_add_new_output(const Place::Ptr& place, const std::stri
 
 Place::Ptr InputModel::add_output(const Place::Ptr& place) {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, add_output);
-    FRONTEND_RETURN_STATEMENT("add_output",
-                              std::make_shared<GenericPlace>(m_actual->add_output(place), m_shared_object));
+    FRONTEND_RETURN_STATEMENT("add_output", make_shared_w_pimpl<Place>(m_actual->add_output(place)));
 }
 
 void InputModel::remove_output(const Place::Ptr& place) {

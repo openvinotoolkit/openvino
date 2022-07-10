@@ -49,7 +49,7 @@ bool InputEdgePlace::is_equal(const Place::Ptr& another) const {
     if (m_editor->get_source_tensor_name(m_edge) != m_initial_source_tensor_name) {
         return false;
     }
-    if (const auto in_edge = std::dynamic_pointer_cast<InputEdgePlace>(another)) {
+    if (const auto in_edge = Place::dynamic_pointer_cast<InputEdgePlace>(another)) {
         const auto& editor_edge = in_edge->get_input_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
     }
@@ -118,7 +118,7 @@ bool OutputEdgePlace::is_equal(const Place::Ptr& another) const {
     if (m_editor->get_target_tensor_name(m_edge) != m_initial_target_tensor_name) {
         return false;
     }
-    if (const auto out_edge = std::dynamic_pointer_cast<OutputEdgePlace>(another)) {
+    if (const auto out_edge = Place::dynamic_pointer_cast<OutputEdgePlace>(another)) {
         const auto& editor_edge = out_edge->get_output_edge();
         return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
     }
@@ -189,7 +189,7 @@ bool TensorPlace::is_output() const {
 }
 
 bool TensorPlace::is_equal(const Place::Ptr& another) const {
-    if (const auto tensor = std::dynamic_pointer_cast<TensorPlace>(another)) {
+    if (const auto tensor = Place::dynamic_pointer_cast<TensorPlace>(another)) {
         return m_name == tensor->get_names().at(0);
     }
     return false;
@@ -383,7 +383,7 @@ bool OpPlace::is_equal(const Place::Ptr& another) const {
         m_editor->get_output_ports(m_node).at(0) != m_initial_first_output) {
         return false;
     }
-    if (const auto place_op = std::dynamic_pointer_cast<OpPlace>(another)) {
+    if (const auto place_op = Place::dynamic_pointer_cast<OpPlace>(another)) {
         const auto& another_node = place_op->get_editor_node();
         if (m_editor->is_correct_and_unambiguous_node(m_node) ||
             m_editor->is_correct_and_unambiguous_node(another_node)) {

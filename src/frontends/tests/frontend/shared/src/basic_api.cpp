@@ -30,6 +30,12 @@ void FrontEndBasicTest::doLoadFromFile() {
     std::tie(m_frontEnd, m_inputModel) = FrontEndTestUtils::load_from_file(m_fem, m_feName, m_modelFile);
 }
 
+struct PlacePtrCmp {
+    bool operator()(const Place::Ptr& lhs, const Place::Ptr& rhs) const {
+        return Place::dynamic_pointer_cast<Place>(lhs) < Place::dynamic_pointer_cast<Place>(rhs);
+    }
+};
+
 TEST_P(FrontEndBasicTest, testLoadFromFile) {
     ASSERT_NO_THROW(doLoadFromFile());
     ASSERT_EQ(m_frontEnd->get_name(), m_feName);
@@ -44,7 +50,7 @@ TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs) {
     using CustomCheck = std::function<void(Place::Ptr)>;
     auto checkPlaces = [&](const std::vector<Place::Ptr>& places, CustomCheck cb) {
         EXPECT_GT(places.size(), 0);
-        std::set<Place::Ptr> placesSet(places.begin(), places.end());
+        std::set<Place::Ptr, PlacePtrCmp> placesSet(places.begin(), places.end());
         EXPECT_EQ(placesSet.size(), places.size());
         std::for_each(places.begin(), places.end(), [&](Place::Ptr place) {
             ASSERT_NE(place, nullptr);
@@ -103,14 +109,14 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll) {
     auto verifyOverride = [](GetPlaces getCB, OverridePlaces overrideCB) {
         std::vector<Place::Ptr> places;
         ASSERT_NO_THROW(places = getCB());
-        std::set<Place::Ptr> placesSet(places.begin(), places.end());
+        std::set<Place::Ptr, PlacePtrCmp> placesSet(places.begin(), places.end());
 
         auto placesReversed = places;
         std::reverse(placesReversed.begin(), placesReversed.end());
         ASSERT_NO_THROW(overrideCB(placesReversed));
         ASSERT_NO_THROW(places = getCB());
         EXPECT_GT(places.size(), 0);
-        std::set<Place::Ptr> placesSetAfter(places.begin(), places.end());
+        std::set<Place::Ptr, PlacePtrCmp> placesSetAfter(places.begin(), places.end());
         EXPECT_EQ(placesSet.size(), placesSet.size());
         std::for_each(places.begin(), places.end(), [&](Place::Ptr place) {
             EXPECT_GT(placesSet.count(place), 0);

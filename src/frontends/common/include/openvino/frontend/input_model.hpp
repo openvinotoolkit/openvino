@@ -11,6 +11,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/place.hpp"
+#include "openvino/frontend/shared_object_extension.hpp"
 #include "openvino/frontend/visibility.hpp"
 
 namespace ov {
@@ -35,8 +36,7 @@ namespace frontend {
 ///
 /// All editing requests affect the model representation that is held behind the scene
 /// successive method calls observe a new graph structure.
-class FRONTEND_API InputModel {
-    std::shared_ptr<void> m_shared_object;
+class FRONTEND_API InputModel : private SharedObjectExtension<InputModel> {
     std::shared_ptr<InputModel> m_actual;
     friend class FrontEnd;
 

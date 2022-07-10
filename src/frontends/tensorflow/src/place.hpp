@@ -27,7 +27,7 @@ public:
     bool is_input() const override;
     bool is_output() const override;
     bool is_equal(const Ptr& another) const override {
-        return this == another.get();
+        return this == Place::dynamic_pointer_cast<Place>(another).get();
     }
 
     std::vector<std::string> get_names() const override {

@@ -108,7 +108,7 @@ ov::frontend::Place::Ptr InputModel::get_place_by_operation_name_and_output_port
 }
 
 void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, const std::string& new_name) {
-    const auto onnx_tensor = std::dynamic_pointer_cast<TensorPlace>(tensor);
+    const auto onnx_tensor = Place::dynamic_pointer_cast<TensorPlace>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     const auto original_name = onnx_tensor->get_names().at(0);
     onnx_tensor->set_name(new_name);
@@ -125,7 +125,7 @@ void InputModel::set_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
 }
 
 void InputModel::set_name_for_operation(const ov::frontend::Place::Ptr& operation, const std::string& new_name) {
-    const auto onnx_operation = std::dynamic_pointer_cast<OpPlace>(operation);
+    const auto onnx_operation = Place::dynamic_pointer_cast<OpPlace>(operation);
     FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
     onnx_operation->set_name(new_name);
 }
@@ -137,7 +137,7 @@ void InputModel::free_name_for_operation(const std::string& name) {
 void InputModel::set_name_for_dimension(const ov::frontend::Place::Ptr& tensor,
                                         size_t shape_dim_index,
                                         const std::string& dim_name) {
-    const auto onnx_tensor = std::dynamic_pointer_cast<TensorPlace>(tensor);
+    const auto onnx_tensor = Place::dynamic_pointer_cast<TensorPlace>(tensor);
     FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
@@ -146,12 +146,12 @@ void InputModel::add_name_for_tensor(const ov::frontend::Place::Ptr& tensor, con
     FRONT_END_GENERAL_CHECK(!new_name.empty(), "The additional tensor name cannot be empty.");
 
     ov::frontend::Place::Ptr tensor_place = tensor;
-    const auto input_edge = std::dynamic_pointer_cast<InputEdgePlace>(tensor);
+    const auto input_edge = Place::dynamic_pointer_cast<InputEdgePlace>(tensor);
     if (input_edge) {
         tensor_place = input_edge->get_source_tensor();
     }
 
-    const auto onnx_tensor = std::dynamic_pointer_cast<TensorPlace>(tensor_place);
+    const auto onnx_tensor = Place::dynamic_pointer_cast<TensorPlace>(tensor_place);
     FRONT_END_GENERAL_CHECK(onnx_tensor != nullptr,
                             "Incorrect Place passed to add_name_for_tensor. This method expects a TensorPlace object "
                             "pointing to the ONNX tensor.");
@@ -166,7 +166,7 @@ void InputModel::free_name_for_tensor(const std::string&) {
 
 void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) {
     std::string input_name;  // name of the model input which should be reshaped
-    const auto input_edge = std::dynamic_pointer_cast<InputEdgePlace>(place);
+    const auto input_edge = Place::dynamic_pointer_cast<InputEdgePlace>(place);
     if (input_edge) {
         const auto tensor_names = input_edge->get_source_tensor()->get_names();
         OPENVINO_ASSERT(!tensor_names.empty(), "Cannot retrieve input name. Setting new input shape is not possible.");
@@ -186,8 +186,8 @@ void InputModel::set_partial_shape(const ov::frontend::Place::Ptr& place, const 
 
 ngraph::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& place) const {
     std::string tensor_name;  // name of the model input which should be reshaped
-    const auto input_edge = std::dynamic_pointer_cast<InputEdgePlace>(place);
-    const auto output_edge = std::dynamic_pointer_cast<OutputEdgePlace>(place);
+    const auto input_edge = Place::dynamic_pointer_cast<InputEdgePlace>(place);
+    const auto output_edge = Place::dynamic_pointer_cast<OutputEdgePlace>(place);
     if (input_edge) {
         const auto tensor_names = input_edge->get_source_tensor()->get_names();
         OPENVINO_ASSERT(!tensor_names.empty(),
@@ -224,19 +224,19 @@ std::shared_ptr<Model> InputModel::convert() {
 
 // Editor features
 bool InputModel::is_correct_place(const ov::frontend::Place::Ptr& place) const {
-    if (const auto tensor = std::dynamic_pointer_cast<TensorPlace>(place)) {
+    if (const auto tensor = Place::dynamic_pointer_cast<TensorPlace>(place)) {
         return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
     }
-    if (const auto op = std::dynamic_pointer_cast<OpPlace>(place)) {
+    if (const auto op = Place::dynamic_pointer_cast<OpPlace>(place)) {
         return m_editor->is_correct_and_unambiguous_node(op->get_editor_node());
     }
-    if (const auto input_edge = std::dynamic_pointer_cast<InputEdgePlace>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<TensorPlace>(input_edge->get_source_tensor())) {
+    if (const auto input_edge = Place::dynamic_pointer_cast<InputEdgePlace>(place)) {
+        if (auto tensor = Place::dynamic_pointer_cast<TensorPlace>(input_edge->get_source_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }
     }
-    if (const auto output_edge = std::dynamic_pointer_cast<OutputEdgePlace>(place)) {
-        if (auto tensor = std::dynamic_pointer_cast<TensorPlace>(output_edge->get_target_tensor())) {
+    if (const auto output_edge = Place::dynamic_pointer_cast<OutputEdgePlace>(place)) {
+        if (auto tensor = Place::dynamic_pointer_cast<TensorPlace>(output_edge->get_target_tensor())) {
             return m_editor->is_correct_tensor_name(tensor->get_names()[0]);
         }
     }
@@ -334,11 +334,11 @@ ov::frontend::Place::Ptr InputModel::add_output(const ov::frontend::Place::Ptr& 
 
     if (find_output != outputs.end()) {
         return place;
-    } else if (const auto tensor = std::dynamic_pointer_cast<TensorPlace>(place)) {
+    } else if (const auto tensor = Place::dynamic_pointer_cast<TensorPlace>(place)) {
         auto tensor_name = tensor->get_names()[0];
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
-    } else if (const auto onnx_output_edge = std::dynamic_pointer_cast<OutputEdgePlace>(output_port)) {
+    } else if (const auto onnx_output_edge = Place::dynamic_pointer_cast<OutputEdgePlace>(output_port)) {
         NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
@@ -391,7 +391,7 @@ void InputModel::cut_and_add_new_input(const ov::frontend::Place::Ptr& place, co
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
 
-    if (const auto var_place = std::dynamic_pointer_cast<TensorPlace>(place)) {
+    if (const auto var_place = Place::dynamic_pointer_cast<TensorPlace>(place)) {
         auto name = place->get_names().at(0);
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_input_type(name);
@@ -410,10 +410,10 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
     std::vector<onnx_editor::InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
-        if (const auto input_port = std::dynamic_pointer_cast<InputEdgePlace>(input)) {
+        if (const auto input_port = Place::dynamic_pointer_cast<InputEdgePlace>(input)) {
             input_port->check_if_valid();
             onnx_inputs.push_back(input_port->get_input_edge());
-        } else if (const auto tensor = std::dynamic_pointer_cast<TensorPlace>(input)) {
+        } else if (const auto tensor = Place::dynamic_pointer_cast<TensorPlace>(input)) {
             const auto name = tensor->get_names().at(0);
             const auto consumers = m_editor->find_output_consumers(name);
             std::transform(std::begin(consumers),
@@ -422,7 +422,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
                            [](const onnx_editor::InputEdge& edge) {
                                return edge;
                            });
-        } else if (const auto op = std::dynamic_pointer_cast<OpPlace>(input)) {
+        } else if (const auto op = Place::dynamic_pointer_cast<OpPlace>(input)) {
             op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_inputs = m_editor->get_input_ports(editor_node);
@@ -445,15 +445,15 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
-        if (const auto output_port = std::dynamic_pointer_cast<OutputEdgePlace>(output)) {
+        if (const auto output_port = Place::dynamic_pointer_cast<OutputEdgePlace>(output)) {
             output_port->check_if_valid();
             onnx_outputs.push_back(output_port->get_output_edge());
-        } else if (const auto tensor = std::dynamic_pointer_cast<TensorPlace>(output)) {
+        } else if (const auto tensor = Place::dynamic_pointer_cast<TensorPlace>(output)) {
             const auto output_port = tensor->get_producing_port();
-            const auto onnx_output_edge = std::dynamic_pointer_cast<OutputEdgePlace>(output_port);
+            const auto onnx_output_edge = Place::dynamic_pointer_cast<OutputEdgePlace>(output_port);
             NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
-        } else if (const auto op = std::dynamic_pointer_cast<OpPlace>(output)) {
+        } else if (const auto op = Place::dynamic_pointer_cast<OpPlace>(output)) {
             op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_outputs = m_editor->get_output_ports(editor_node);

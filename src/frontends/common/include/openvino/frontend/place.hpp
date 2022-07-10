@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/frontend/shared_object_extension.hpp"
 #include "openvino/frontend/visibility.hpp"
 
 namespace ov {
@@ -57,11 +58,21 @@ namespace frontend {
 ///                    V
 ///                [Tensor C]
 ///
-class FRONTEND_API Place {
+class FRONTEND_API Place : protected SharedObjectExtension<Place> {
 public:
     typedef std::shared_ptr<Place> Ptr;
 
-    virtual ~Place() = 0;
+    /// \brief Place default ctor.
+    Place() = default;
+
+    /// * \brief Place ctor used when other Place is set as pimpl and shared object pointer to library required by
+    /// pimpl.
+    /// *
+    /// * \param pimpl          Input place as pimpl.
+    /// * \param shared_object  Pointer to shared object (library).
+    Place(Ptr pimpl, std::shared_ptr<void> shared_object);
+
+    virtual ~Place() = default;
 
     /// \brief All associated names (synonyms) that identify this place in the graph in a
     /// framework specific way
@@ -301,53 +312,25 @@ public:
     ///
     /// \param another Another place object
     virtual bool is_equal_data(const Ptr& another) const;
-};
 
-/**
- * \brief
- *
- */
-class GenericPlace : public Place {
-    std::shared_ptr<void> m_shared_object;  //!< Frontend library used  by place implementation.
-    Ptr m_impl;                             //!< Place implementation. TODO can be unique pointer but a lot of
-                                            // refactoring will be required.
+    /// \brief Dynamic cast of place pointer.
+    ///
+    /// It should be used for Place sp casting instead of std::dynamic_pointer_cast as it check first
+    /// if pimpl is possible to cast.
+    ///
+    /// \tparam T     Result type of dynamic pointer cast.
+    ///
+    /// \param place  Input place sp.
+    ///
+    /// \return Casted sp if success otherwise nullptr.
+    template <class T>
+    static std::shared_ptr<T> dynamic_pointer_cast(const Ptr& place) {
+        return place && place->m_pimpl ? std::dynamic_pointer_cast<T>(place->m_pimpl)
+                                       : std::dynamic_pointer_cast<T>(place);
+    }
 
-public:
-    GenericPlace(Ptr impl, std::shared_ptr<void> shared_object);
-
-    // Override the Place interface to use implementation from m_impl.
-    // The impl interface could be different then Place if unique pointer used to store impl.
-    std::vector<std::string> get_names() const override;
-    std::vector<Ptr> get_consuming_operations() const override;
-    std::vector<Ptr> get_consuming_operations(int output_port_index) const override;
-    std::vector<Ptr> get_consuming_operations(const std::string& outputName) const override;
-    std::vector<Ptr> get_consuming_operations(const std::string& outputName, int outputPortIndex) const override;
-    Ptr get_target_tensor() const override;
-    Ptr get_target_tensor(const std::string& outputName) const override;
-    Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
-    Ptr get_target_tensor(int output_port_index) const override;
-    Ptr get_source_tensor() const override;
-    Ptr get_source_tensor(int input_port_index) const override;
-    Ptr get_source_tensor(const std::string& inputName) const override;
-    Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const override;
-    Ptr get_producing_operation() const override;
-    Ptr get_producing_operation(int input_port_index) const override;
-    Ptr get_producing_operation(const std::string& inputName) const override;
-    Ptr get_producing_operation(const std::string& inputName, int inputPortIndex) const override;
-    Ptr get_producing_port() const override;
-    Ptr get_input_port() const override;
-    Ptr get_input_port(int input_port_index) const override;
-    Ptr get_input_port(const std::string& input_name) const override;
-    Ptr get_input_port(const std::string& input_name, int input_port_index) const override;
-    Ptr get_output_port() const override;
-    Ptr get_output_port(int output_port_index) const override;
-    Ptr get_output_port(const std::string& output_name) const override;
-    Ptr get_output_port(const std::string& output_name, int output_port_index) const override;
-    std::vector<Ptr> get_consuming_ports() const override;
-    bool is_input() const override;
-    bool is_output() const override;
-    bool is_equal(const Ptr& another) const override;
-    bool is_equal_data(const Ptr& another) const override;
+protected:
+    Ptr m_pimpl;  //!< Place implementation pointer.
 };
 }  // namespace frontend
 }  // namespace ov
