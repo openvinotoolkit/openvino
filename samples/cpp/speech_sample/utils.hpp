@@ -536,29 +536,30 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
 }
 
 /**
- * @brief Parse parameters for inputs/outputs like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
- * "<file.ark/.npz>" in case of one input/output
+ * @brief Parse parameters for inputs/outputs/reference like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output/reference.
+ * @note Examplary result for given data: {"<file1.ark/.npz>,<file2.ark/.npz>",{"<name1>","<name2>"}}
  * @param file_paths_string input/output path
- * @return pair of filename and vector of tensor_names
+ * @return pair of filename and vector of layers names
  */
-std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string file_paths_string) {
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string& file_paths_string) {
     auto search_string = file_paths_string;
     char comma_delim = ',';
     char equal_delim = '=';
     std::string filename = "";
-    std::vector<std::string> tensor_names;
+    std::vector<std::string> layers_names;
     std::vector<std::string> filenames;
     if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
         !std::count(search_string.begin(), search_string.end(), equal_delim)) {
-        return {search_string, tensor_names};
+        return {search_string, layers_names};
     }
     search_string += comma_delim;
     std::vector<std::string> splitted = split(search_string, comma_delim);
     for (size_t j = 0; j < splitted.size(); j++) {
-        auto semicolon_pos = splitted[j].find_first_of(equal_delim);
-        if (semicolon_pos != std::string::npos) {
-            tensor_names.push_back(splitted[j].substr(0, semicolon_pos));
-            filenames.push_back(splitted[j].substr(semicolon_pos + 1, std::string::npos));
+        auto equal_delim_pos = splitted[j].find_first_of(equal_delim);
+        if (equal_delim_pos != std::string::npos) {
+            layers_names.push_back(splitted[j].substr(0, equal_delim_pos));
+            filenames.push_back(splitted[j].substr(equal_delim_pos + 1, std::string::npos));
         }
     }
     for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
@@ -566,5 +567,5 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
         if (name != filenames.end() - 1)
             filename += comma_delim;
     }
-    return {filename, tensor_names};
+    return {filename, layers_names};
 }
