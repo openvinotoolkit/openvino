@@ -15,8 +15,8 @@
 @endsphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of supported operations is different for
-each of the supported frameworks. To see the operations supported by your framework, refer to the
+TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for
+each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
@@ -51,7 +51,7 @@ Mapping of custom operation is implemented differently, depending on model forma
 
 2. If a model is represented in the TensorFlow, Caffe, Kaldi or MXNet formats, then [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) should be used. This approach is available for model conversion in Model Optimizer only.
 
-The simultaneous use of two approaches is explained by the two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and MXNet). Model Optimizer can use both frontends in contrast to the direct import of a model with the `read_model` method, which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
 If you are implementing extensions for new ONNX or PaddlePaddle frontends and plan to use the `--extensions` option in Model Optimizer for model conversion, then the extensions should be:
 
