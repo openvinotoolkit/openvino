@@ -10,7 +10,6 @@ from unit_tests.utils.graph import build_graph
 
 
 nodes = {
-
     'input': {'kind': 'op', 'op': 'Const'},
     'input_data': {'kind': 'data'},
 
@@ -35,7 +34,6 @@ edges = [
 ]
 
 nodes_expected = {
-
     'input': {'kind': 'op', 'op': 'Const'},
     'input_data': {'kind': 'data'},
 
