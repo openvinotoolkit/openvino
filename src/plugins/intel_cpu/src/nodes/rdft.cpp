@@ -1365,17 +1365,15 @@ struct RDFTJitExecutor : public RDFTExecutor {
         }
 
         bool use_fft = can_use_fft(num_samples);
-        bool parallelize_outer_axes = num_samples < 4 * dft_simd_size(vlen);
+        bool parallelize_outer_axes = num_samples <= 4 * dft_simd_size(vlen);
 
         size_t total_work_size = std::accumulate(iteration_range.begin(),
                                                  iteration_range.end(),
                                                  1, std::multiplies<size_t>()) / iteration_range[axis];
 
         auto dft_iteration = [&] (size_t i) {
-            static thread_local std::vector<size_t> coords(iteration_range.size(), 0);
-            static thread_local std::vector<float> gather_scatter_buffer(gather_size + scatter_size);
-            if (gather_scatter_buffer.size() < gather_size + scatter_size)
-                gather_scatter_buffer.resize(gather_size * scatter_size);
+            std::vector<size_t> coords(iteration_range.size(), 0);
+            std::vector<float> gather_scatter_buffer(gather_size + scatter_size);
             float* gather_buffer = &gather_scatter_buffer[0];
             float* scatter_buffer = &gather_scatter_buffer[gather_size];
             coords_from_index(i, coords, iteration_range, axis);
