@@ -441,6 +441,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         if (reorder) {
             auto& reorder_node = p.get_or_create(reorder);
+            // std::cout << __func__ << "" << node->id() << "(" << ") --> " << next->id() << "(" << "): " << reorder_node.id() << " ## " << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),
                                *travel_direction_wrapper<dir>::first(node, next),
