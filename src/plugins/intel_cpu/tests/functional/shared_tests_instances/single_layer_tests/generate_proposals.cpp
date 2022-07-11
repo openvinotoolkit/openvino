@@ -5,6 +5,7 @@
 #include <vector>
 #include "single_layer_tests/generate_proposals.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "benchmark.hpp"
 
 using namespace ov::test;
 using namespace ov::test::subgraph;
@@ -232,4 +233,27 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::element::Type_t::i32),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GenerateProposalsLayerTest::getTestCaseName);
+
+struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GenerateProposalsLayerTest> {};
+
+TEST_P(GenerateProposalsBenchmarkTest, GenerateProposals_Benchmark) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run("GenerateProposals", std::chrono::milliseconds(2000), 10);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_GenerateProposalsBenchmarkTest,
+    GenerateProposalsBenchmarkTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(dynamicInputShape),
+        ::testing::ValuesIn(min_size),
+        ::testing::ValuesIn(nms_threshold),
+        ::testing::ValuesIn(post_nms_count),
+        ::testing::ValuesIn(pre_nms_count),
+        ::testing::ValuesIn(inputTensors),
+        ::testing::Values(ov::element::Type_t::f32),
+        ::testing::Values(ov::element::Type_t::i32),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    GenerateProposalsBenchmarkTest::getTestCaseName);
+
 } // namespace
