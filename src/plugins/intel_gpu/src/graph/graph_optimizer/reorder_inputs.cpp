@@ -369,28 +369,15 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
     }
 }
 
-static format get_required_input0(const program_node *node) {
-    if (!node->is_type<convolution>())
-        return format::any;
-
-    auto &conv = node->as<convolution>();
-    return conv.get_required_input0();
-}
-
-static format get_required_output(const program_node *node) {
-    if (!node->is_type<convolution>())
-        return format::any;
-
-    auto &conv = node->as<convolution>();
-    return conv.get_required_input0();
-}
-
 static format get_target_output_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_output
-    auto ret = get_required_output(node);
-    if (ret != format::any)
-        return ret;
-    
+    if (node->is_type<convolution>()) {
+        auto &conv = node->as<convolution>();
+        auto ret = conv.get_required_output();
+        if (ret != format::any)
+            return ret;
+    }
+
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
         return fmt_map.at(node);
@@ -401,17 +388,19 @@ static format get_target_output_format(const std::map<program_node*, format::typ
 
 static format get_target_input0_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_input
-    auto ret = get_required_input0(node);
-    if (ret != format::any)
-        return ret;
-    
+    if (node->is_type<convolution>()) {
+        auto &conv = node->as<convolution>();
+        auto ret = conv.get_required_input0();
+        if (ret != format::any)
+            return ret;
+    }
+
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
         return fmt_map.at(node);
 
     // 3. Use output_layout
     return node->get_output_layout().format;
-    
 }
 
 // If there is layout mismatch between two layers, add reorder
