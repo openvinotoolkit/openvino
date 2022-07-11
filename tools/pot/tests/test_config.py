@@ -93,7 +93,9 @@ def test_configurations_by_preset(preset):
         'preset': preset,
         'target_device': 'CPU'
     })
+    hw_config_path = HARDWARE_CONFIG_PATH.joinpath('cpu.json').as_posix()
+    hw_config = HardwareConfig.from_json(hw_config_path)
     correct_configuration = _load_config('correct_configuration.json')
-    res = get_configurations_by_preset(config, None, correct_configuration)
+    res = get_configurations_by_preset(config, None, correct_configuration, hw_config)
     ref_configuration = _load_config('ref_configuration.json')
     assert res == ref_configuration[preset]

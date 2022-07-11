@@ -85,6 +85,7 @@
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -483,6 +484,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
     pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     pass_config->disable<ngraph::pass::ConvertROIAlign9To3>();
+    pass_config->disable<ngraph::pass::SoftSignDecomposition>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
