@@ -47,10 +47,6 @@ const std::vector<ov::AnyMap> auto_Multi_compiled_empty_properties = {
         {}
 };
 
-const std::vector<ov::AnyMap> auto_Multi_compiled_Incorrect_properties = {
-        {}
-};
-
 const std::vector<ov::AnyMap> multi_plugin_Incorrect_properties = {
         {ov::device::priorities("NONE")}
 };

@@ -76,8 +76,17 @@ namespace {
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
-std::set<std::string> MultiDeviceInferencePlugin::_availableDevices =
-    std::set<std::string>{"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
+std::vector<std::string> MultiDeviceInferencePlugin::_availableDevices{"CPU",
+                                                                       "GPU",
+                                                                       "GNA",
+                                                                       "TEMPLATE",
+                                                                       "MYRAID",
+                                                                       "HDDL",
+                                                                       "VPUX",
+                                                                       "MULTI",
+                                                                       "HETERO",
+                                                                       "CUDA",
+                                                                       "HPU_GOYA"};
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
@@ -777,11 +786,13 @@ std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(std
         if (deviceName.empty())
             return false;
         auto realDevName = deviceName[0] != '-' ? deviceName : deviceName.substr(1);
-        std::cout << "Real Device name: " << realDevName << std::endl;
         if (realDevName.empty()) {
             return false;
         }
-        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+        if (_availableDevices.end() ==
+            std::find_if(_availableDevices.begin(), _availableDevices.end(), [&realDevName] (const std::string& device) {
+                return device.find(realDevName) != std::string::npos;
+            })) {
             return false;
         }
         return true;
@@ -874,7 +885,9 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                 context->_performanceHint = kvp.second;
             }
         } else if (_availableDevices.end() !=
-                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+            std::find_if(_availableDevices.begin(), _availableDevices.end(), [&kvp] (const std::string& device) {
+                return device.find(kvp.first) != std::string::npos;
+            })) {
             // keep secondary prperties for HW or virtual device
             continue;
         } else if (supported_configKeys.end() ==

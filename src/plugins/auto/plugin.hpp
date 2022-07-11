@@ -77,7 +77,7 @@ private:
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
     std::string _LogTag;
-    static std::set<std::string> _availableDevices;
+    static std::vector<std::string> _availableDevices;
 };
 
 }  // namespace MultiDevicePlugin
