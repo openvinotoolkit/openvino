@@ -141,15 +141,15 @@ def test_rdft_1d():
 
 def test_irdft_1d():
     runtime = get_runtime()
-    n = 50
-    shape = [n // 2 + 1, 2]
+    signal_size = 50
+    shape = [signal_size // 2 + 1, 2]
     data = np.random.uniform(0, 1, shape).astype(np.float32)
     param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
     input_axes = ov.constant(np.array([0], dtype=np.int64))
-    node = ov.irdft(param, input_axes, ov.constant(np.array([n], dtype=np.int64)))
+    node = ov.irdft(param, input_axes, ov.constant(np.array([signal_size], dtype=np.int64)))
     computation = runtime.computation(node, param)
     actual = computation(data)
-    expected_results = np.fft.irfft(data[:, 0] + 1j * data[:, 1], n)
+    expected_results = np.fft.irfft(data[:, 0] + 1j * data[:, 1], signal_size)
     np.testing.assert_allclose(expected_results, actual[0], atol=0.0001)
 
 
@@ -180,5 +180,5 @@ def test_irdft_2d():
     node = ov.irdft(param, input_axes, signal_size_node)
     computation = runtime.computation(node, param)
     actual = computation(data)
-    expected_results = np.fft.irfftn(data[:,:,0] + 1j * data[:,:,1], signal_size, axes=axes)
+    expected_results = np.fft.irfftn(data[:, :, 0] + 1j * data[:, :, 1], signal_size, axes=axes)
     np.testing.assert_allclose(expected_results, actual[0], atol=0.0001)
