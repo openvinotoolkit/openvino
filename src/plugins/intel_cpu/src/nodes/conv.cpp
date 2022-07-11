@@ -279,6 +279,8 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+
+    shouldTryBrgconvAVX512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -312,9 +314,10 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
 }
 
 const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
-    if (!cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV))
+    if (!shouldTryBrgconvAVX512)
         return Node::getPrimitivesPriority();
 
+    // this list we add brgconv_avx512/brgconv_avx512_1x1
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::brgconv_avx512_amx_1x1,
@@ -369,6 +372,14 @@ void Convolution::getSupportedDescriptors() {
                  dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
                  getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
+
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
+                if (desc_type & impl_desc_type::brgconv_avx512) {
+                    shouldTryBrgconvAVX512 = true;
+                }
+            });
+        }
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -518,7 +529,7 @@ void Convolution::getSupportedDescriptors() {
 
             bool acceptedFormat = inputDataType == memory::data_type::bf16;
             bool nspcAdded = false;
-            acceptedFormat |= cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) && inputDataType == memory::data_type::f32;
+            acceptedFormat |= shouldTryBrgconvAVX512 && inputDataType == memory::data_type::f32;
             if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -696,9 +707,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
+    auto attrsNum = shouldTryBrgconvAVX512 ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
+    if (shouldTryBrgconvAVX512) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 
@@ -923,9 +934,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
+    auto attrsNum = shouldTryBrgconvAVX512 ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
+    if (shouldTryBrgconvAVX512) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 
