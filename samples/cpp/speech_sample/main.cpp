@@ -322,7 +322,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = input_data.second;
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       " ) is not equal to the number of inputs entered in the -i argument ( " +
                                        std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }
