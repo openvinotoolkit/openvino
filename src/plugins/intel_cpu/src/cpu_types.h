@@ -79,6 +79,7 @@ enum class Type {
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
