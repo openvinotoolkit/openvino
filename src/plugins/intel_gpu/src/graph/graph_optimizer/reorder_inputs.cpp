@@ -443,6 +443,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
         if (node->is_type<convolution>() && use_onednn_impls)
             needs_split_reorder = lo.needs_onednn_small_ic_to_blocked(out_layout.format, in_layout, node->as<convolution>());
+        // XXX: find the pattern and simplify
 
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,

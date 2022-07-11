@@ -216,6 +216,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    // XXX: to be fixed
     // keep reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
     if (use_onednn_impls && next.is_type<convolution>()) {
         auto reorder_layout = next.get_dependency(0).get_output_layout();
@@ -265,6 +266,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     // Additional check: fmt_prev == fmt_next is added only when onednn is enabled.
+    // XXX: to be fixed
     if (next.is_type<convolution>() &&
         (!use_onednn_impls || fmt_prev == fmt_next) &&
         (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
@@ -1051,6 +1053,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         expected_format = node.get_required_output();
     } else {
         /* *************************** Native impls format selection part ************************** */
+        // XXX: to be removed. it can be handled directly from reorder_inputs
         if (use_onednn_impls && i8_u8_input) {
             // It is here because of post operation condition for onednn.
             // Use fsv32 for onednn friendliness.
@@ -1636,21 +1639,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             } else if (node.get_output_layout().format.dimension() == 4) {
                 expected = format::bfyx;
             }
-        // } else if (use_onednn_impls && needs_all_usr_onednn_small_ic_to_blocked(node)) {
-        //     // All user nodes are convolutions which satisfy options for onednn first conv
-        //     if (layout.data_type == data_types::f16) {
-        //         if (layout.format.spatial_num() == 3) {
-        //             expected = (layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
-        //         } else {
-        //             expected = (layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
-        //         }
-        //     } else if (data_type_traits::is_i8_u8(layout.data_type)) {
-        //         if (layout.format.spatial_num() == 3) {
-        //             expected = (layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
-        //         } else {
-        //             expected = (layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
-        //         }
-        //     }
             // TODO: check other types for first conv
         } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
