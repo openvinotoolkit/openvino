@@ -3,66 +3,11 @@
 
 import unittest
 import numpy as np
-import networkx as nx
-import matplotlib.pyplot as plt
 
 from openvino.tools.mo.middle.GatherNDDecomposition import GatherNDDecomposition
-from generator import generator, generate
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
-    valued_const_with_data, valued_data, const
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from unit_tests.utils.graph import build_graph
 
-""" original_data_shape = np.array([2, 1])
-original_indices = np.array([[1, 0], [0, 0]])
-batch_dims = np.array(0)
-axis = np.array(0)
-
-expected_reshape_shape = np.array([-1])
-#expected_reshape_shape = np.array([2, 1])
-expected_new_indices = np.array([1, 0]) """
-
-""" nodes_ref = {
-    # inputs
-    **regular_op_with_shaped_data('data', original_data_shape,
-                                  {'type': 'Parameter',
-                                   'op': 'Parameter',
-                                   'shape': original_data_shape,
-                                   'data_type': np.int64}),
-
-    # constants
-    # **const('indices', original_indices, original_indices.shape),
-    **valued_const_with_data('indices', original_indices),
-
-    # operators
-    **regular_op_with_shaped_data('gathernd', original_data_shape, {'type': 'GatherND', 'op': 'GatherND', 'batch_dims': 0}),
-
-    # result node
-    **result('result'),
-}
-
-nodes_expected = {
-    # inputs
-    **regular_op_with_shaped_data('data', original_data_shape,
-                                  {'type': 'Parameter',
-                                   'op': 'Parameter',
-                                   'shape': original_data_shape,
-                                   'data_type': np.int64}),
-
-    # expected
-    **valued_const_with_data('indices', expected_new_indices),
-    **valued_const_with_data('reshape_shape', expected_reshape_shape),
-    **valued_const_with_data('axis', axis),
-    # **const('indices', expected_new_indices, expected_new_indices.shape),
-    # **const('reshape_shape', expected_reshape_shape, expected_reshape_shape.shape),
-
-    # operators
-    **regular_op_with_shaped_data('reshape', original_data_shape, {'type': 'Reshape', 'op': 'Reshape'}),
-    **regular_op_with_shaped_data('gather', expected_reshape_shape, {'type': 'Gather', 'op': 'Gather'}),
-
-    # result node
-    **result('result'),
-} """
 
 nodes = {
 
@@ -73,7 +18,7 @@ nodes = {
     'indices_input_data': {'kind': 'data'},
 
     'gathernd': {'kind': 'op', 'op': 'GatherND'},
-    'gathernd_data': {'kind': 'data', 'shape': None, 'value': None},
+    'gathernd_data': {'kind': 'data'},
 
     'result': {'kind': 'op', 'op': 'Result'},
 }
@@ -135,23 +80,7 @@ edges_expected = [
 
 class GatherNDDecompositionTest(unittest.TestCase):
 
-    def GatherNDDecomposition_2by2indices_validinputs(self):
-        """ graph = build_graph(nodes_ref, [
-            *connect('data', '0:gathernd'),
-            *connect('indices', '1:gathernd'),
-            *connect('gathernd', 'result'),
-        ],
-            nodes_with_edges_only=True)
-
-        graph_ref = build_graph(nodes_expected, [
-            *connect('data', '0:reshape'),
-            *connect('reshape_shape', '1:reshape'),
-            *connect('reshape', '0:gather'),
-            *connect('indices', '1:gather'),
-            *connect('axis', '2:gather'),
-            *connect('gather', 'result'),
-        ],
-            nodes_with_edges_only=True) """
+    def test_GatherNDDecomposition_2by2indices_validinputs(self):
 
         graph = build_graph(nodes,
                             edges,
@@ -161,39 +90,35 @@ class GatherNDDecompositionTest(unittest.TestCase):
                                 'gathernd': {'batch_dims': 0}
                             },
                             nodes_with_edges_only=True)
-
         graph_ref = build_graph(nodes_expected,
                                 edges_expected,
                                 update_attributes={
                                     'input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 2]).reshape([2, 1])},
                                     'indices': {'shape': np.array([2]), 'value': np.array([1, 0])},
                                     'reshape_shape': {'shape': np.array([1]), 'value': np.array([-1])},
-                                    'axis': {'shape': np.array([]), 'value': 0},
+                                    'axis': {'shape': np.array([]), 'value': 0}
                                 },
                                 nodes_with_edges_only=True)
 
-        nx.draw_networkx(graph_ref, font_size=3)
-        plt.savefig('ref.svg')
-        plt.clf()
+        GatherNDDecomposition().find_and_replace_pattern(graph)
 
-        nx.draw_networkx(graph, font_size=3)
-        plt.savefig('exp.svg')
-        plt.clf()
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
-        for node in graph.node:
-            print(f'\nNode: {node}')
+    def test_GatherNDDecomposition_2by2indices_invalidinputs(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                'indices_input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 0, 0, 0]).reshape([2, 2])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
 
         GatherNDDecomposition().find_and_replace_pattern(graph)
-        #import pudb
-        # pu.db
-        # graph.clean_up()
-
-        nx.draw_networkx(graph, font_size=3)
-        plt.savefig('after.svg')
-        plt.clf()
-
-        for node in graph.node:
-            print(f'\nNode: {node}')
 
         (flag, resp) = compare_graphs(
             graph, graph_ref, 'result', check_op_attrs=True)
@@ -204,21 +129,266 @@ class GatherNDDecompositionTest(unittest.TestCase):
         graph = build_graph(nodes,
                             edges,
                             update_attributes={
-                                'input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
                                 'indices_input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 0]).reshape([2, 1])},
                                 'gathernd': {'batch_dims': 0}
                             },
                             nodes_with_edges_only=True)
-
         graph_ref = build_graph(nodes_expected,
                                 edges_expected,
                                 update_attributes={
-                                    'input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                    'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
                                     'indices': {'shape': np.array([2]), 'value': np.array([1, 0])},
-                                    'reshape_shape': {'shape': np.array([2]), 'value': np.array([-1, 1])},
-                                    'axis': {'shape': np.array([]), 'value': 0},
+                                    'reshape_shape': {'shape': np.array([2]), 'value': np.array([-1, 2])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
                                 },
                                 nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_2by0indices_invalidinputs(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([1, 2]), 'value': np.array([1, 2]).reshape([1, 2])},
+                                'indices_input_data': {'shape': np.array([2]), 'value': np.array([1, 0])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_2by0indices_validinputs(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 2])},
+                                'indices_input_data': {'shape': np.array([2]), 'value': np.array([1, 0])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 2])},
+                                    'indices': {'shape': np.array([]), 'value': np.array([1])},
+                                    'reshape_shape': {'shape': np.array([1]), 'value': np.array([-1])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_1leadingdim(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                'indices_input_data': {'shape': np.array([2, 1, 1]), 'value': np.array([1, 0]).reshape([2, 1, 1])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                    'indices': {'shape': np.array([2, 1]), 'value': np.array([1, 0]).reshape([2, 1])},
+                                    'reshape_shape': {'shape': np.array([2]), 'value': np.array([-1, 2])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_3leadingdims(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                'indices_input_data': {'shape': np.array([2, 1, 1, 1, 1]), 'value': np.array([1, 0]).reshape([2, 1, 1, 1, 1])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                    'indices': {'shape': np.array([2, 1, 1, 1]), 'value': np.array([1, 0]).reshape([2, 1, 1, 1])},
+                                    'reshape_shape': {'shape': np.array([2]), 'value': np.array([-1, 2])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_nonzerobatchdim(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 2]), 'value': np.array([1, 2, 3, 4]).reshape([2, 2])},
+                                'indices_input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 0]).reshape([2, 1])},
+                                'gathernd': {'batch_dims': 1}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_complexexample1_nonzerobatchdim(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 3, 4]), 'value': np.array([i for i in range(24)]).reshape([2, 3, 4])},
+                                'indices_input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 0]).reshape([2, 1])},
+                                'gathernd': {'batch_dims': 1}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_complexexample2(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([2, 3, 4]), 'value': np.array([i for i in range(24)]).reshape([2, 3, 4])},
+                                'indices_input_data': {'shape': np.array([2, 1]), 'value': np.array([1, 0]).reshape([2, 1])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([2, 3, 4]), 'value': np.array([i for i in range(24)]).reshape([2, 3, 4])},
+                                    'indices': {'shape': np.array([2]), 'value': np.array([1, 0]).reshape([2])},
+                                    'reshape_shape': {'shape': np.array([3]), 'value': np.array([-1, 3, 4])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_complexexample3(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([1, 1, 5]), 'value': np.array([1, 2, 3, 4, 5]).reshape([1, 1, 5])},
+                                'indices_input_data': {'shape': np.array([2, 2, 3]), 'value': np.array([0, 0, 3, 0, 0, 1, 0, 0, 4, 0, 0, 2]).reshape([2, 2, 3])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([1, 1, 5]), 'value': np.array([1, 2, 3, 4, 5]).reshape([1, 1, 5])},
+                                    'indices': {'shape': np.array([2, 2]), 'value': np.array([3, 1, 4, 2]).reshape([2, 2])},
+                                    'reshape_shape': {'shape': np.array([1]), 'value': np.array([-1])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_complexexample4(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([1, 4, 1]), 'value': np.array([1, 2, 3, 4]).reshape([1, 4, 1])},
+                                'indices_input_data': {'shape': np.array([2, 2, 2]), 'value': np.array([0, 1, 0, 3, 0, 2, 0, 0]).reshape([2, 2, 2])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_expected,
+                                edges_expected,
+                                update_attributes={
+                                    'input_data': {'shape': np.array([1, 4, 1]), 'value': np.array([1, 2, 3, 4]).reshape([1, 4, 1])},
+                                    'indices': {'shape': np.array([2, 2]), 'value': np.array([1, 3, 2, 0]).reshape([2, 2])},
+                                    'reshape_shape': {'shape': np.array([2]), 'value': np.array([-1, 1])},
+                                    'axis': {'shape': np.array([]), 'value': 0}
+                                },
+                                nodes_with_edges_only=True)
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_dynamic_data_shape(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([1, -1, 1]), 'value': np.array([1, 2, 3, 4]).reshape([1, 4, 1])},
+                                'indices_input_data': {'shape': np.array([2, 2, 2]), 'value': np.array([0, 1, 0, 3, 0, 2, 0, 0]).reshape([2, 2, 2])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
+
+        GatherNDDecomposition().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(
+            graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_GatherNDDecomposition_dynamic_indices_shape(self):
+
+        graph = build_graph(nodes,
+                            edges,
+                            update_attributes={
+                                'input_data': {'shape': np.array([1, 4, 1]), 'value': np.array([1, 2, 3, 4]).reshape([1, 4, 1])},
+                                'indices_input_data': {'shape': np.array([2, -1, 2]), 'value': np.array([0, 1, 0, 3, 0, 2, 0, 0]).reshape([2, 2, 2])},
+                                'gathernd': {'batch_dims': 0}
+                            },
+                            nodes_with_edges_only=True)
+        graph_ref = graph
 
         GatherNDDecomposition().find_and_replace_pattern(graph)
 

@@ -47,7 +47,7 @@ class GatherNDDecomposition(MiddleReplacementPattern):
         n_dims = indices.shape[-1]
         non_zero = None
         for i in range(n_dims):
-            if not all(np.take(indices, indices=[i], axis=-1) == 0):
+            if not np.all(np.take(indices, indices=[i], axis=-1) == 0):
                 if non_zero is None:
                     non_zero = i
                 else:
@@ -58,7 +58,6 @@ class GatherNDDecomposition(MiddleReplacementPattern):
         return non_zero
 
     def replace_pattern(self, graph: Graph, match: dict):
-        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 00000000000\n')
         gather = match['GatherND']
         gather_name = gather.soft_get('name', gather.id)
         input_shape = gather.in_node(0).shape
@@ -67,8 +66,6 @@ class GatherNDDecomposition(MiddleReplacementPattern):
             # We can't do such special pass without indices value
             return
 
-        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 11111111111111\n')
-
         # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
@@ -76,21 +73,15 @@ class GatherNDDecomposition(MiddleReplacementPattern):
                 'Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
-        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 222222222222222\n')
-
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
-        print(f'\n\nRESHAPE_SHAPE = {new_shape}\n\n')
         reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
                                                    {'name': gather_name + '/Reshape_for_GatherND/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
 
         # 2. Eliminate last dim (n_dims values) from indices shape:
-        # new_indices = np.reshape(
-        #    np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1])
-
         new_indices = np.reshape(
-            np.take(indices, indices=[gather_idx], axis=-1), [-1])
+            np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1])
 
         rename_node(gather, gather_name + '/to_delete')
 
