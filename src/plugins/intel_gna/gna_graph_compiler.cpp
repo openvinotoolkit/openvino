@@ -1885,18 +1885,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     auto orientation = kDnnInterleavedOrientation;
 
-    if (inputs->getDims().size() == 4) {
-        uint32_t w_dim_in = GetDataDimSize(inputs, 1);
-        uint32_t h_dim_in = GetDataDimSize(inputs, 2);
-        uint32_t c_dim_in = GetDataDimSize(inputs, 3);
-        uint32_t b_dim_in = GetDataDimSize(inputs, 4);
-
-        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in * b_dim_in : w_dim_in * c_dim_in * b_dim_in;
-        num_rows = (w_dim_in == 1) ? w_dim_in : h_dim_in;
-    } else {
-        num_columns = GetDataDimSize(inputs, 2);
-        num_rows = GetDataDimSize(inputs, 1);
-    }
+    uint32_t w_dim_in = GetDataDimSize(inputs, DataDimName::W);
+    uint32_t h_dim_in = GetDataDimSize(inputs, DataDimName::H);
+    uint32_t c_dim_in = GetDataDimSize(inputs, DataDimName::C);
+    uint32_t n_dim_in = GetDataDimSize(inputs, DataDimName::N);
+    num_columns = n_dim_in;
+    num_rows = w_dim_in * h_dim_in * c_dim_in;
 
     if (dnn->new_num_conv_columns) {
         if (dnn->new_num_conv_columns % num_columns == 0) {

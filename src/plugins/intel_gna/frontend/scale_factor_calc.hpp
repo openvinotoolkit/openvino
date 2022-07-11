@@ -1019,7 +1019,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
             return true;
         }
 
-        // check if all inputs have the same quant value
+        // verify if all "Input"-type inputs have the same quant value
         auto inputLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto info = LayerInfo(inputLayer);
             return info.isInput();
