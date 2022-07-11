@@ -13,7 +13,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.reshape import Reshape
 
 
-class GatherNDNormalize(MiddleReplacementPattern):
+class GatherNDDecomposition(MiddleReplacementPattern):
     """
     Hot fix for new speech-to-text model enabling while GatherND is not implemented in IE.
     We can replace GatherND to Reshape + Gather in case when GatherND indices have just one
@@ -58,6 +58,7 @@ class GatherNDNormalize(MiddleReplacementPattern):
         return non_zero
 
     def replace_pattern(self, graph: Graph, match: dict):
+        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 00000000000\n')
         gather = match['GatherND']
         gather_name = gather.soft_get('name', gather.id)
         input_shape = gather.in_node(0).shape
@@ -66,20 +67,30 @@ class GatherNDNormalize(MiddleReplacementPattern):
             # We can't do such special pass without indices value
             return
 
+        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 11111111111111\n')
+
         # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
+            log.warning(
+                'Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
+
+        print('\nDUUUUUUUUUUUUPAAAAAAAAAAAA 222222222222222\n')
 
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
+        print(f'\n\nRESHAPE_SHAPE = {new_shape}\n\n')
         reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
                                                    {'name': gather_name + '/Reshape_for_GatherND/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
 
-        # 2. Change indices from Nd to 1d:
-        new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])
+        # 2. Eliminate last dim (n_dims values) from indices shape:
+        # new_indices = np.reshape(
+        #    np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1])
+
+        new_indices = np.reshape(
+            np.take(indices, indices=[gather_idx], axis=-1), [-1])
 
         rename_node(gather, gather_name + '/to_delete')
 
