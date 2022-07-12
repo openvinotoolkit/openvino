@@ -1,6 +1,6 @@
-# Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
+# Hello Reshape SSD Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
+This sample demonstrates how to do synchronous inference of object detection models using the [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -9,7 +9,7 @@ The following Python API is used in the application:
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :---------------- |
 | Model Operations | [openvino.runtime.Model.reshape], [openvino.runtime.Model.input], [openvino.runtime.Output.get_any_name], [openvino.runtime.PartialShape] | Managing of model |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is described in [Hello Classification Python Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                   |
 | :------------------------- | :----------------------------------------------------------------------- |
@@ -21,29 +21,30 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data.  
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to OpenVINO Runtime plugin, performs synchronous inference, and processes output data.  
 As a result, the program creates an output image, logging each step in a standard output stream.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Running
+
+Before running the sample, specify a model and an image:
+
+- Use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data](https://storage.openvinotoolkit.org/data/test_data).
+
+To run the sample, use the following script:
 
 ```
 python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
-
 > **NOTES**:
+> - By default, samples and demos in OpenVINO Toolkit expect input with the `BGR` channel order. If you trained your model to work with `RGB` order, you need to manually rearrange the default channel order in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
 
@@ -58,13 +59,13 @@ python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 omz_downloader --name ssdlite_mobilenet_v2
 ```
 
-3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 omz_converter --name ssdlite_mobilenet_v2
 ```
 
-4. Perform inference of `banana.jpg` using `ssdlite_mobilenet_v2` model on a `GPU`, for example:
+4. Do inference of the `banana.jpg` image, using the `ssdlite_mobilenet_v2` model on `GPU`, for example:
 
 ```
 python hello_reshape_ssd.py ssdlite_mobilenet_v2.xml banana.jpg GPU
@@ -85,12 +86,13 @@ The sample application logs each step in a standard output stream and creates an
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
-## See Also
+## Additional Resources
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data](https://storage.openvinotoolkit.org/data/test_data).
 
 <!-- [openvino.runtime.Model.reshape]:
 [openvino.runtime.Model.input]:

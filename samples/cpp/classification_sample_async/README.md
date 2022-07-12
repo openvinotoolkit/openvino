@@ -14,35 +14,39 @@ The following C++ API is used in the application:
 | Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get an input tensor. |
 | Tensor Operations | `ov::shape_size`, `ov::Tensor::data` | Get a tensor shape size and its data. |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++](../hello_classification/README.md).
 
 | Options | Values |
 | :--- | :--- |
 | Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
-| Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
+| Model Format | OpenVINO Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [Python](../../../samples/python/classification_sample_async/README.md) |
 
 ## How It Works
 
-At startup, the sample application reads command line parameters and loads the specified model and input images (or a
-folder with images) to the OpenVINO™ Runtime plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
+At startup, the sample application reads command-line parameters and loads the specified model and input images (or a
+folder with images) to the OpenVINO Runtime plugin. The batch size of the model is set according to the number of read images. The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
-Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback
+Next, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback,
 handling the inference request is executed again.
 
-After that, the application starts inference for the first infer request and waits of 10th inference request execution being completed. The asynchronous mode might increase the throughput of the pictures.
+After that, the application starts inference for the first infer request and waits until the 10th inference request execution is completed. The asynchronous mode might increase the throughput of the pictures.
 
-When inference is done, the application outputs data to the standard output stream. You can place labels in .labels file near the model to get pretty output.
+When inference is done, the application outputs data to the standard output stream. Labels may placed in the `.labels` file near the model to get pretty output.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
+To build the sample, use the instructions available in the **Build the Sample Applications** section in [OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md).
 
 ## Running
+
+Before running the sample, specify a model and an image:
+
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded by using [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data](https://storage.openvinotoolkit.org/data/test_data).
 
 Run the application with the `-h` option to see the usage instructions:
 
@@ -67,18 +71,12 @@ Options:
 Available target devices: <devices>
 ```
 
-To run the sample, you need specify a model and image:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
-
 > **NOTES**:
+> - By default, samples and demos in OpenVINO Toolkit expect input with the `BGR` channel order. If you trained your model to work with `RGB`, it is required to manually rearrange the default channel order in the sample or demo application, or reconvert your model, using Model Optimizer with the `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
 
@@ -88,19 +86,19 @@ To run the sample, you need specify a model and image:
 python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
-2. Download a pre-trained model using:
+2. Download a pre-trained model, using:
 
 ```
 omz_downloader --name googlenet-v1
 ```
 
-3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 omz_converter --name googlenet-v1
 ```
 
-4. Perform inference of `dog.bmp` using `googlenet-v1` model on a `GPU`, for example:
+4. Do inference of the `dog.bmp` image, using the `googlenet-v1` model on `GPU`, for example:
 
 ```
 classification_sample_async -m googlenet-v1.xml -i dog.bmp -d GPU
@@ -170,9 +168,10 @@ classid probability
 220     0.0010099
 ```
 
-## See Also
+## Additional Resources
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data](https://storage.openvinotoolkit.org/data/test_data)

@@ -4,28 +4,27 @@ This sample demonstrates how to execute an inference of image classification net
 
 ## How It Works
 
-Upon the start-up, the sample application reads command-line parameters, loads specified network and an
-image in the NV12 color format to an Inference Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the
+At startup, the sample application reads command-line parameters, loads specified network and an
+image in the `NV12` color format to OpenVINO Runtime. Then, the sample creates a synchronous inference request object. When inference is done, the
 application outputs data to the standard output stream.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, use the instructions available in the **Build the Sample Applications** section in [OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md).
 
 ## Running
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and an image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data](https://storage.openvinotoolkit.org/data/test_data).
 
-The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to
-convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such
-as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an
-uncompressed NV12 image using FFmpeg:
+The sample accepts an uncompressed image in the `NV12` color format. To run the sample, you need to
+convert your `BGR`/`RGB` image to `NV12`. To do this, you can use one of the widely available tools such
+as FFmpeg or GStreamer. The following command shows how to convert an ordinary image into an
+uncompressed `NV12` image, using FFmpeg:
 
 ```sh
 ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
@@ -33,32 +32,32 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 
 > **NOTES**:
 >
-> - Because the sample reads raw image files, you should provide a correct image size along with the
+> - Since the sample reads raw image files, you should provide a correct image size along with the
 >   image path. The sample expects the logical size of the image, not the buffer size. For example,
->   for 640x480 BGR/RGB image the corresponding NV12 logical image size is also 640x480, whereas the
+>   for 640x480 BGR/RGB image the corresponding `NV12` logical image size is also 640x480, whereas the
 >   buffer size is 640x720.
-> - By default, this sample expects that network input has BGR channels order. If you trained your
->   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
+> - By default, this sample expects that network input has the `BGR` channel order. If you trained your
+>   model to work with `RGB`, you need to reconvert your model, using Model Optimizer 
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>   [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
+> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO Intermediate Representation (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (\*.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
+1. Download a pre-trained model, using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name alexnet
 ```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+2. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 python <path_to_omz_tools>/converter.py --name alexnet
 ```
 
-3. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
+3. Do inference of `NV12` image, using the `alexnet` model on `CPU`, for example:
 
 ```
 <path_to_sample>/hello_nv12_input_classification_ov_c <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
@@ -86,5 +85,5 @@ classid probability
 335       0.021384
 186       0.017978
 
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+This sample is an API example. For any performance measurements, use the dedicated `benchmark_app` tool.
 ```

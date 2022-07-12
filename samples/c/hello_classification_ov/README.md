@@ -1,44 +1,44 @@
 # Hello Classification C Sample for OpenVINO 2.0 C-API
 
-This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
+This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet, using Synchronous Inference Request API and input auto-resize feature.
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters, loads specified network and an image to the OpenVINO plugin.
+At startup, the sample application reads command-line parameters, loads specified network and an image to the OpenVINO plugin.
 Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, use the instructions available in the **Build the Sample Applications** section in [OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md).
 
 ## Running
 
-To run the sample, you need specify a model and image:
+To run the sample, you need to specify a model and an image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from Open Model Zoo. The models can be downloaded using [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data](https://storage.openvinotoolkit.org/data/test_data).
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with the `BGR` channel order. If you trained your model to work with `RGB`, you need to manually rearrange the default channel order in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> - Before running the sample with a trained model, make sure the model is converted to the OpenVINO Intermediate Representation (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (\*.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
+1. Download a pre-trained model, using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name alexnet
 ```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+2. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
 
 ```
 python <path_to_omz_tools>/converter.py --name alexnet
 ```
 
-3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+3. Do inference of the `car.bmp` image, using the `alexnet` model on `GPU`, for example:
 
 ```
 <path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
@@ -66,5 +66,5 @@ classid probability
 569       0.008178
 717       0.006336
 
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+This sample is an API example, for any performance measurements, use the dedicated `benchmark_app` tool.
 ```
