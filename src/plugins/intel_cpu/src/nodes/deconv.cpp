@@ -393,7 +393,7 @@ void Deconvolution::getSupportedDescriptors() {
             outPrecision = InferenceEngine::Precision::FP32;
     }
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
+    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
     if (!fusedWith.empty()) {
@@ -463,6 +463,13 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
             continue;
         }
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
+            const Dim OC = dims[1];
+            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
+            if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
+                attr.set_output_scales(1 << 1, scale);
+                continue;
+            }
+
             fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), postOpsArgs);
             continue;
         }
@@ -728,7 +735,7 @@ void Deconvolution::createPrimitive() {
         dnnl::memory::desc dnnlBiasDesc;
         if (biasDesc != nullptr)
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({static_cast<dnnl_dim_t>(biasesDims[0])});
+            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({static_cast<dnnl::memory::dim>(biasesDims[0])});
         auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR);
         AttrPtr pAttr = makePrimitiveAttr(outDims);

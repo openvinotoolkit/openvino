@@ -200,7 +200,10 @@ private:
     size_t outputShiftSize;
 
     std::vector<float> fqScales;
-
+    std::vector<float> inputLowData;
+    std::vector<float> inputHighData;
+    std::vector<float> outputLowData;
+    std::vector<float> outputHighData;
 
     bool isPostOpDataInitialized = false;
     bool isLegacyPostOpDataInitialized = false;

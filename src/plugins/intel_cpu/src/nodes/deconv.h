@@ -104,6 +104,7 @@ private:
     AttrPtr pAttr;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
+    dnnl::memory::data_type outputDataType;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;

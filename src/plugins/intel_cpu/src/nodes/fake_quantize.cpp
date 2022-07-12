@@ -923,6 +923,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
+        DEBUG_LOG("=================================");
+        DEBUG_LOG(getName(), " get levels from NGRAPH ", levels, "\n");
         if (levels <= 1)
             IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
 
@@ -988,16 +990,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
         }
 
         const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
-        auto inputLowData = inputLowNode->cast_vector<float>();
+        inputLowData = inputLowNode->cast_vector<float>();
 
         const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
-        auto inputHighData = inputHighNode->cast_vector<float>();
+        inputHighData = inputHighNode->cast_vector<float>();
 
         const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
-        auto outputLowData = outputLowNode->cast_vector<float>();
+        outputLowData = outputLowNode->cast_vector<float>();
 
         const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
-        auto outputHighData = outputHighNode->cast_vector<float>();
+        outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
 
@@ -1047,6 +1049,11 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 }
             }
         } else {
+            if (levels != 256 && outputLowData[0] < 0) {
+                levels = 256;
+                outputLowData[0] = -128;
+                outputHighData[0] = 127;
+            }
             auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
                 if (size == 0)
                     return true;
