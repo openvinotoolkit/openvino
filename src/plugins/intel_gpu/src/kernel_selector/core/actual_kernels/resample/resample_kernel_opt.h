@@ -24,6 +24,7 @@ protected:
     Datatype GetUnitType(const base_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
                  FusedOpType::ELTWISE,
                  FusedOpType::ACTIVATION };
     }
