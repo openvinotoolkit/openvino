@@ -30,7 +30,6 @@
 #include <atomic>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 class RemoteAllocator;
 
@@ -583,5 +582,4 @@ inline ExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
