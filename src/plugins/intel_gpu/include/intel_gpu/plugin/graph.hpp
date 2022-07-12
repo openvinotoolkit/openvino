@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 
@@ -38,6 +39,7 @@ public:
         POSTPROC = 4
     };
     typedef std::shared_ptr<Graph> Ptr;
+    using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
     Graph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
@@ -55,6 +57,7 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     const InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_program->GetNetworkInputs(); }
     const InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_program->GetNetworkOutputs(); }
+    variable_states_map AllocateVariablesMemories();
     std::map<std::string, std::pair<int64_t, int64_t>> GetInputDynBatchDims() { return m_program->m_input_batch_dim; }
     std::map<std::string, int64_t> GetOutputDynBatchDims() { return m_program->m_output_batch_dim; }
     size_t GetNetworksCount() const { return m_networks.size(); }

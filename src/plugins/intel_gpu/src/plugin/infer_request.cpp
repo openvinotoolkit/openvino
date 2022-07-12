@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include <ie_algorithm.hpp>
@@ -532,6 +533,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
     } else {
         allocate_inputs();
         allocate_outputs();
+        variables_states_ = m_graph->AllocateVariablesMemories();
     }
 }
 
@@ -605,6 +607,7 @@ void InferRequest::SetBatch(int new_batch) {
 
         batchOutputs[no.first] = out_buf;
     }
+    variables_states_ = m_graph->AllocateVariablesMemories();
 
     m_curBatch = new_batch;
 }
@@ -744,6 +747,14 @@ void InferRequest::enqueue() {
         }
     }
 
+    cldnn::network::variables_states_map variables_states;
+    for (auto &variable_state_pair : variables_states_)
+        variables_states.insert({ variable_state_pair.first, variable_state_pair.second[0] });
+
+    auto networkPtr = m_graph->GetNetwork();
+
+    networkPtr->assign_variables_memories(std::move(variables_states));
+
     for (auto& item : _outputs) {
         std::string outputName = item.first;
         Blob::Ptr& outputBlob = item.second;
@@ -751,7 +762,7 @@ void InferRequest::enqueue() {
     }
 
     internal_outputs.clear();
-    internal_outputs = m_graph->GetNetwork()->execute(dependencies);
+    internal_outputs = networkPtr->execute(dependencies);
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -826,7 +837,16 @@ void InferRequest::enqueue_dynamic() {
                 inputLayout.size.batch[0] = mask;
                 copy_input_data(m_graph->GetNetwork(nb), inputName, inputLayout, *inputBlob, &batchInputs[inputName][nb]);
             }
-            internal_outputs_dynamic[nb] = m_graph->GetNetwork(nb)->execute();
+
+            cldnn::network::variables_states_map variables_states;
+            for (auto &variable_state_pair : variables_states_)
+                variables_states.insert({ variable_state_pair.first, variable_state_pair.second[nb] });
+
+            auto networkPtr = m_graph->GetNetwork(nb);
+
+            networkPtr->assign_variables_memories(std::move(variables_states));
+
+            internal_outputs_dynamic[nb] = networkPtr->execute();
         }
     }
 }
@@ -1246,6 +1266,14 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
         getBlobImpl(blobPtr.get())->allocate();
         return blobPtr;
     }
+}
+
+std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferRequest::QueryState() {
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
+    ret.reserve(variables_states_.size());
+    for (const auto& pair : variables_states_)
+        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->GetEngine(), m_curBatch));
+    return ret;
 }
 
 }  // namespace intel_gpu

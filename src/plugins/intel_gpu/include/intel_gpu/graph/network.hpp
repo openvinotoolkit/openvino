@@ -52,6 +52,18 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
+
+    struct VariableState {
+        using Ptr = std::shared_ptr<VariableState>;
+
+        cldnn::memory_ptr memory;
+        bool is_set;
+        VariableState(cldnn::memory_ptr mem = nullptr) :
+            memory { mem }, is_set { false } {
+        }
+    };
+    using variables_states_map = std::map<std::string, VariableState::Ptr>;
+
     explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
@@ -194,6 +206,12 @@ public:
         return *_memory_pool;
     }
 
+    /// Assigns memory state locations
+    void assign_variables_memories(variables_states_map &&variables_memories);
+
+    /// Returns memory state @p variable_id of stateful network
+    VariableState& get_variable_memory(const std::string &variable_id);
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -209,6 +227,8 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
+    variables_states_map _variables_states;
+    std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;

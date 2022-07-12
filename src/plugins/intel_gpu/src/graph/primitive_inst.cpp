@@ -120,7 +120,7 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
 void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
-    if (eng.is_the_same_buffer(*mem_new, *_output)) {
+    if (_output && eng.is_the_same_buffer(*mem_new, *_output)) {
         return;
     }
 

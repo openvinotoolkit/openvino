@@ -209,6 +209,8 @@ REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 REGISTER_FACTORY(v6, ExperimentalDetectronDetectionOutput);
+REGISTER_FACTORY(v6, Assign);
+REGISTER_FACTORY(v6, ReadValue);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, DFT);
