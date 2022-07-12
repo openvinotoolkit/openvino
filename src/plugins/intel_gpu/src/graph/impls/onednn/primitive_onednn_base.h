@@ -24,13 +24,32 @@
 
 #include <oneapi/dnnl/dnnl.hpp>
 
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
+#ifndef _WIN32
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        include <codecvt>
+#        include <locale>
+#    endif
+#else
+#    include <Windows.h>
+#endif
+
 namespace cldnn {
 namespace onednn {
 
 static std::mutex cacheAccessMutex;
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-std::wstring multiByteCharToWString(const char* str) {
+static std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
@@ -46,10 +65,10 @@ std::wstring multiByteCharToWString(const char* str) {
 #endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 
-static std::vector<uint8_t> load_cache_blob_from_disk(std::string path) {
+static std::vector<uint8_t> load_cached_binary(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
 
-    #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = multiByteCharToWString(path.c_str());
     const wchar_t* filename = widefilename.c_str();
     FILE *fp = _wfopen(filename, L"rb");
@@ -121,7 +140,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool is_cpu() const override { return false; }
 
 private:
-    std::string get_cache_outpath() const {
+    std::string get_cache_path() const {
         auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
         if (path.empty()) {
             return {};
@@ -134,7 +153,7 @@ private:
     }
 
     std::string get_cache_filepath(std::vector<uint8_t> key) const {
-        auto path = get_cache_outpath();
+        auto path = get_cache_path();
         if (path.empty()) {
             return {};
         }
@@ -145,14 +164,14 @@ private:
     }
 
     void build_primitive() {
-        auto cache_outpath = get_cache_outpath();
+        auto cache_outpath = get_cache_path();
         if (cache_outpath.empty()) {
             _prim = PrimType(_pd);
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
             assert(!key.empty());
 
-            std::vector<uint8_t> cache = load_cache_blob_from_disk(get_cache_filepath(key));
+            std::vector<uint8_t> cache = load_cached_binary(get_cache_filepath(key));
             if (cache.empty()) {
                 _prim = PrimType(_pd);
                 cache = _prim.get_cache_blob();
