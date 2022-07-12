@@ -113,28 +113,29 @@ TEST_P(resample_quantize, basic) {
     execute(p);
 }
 
+#define RESAMPLE_QUANTIZE_CNT 2, 3
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_10, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_9, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_QUANTIZE_CNT },
 
     // FQ can't be fused to FP16 primitive for now
-    // resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 3 },
-    // resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 3 },
+    // resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_QUANTIZE_CNT },
+    // resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_QUANTIZE_CNT },
 }));
 
 class resample_scale_activation_eltwise : public ResamplePrimitiveFusingTest {};
@@ -155,42 +156,43 @@ TEST_P(resample_scale_activation_eltwise, basic) {
     execute(p);
 }
 
+#define RESAMPLE_SCALE_ACTIVATION_ELTWISE 2, 5
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_activation_eltwise, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP32_10, 2, 5 },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_9, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_11, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_12, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_13, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_FP16_14, 2, 5 },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_10, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 
-    resample_test_params{ CASE_RESAMPLE_I8_1, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_I8_2, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_I8_3, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_I8_4, 2, 5 },
+    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_I8_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_I8_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 
-    resample_test_params{ CASE_RESAMPLE_U8_1, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_U8_2, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_U8_3, 2, 5 },
-    resample_test_params{ CASE_RESAMPLE_U8_4, 2, 5 },
+    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_U8_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_U8_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 }));
 
 class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
@@ -218,38 +220,39 @@ TEST_P(resample_quantize_concat, along_f) {
     execute(p);
 }
 
+#define RESAMPLE_QUANTIZE_CONCAT_CNT 3, 6
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_5, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP32_10, 3, 6 },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_9, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_QUANTIZE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_3, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_4, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_5, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_6, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_7, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_11, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_12, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_13, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_FP16_14, 3, 6 },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_10, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_QUANTIZE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6 },
+    resample_test_params{ CASE_RESAMPLE_I8_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_I8_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
-    resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
+    resample_test_params{ CASE_RESAMPLE_U8_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_U8_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
 }));
 
 class resample_eltwise_concat : public ResamplePrimitiveFusingTest {};
@@ -274,43 +277,44 @@ TEST_P(resample_eltwise_concat, along_f) {
     tolerance = 1e-5f;
     execute(p);
 }
-#define RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS 3,8
+
+#define RESAMPLE_ELTWISE_CONCAT_CNT 3, 8
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_9, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_9, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_ELTWISE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_10, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_10, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_ELTWISE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_I8_3, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_I8_4, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
+    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_I8_3, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_I8_4, RESAMPLE_ELTWISE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_U8_3, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
-    resample_test_params{ CASE_RESAMPLE_U8_4, RESAMPLE_ELTWISE_CONCAT_FUSION_COUNTS },
+    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_U8_3, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_U8_4, RESAMPLE_ELTWISE_CONCAT_CNT },
 }));
 
 class resample_eltwise_fusing_through : public ResamplePrimitiveFusingTest {};
@@ -333,34 +337,36 @@ TEST_P(resample_eltwise_fusing_through, reshape) {
     execute(p, {{"resample_prim", {"eltwise"}}});
 }
 
+#define RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP 2, 3
+#define RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT 2, 4
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_5, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 3 },
-    resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 3 },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_5, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
 
-    resample_test_params{ CASE_RESAMPLE_I8_1, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_I8_2, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_I8_3, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_I8_4, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_I8_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_I8_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
 
-    resample_test_params{ CASE_RESAMPLE_U8_1, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_U8_2, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_U8_3, 2, 4 },
-    resample_test_params{ CASE_RESAMPLE_U8_4, 2, 4 },
+    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_U8_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
+    resample_test_params{ CASE_RESAMPLE_U8_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
 }));
 
 class resample_eltwise_fusing_through_not_allowed : public ResamplePrimitiveFusingTest {};
@@ -384,10 +390,11 @@ TEST_P(resample_eltwise_fusing_through_not_allowed, reshape_two_users) {
     execute(p);
 }
 
+#define RESAMPLE_ELTWISE_FUSING_THROUGH_CNT 4, 4
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through_not_allowed, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, 4, 4 },
-    resample_test_params{ CASE_RESAMPLE_FP32_2, 4, 4 },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, 4, 4 },
-    resample_test_params{ CASE_RESAMPLE_FP16_2, 4, 4 },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
 }));
