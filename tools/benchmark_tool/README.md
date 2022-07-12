@@ -8,7 +8,7 @@ This page demonstrates how to use the Benchmark Python Tool to estimate deep lea
 
 The Python benchmark_app is automatically installed when you install OpenVINO Developer Tools using [PyPI](../../docs/install_guides/installing-openvino-pip.md). Before running `benchmark_app`, make sure the `openvino_env` virtual environment is activated, and navigate to the directory where your model is located.
 
-The benchmarking application works with models in the OpenVINO IR (`model.xml` and `model.bin`) and ONNX (`model.onnx`) formats. Make sure to [convert your models] (../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) if necessary. 
+The benchmarking application works with models in the OpenVINO IR (`model.xml` and `model.bin`) and ONNX (`model.onnx`) formats. Make sure to [convert your models](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) if necessary. 
 
 To run benchmarking with default options on a model, use the following command:
 
@@ -43,7 +43,7 @@ When benchmark_app is run with `-hint latency`, it determines the optimal number
 #### Throughput
 Throughput is the amount of data an inferencing pipeline can process at once, and it is usually measured in frames per second (FPS) or inferences per second. In applications where large amounts of data needs to be inferenced simultaneously (such as multi-camera video streams), high throughput is needed. To achieve high throughput, the runtime focuses on fully saturating the device with enough data to process. It utilizes as much memory and as many parallel streams as possible to maximize the amount of data that can be processed simultaneously.
 
-When benchmark_app is run with `-hint throughput`, it automatically sets the inference batch size to fill up all the memory available. It also maximizes the number of parallel inference requests to utilize all the threads available on the device.
+When benchmark_app is run with `-hint throughput`, it maximizes the number of parallel inference requests to utilize all the threads available on the device. On GPU, it automatically sets the inference batch size to fill up the GPU memory available.
 
 For more information on performance hints, see the [High-level Performance Hints](../../docs/OV_Runtime_UG/performance_hints.md) page. For more details on optimal runtime configurations and how they are automatically determined using performance hints, see [Runtime Inference Optimizations](../../docs/optimization_guide/dldt_deployment_optimization_guide.md).
 
@@ -57,7 +57,7 @@ For example, to run benchmarking on GPU, use:
 benchmark_app -m model.xml -d GPU
 ```
 
-You may also specify "AUTO" as the device, and benchmark_app will automatically select the best device to run benchmarking on. For more information, see the [Automatic device selection](../../docs/OV_Runtime_UG/auto_device_selection.md) page.
+You may also specify "AUTO" as the device, in which case the benchmark_app will automatically select the best device for benchmarking and support it with the CPU at the model loading stage. This may result in increased performance, thus, should be used purposefully. For more information, see the [Automatic device selection](../../docs/OV_Runtime_UG/auto_device_selection.md) page.
 
 (Note: If the latency or throughput hint is set, it will automatically configure streams and batch sizes for optimal performance based on the specified device.)
 
