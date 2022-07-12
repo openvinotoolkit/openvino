@@ -378,7 +378,7 @@ class LayerInfo {
         return isOfType(DelayedCopyLayerName);
     }
     bool isWeightableIdentity() const noexcept {
-        return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+        return isConcatAlignFilter() || isSyntheticScaleShift();
     }
     bool isFusableWithConv() const noexcept {
         return isActivation() || isMaxPooling();
