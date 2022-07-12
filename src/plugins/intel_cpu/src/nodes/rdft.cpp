@@ -1423,7 +1423,6 @@ struct RDFTJitExecutor : public RDFTExecutor {
         }
     }
 
-
     // N-dimensional real inverse DFT
     void irdft_nd(float* input_ptr, float* output_ptr,
                   const std::vector<int>& axes,
