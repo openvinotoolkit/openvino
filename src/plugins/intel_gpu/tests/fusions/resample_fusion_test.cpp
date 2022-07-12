@@ -260,18 +260,18 @@ TEST_P(resample_eltwise_concat, along_f) {
         resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
         data("eltwise1_eltwise", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise1_shift", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise1_prod", { "resample1", "eltwise1_eltwise" }, eltwise_mode::prod),
-        eltwise("eltwise1", { "eltwise1_prod", "eltwise1_shift" }, eltwise_mode::sum),
+        eltwise("eltwise1_bias", { "resample1", "eltwise1_shift" }, eltwise_mode::sum),
+        eltwise("eltwise1", { "eltwise1_bias", "eltwise1_eltwise" }, eltwise_mode::prod),
         resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
         data("eltwise2_eltwise", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise2_prod", { "resample2", "eltwise2_eltwise" }, eltwise_mode::prod),
-        eltwise("eltwise2", { "eltwise2_prod", "eltwise2_shift" }, eltwise_mode::sum),
+        eltwise("eltwise2_bias", { "resample2", "eltwise2_shift" }, eltwise_mode::sum),
+        eltwise("eltwise2", { "eltwise2_bias", "eltwise2_eltwise" }, eltwise_mode::prod),
         concatenation("concat", { "eltwise1", "eltwise2" }, 1),
         reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
     );
 
-    tolerance = 1e-2f;
+    tolerance = 1e-5f;
     execute(p);
 }
 
