@@ -522,8 +522,13 @@ def fill_tensors_with_random(input, shape):
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
-    a = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
-    return ov.Tensor(a, ov.Shape(a.shape), input.get_element_type())
+    
+    # allocate memory which is owned by Tensor
+    tensor = ov.Tensor(input.get_element_type(), ov.Shape(shape))
+
+    # fill random data into the memory allocated by Tensor
+    tensor.data[:] = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
+    return tensor
 
 def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_limit=60):
     infer_queue = ov.AsyncInferQueue(compiled_model, num_request)
@@ -543,6 +548,11 @@ def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_
         else:
             static_shape = input.get_shape()
         all_input[port] = fill_tensors_with_random(input, static_shape)
+
+    print("========1")
+    ireq = compiled_model.create_infer_request()
+    res = ireq.infer(all_input)
+    print("========2")
 
     for i in range(num_request):
         infer_queue.start_async(all_input, userdata=i)
