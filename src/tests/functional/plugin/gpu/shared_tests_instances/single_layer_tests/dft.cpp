@@ -70,6 +70,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d,
                                  {{}, {5, 2, 5}}),           // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d_single_axis,
+                         DFT9LayerTest,
+                         combine({{10, 4, 8, 2}},                    // input shapes
+                                 {{0}, {1}, {2}, {-1}, {-2}, {-3}},  // axes
+                                 {{}, {1}, {5}, {20}}),              // signal sizes
+                         DFT9LayerTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d,
                          DFT9LayerTest,
                          combine({{10, 4, 8, 2, 2}},                // input shapes
