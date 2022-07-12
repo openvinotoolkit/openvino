@@ -498,6 +498,20 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     return r;
 }
 
+void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId,
+                                              std::ostream& outStream,
+                                              const std::vector<GnaEndpoint>& inputsContainer,
+                                              const std::vector<GnaEndpoint>& outputsContainer) {
+    const auto compileTarget = GetCompileTarget();
+    ExportTlvModel(modelId,
+                   nGnaDeviceIndex,
+                   outStream,
+                   compileTarget,
+                   inputsContainer,
+                   outputsContainer,
+                   allAllocations);
+}
+
 void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion) {
     const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
     GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")");

@@ -16,6 +16,7 @@
 
 #include <ie_common.h>
 
+#include "gna2_model_export_helper.hpp"
 #include "memory/gna_mem_requests.hpp"
 
 #include "gna2-common-api.h"
@@ -119,18 +120,10 @@ public:
 
     DumpResult dumpXnn(const uint32_t modelId);
 
-    template <class T>
-    void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        const T& inputsContainer, const T& outputsContainer) {
-        const auto compileTarget = GetCompileTarget();
-        ExportTlvModel(modelId,
-                       nGnaDeviceIndex,
-                       outStream,
-                       compileTarget,
-                       inputsContainer,
-                       outputsContainer,
-                       allAllocations);
-    }
+    void dumpTLVForDeviceVersion(const uint32_t modelId,
+                                 std::ostream& outStream,
+                                 const std::vector<GnaEndpoint>& inputsContainer,
+                                 const std::vector<GnaEndpoint>& outputsContainer);
 
     void free(void * ptr);
 
