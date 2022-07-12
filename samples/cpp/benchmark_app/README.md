@@ -188,37 +188,30 @@ Running the application with the empty list of options yields the usage message 
 The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices.  The [dog.bmp](https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp) file is used as an input.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` Intel model on CPU or GPU devices. It uses random data as the input.
 
 > **NOTE**: Internet access is required to execute the following steps successfully. If you have access to the Internet through a proxy server only, please make sure that it is configured in your OS environment.
 
-1. Install OpenVINO Development Tools to work with Caffe* models:
-
-   ``` sh
-   pip install openvino-dev[caffe]
+1. Install OpenVINO Development Tools (if it hasn't been installed already):
+   ```sh
+   pip install openvino-dev
    ```
 
-2. Download the model. Go to the Model Downloader directory and run the `omz_downloader` script with specifying the model name and directory to download the model to:
-
+2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
    ```sh
-   omz_downloader --name googlenet-v1 -o <models_dir>
+   omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
 
-3. Convert the model to the OpenVINO IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format and output directory to generate the IR files:
+3. Run the tool, specifying the location of the model .xml file, the device to perform inference on, and with a performance hint. The following commands demonstrate examples of how to run the Benchmark Tool in latency mode on CPU and throughput mode on GPU devices:
 
+   * On CPU (latency mode):
    ```sh
-   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency -progress
    ```
 
-4. Run the tool specifying the `dog.bmp` file as an input image, the IR of the `googlenet-v1` model, and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the throughput mode on CPU and GPU devices:
-
-   * On CPU:
+   * On GPU (throughput mode):
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp  -d CPU -hint throughput -progress
-   ```
-   * On GPU:
-   ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i dog.bmp -d GPU -hint throughput -progress
+   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput -progress
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
