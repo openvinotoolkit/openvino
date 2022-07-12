@@ -1,7 +1,7 @@
 # Hello Classification Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
-Models with only 1 input and output are supported.
+Models with only one input and output are supported.
 
 The following Python API is used in the application:
 
@@ -15,13 +15,13 @@ The following Python API is used in the application:
 | Options                    | Values                                                                                                  |
 | :------------------------- | :------------------------------------------------------------------------------------------------------ |
 | Validated Models           | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)            |
-| Model Format               | OpenVINO Intermediate Representation (.xml + .bin), ONNX (.onnx)                                |
+| Model Format               | OpenVINO™ Intermediate Representation (.xml + .bin), ONNX (.onnx)                                |
 | Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)                                       |
 | Other language realization | [C++](../../../samples/cpp/hello_classification/README.md), [C](../../c/hello_classification/README.md) |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, does synchronous inference, and processes output data, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO Runtime plugin, does synchronous inference, and processes output data, logging each step in a standard output stream.
 
 For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 

@@ -2,14 +2,14 @@
 
 This sample demonstrates how to do inference using a [model](../../../docs/OV_Runtime_UG/model_representation.md) built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
 
-The following OpenVINO Python API is used in the application:
+The following OpenVINO™ Python API is used in the application:
 
 | Feature          | API                                                                                                                                                                                                                                                                                                               | Description                                             |
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
 | Model Operations | [openvino.runtime.Model], [openvino.runtime.set_batch], [openvino.runtime.Model.input]                                                                                                                                                                                                                            | Managing of model                                       |
 | Opset operations | [openvino.runtime.op.Parameter], [openvino.runtime.op.Constant], [openvino.runtime.opset8.convolution], [openvino.runtime.opset8.add], [openvino.runtime.opset1.max_pool], [openvino.runtime.opset8.reshape], [openvino.runtime.opset8.matmul], [openvino.runtime.opset8.relu], [openvino.runtime.opset8.softmax] | Description of a model topology using OpenVINO Python API |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample](../hello_classification/README.md).
+Basic OpenVINO Runtime API is covered by [Hello Classification Python Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                |
 | :------------------------- | :-------------------------------------------------------------------- |
@@ -21,9 +21,9 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample]
 ## How It Works
 
 At startup, the sample application does the following:
-- Reads command line parameters.
+- Reads command-line parameters.
 - [Builds a Model](../../../docs/OV_Runtime_UG/model_representation.md) and passes a weights file.
-- Loads the model and input data to the OpenVINO™ Runtime plugin.
+- Loads the model and input data to the OpenVINO Runtime plugin.
 - Does synchronous inference and processes output data, logging each step in a standard output stream.
 
 For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
@@ -125,8 +125,8 @@ The sample application logs each step in a standard output stream and outputs 10
 
 ## Additional Resources
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 

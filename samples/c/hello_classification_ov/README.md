@@ -1,4 +1,4 @@
-# Hello Classification C Sample for OpenVINO 2.0 C-API
+# Hello Classification C Sample for OpenVINO™ 2.0 C-API
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet, using Synchronous Inference Request API and input auto-resize feature.
 
@@ -20,7 +20,7 @@ To run the sample, you need to specify a model and an image:
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with the `BGR` channel order. If you trained your model to work with `RGB`, you need to manually rearrange the default channel order in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
+> - By default, OpenVINO Toolkit samples and demos expect input with the `BGR` channel order. If you trained your model to work with `RGB`, you need to manually rearrange the default channel order in the sample or demo application, or reconvert your model, using Model Optimizer with `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/Additional_Optimizations.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the OpenVINO Intermediate Representation (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

@@ -110,7 +110,7 @@ Options:
     -exec_graph_path            Optional. Path to a file where to store executable graph information serialized.
     -pc                         Optional. Report performance counters.
     -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config                Optional. Path to JSON file to load custom IE parameters. Command line parameters have higher priority than parameters from configuration file.
+    -load_config                Optional. Path to JSON file to load custom IE parameters. Command-line parameters have higher priority than parameters from configuration file.
 
    Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
@@ -119,8 +119,8 @@ Options:
     -pc                       Optional. Report performance counters.
     -pcseq                    Optional. Report latencies for each shape in -data_shape sequence.
     -dump_config              Optional. Path to JSON file to dump IE parameters, which were set by application.
-    -load_config              Optional. Path to JSON file to load custom IE parameters. Command line parameters have higher priority then parameters from configuration file.
-    -infer_precision "<element type>"Optional. Inference precission
+    -load_config              Optional. Path to JSON file to load custom IE parameters. Command-line parameters have higher priority then parameters from configuration file.
+    -infer_precision "<element type>"Optional. Inference precision
     -ip                          <value>     Optional. Specifies precision for all input layers of the network.
     -op                          <value>     Optional. Specifies precision for all output layers of the network.
     -iop                        "<value>"    Optional. Specifies precision for input and output layers by name.
@@ -168,7 +168,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```sh
    omz_downloader --name googlenet-v1 -o <models_dir>
    ```
-3. Convert the model to the OpenVINO IR format. Run Model Optimizer, using the `mo` command with the path to the model, model format and output directory to generate the OpenVINO IR files:
+3. Convert the model to the OpenVINO IR format. Run Model Optimizer, using the `mo` command with the path to the model, model format and output directory to generate the IR files:
 
    ```sh
    mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>

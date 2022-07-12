@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
-Hello Classification C sample application demonstrates how to use OpenVINO Runtime C API in applications:
+Hello Classification C sample application demonstrates how to use OpenVINO™ Runtime C API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
@@ -15,7 +15,7 @@ Hello Classification C sample application demonstrates how to use OpenVINO Runti
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
-| Model Format                     | OpenVINO™ Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
+| Model Format                     | OpenVINO Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../samples/cpp/hello_classification/README.md), [Python](../../python/hello_classification/README.md) |

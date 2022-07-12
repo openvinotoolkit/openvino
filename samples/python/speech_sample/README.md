@@ -20,13 +20,13 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample]
 | Options                    | Values                                                                                                                                         |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
 | Validated Models           | Acoustic model based on Kaldi neural models (see [Model Preparation](#model-preparation) section)                                           |
-| Model Format               | OpenVINO™ Intermediate Representation (\*.xml + \*.bin)                                                                                     |
+| Model Format               | OpenVINO Intermediate Representation (\*.xml + \*.bin)                                                                                     |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and a [List of Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md)                                                                                            |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, does synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO Runtime plugin, does synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
 
 For more information, refer to the ["Integrate OpenVINO Runtime with Your Application" Guide](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
@@ -34,7 +34,7 @@ For more information, refer to the ["Integrate OpenVINO Runtime with Your Applic
 
 ### Quantization
 
-If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO™ Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
+If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 
 Several neural model quantization modes:
 
@@ -329,8 +329,8 @@ The sample application logs each step in a standard output stream.
 
 ## Additional Resources
 
-- [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate the OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
