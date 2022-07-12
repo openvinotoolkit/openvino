@@ -849,6 +849,8 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
         const void *ext_data_ptr = in->cbuffer();
         void *inter_data_ptr = childEdge->getMemory().GetData();
 
+        DEBUG_LOG(name, " ext_data_ptr=", ext_data_ptr, " inter_data_ptr=", inter_data_ptr);
+
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
