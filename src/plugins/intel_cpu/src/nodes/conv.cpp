@@ -355,7 +355,7 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
     if (!shouldTryBrgconv) {
         // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1
         for (auto it = priorities.begin(); it != priorities.end(); ) {
-            if ((*it) & brgconv_avx512)
+            if (((*it) & brgconv_avx512) == brgconv_avx512)
                 it = priorities.erase(it);
             else
                 ++it;
