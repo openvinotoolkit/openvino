@@ -431,6 +431,11 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
+ * @brief Use experimental setting for CPU plugin.
+ */
+DECLARE_CONFIG_KEY(CPU_EXPERIMENTAL);
+
+/**
  * @brief This key defines the directory which will be used to store any data cached by plugins.
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
@@ -462,6 +467,20 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  * @endcode
  */
 DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
+
+/**
+ * @brief The name for defining if denormals is optimized whenever it is possible
+ *
+ * This option let plugin know if denormals is optimized where it see performance benefits from
+ * getting ride of denormals computation.
+ * Such option do not guarantee accuracy of the network, the accuracy in this mode should be
+ * verified separately by the user and basing on performance and accuracy results it should be
+ * user's decision to use this option or not to use
+ * It is passed to Core::SetConfig(), this option should be used with values:
+ * PluginConfigParams::YES or PluginConfigParams::NO
+ * If not set explicitly, the behavior is kept in runtime enviroment where compile_model is called.
+ */
+DECLARE_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 
 }  // namespace PluginConfigParams
 
