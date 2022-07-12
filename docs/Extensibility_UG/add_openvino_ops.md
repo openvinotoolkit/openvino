@@ -2,6 +2,8 @@
 
 OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box.
 
+> **NOTE**: Before you try adding a custom operation, make sure it hasn't already been added in a newer version of OpenVINO. A list of all operations supported in the latest version is available on the [Supported Framework Layers](../MO_DG/prepare_model/Supported_Frameworks_Layers.md) page. If it isn't supported by the latest version, there may also be pre-release versions of OpenVINO that have the operation (check the [nightly](https://docs.openvino.ai/nightly/openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html) page to see if the operation is supported in the nightly release). To upgrade to the latest version of OpenVINO, follow the [instructions here](../install_guides/installing-openvino-overview.md). To install pre-release versions of OpenVINO, see the the [GitHub Releases](https://github.com/openvinotoolkit/openvino/releases) page or the [Build From Source instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+
 ## Operation Class
 
 To add your custom operation, create a new class that extends `ov::Op`, which is in turn derived from `ov::Node`, the base class for all graph operations in OpenVINO™. To add `ov::Op` please include next file:
