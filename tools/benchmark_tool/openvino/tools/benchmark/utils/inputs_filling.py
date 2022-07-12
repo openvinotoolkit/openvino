@@ -168,7 +168,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     red = np.divide(red, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
-            model_channel = shape[1]
+            model_channel = int(str(info.channels))
             image_channel = image.shape[-1]
             if model_channel == 1 and image_channel == 3:
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
