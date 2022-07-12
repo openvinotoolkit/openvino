@@ -34,6 +34,7 @@ namespace node {
 static const size_t DATA_INDEX = 0;
 static const size_t AXES_INDEX = 1;
 static const size_t SIGNAL_SIZE_INDEX = 2;
+static constexpr double PI = 3.14159265358979323846;
 
 
 bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -441,7 +442,7 @@ std::vector<float> RDFTExecutor::generate_twiddles_fft(size_t N) {
     std::vector<float> twiddles;
     for (size_t num_blocks = 1; num_blocks < N; num_blocks *= 2) {
         for (size_t block = 0; block < num_blocks; block++) {
-            float angle = 2 * M_PI * block / (num_blocks * 2);
+            float angle = 2 * PI * block / (num_blocks * 2);
             twiddles.push_back(std::cos(angle));
             twiddles.push_back(-std::sin(angle));
         }
@@ -1308,24 +1309,24 @@ struct RDFTJitExecutor : public RDFTExecutor {
             for (size_t n = 0; n < input_size; n++) {
                 if (type == real_to_complex) {
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * M_PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(-std::sin(2 * M_PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
                     }
                 } else if (type == complex_to_real) {
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * M_PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
                     }
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(-std::sin(2 * M_PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
                     }
                 } else if (type == complex_to_complex) {
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * M_PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(std::cos(2 * M_PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
                     }
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(-std::sin(2 * M_PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(-std::sin(2 * M_PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
+                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
                     }
                 }
             }
@@ -1334,8 +1335,8 @@ struct RDFTJitExecutor : public RDFTExecutor {
             size_t start = (output_size / simd_size) * simd_size;
             for (size_t k = start; k < output_size; k++) {
                 for (size_t n = 0; n < input_size; n++) {
-                    twiddles.push_back(std::cos(2 * M_PI * k * n / input_size));
-                    twiddles.push_back(-std::sin(2 * M_PI * k * n / input_size));
+                    twiddles.push_back(std::cos(2 * PI * k * n / input_size));
+                    twiddles.push_back(-std::sin(2 * PI * k * n / input_size));
                 }
             }
         }
@@ -1498,7 +1499,7 @@ struct RDFTRefExecutor : public RDFTExecutor {
             twiddles.reserve(input_size * output_size * 2);
             for (size_t k = 0; k < output_size; k++) {
                 for (size_t n = 0; n < input_size; n++) {
-                    float angle = 2 * M_PI * k * n / input_size;
+                    float angle = 2 * PI * k * n / input_size;
                     if (!is_inverse)
                         angle = -angle;
                     twiddles.push_back(std::cos(angle));
