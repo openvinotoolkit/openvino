@@ -7,7 +7,6 @@
 #include "gna_device.hpp"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
-#include "gna_api_wrapper.hpp"
 #include "gna2-device-api.h"
 
 #include "gna2-tlv-writer.h"
