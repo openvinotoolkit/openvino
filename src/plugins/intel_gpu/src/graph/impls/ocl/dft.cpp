@@ -70,45 +70,27 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
 namespace detail {
 
 attach_dft_impl::attach_dft_impl() {
-    implementation_map<dft>::add(impl_types::ocl,
-                                 dft_impl::create,
-                                 {
-                                     // f16
-                                     std::make_tuple(data_types::f16, format::bfyx),
-                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-
-                                     std::make_tuple(data_types::f16, format::bfzyx),
-                                     std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-                                     std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
-                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-                                     std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-
-                                     std::make_tuple(data_types::f16, format::bfwzyx),
-
-                                     // f32
-                                     std::make_tuple(data_types::f32, format::bfyx),
-                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-
-                                     std::make_tuple(data_types::f32, format::bfzyx),
-                                     std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-                                     std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
-                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-                                     std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-
-                                     std::make_tuple(data_types::f32, format::bfwzyx),
-                                 });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        // 4d
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        // 5d
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        // 6d
+        format::bfwzyx,
+    };
+    implementation_map<dft>::add(impl_types::ocl, dft_impl::create, types, formats);
 }
 
 }  // namespace detail
