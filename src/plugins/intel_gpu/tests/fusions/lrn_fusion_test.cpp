@@ -98,8 +98,8 @@ public:
 #define CASE_LRN_FP16_4 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv4, data_types::f16, format::bfyx
 #define CASE_LRN_FP16_5 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx
 
-class lrn_fp32_quantize_u8_scale_activation : public LrnFusingTest {};
-TEST_P(lrn_fp32_quantize_u8_scale_activation, basic) {
+class lrn_fp32_quantize_u8_eltwise_activation : public LrnFusingTest {};
+TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
     auto p = GetParam();
 
     uint32_t size = 5;
@@ -113,11 +113,11 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
         quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        scale("scale", "quantize", "scale_data"),
-        activation("activation", "scale", activation_func::exp),
+        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::floor),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );
 
@@ -125,7 +125,7 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, basic) {
     execute(p);
 }
 
-TEST_P(lrn_fp32_quantize_u8_scale_activation, per_channel) {
+TEST_P(lrn_fp32_quantize_u8_eltwise_activation, per_channel) {
     auto p = GetParam();
 
     uint32_t size = 5;
@@ -139,11 +139,11 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, per_channel) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
         quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        scale("scale", "quantize", "scale_data"),
-        activation("activation", "scale", activation_func::exp),
+        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::relu),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );
 
@@ -151,7 +151,7 @@ TEST_P(lrn_fp32_quantize_u8_scale_activation, per_channel) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_scale_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_eltwise_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
     // InputDataType = FP32   OutputDataType = FP32
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_across_channel, "lrn_ref" },
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
@@ -174,8 +174,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_u8_scale_activation, ::t
     lrn_test_params{ CASE_LRN_FP32_TO_FP16_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
 }));
 
-class lrn_fp32_quantize_i8_scale_activation : public LrnFusingTest {};
-TEST_P(lrn_fp32_quantize_i8_scale_activation, basic) {
+class lrn_fp32_quantize_i8_eltwise_activation : public LrnFusingTest {};
+TEST_P(lrn_fp32_quantize_i8_eltwise_activation, basic) {
     auto p = GetParam();
 
     uint32_t size = 5;
@@ -189,19 +189,19 @@ TEST_P(lrn_fp32_quantize_i8_scale_activation, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p),  127)),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
-        activation("activation", "scale", activation_func::exp),
-        quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
-        reorder("reorder", "quantize", p.default_format, data_types::f32)
+        quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
+        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::relu),
+        reorder("reorder", "activation", p.default_format, data_types::f32)
     );
 
     tolerance = 1.0f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_i8_scale_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_i8_eltwise_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
     // InputDataType = FP32   OutputDataType = INT8
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel" },
@@ -217,8 +217,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_quantize_i8_scale_activation, ::t
     // primitive doesn't support input type FP16 while fusing (prepare_quantization.cpp :114 -> prepare_primitive_fusing.cpp :474)
 }));
 
-class lrn_fp32_scale_activation_quantize_u8 : public LrnFusingTest {};
-TEST_P(lrn_fp32_scale_activation_quantize_u8, basic) {
+class lrn_fp32_eltwise_activation_quantize_u8 : public LrnFusingTest {};
+TEST_P(lrn_fp32_eltwise_activation_quantize_u8, basic) {
     auto p = GetParam();
 
     uint32_t size = 5;
@@ -232,10 +232,10 @@ TEST_P(lrn_fp32_scale_activation_quantize_u8, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
-        activation("activation", "scale", activation_func::exp),
+        eltwise("eltwise", { "lrn_norm", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::exp),
         quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder", "quantize", p.default_format, data_types::f32)
     );
@@ -244,7 +244,7 @@ TEST_P(lrn_fp32_scale_activation_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_scale_activation_quantize_u8, ::testing::ValuesIn(std::vector<lrn_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<lrn_test_params>{
     // InputDataType = FP32   OutputDataType = UINT8
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_ref" },
     lrn_test_params{ CASE_LRN_FP32_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
@@ -257,8 +257,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp32_scale_activation_quantize_u8, ::t
     lrn_test_params{ CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
 }));
 
-class lrn_fp16_scale_activation : public LrnFusingTest {};
-TEST_P(lrn_fp16_scale_activation, basic) {
+class lrn_fp16_eltwise_activation : public LrnFusingTest {};
+TEST_P(lrn_fp16_eltwise_activation, basic) {
     auto p = GetParam();
 
     uint32_t size = 5;
@@ -268,10 +268,10 @@ TEST_P(lrn_fp16_scale_activation, basic) {
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
         lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        scale("scale", "lrn_norm", "scale_data"),
-        activation("activation", "scale", activation_func::exp),
+        eltwise("eltwise", { "lrn_norm", "eltwise_data" }, eltwise_mode::prod),
+        activation("activation", "eltwise", activation_func::exp),
         reorder("reorder", "activation", p.default_format, data_types::f32)
     );
 
@@ -279,7 +279,7 @@ TEST_P(lrn_fp16_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp16_scale_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp16_eltwise_activation, ::testing::ValuesIn(std::vector<lrn_test_params>{
     // InputDataType = FP16   OutputDataType = FP16
     lrn_test_params{ CASE_LRN_FP16_1, 2, 4, lrn_norm_region_within_channel, "lrn_gpu_within_channel_opt" },
     lrn_test_params{ CASE_LRN_FP16_1, 2, 4, lrn_norm_region_within_channel, "lrn_gpu_within_channel" },
