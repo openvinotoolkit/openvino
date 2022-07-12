@@ -231,6 +231,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - `ov::num_streams`
 - `ov::affinity`
 - `ov::inference_num_threads`
+- `ov::denormals_optimization`
 
 
 ### Read-only properties
