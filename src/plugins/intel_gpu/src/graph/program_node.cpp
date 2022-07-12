@@ -283,6 +283,8 @@ bool program_node::has_padded_dependency() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
+            if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
+                continue;
             user->valid_output_layout = false;
             user->invalidate_users();
         }
