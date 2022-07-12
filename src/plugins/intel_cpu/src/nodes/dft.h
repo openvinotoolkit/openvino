@@ -61,7 +61,7 @@ struct jit_uni_fft_kernel {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
