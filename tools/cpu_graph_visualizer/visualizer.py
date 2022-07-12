@@ -575,7 +575,7 @@ if __name__ == "__main__":
     parser.add_argument("-p","--perf", action="store_true",
                         help="Enable profiling")
     parser.add_argument("-t","--time", type=float, default=10,
-                        help="Time in seconds to profile(default 10 seconds)")
+                        help="Profiling time in seconds (default: 10 seconds)")
     parser.add_argument("--raw", action="store_true",
                         help="Dump raw model")
     parser.add_argument("--bf16", action="store_true",
