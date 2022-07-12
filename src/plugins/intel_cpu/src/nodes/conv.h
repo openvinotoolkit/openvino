@@ -137,7 +137,7 @@ private:
 
     bool isWino = false;
     // if we have amx support or user specified we will try brgconv avx512
-    bool shouldTryBrgconvAVX512 = false;
+    bool shouldTryBrgconv = false;
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
