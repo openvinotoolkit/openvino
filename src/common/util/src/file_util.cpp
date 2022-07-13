@@ -370,3 +370,53 @@ std::wstring ov::util::get_ov_lib_path_w() {
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+std::vector<uint8_t> ov::util::load_binary(std::mutex& mutex, const std::string& path) {
+        std::lock_guard<std::mutex> lock(mutex);
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(path);
+    const wchar_t* filename = widefilename.c_str();
+    FILE *fp = _wfopen(filename, L"rb");
+#else
+    const char* filename = path.c_str();
+    FILE *fp = fopen(filename, "rb");
+#endif
+
+    if (fp) {
+        fseek(fp, 0, SEEK_END);
+        auto sz = ftell(fp);
+        if (sz < 0) {
+            fclose(fp);
+            return {};
+        }
+        auto nsize = static_cast<size_t>(sz);
+
+        fseek(fp, 0, SEEK_SET);
+
+        std::vector<uint8_t> ret(nsize);
+
+        auto res = fread(ret.data(), sizeof(uint8_t), nsize, fp);
+        (void)res;
+        fclose(fp);
+        return ret;
+    }
+
+    return {};
+}
+
+void ov::util::save_binary(std::mutex& mutex, const std::string& path, std::vector<uint8_t> binary) {
+        std::lock_guard<std::mutex> lock(mutex);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(path);
+    const wchar_t* filename = widefilename.c_str();
+#else
+    const char* filename = path.c_str();
+#endif
+    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
+    if (out_file.is_open()) {
+        out_file.write(reinterpret_cast<const char*>(&binary[0]), binary.size());
+    } else {
+        throw std::runtime_error("Could not save binary to " + path);
+    }
+}

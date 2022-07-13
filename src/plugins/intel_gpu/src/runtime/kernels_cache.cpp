@@ -6,6 +6,7 @@
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -21,90 +22,8 @@
 #include <malloc.h>
 #endif
 
-#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-# ifdef _WIN32
-#  if defined __INTEL_COMPILER || defined _MSC_VER
-#   define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#  endif
-# elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#  define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-# endif
-#endif
-
-#ifndef _WIN32
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#include <locale>
-#include <codecvt>
-#endif
-#else
-#include <Windows.h>
-#endif
-
 namespace {
 std::mutex cacheAccessMutex;
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-std::wstring multiByteCharToWString(const char* str) {
-#ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#endif  // _WIN32
-}
-#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-
-static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-    FILE *fp = _wfopen(filename, L"rb");
-#else
-    const char* filename = path.c_str();
-    FILE *fp = fopen(filename, "rb");
-#endif
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        auto sz = ftell(fp);
-        if (sz < 0) {
-            fclose(fp);
-            return {};
-        }
-        auto nsize = static_cast<size_t>(sz);
-
-        fseek(fp, 0, SEEK_SET);
-
-        std::vector<unsigned char> ret(nsize);
-
-        auto res = fread(ret.data(), sizeof(unsigned char), nsize, fp);
-        (void)res;
-        fclose(fp);
-        return ret;
-    }
-
-    return {};
-}
-static void saveBinaryToFile(std::string path, const std::vector<unsigned char> buffer) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-#else
-    const char* filename = path.c_str();
-#endif
-    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
-    if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
-    }
-}
 
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
@@ -298,7 +217,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     if (is_cache_enabled()) {
         // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
         // If read is successful, then remove kernels from compilation bucket
-        auto bin = loadBinaryFromFile(cached_bin_name);
+        auto bin = ov::util::load_binary(cacheAccessMutex, cached_bin_name);
         if (!bin.empty()) {
             precompiled_kernels.push_back(bin);
         }
@@ -329,7 +248,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
-                saveBinaryToFile(cached_bin_name, getProgramBinaries(program));
+                ov::util::save_binary(cacheAccessMutex, cached_bin_name, getProgramBinaries(program));
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);

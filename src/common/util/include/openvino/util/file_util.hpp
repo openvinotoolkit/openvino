@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -238,6 +239,21 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
     return path + separator + FileTraits<C>::library_prefix() + input + FileTraits<C>::dot_symbol +
            FileTraits<C>::library_ext();
 }
+
+/**
+ * @brief load binary data from file
+ * @param mutex - mutex
+ * @param path - binary file path to load
+ * @return binary vector
+ */
+std::vector<uint8_t> load_binary(std::mutex& mutex, const std::string& path);
+
+/**
+ * @brief save binary data to file
+ * @param mutex - mutex
+ * @param path - binary file path to store
+ */
+void save_binary(std::mutex& mutex, const std::string& path, std::vector<uint8_t> binary);
 
 }  // namespace util
 }  // namespace ov

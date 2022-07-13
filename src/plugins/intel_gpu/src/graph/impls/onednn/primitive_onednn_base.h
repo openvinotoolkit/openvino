@@ -10,6 +10,7 @@
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -24,96 +25,10 @@
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
-
-#ifndef _WIN32
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        include <codecvt>
-#        include <locale>
-#    endif
-#else
-#    include <Windows.h>
-#endif
-
 namespace cldnn {
 namespace onednn {
 
 static std::mutex cacheAccessMutex;
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-static std::wstring multiByteCharToWString(const char* str) {
-#ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#endif  // _WIN32
-}
-#endif  // defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-
-
-static std::vector<uint8_t> load_cached_binary(std::string path) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-    FILE *fp = _wfopen(filename, L"rb");
-#else
-    const char* filename = path.c_str();
-    FILE *fp = fopen(filename, "rb");
-#endif
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        auto sz = ftell(fp);
-        if (sz < 0) {
-            fclose(fp);
-            return {};
-        }
-        auto nsize = static_cast<size_t>(sz);
-
-        fseek(fp, 0, SEEK_SET);
-
-        std::vector<uint8_t> ret(nsize);
-
-        auto res = fread(ret.data(), sizeof(uint8_t), nsize, fp);
-        (void)res;
-        fclose(fp);
-        return ret;
-    }
-
-    return {};
-}
-
-static void store_cache_blob_on_disk(std::string path, std::vector<uint8_t> cache_blob) {
-    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = multiByteCharToWString(path.c_str());
-    const wchar_t* filename = widefilename.c_str();
-#else
-    const char* filename = path.c_str();
-#endif
-    std::ofstream out_file(filename, std::ios::out | std::ios::binary);
-    if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&cache_blob[0]), cache_blob.size());
-    } else {
-        throw std::runtime_error("Could not store cl_cache to " + path);
-    }
-}
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
@@ -171,11 +86,11 @@ private:
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
             assert(!key.empty());
 
-            std::vector<uint8_t> cache = load_cached_binary(get_cache_filepath(key));
+            std::vector<uint8_t> cache = ov::util::load_binary(cacheAccessMutex, get_cache_filepath(key));
             if (cache.empty()) {
                 _prim = PrimType(_pd);
                 cache = _prim.get_cache_blob();
-                store_cache_blob_on_disk(get_cache_filepath(key), cache);
+                ov::util::save_binary(cacheAccessMutex, get_cache_filepath(key), cache);
             } else {
                 _prim = PrimType(_pd, cache);
             }
