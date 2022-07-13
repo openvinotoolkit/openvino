@@ -60,7 +60,7 @@ public:
         class T,
         class TPimpl,
         typename std::enable_if<std::is_constructible<T, TPimpl, decltype(m_shared_object)>::value, bool>::type = true>
-    std::shared_ptr<T> make_shared_w_pimpl(const TPimpl& pimpl) const {
+    std::shared_ptr<T> make_shared_with_pimpl(const TPimpl& pimpl) const {
         if (pimpl) {
             return std::make_shared<T>(pimpl, m_shared_object);
         }
@@ -77,8 +77,8 @@ public:
      * \return std::shared_ptr<Derived>  Shared pointer of Derived class or null if pimpl is nullptr.
      */
     template <class TPimpl>
-    std::shared_ptr<Derived> make_shared_w_pimpl(const TPimpl& pimpl) const {
-        return make_shared_w_pimpl<Derived>(pimpl);
+    std::shared_ptr<Derived> make_shared_with_pimpl(const TPimpl& pimpl) const {
+        return make_shared_with_pimpl<Derived>(pimpl);
     };
 
     /**
@@ -104,7 +104,7 @@ public:
         out.reserve(in.size());
 
         std::transform(in.begin(), in.end(), std::back_inserter(out), [this](const DType& el) {
-            return make_shared_w_pimpl<T>(el);
+            return make_shared_with_pimpl<T>(el);
         });
 
         return out;

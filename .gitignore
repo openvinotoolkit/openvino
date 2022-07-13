@@ -1,6 +1,7 @@
 # build/artifact dirs
 _*
 [Bb]uild*/
+cmake-build-*
 
 # but ensure we don't skip __init__.py and __main__.py
 !__init__.py

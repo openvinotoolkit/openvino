@@ -31,7 +31,7 @@ Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) 
         return {};
     }
     FRONTEND_RETURN_STATEMENT("get_place_by_tensor_name",
-                              make_shared_w_pimpl<Place>(m_actual->get_place_by_tensor_name(tensor_name)))
+                              make_shared_with_pimpl<Place>(m_actual->get_place_by_tensor_name(tensor_name)))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
@@ -39,7 +39,7 @@ Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_
         return {};
     }
     FRONTEND_RETURN_STATEMENT("get_place_by_operation_name",
-                              make_shared_w_pimpl<Place>(m_actual->get_place_by_operation_name(operation_name)))
+                              make_shared_with_pimpl<Place>(m_actual->get_place_by_operation_name(operation_name)))
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operation_name,
@@ -49,7 +49,7 @@ Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::str
     }
     FRONTEND_RETURN_STATEMENT(
         "get_place_by_operation_name_and_input_port",
-        make_shared_w_pimpl<Place>(
+        make_shared_with_pimpl<Place>(
             m_actual->get_place_by_operation_name_and_input_port(operation_name, input_port_index)))
 }
 
@@ -60,7 +60,7 @@ Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::st
     }
     FRONTEND_RETURN_STATEMENT(
         "get_place_by_operation_name_and_output_port",
-        make_shared_w_pimpl<Place>(
+        make_shared_with_pimpl<Place>(
             m_actual->get_place_by_operation_name_and_output_port(operation_name, output_port_index)))
 }
 
@@ -107,7 +107,7 @@ void InputModel::cut_and_add_new_output(const Place::Ptr& place, const std::stri
 
 Place::Ptr InputModel::add_output(const Place::Ptr& place) {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, add_output);
-    FRONTEND_RETURN_STATEMENT("add_output", make_shared_w_pimpl<Place>(m_actual->add_output(place)));
+    FRONTEND_RETURN_STATEMENT("add_output", make_shared_with_pimpl<Place>(m_actual->add_output(place)));
 }
 
 void InputModel::remove_output(const Place::Ptr& place) {

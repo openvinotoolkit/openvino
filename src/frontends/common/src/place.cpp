@@ -45,91 +45,91 @@ std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outpu
 
 Place::Ptr Place::get_target_tensor() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_target_tensor());
+        return make_shared_with_pimpl(m_pimpl->get_target_tensor());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_target_tensor(int output_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_target_tensor(output_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_target_tensor(output_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_producing_operation());
+        return make_shared_with_pimpl(m_pimpl->get_producing_operation());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation(int input_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_producing_operation(input_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_producing_operation(input_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_producing_port() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_producing_port());
+        return make_shared_with_pimpl(m_pimpl->get_producing_port());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_input_port() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_input_port());
+        return make_shared_with_pimpl(m_pimpl->get_input_port());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_input_port(int input_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_input_port(input_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_input_port(input_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& input_name) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_input_port(input_name));
+        return make_shared_with_pimpl(m_pimpl->get_input_port(input_name));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& input_name, int input_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_input_port(input_name, input_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_input_port(input_name, input_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_output_port() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_output_port());
+        return make_shared_with_pimpl(m_pimpl->get_output_port());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_output_port(int output_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_output_port(output_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_output_port(output_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& output_name) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_output_port(output_name));
+        return make_shared_with_pimpl(m_pimpl->get_output_port(output_name));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& output_name, int output_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_output_port(output_name, output_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_output_port(output_name, output_port_index));
     }
     return nullptr;
 }
@@ -171,56 +171,56 @@ bool Place::is_equal_data(const Ptr& another) const {
 
 Place::Ptr Place::get_source_tensor() const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_source_tensor());
+        return make_shared_with_pimpl(m_pimpl->get_source_tensor());
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_source_tensor(int input_port_index) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_source_tensor(input_port_index));
+        return make_shared_with_pimpl(m_pimpl->get_source_tensor(input_port_index));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_source_tensor(const std::string& inputName, int inputPortIndex) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_source_tensor(inputName, inputPortIndex));
+        return make_shared_with_pimpl(m_pimpl->get_source_tensor(inputName, inputPortIndex));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_source_tensor(const std::string& inputName) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_source_tensor(inputName));
+        return make_shared_with_pimpl(m_pimpl->get_source_tensor(inputName));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_target_tensor(const std::string& outputPortName) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_target_tensor(outputPortName));
+        return make_shared_with_pimpl(m_pimpl->get_target_tensor(outputPortName));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_target_tensor(const std::string& outputPortName, int outputPortIndex) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_target_tensor(outputPortName, outputPortIndex));
+        return make_shared_with_pimpl(m_pimpl->get_target_tensor(outputPortName, outputPortIndex));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation(const std::string& inputName) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_producing_operation(inputName));
+        return make_shared_with_pimpl(m_pimpl->get_producing_operation(inputName));
     }
     return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation(const std::string& inputName, int inputPortIndex) const {
     if (m_pimpl) {
-        return make_shared_w_pimpl(m_pimpl->get_producing_operation(inputName, inputPortIndex));
+        return make_shared_with_pimpl(m_pimpl->get_producing_operation(inputName, inputPortIndex));
     }
     return nullptr;
 }

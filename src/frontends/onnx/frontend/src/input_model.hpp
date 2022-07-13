@@ -16,7 +16,7 @@ namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
     // The members of ov::frontend::InputModel are not used in this class and initialized with default values.
-    // TODO: Refactor InputModle class to not waste memory.
+    // TODO: Refactor InputModel class to not waste memory.
 public:
     InputModel(const std::string& path, std::shared_ptr<void> shared_object, ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
