@@ -78,7 +78,7 @@ void set_layouts::run(program& p) {
     // TODO: if !supports_immad, return
 
     for (auto n : p.get_processing_order()) {
-        if (!n->is_type<convolution>())  // only care for convolutions
+        if (!n->is_type<convolution>() || !layout_optimizer::are_data_types_suitable_for_onednn(*n))  // only care for onednn convolutions
             continue;
         auto& node = n->as<convolution>();
 

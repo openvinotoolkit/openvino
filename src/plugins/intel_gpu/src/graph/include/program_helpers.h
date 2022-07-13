@@ -107,6 +107,7 @@ struct program_helpers {
                               size_t end_offset);
 
     static std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2);
+    static bool are_data_types_suitable_for_onednn(program_node& node);
 
     // helper functions for deconvolution optimizations
     static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
