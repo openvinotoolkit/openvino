@@ -19,10 +19,10 @@ struct roi_align : public primitive_base<roi_align> {
     CLDNN_DECLARE_PRIMITIVE(roi_align)
 
     /// @brief Pooling mode for the @ref roi_align
-    enum PoolingMode { Max, Avg };
+    enum PoolingMode { max, avg };
 
     /// @brief Aligned mode for the @ref roi_align
-    enum AlignedMode { Asymmetric, Half_pixel_for_nn, Half_pixel };
+    enum AlignedMode { asymmetric, half_pixel_for_nn, half_pixel };
 
     /// @brief Constructs roi_align primitive.
     /// @param id This primitive id.

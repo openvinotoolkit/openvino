@@ -52,16 +52,16 @@ std::string roi_align_inst::to_string(roi_align_node const& node) {
 namespace ov {
 template <> EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
   static auto enum_names =
-      EnumNames<roi_align::PoolingMode>("PoolingMode", {{"Max", roi_align::PoolingMode::Max},
-                                                        {"Avg", roi_align::PoolingMode::Avg}});
+      EnumNames<roi_align::PoolingMode>("PoolingMode", {{"max", roi_align::PoolingMode::max},
+                                                        {"avg", roi_align::PoolingMode::avg}});
   return enum_names;
 }
 
 template <> EnumNames<roi_align::AlignedMode>& EnumNames<roi_align::AlignedMode>::get() {
   static auto enum_names =
-      EnumNames<roi_align::AlignedMode>("AlignedMode", {{"Asymmetric", roi_align::AlignedMode::Asymmetric},
-                                                        {"Half_pixel_for_nn", roi_align::AlignedMode::Half_pixel_for_nn},
-                                                        {"Half_pixel", roi_align::AlignedMode::Half_pixel}});
+      EnumNames<roi_align::AlignedMode>("AlignedMode", {{"asymmetric", roi_align::AlignedMode::asymmetric},
+                                                        {"half_pixel_for_nn", roi_align::AlignedMode::half_pixel_for_nn},
+                                                        {"half_pixel", roi_align::AlignedMode::half_pixel}});
   return enum_names;
 }
 } // namespace ov

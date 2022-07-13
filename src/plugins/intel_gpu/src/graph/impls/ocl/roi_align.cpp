@@ -16,22 +16,22 @@ namespace ocl {
 namespace {
 kernel_selector::pool_type from(roi_align::PoolingMode mode) {
     switch (mode) {
-    case roi_align::PoolingMode::Max:
+    case roi_align::PoolingMode::max:
         return kernel_selector::pool_type::MAX;
     default:
-    case roi_align::PoolingMode::Avg:
+    case roi_align::PoolingMode::avg:
         return kernel_selector::pool_type::AVG;
     }
 }
 
 kernel_selector::roi_aligned_mode from(roi_align::AlignedMode mode) {
     switch (mode) {
-    case roi_align::AlignedMode::Half_pixel_for_nn:
+    case roi_align::AlignedMode::half_pixel_for_nn:
         return kernel_selector::roi_aligned_mode::HALF_PIXEL_FOR_NN;
-    case roi_align::AlignedMode::Half_pixel:
+    case roi_align::AlignedMode::half_pixel:
         return kernel_selector::roi_aligned_mode::HALF_PIXEL;
     default:
-    case roi_align::AlignedMode::Asymmetric:
+    case roi_align::AlignedMode::asymmetric:
         return kernel_selector::roi_aligned_mode::ASYMMETRIC;
     }
 }
@@ -104,42 +104,16 @@ public:
 namespace detail {
 
 attach_roi_align_impl::attach_roi_align_impl() {
-    implementation_map<roi_align>::add(impl_types::ocl,
-                                       roi_align_impl::create,
-                                       {std::make_tuple(data_types::u8, format::bfyx),
-                                        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-                                        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-                                        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
 
-                                        std::make_tuple(data_types::i8, format::bfyx),
-                                        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-                                        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-                                        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32};
 
-                                        std::make_tuple(data_types::i32, format::bfyx),
-                                        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
-                                        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
-                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
-                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
-                                        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
-
-                                        std::make_tuple(data_types::f16, format::bfyx),
-                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-                                        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-
-                                        std::make_tuple(data_types::f32, format::bfyx),
-                                        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-                                        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-                                        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
+    implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create, types, formats);
 }
 
 }  // namespace detail

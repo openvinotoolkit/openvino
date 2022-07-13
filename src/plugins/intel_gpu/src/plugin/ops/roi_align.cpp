@@ -18,22 +18,22 @@ template <typename T>
 cldnn::roi_align::PoolingMode from(T mode) {
     switch (mode) {
     case T::MAX:
-        return cldnn::roi_align::PoolingMode::Max;
+        return cldnn::roi_align::PoolingMode::max;
     case T::AVG:
     default:
-        return cldnn::roi_align::PoolingMode::Avg;
+        return cldnn::roi_align::PoolingMode::avg;
     }
 }
 
 cldnn::roi_align::AlignedMode from(ngraph::op::v9::ROIAlign::AlignedMode mode) {
     switch (mode) {
     case ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL_FOR_NN:
-        return cldnn::roi_align::AlignedMode::Half_pixel_for_nn;
+        return cldnn::roi_align::AlignedMode::half_pixel_for_nn;
     case ngraph::op::v9::ROIAlign::AlignedMode::HALF_PIXEL:
-        return cldnn::roi_align::AlignedMode::Half_pixel;
+        return cldnn::roi_align::AlignedMode::half_pixel;
     case ngraph::op::v9::ROIAlign::AlignedMode::ASYMMETRIC:
     default:
-        return cldnn::roi_align::AlignedMode::Asymmetric;
+        return cldnn::roi_align::AlignedMode::asymmetric;
     }
 }
 
@@ -46,7 +46,7 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
                                            op->get_sampling_ratio(),
                                            op->get_spatial_scale(),
                                            from(op->get_mode()),
-                                           cldnn::roi_align::AlignedMode::Asymmetric,
+                                           cldnn::roi_align::AlignedMode::asymmetric,
                                            op->get_friendly_name());
     p.AddPrimitive(roi_align_prim);
     p.AddPrimitiveToProfiler(op);

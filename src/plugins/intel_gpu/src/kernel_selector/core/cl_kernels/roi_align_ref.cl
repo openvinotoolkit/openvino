@@ -54,21 +54,21 @@ KERNEL(roi_align_ref)
     OUTPUT_TYPE pooled_value = 0;
     for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y; y_sample_ind++) {
         INPUT1_TYPE sample_y =
-            y1 + (INPUT1_TYPE)y * bin_height + sample_distance_y * ((INPUT1_TYPE)y_sample_ind + HALF_ONE_FP);
+            y1 + (INPUT1_TYPE)y * bin_height + sample_distance_y * ((INPUT1_TYPE)y_sample_ind + (INPUT1_TYPE)0.5f);
         for (unsigned int x_sample_ind = 0; x_sample_ind < sampling_ratio_x; x_sample_ind++) {
             INPUT1_TYPE sample_x =
-                x1 + (INPUT1_TYPE)x * bin_width + sample_distance_x * ((INPUT1_TYPE)x_sample_ind + HALF_ONE_FP);
+                x1 + (INPUT1_TYPE)x * bin_width + sample_distance_x * ((INPUT1_TYPE)x_sample_ind + (INPUT1_TYPE)0.5f);
             unsigned int sample_y_low = 0;
             unsigned int sample_x_low = 0;
             unsigned int sample_y_high = 0;
             unsigned int sample_x_high = 0;
-            INPUT1_TYPE weight_left = ZERO_FP;
-            INPUT1_TYPE weight_right = ZERO_FP;
-            INPUT1_TYPE weight_top = ZERO_FP;
-            INPUT1_TYPE weight_bottom = ZERO_FP;
+            INPUT1_TYPE weight_left = INPUT1_VAL_ZERO;
+            INPUT1_TYPE weight_right = INPUT1_VAL_ZERO;
+            INPUT1_TYPE weight_top = INPUT1_VAL_ZERO;
+            INPUT1_TYPE weight_bottom = INPUT1_VAL_ZERO;
             if (sample_x >= -1.0 || sample_x <= INPUT0_SIZE_X || sample_y >= -1.0 || sample_y <= INPUT0_SIZE_Y) {
-                sample_x = MAX(sample_x, ZERO_FP);
-                sample_y = MAX(sample_y, ZERO_FP);
+                sample_x = MAX(sample_x, INPUT1_VAL_ZERO);
+                sample_y = MAX(sample_y, INPUT1_VAL_ZERO);
 
                 sample_y_low = (unsigned int)sample_y;
                 sample_x_low = (unsigned int)sample_x;
@@ -90,8 +90,8 @@ KERNEL(roi_align_ref)
                 // weight calculation for bilinear interpolation
                 weight_top = sample_y - (INPUT1_TYPE)sample_y_low;
                 weight_left = sample_x - (INPUT1_TYPE)sample_x_low;
-                weight_bottom = ONE_FP - weight_top;
-                weight_right = ONE_FP - weight_left;
+                weight_bottom = INPUT1_VAL_ONE - weight_top;
+                weight_right = INPUT1_VAL_ONE - weight_left;
             }
 
             const INPUT0_TYPE top_left = data[INPUT0_GET_INDEX(0, 0, sample_y_low, sample_x_low)];

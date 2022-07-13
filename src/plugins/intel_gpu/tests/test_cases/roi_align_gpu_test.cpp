@@ -160,19 +160,19 @@ TYPED_TEST(roi_align_test, avg_asymmetric) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD>
         expected_output{TD(3.f), TD(3.75f), TD(4.75f), TD(5.f), TD(3.f), TD(5.5f), TD(2.75f), TD(3.75f)};
-    this->execute(expected_output, roi_align::PoolingMode::Avg, roi_align::AlignedMode::Asymmetric);
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::asymmetric);
 }
 
 TYPED_TEST(roi_align_test, avg_half_pixel_for_nn) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD> expected_output =
         {TD(3.14f), TD(2.16f), TD(2.86f), TD(5.03f), TD(1.83f), TD(5.84f), TD(2.77f), TD(3.44f)};
-    this->execute(expected_output, roi_align::PoolingMode::Avg, roi_align::AlignedMode::Half_pixel_for_nn);
+    this->execute(expected_output, roi_align::PoolingMode::avg, roi_align::AlignedMode::half_pixel_for_nn);
 }
 
 TYPED_TEST(roi_align_test, max_half_pixel) {
     using TD = typename TypeParam::DataType;
     const std::vector<TD> expected_output =
         {TD(4.375f), TD(4.9375f), TD(5.6875f), TD(5.625f), TD(4.625f), TD(7.125f), TD(3.3125f), TD(4.3125f)};
-    this->execute(expected_output, roi_align::PoolingMode::Max, roi_align::AlignedMode::Half_pixel);
+    this->execute(expected_output, roi_align::PoolingMode::max, roi_align::AlignedMode::half_pixel);
 }
