@@ -13,22 +13,42 @@ KERNEL (permute_ref)(
 #endif
     )
 {
+#if IS_FSV
+    //gws(f, x * y, z * w * b)
+    const uint gid_0 = get_global_id(0);
+    const uint gid_1 = get_global_id(1);
+    const uint gid_2 = get_global_id(2);
+    const uint f = gid_0;
+    const uint x = gid_1 / INPUT0_SIZE_Y;
+    const uint y = gid_1 % INPUT0_SIZE_Y;
+    #if INPUT0_DIMS == 4
+        const uint b = gid_2;
+    #elif INPUT0_DIMS == 5
+        const uint b = gid_2 / INPUT0_SIZE_Z;
+        const uint z = gid_2 % INPUT0_SIZE_Z;
+    #else
+        const uint b = gid_2 / (INPUT0_SIZE_W * INPUT0_SIZE_Z) % INPUT0_BATCH_NUM;
+        const uint z = gid_2 / INPUT0_SIZE_W % INPUT0_SIZE_Z;
+        const uint w = gid_2 % INPUT0_SIZE_W;
+    #endif
+#else
     //gws(x, y * z * w, b*f)
     const uint gid_0 = get_global_id(1);
-#if INPUT0_DIMS == 4
-    const uint y = gid_0;
-#elif INPUT0_DIMS == 5
-    const uint z = gid_0 / INPUT0_SIZE_Y;
-    const uint y = gid_0 % INPUT0_SIZE_Y;
-#else
-    const uint w = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z) % INPUT0_SIZE_W;
-    const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
-    const uint y = gid_0 % INPUT0_SIZE_Y;
-#endif
+    #if INPUT0_DIMS == 4
+        const uint y = gid_0;
+    #elif INPUT0_DIMS == 5
+        const uint z = gid_0 / INPUT0_SIZE_Y;
+        const uint y = gid_0 % INPUT0_SIZE_Y;
+    #else
+        const uint w = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z) % INPUT0_SIZE_W;
+        const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
+        const uint y = gid_0 % INPUT0_SIZE_Y;
+    #endif
 
     const uint x = get_global_id(0);
     const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
+#endif
 
     INPUT0_TYPE input_var = input[IN_IDX];
 
