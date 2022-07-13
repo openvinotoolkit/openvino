@@ -11,7 +11,7 @@
 #include "json_object.h"
 #include <string>
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 namespace cldnn {
 primitive_type_id convolution::type_id() {

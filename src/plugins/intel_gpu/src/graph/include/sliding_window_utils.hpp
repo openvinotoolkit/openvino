@@ -17,7 +17,6 @@
 #include <stdexcept>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 using cldnn::tensor;
@@ -443,5 +442,4 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

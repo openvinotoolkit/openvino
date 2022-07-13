@@ -49,7 +49,7 @@ void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
 }
 
 template<typename src_dt, typename dst_dt>
-void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::runtime::intel_gpu::buf_info* bi, cldnn::stream& stream) {
+void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu::buf_info* bi, cldnn::stream& stream) {
     size_t n = (bi == nullptr) ? dst->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -91,7 +91,7 @@ inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
     if (!blob->is<gpu::ClBlob>()) {
         not_allocated = (blob->buffer() == nullptr);
     } else {
-        not_allocated = !ov::runtime::intel_gpu::getBlobImpl(blob->as<gpu::ClBlob>())->is_allocated();
+        not_allocated = !ov::intel_gpu::getBlobImpl(blob->as<gpu::ClBlob>())->is_allocated();
     }
     if (not_allocated) {
         IE_THROW(NotAllocated) << err_str;
@@ -175,7 +175,6 @@ bool same_host_mem(cldnn::memory::ptr memPtr, uint8_t* hostPtr) {
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 // ----------------------------------------------------------------------------------------- //
@@ -1277,5 +1276,4 @@ std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferReque
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

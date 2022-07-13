@@ -14,7 +14,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
@@ -519,5 +518,4 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

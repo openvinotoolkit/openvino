@@ -15,7 +15,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType encoding) {
@@ -178,5 +177,4 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
 REGISTER_FACTORY_IMPL(internal, NonMaxSuppressionIEInternal);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

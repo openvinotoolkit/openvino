@@ -30,7 +30,6 @@ using namespace XMLParseUtils;
     CheckAndReturnError(GetIntAttr(node, attr, -1) != (value), "Wrong attribute value! expected: " << value << " found: " << GetIntAttr(node, attr, -1))
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void CustomLayer::LoadSingleLayer(const pugi::xml_node & node) {
@@ -281,5 +280,4 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

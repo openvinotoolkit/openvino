@@ -12,7 +12,6 @@
 #include <memory>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -33,5 +32,4 @@ static void CreateSliceOp(Program& p, const std::shared_ptr<ngraph::op::v8::Slic
 REGISTER_FACTORY_IMPL(v8, Slice);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

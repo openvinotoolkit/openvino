@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
@@ -92,5 +91,4 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 REGISTER_FACTORY_IMPL(v1, Select);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

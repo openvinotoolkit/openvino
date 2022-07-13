@@ -39,7 +39,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
@@ -783,5 +782,4 @@ InferenceEngine::SizeVector Graph::GetOutputSize(std::string outName) const {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

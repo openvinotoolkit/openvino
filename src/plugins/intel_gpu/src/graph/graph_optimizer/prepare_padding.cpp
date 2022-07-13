@@ -12,7 +12,7 @@
 #include <algorithm>
 
 using namespace cldnn;
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {

@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/lrn.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::lrn_norm_region GetNormRegion(std::vector<int64_t> axis_value) {
@@ -50,5 +49,4 @@ static void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& 
 REGISTER_FACTORY_IMPL(v0, LRN);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/pooling.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
@@ -144,5 +143,4 @@ REGISTER_FACTORY_IMPL(v8, MaxPool);
 REGISTER_FACTORY_IMPL(v1, AvgPool);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

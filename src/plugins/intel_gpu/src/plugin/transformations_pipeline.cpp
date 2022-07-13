@@ -106,7 +106,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
@@ -482,5 +481,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

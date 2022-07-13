@@ -9,7 +9,6 @@
 #include <ngraph/op/range.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Range> &op) {
@@ -31,5 +30,4 @@ static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Rang
 REGISTER_FACTORY_IMPL(v4, Range);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

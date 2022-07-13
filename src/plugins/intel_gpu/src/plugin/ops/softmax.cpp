@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
@@ -75,5 +74,4 @@ REGISTER_FACTORY_IMPL(v1, Softmax);
 REGISTER_FACTORY_IMPL(v5, LogSoftmax);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

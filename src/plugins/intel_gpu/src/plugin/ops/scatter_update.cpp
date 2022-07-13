@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/scatter_update.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static inline cldnn::scatter_update::scatter_update_axis GetScatterUpdateAxis(int axis, unsigned rank) {
@@ -69,5 +68,4 @@ static void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::
 REGISTER_FACTORY_IMPL(v3, ScatterUpdate);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
