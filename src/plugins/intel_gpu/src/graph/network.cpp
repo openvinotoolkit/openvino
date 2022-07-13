@@ -17,6 +17,8 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
+#include "assign_inst.h"
+#include "read_value_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -876,6 +878,8 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
+    if (std::dynamic_pointer_cast<assign_inst>(inst) || std::dynamic_pointer_cast<read_value_inst>(inst))
+        _variable_state_primitives.push_back(inst);
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
 }
@@ -915,4 +919,26 @@ memory::ptr network::get_memory_from_pool(const layout& layout,
         return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
 }
+
+network::VariableState& network::get_variable_memory(const std::string &variable_id) {
+    auto it = _variables_states.find(variable_id);
+    if (it == _variables_states.end()) {
+        CLDNN_ERROR_MESSAGE(variable_id, "Variable not found");
+    }
+    return *it->second;
+}
+
+void network::assign_variables_memories(variables_states_map &&variables_memories) {
+    _variables_states = variables_memories;
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            auto it = _variables_states.find(memory_state_primitive->variable_id());
+            if (it != _variables_states.end())
+                primitive->set_output_memory(it->second->memory, false);
+            else
+                CLDNN_ERROR_MESSAGE(memory_state_primitive->variable_id(), "Memory state not found");
+        }
+    }
+}
+
 }  // namespace cldnn
