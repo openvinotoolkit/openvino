@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
-#include "include/algorithm.cl"
 
 #define MAX(a, b)     ((a) > (b) ? (a) : (b))
 #define NUM_ROIS      OUTPUT_BATCH_NUM
