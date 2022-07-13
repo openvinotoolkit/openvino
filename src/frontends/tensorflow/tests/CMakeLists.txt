@@ -4,8 +4,7 @@
 
 set(TARGET_NAME "tensorflow_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
@@ -69,5 +68,6 @@ add_dependencies(${TARGET_NAME} openvino_tensorflow_frontend)
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)
 
+add_subdirectory(lib)
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_fe_standalone_build_test)

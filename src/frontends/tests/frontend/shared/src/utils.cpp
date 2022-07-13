@@ -35,3 +35,20 @@ std::string FrontEndTestUtils::find_ov_path() {
 #    error "Unsupported OS"
 #endif
 }
+
+std::string FrontEndTestUtils::get_disabled_tests(const std::string& manifest_path) {
+    std::string result = "-";
+    std::ifstream manifest_stream(manifest_path);
+    std::string line;
+    while (std::getline(manifest_stream, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        if (line.size() > 0 && line[0] == '#') {
+            continue;
+        }
+        result += ":" + line;
+    }
+    manifest_stream.close();
+    return result;
+}
