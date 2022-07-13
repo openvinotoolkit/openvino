@@ -24,7 +24,6 @@
 using TensorIterator = ngraph::op::v0::TensorIterator;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
@@ -201,5 +200,4 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 REGISTER_FACTORY_IMPL(v0, TensorIterator);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -21,7 +21,6 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
@@ -176,5 +175,4 @@ REGISTER_FACTORY_IMPL(v4, ReduceL1);
 REGISTER_FACTORY_IMPL(v4, ReduceL2);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
