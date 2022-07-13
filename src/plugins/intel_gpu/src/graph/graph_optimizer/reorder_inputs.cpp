@@ -13,6 +13,7 @@
 #include "binary_convolution_inst.h"
 #include "mvn_inst.h"
 #include "to_string_utils.h"
+#include "pooling_inst.h"
 #include "reshape_inst.h"
 
 #include <vector>
@@ -581,6 +582,34 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             }
         }
 
+        {
+            // Change input data type of conv node from i32 to f32
+            auto& input = conv_node.input();
+            auto input_layout = input.get_output_layout();
+            if (input_layout.data_type == data_types::i32) {
+                auto new_layout = input_layout;
+                new_layout.data_type = data_types::f32;
+                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
+                    p.get_or_create(new_input.first).recalc_output_layout(true);
+                }
+            }
+
+            // Change weights type i32 to f32
+            auto& weights = conv_node.weights();
+            auto weights_layout = weights.get_output_layout();
+            if (weights_layout.data_type == data_types::i32) {
+                auto new_layout = weights_layout;
+                new_layout.data_type = data_types::f32;
+                auto new_input = rf.get_reorder(weights.id(), weights_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, conv_node, 1, !new_input.second);
+                    p.get_or_create(new_input.first).recalc_output_layout(false);
+                }
+            }
+        }
+
         // For supporting optimized onednn first conv, the input format from prev reorder to this conv is changed to a recommended format by onednn.
         auto& input = conv_node.input();
         auto input_layout = input.get_output_layout();
@@ -713,6 +742,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                p.add_intermediate(new_input.first, fc_node, 0);
             }
         }
+
         // Change input data of fully-connected node from bx to bf
         if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
             input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
@@ -723,16 +753,42 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto& new_reorder_node = p.get_or_create(new_reshape);
             p.add_intermediate(new_reorder_node, fc_node, 0);
         }
+
+        // Change weights type i32 to f32
+        auto weights_layout = weights.get_output_layout();
+        if (weights_layout.data_type == data_types::i32) {
+            auto new_layout = weights_layout;
+            new_layout.data_type = data_types::f32;
+            auto new_input = rf.get_reorder(weights.id(), weights_layout, new_layout);
+            if (new_input.first) {
+               p.add_intermediate(new_input.first, fc_node, 1);
+            }
+        }
+    };
+
+    const auto reorder_input_pooling = [&p, &rf](typed_program_node<pooling>& pooling_node) {
+        // Change input data type of pooling node from i32 to f32
+        auto& input = pooling_node.input();
+        auto input_layout = input.get_output_layout();
+        if (pooling_node.get_primitive()->mode == pooling_mode::max && input_layout.data_type == data_types::i32) {
+            auto new_layout = input_layout;
+            new_layout.data_type = data_types::f32;
+            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            if (new_input.first) {
+               p.add_intermediate(new_input.first, pooling_node, 0);
+            }
+        }
     };
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected>(
+        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
-            reorder_input_fully_connected);
+            reorder_input_fully_connected,
+            reorder_input_pooling);
     }
 
     for (auto n : p.get_processing_order()) {
