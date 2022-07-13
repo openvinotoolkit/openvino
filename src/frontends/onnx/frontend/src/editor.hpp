@@ -35,11 +35,11 @@ public:
     /// \param shared_obj Pointer to frontend library. Default nullptr.
     ONNXModelEditor(const std::string& model_path,
                     frontend::ExtensionHolder extensions = {},
-                    std::shared_ptr<void> shared_obj = nullptr);
+                    std::shared_ptr<void> shared_obj = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ONNXModelEditor(const std::wstring& model_path,
                     frontend::ExtensionHolder extensions = {},
-                    std::shared_ptr<void> shared_obj = nullptr);
+                    std::shared_ptr<void> shared_obj = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded
@@ -53,7 +53,7 @@ public:
     ONNXModelEditor(std::istream& model_stream,
                     const std::string& path = "",
                     frontend::ExtensionHolder extensions = {},
-                    std::shared_ptr<void> shared_obj = nullptr);
+                    std::shared_ptr<void> shared_obj = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
