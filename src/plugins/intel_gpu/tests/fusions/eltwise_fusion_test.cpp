@@ -245,7 +245,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fp32_fsv16, ::testing::ValuesIn(st
     eltwise_test_params{ CASE_ELTWISE_FP32_3, 3, 5 },
 }));
 
-#ifndef ENABLE_ONEDNN_FOR_GPU
 class eltwise_fp32_fsv32 : public EltwiseFusingTest {};
 TEST_P(eltwise_fp32_fsv32, add) {
     auto p = GetParam();
@@ -290,7 +289,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fp32_fsv32, ::testing::ValuesIn(st
     // So only activation is fused via legacy mechanism
     eltwise_test_params{ CASE_ELTWISE_FP16_4, 4, 5 },
 }));
-#endif
 
 class eltwise_fp32_fsv4 : public EltwiseFusingTest {};
 TEST_P(eltwise_fp32_fsv4, add) {
