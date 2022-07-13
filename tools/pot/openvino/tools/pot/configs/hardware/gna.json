@@ -1,5 +1,6 @@
 {
     "target_device": "GNA",
+    "primary_bitwidth": 16,
     "config": {
         "quantization": {
             "q32_a": {
@@ -29,6 +30,20 @@
                 "granularity": "pertensor",
                 "level_low": -32767,
                 "level_high": 32767
+            },
+            "q32_o": {
+                "bits": 32,
+                "mode": "symmetric",
+                "granularity": "pertensor",
+                "level_low": -2147483648,
+                "level_high": 2147483647
+            },
+            "q16_o": {
+                "bits": 16,
+                "mode": "symmetric",
+                "granularity": "pertensor",
+                "level_low": -32768,
+                "level_high": 32767
             }
         }
     },
@@ -37,34 +52,39 @@
             "type": "Convolution",
             "quantization": {
                 "activations": "q16_a",
-                "weights": "q16_w"
+                "weights": "q16_w",
+                "outputs": "q32_o"
             }
         },
         {
             "type": "MatMul",
             "quantization": {
                 "activations": "q16_a",
-                "weights": ["q8_w", "q16_w"]
+                "weights": ["q8_w", "q16_w"],
+                "outputs": "q32_o"
             }
         },
         {
             "type": "Add",
             "quantization": {
                 "activations": "q16_a",
-                "weights": "q16_w"
+                "weights": "q16_w",
+                "outputs": "q32_o"
             }
         },
         {
             "type": "Multiply",
             "quantization": {
                 "activations": "q16_a",
-                "weights": ["q8_w", "q16_w"]
+                "weights": ["q8_w", "q16_w"],
+                "outputs": "q32_o"
             }
         },
         {
             "type": "Power",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
@@ -88,61 +108,76 @@
         {
             "type": "Sigmoid",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Tanh",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "ReLU",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "PReLU",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Clamp",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Log",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Abs",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Exp",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Sign",
             "quantization": {
-                "activations": "q32_a"
+                "activations": "q32_a",
+                "outputs": "q16_o"
             }
         },
         {
             "type": "Result",
             "quantization": {
                 "activations": "q16_a"
+            }
+        },
+        {
+            "type": "Parameter",
+            "quantization": {
+                "outputs": "q16_o"
             }
         },
         {

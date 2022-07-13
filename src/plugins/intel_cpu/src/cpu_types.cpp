@@ -16,6 +16,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Constant", Type::Input },
         { "Parameter", Type::Input },
         { "Result", Type::Output },
+        { "Eye", Type::Eye },
         { "Convolution", Type::Convolution },
         { "GroupConvolution", Type::Convolution },
         { "MatMul", Type::MatMul },
@@ -63,6 +64,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "PRelu", Type::Eltwise },
         { "Erf", Type::Eltwise },
         { "SoftPlus", Type::Eltwise },
+        { "SoftSign", Type::Eltwise },
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },
@@ -182,11 +184,13 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "ExperimentalDetectronROIFeatureExtractor", Type::ExperimentalDetectronROIFeatureExtractor},
         { "ExperimentalDetectronPriorGridGenerator", Type::ExperimentalDetectronPriorGridGenerator},
         { "ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
+        { "GenerateProposals", Type::GenerateProposals},
         { "ExtractImagePatches", Type::ExtractImagePatches},
         { "NonMaxSuppression", Type::NonMaxSuppression},
         { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
         { "MatrixNms", Type::MatrixNms},
         { "MulticlassNms", Type::MulticlassNms},
+        { "MulticlassNmsIEInternal", Type::MulticlassNms},
         { "Reference", Type::Reference},
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
@@ -212,6 +216,8 @@ std::string NameFromType(const Type type) {
             return "Input";
         case Type::Output:
             return "Output";
+        case Type::Eye:
+            return "Eye";
         case Type::Convolution:
             return "Convolution";
         case Type::Deconvolution:
@@ -364,6 +370,8 @@ std::string NameFromType(const Type type) {
             return "ExperimentalDetectronPriorGridGenerator";
         case Type::ExperimentalDetectronGenerateProposalsSingleImage:
             return "ExperimentalDetectronGenerateProposalsSingleImage";
+        case Type::GenerateProposals:
+            return "GenerateProposals";
         case Type::ExtractImagePatches:
             return "ExtractImagePatches";
         case Type::NonMaxSuppression:
@@ -435,6 +443,7 @@ std::string algToString(const Algorithm alg) {
     CASE(FQCommon);
     CASE(FQQuantization);
     CASE(FQBinarization);
+    CASE(FQRequantization);
     CASE(ROIPoolingMax);
     CASE(ROIPoolingBilinear);
     CASE(ROIAlignMax);

@@ -78,6 +78,7 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
         concat_1->set_friendly_name(lstm_sequence->get_friendly_name() + ".1");
         concat_2->set_friendly_name(lstm_sequence->get_friendly_name() + ".2");
         ngraph::replace_node(lstm_sequence, {concat_0->output(0), concat_1->output(0), concat_2->output(0)});
+        MATCHER_SCOPE_ENABLE(BidirectionalLSTMSequenceDecomposition);
         return true;
     };
 
@@ -145,6 +146,7 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
         concat_0->set_friendly_name(gru_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(gru_sequence->get_friendly_name() + ".1");
         ngraph::replace_node(gru_sequence, {concat_0->output(0), concat_1->output(0)});
+        MATCHER_SCOPE_ENABLE(BidirectionalGRUSequenceDecomposition);
         return true;
     };
 
@@ -210,6 +212,7 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
         concat_0->set_friendly_name(rnn_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(rnn_sequence->get_friendly_name() + ".1");
         ngraph::replace_node(rnn_sequence, {concat_0->output(0), concat_1->output(0)});
+        MATCHER_SCOPE_ENABLE(BidirectionalRNNSequenceDecomposition);
         return true;
     };
 

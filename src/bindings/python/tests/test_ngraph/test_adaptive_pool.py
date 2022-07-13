@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -8,14 +9,15 @@ from tests.runtime import get_runtime
 
 def test_adaptive_avg_pool():
     runtime = get_runtime()
-    input = np.reshape([0.0, 4, 1, 3, -2, -5, -2,
-                        -2, 1, -3, 1, -3, -4, 0,
-                        -2, 1, -1, -2, 3, -1, -3,
-
-                        -1, -2, 3, 4, -3, -4, 1,
-                        2, 0, -4, -5, -2, -2, -3,
-                        2, 3, 1, -5, 2, -4, -2], (2, 3, 7))
-    input_tensor = ov.constant(input)
+    input_vals = np.reshape([
+        0.0, 4, 1, 3, -2, -5, -2,
+        -2, 1, -3, 1, -3, -4, 0,
+        -2, 1, -1, -2, 3, -1, -3,
+        -1, -2, 3, 4, -3, -4, 1,
+        2, 0, -4, -5, -2, -2, -3,
+        2, 3, 1, -5, 2, -4, -2],
+        (2, 3, 7))
+    input_tensor = ov.constant(input_vals)
     output_shape = ov.constant(np.array([3], dtype=np.int32))
 
     adaptive_pool_node = ov.adaptive_avg_pool(input_tensor, output_shape)
@@ -34,14 +36,15 @@ def test_adaptive_avg_pool():
 
 def test_adaptive_max_pool():
     runtime = get_runtime()
-    input = np.reshape([0, 4, 1, 3, -2, -5, -2,
-                        -2, 1, -3, 1, -3, -4, 0,
-                        -2, 1, -1, -2, 3, -1, -3,
-
-                        -1, -2, 3, 4, -3, -4, 1,
-                        2, 0, -4, -5, -2, -2, -3,
-                        2, 3, 1, -5, 2, -4, -2], (2, 3, 7))
-    input_tensor = ov.constant(input)
+    input_vals = np.reshape([
+        0, 4, 1, 3, -2, -5, -2,
+        -2, 1, -3, 1, -3, -4, 0,
+        -2, 1, -1, -2, 3, -1, -3,
+        -1, -2, 3, 4, -3, -4, 1,
+        2, 0, -4, -5, -2, -2, -3,
+        2, 3, 1, -5, 2, -4, -2],
+        (2, 3, 7))
+    input_tensor = ov.constant(input_vals)
     output_shape = ov.constant(np.array([3], dtype=np.int32))
 
     adaptive_pool_node = ov.adaptive_max_pool(input_tensor, output_shape)

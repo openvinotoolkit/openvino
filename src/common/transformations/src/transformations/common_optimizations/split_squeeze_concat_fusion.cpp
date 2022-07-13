@@ -97,6 +97,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(nodes_to_delete, {transpose, reshape});
         ngraph::replace_node(m.get_match_root(), reshape);
+        MATCHER_SCOPE_ENABLE(SplitSqueezeConcatFusion);
         return true;
     };
 
