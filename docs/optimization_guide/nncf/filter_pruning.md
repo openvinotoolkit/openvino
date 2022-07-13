@@ -94,6 +94,71 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 
 @endsphinxtabset
 
+> **NOTE**: In the case of distributed multi-GPU training (not DataParallel), you should call `compression_ctrl.distributed()` before the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
+
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/code/pruning_torch.py distributed
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow 2}
+
+@snippet docs/optimization_guide/nncf/code/pruning_tf.py distributed
+
+@endsphinxtab
+
+@endsphinxtabset
+
+Below, we describe an optional API that allows saving/loading model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
+
+### 7. (Optional) Save checkpoint
+To save model checkpoint use the following API:
+
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/code/pruning_torch.py save_checkpoint
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow 2}
+
+@snippet docs/optimization_guide/nncf/code/pruning_tf.py save_checkpoint
+
+@endsphinxtab
+
+@endsphinxtabset
+
+### 8. (Optional) Restore from checkpoint
+To restore the model from checkpoint you should use the following API:
+
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/code/pruning_torch.py save_checkpoint
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow 2}
+
+@snippet docs/optimization_guide/nncf/code/pruning_tf.py save_checkpoint
+
+@endsphinxtab
+
+@endsphinxtabset
+
+For more details on saving/loading checkpoints in the NNCF, see the following [documentation](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models).
+
+## Deploying pruned model
+The pruned model requres an extra step that should be done to get performance improvement. This step involves removal of the zero filters from the model. This is done at the model convertion step using [Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide) tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
+- To remove zero filters from the pruned model add the following parameter to the model convertion command: `--transform=Pruning`
+
+After that the model can be deployed with OpenVINO in the same way as the baseline model.
+For more details about model deployment with OpenVINO, see the corresponding [documentation](../../OV_Runtime_UG/openvino_intro.md).
 
 
-## Removing zero filters from the pruned model
