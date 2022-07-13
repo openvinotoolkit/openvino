@@ -22,8 +22,10 @@ enum dft_type {
 struct RDFTExecutor {
     public:
         RDFTExecutor(bool inverse) : is_inverse(inverse) {}
-        void execute(float* src, float* dst, size_t rank, const std::vector<int>& axes,
-                     const VectorDims& input_shape, const VectorDims& output_shape,
+        void execute(float* src, float* dst, size_t rank,
+                     const std::vector<int>& axes,
+                     std::vector<int> signal_sizes,
+                     VectorDims input_shape, const VectorDims& output_shape,
                      const VectorDims& input_strides, const VectorDims& output_strides);
 
     protected:
@@ -52,12 +54,14 @@ struct RDFTExecutor {
                          const std::vector<size_t>& iteration_range);
         void rdft_nd(float* input_ptr, float* output_ptr,
                      const std::vector<int>& axes,
+                     const std::vector<int>& signal_sizes,
                      const VectorDims& input_shape,
                      const VectorDims& input_strides,
                      const VectorDims& output_shape,
                      const VectorDims& output_strides);
         void irdft_nd(float* input_ptr, float* output_ptr,
                       const std::vector<int>& axes,
+                      const std::vector<int>& signal_sizes,
                       const VectorDims& input_shape,
                       const VectorDims& input_strides,
                       const VectorDims& output_shape,
@@ -66,7 +70,7 @@ struct RDFTExecutor {
         std::vector<float> generate_twiddles_fft(size_t N);
         std::vector<float> generate_twiddles_common(size_t input_size, size_t output_size,
                                                     enum dft_type type, bool use_fft);
-        void generate_twiddles(const std::vector<size_t>& input_shape,
+        void generate_twiddles(const std::vector<int>& signal_sizes,
                                const std::vector<size_t>& output_shape,
                                const std::vector<int>& axes);
 };
