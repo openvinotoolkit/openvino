@@ -7,8 +7,8 @@
    :hidden:
    
    pot_introduction
-   docs_nncf_introduction
-   (Experimental) Protecting Model <pot_range_supervision_README>
+   tmo_introduction
+   (Experimental) Protecting Model <pot_ranger_README>
 
 @endsphinxdirective
 

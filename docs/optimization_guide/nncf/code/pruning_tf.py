@@ -11,9 +11,19 @@ from nncf.torch import create_compressed_model, register_default_init_args
 #! [nncf_congig]
 nncf_config_dict = {
     "input_info": {"sample_size": [1, 3, 224, 224]}, # input shape required for model tracing
-    "compression": {
-        "algorithm": "quantization",  # 8-bit quantization with default settings
-    },
+    "compression": [
+        {
+            "algorithm": "filter_pruning",
+            "pruning_init": 0.1,
+            "params": {
+                "pruning_target": 0.4,
+                "pruning_steps": 15
+            }
+        },
+        {
+            "algorithm": "quantization",  # 8-bit quantization with default settings
+        },
+    ]
 }
 nncf_config = NNCFConfig.from_dict(nncf_config_dict)
 nncf_config = register_default_init_args(nncf_config, dataset, batch_size=1) # dataset is an instance of tf.data.Dataset
@@ -30,8 +40,8 @@ compression_ctrl.distributed() # call it before the training
 
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
-# tune quantized model for 5 epochs the same way as the baseline
-model.fit(train_dataset, epochs=5)
+# tune quantized model for 50 epochs as the baseline
+model.fit(train_dataset, epochs=50)
 #! [tune_model]
 
 #! [export]

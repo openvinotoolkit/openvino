@@ -13,7 +13,7 @@ NNCF is distributed as a separate tool but is closely aligned with OpenVINO in t
   
  |Compression algorithm|PyTorch|TensorFlow 2.x|
  | :--- | :---: | :---: |
- |[8- bit quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md) | Supported | Supported |
+ |[8-bit quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md) | Supported | Supported |
  |[Filter pruning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Pruning.md) | Supported | Supported |
  |[Sparsity](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Sparsity.md) | Supported | Supported |
  |[Mixed-precision quantization](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#mixed_precision_quantization) | Supported | Not supported |

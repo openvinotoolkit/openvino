@@ -11,9 +11,19 @@ from nncf.torch import create_compressed_model, register_default_init_args
 #! [nncf_congig]
 nncf_config_dict = {
     "input_info": {"sample_size": [1, 3, 224, 224]}, # input shape required for model tracing
-    "compression": {
-        "algorithm": "quantization",  # 8-bit quantization with default settings
-    },
+    "compression": [
+        {
+            "algorithm": "filter_pruning",
+            "pruning_init": 0.1,
+            "params": {
+                "pruning_target": 0.4,
+                "pruning_steps": 15
+            }
+        },
+        {
+            "algorithm": "quantization",  # 8-bit quantization with default settings
+        },
+    ]
 }
 nncf_config = NNCFConfig.from_dict(nncf_config_dict)
 nncf_config = register_default_init_args(nncf_config, data_loader) # data_loader is an instance of torch.utils.data.DataLoader
@@ -30,9 +40,13 @@ compression_ctrl.distributed() # call it before the training loop
 
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
-# tune quantized model for 5 epochs as the baseline
-for epoch in range(0, 5):
-    train(train_loader, model, criterion, optimizer, epoch)
+# tune quantized model for 50 epochs as the baseline
+for epoch in range(0, 50):
+    compression_ctrl.scheduler.epoch_step() # Epoch control API
+    
+    for i, data in enumerate(train_loader):
+        compression_ctrl.scheduler.step()   # Training iteration control API
+        ... # training loop body
 #! [tune_model]
 
 #! [export]

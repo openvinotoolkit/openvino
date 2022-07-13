@@ -65,7 +65,7 @@ In the next step, you need to wrap the original model object with the `create_co
 
 @endsphinxtabset
 
-### 5. Fine-tune the model
+### 4. Fine-tune the model
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle, you can skip this step which means that the post-training optimization will be applied to the model.
 
 @sphinxtabset
@@ -84,7 +84,7 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 
 @endsphinxtabset
 
-### 6. Export quantized model
+### 5. Export quantized model
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorh and frozen graph - for TensorFlow 2.
 
 @sphinxtabset
