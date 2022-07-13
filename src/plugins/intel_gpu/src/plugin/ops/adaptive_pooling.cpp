@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateAdaptiveAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::AdaptiveAvgPool>& op) {
@@ -74,5 +73,4 @@ REGISTER_FACTORY_IMPL(v8, AdaptiveAvgPool);
 REGISTER_FACTORY_IMPL(v8, AdaptiveMaxPool);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
