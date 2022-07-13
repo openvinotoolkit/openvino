@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
-Hello Classification C sample application demonstrates how to use OpenVINO™ Runtime C API in applications:
+Hello Classification C sample application demonstrates how to use the following Inference Engine C API in applications:
 
 | Feature    | API  | Description |
 |:---     |:--- |:---
