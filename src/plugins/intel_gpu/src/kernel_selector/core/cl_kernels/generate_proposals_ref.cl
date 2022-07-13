@@ -4,38 +4,27 @@
 
 #if INPUT0_TYPE_SIZE == 2 //f16
     #define HALF_ONE 0.5h
-    #define ZERO 0.0h
-
-    #ifdef NORMALIZED
-      #define COORDINATES_OFFSET  0.0h
-    #else
-      #define COORDINATES_OFFSET  1.0h
-    #endif
-
 #else
-
     #define HALF_ONE 0.5f
-    #define ZERO 0.0f
-
-    #ifdef NORMALIZED
-        #define COORDINATES_OFFSET  0.0f
-    #else
-        #define COORDINATES_OFFSET  1.0f
-    #endif
-
 #endif
 
-#define ROI_SIZE 4
+#define ZERO INPUT0_VAL_ZERO
+
+#ifdef NORMALIZED
+    #define COORDINATES_OFFSET INPUT0_VAL_ZERO
+#else
+    #define COORDINATES_OFFSET INPUT0_VAL_ONE
+#endif
 
 #ifdef GENERATE_PROPOSALS_STAGE_0
 
 // 0. Refine anchors
 KERNEL(generate_proposals_ref_stage_0)
 (const __global INPUT0_TYPE* im_info,
- const __global INPUT0_TYPE* anchors,
- const __global INPUT0_TYPE* deltas,
- const __global INPUT0_TYPE* scores,
- __global INPUT0_TYPE* proposals) {
+ const __global INPUT1_TYPE* anchors,
+ const __global INPUT2_TYPE* deltas,
+ const __global INPUT3_TYPE* scores,
+ __global OUTPUT_TYPE* proposals) {
     const uint h = get_global_id(0);
     const uint w = get_global_id(1);
     const uint ba = (uint)get_global_id(2);
@@ -194,7 +183,7 @@ inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
 }
 
 // 1. Sort boxes by scores
-KERNEL(generate_proposals_ref_stage_1)(__global INPUT0_TYPE* proposals) {
+KERNEL(generate_proposals_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
     const uint batch = get_global_id(0);
 
     __global Box* boxes = (__global Box*)(proposals + batch * NUM_PROPOSALS * PROPOSAL_SIZE);
@@ -283,7 +272,7 @@ KERNEL(generate_proposals_ref_stage_3)
  const __global size_t* out_indices,
  const __global ROI_NUM_TYPE* num_outputs,
  __global OUTPUT_TYPE* rois,
- __global OUTPUT_TYPE* roi_scores) {
+ __global INPUT4_TYPE* roi_scores) {
 
     uint roi_index = 0;
     for (uint batch = 0; batch < INPUT0_BATCH_NUM; ++batch) {
@@ -312,7 +301,6 @@ KERNEL(generate_proposals_ref_stage_3)
 }
 #endif /* GENERATE_PROPOSALS_STAGE_3 */
 
-#undef ROI_SIZE
-#undef COORDINATES_OFFSET
-#undef ZERO
 #undef HALF_ONE
+#undef ZERO
+#undef COORDINATES_OFFSET
