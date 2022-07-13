@@ -117,11 +117,11 @@ NGRAPH_TEST(onnx_tensor_names, simple_multiout_named_operator) {
     // in this case both Results are connected directly to the MaxPool node
     const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
     EXPECT_NE(result1, nullptr);
-    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node");
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 
     const auto result2 = find_by_friendly_name<op::Result>(ops, "z/sink_port_0");
     EXPECT_NE(result2, nullptr);
-    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node");
+    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
 NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
@@ -132,11 +132,11 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
 
     const auto result1 = find_by_friendly_name<op::Result>(ops, "y/sink_port_0");
     EXPECT_NE(result1, nullptr);
-    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node_y");
+    EXPECT_EQ(result1->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "y");
 
     const auto result2 = find_by_friendly_name<op::Result>(ops, "z/sink_port_0");
     EXPECT_NE(result2, nullptr);
-    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "max_pool_node_z");
+    EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
 NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {

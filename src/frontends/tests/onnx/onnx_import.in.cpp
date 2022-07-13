@@ -96,7 +96,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     EXPECT_EQ(additions.size(), 2);
     EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
     EXPECT_EQ(additions.at(0)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"X"});
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
 }
 
