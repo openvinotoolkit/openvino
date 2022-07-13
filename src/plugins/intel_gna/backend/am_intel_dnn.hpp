@@ -13,6 +13,7 @@
 #include "gna/gna_config.hpp"
 
 #include "gna_plugin_log.hpp"
+#include "common/gna_target.hpp"
 #include "memory/gna_memory.hpp"
 #include <gna2-model-api.h>
 
@@ -296,7 +297,7 @@ public:
 
     void WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision);
 
-    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = common::kGnaTarget2_0);
 
     void DestroyGNAStruct(Gna2Model *gnaModel);
 
