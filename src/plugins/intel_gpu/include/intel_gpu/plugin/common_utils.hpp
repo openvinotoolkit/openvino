@@ -87,6 +87,27 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     }
 }
 
+inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
+    switch (dt) {
+    case cldnn::data_types::bin:
+        return InferenceEngine::Precision::ePrecision::BIN;
+    case cldnn::data_types::u8:
+        return InferenceEngine::Precision::ePrecision::U8;
+    case cldnn::data_types::i8:
+        return InferenceEngine::Precision::ePrecision::I8;
+    case cldnn::data_types::f16:
+        return InferenceEngine::Precision::ePrecision::FP16;
+    case cldnn::data_types::f32:
+        return InferenceEngine::Precision::ePrecision::FP32;
+    case cldnn::data_types::i32:
+        return InferenceEngine::Precision::ePrecision::I32;
+    case cldnn::data_types::i64:
+        return InferenceEngine::Precision::ePrecision::I64;
+    default:
+        IE_THROW(ParameterMismatch) << "The plugin does not support " << cldnn::data_type_traits::name(dt) << " data type";
+    }
+}
+
 inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     switch (l) {
         // TODO: change 6d case once new layout added in IE
