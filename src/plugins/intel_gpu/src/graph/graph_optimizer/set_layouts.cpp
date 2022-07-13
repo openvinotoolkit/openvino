@@ -78,16 +78,18 @@ void set_layouts::run(program& p) {
     // TODO: if !supports_immad, return
 
     for (auto n : p.get_processing_order()) {
-        if (!n->is_type<convolution>() || !layout_optimizer::are_data_types_suitable_for_onednn(*n))  // only care for onednn convolutions
+        if (!n->is_type<convolution>() || !layout_optimizer::are_data_types_suitable_for_onednn(*n)) {
+            // only care for onednn convolutions
             continue;
+        }
         auto& node = n->as<convolution>();
 
         auto& engine = p.get_engine();
         auto desc = get_convolution_descriptor(node);
         // XXX: did not handle attribute properly. especially for zero-point
         dnnl::primitive_desc prim_desc{&desc->data, nullptr, engine.get_onednn_engine(), nullptr};
-        auto src_fmt = onednn::convert_data_format(onednn::get_format_by_desc(prim_desc.src_desc()));
-        auto dst_fmt = onednn::convert_data_format(onednn::get_format_by_desc(prim_desc.dst_desc()));
+        auto src_fmt = onednn::find_data_format(prim_desc.src_desc());
+        auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
         std::cout << "Mingyuki: " << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt) << std::endl;
         node.set_required_input0(src_fmt);
         node.set_required_output(dst_fmt);

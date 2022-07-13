@@ -33,6 +33,7 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims);
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, bool flatten = false);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
+cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 
 int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);

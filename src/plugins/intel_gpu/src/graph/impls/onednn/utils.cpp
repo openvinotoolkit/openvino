@@ -135,7 +135,6 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case dnnl::memory::format_tag::nchw: return cldnn::format::bfyx;
         case dnnl::memory::format_tag::ncdhw: return cldnn::format::bfzyx;
         case dnnl::memory::format_tag::nhwc: return cldnn::format::byxf;
-        case dnnl::memory::format_tag::undef: return cldnn::format::b_fs_yx_fsv2;
         case dnnl::memory::format_tag::aBcd4b: return cldnn::format::b_fs_yx_fsv4;
         case dnnl::memory::format_tag::nChw16c: return cldnn::format::b_fs_yx_fsv16;
         case dnnl::memory::format_tag::aBcd32b: return cldnn::format::b_fs_yx_fsv32;
@@ -371,6 +370,31 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
 
     return dnnl::memory::format_tag::undef;
 }
+
+cldnn::format find_data_format(dnnl::memory::desc desc) {
+    auto onednn_desc = get_format_by_desc(desc);
+
+    if (onednn_desc != dnnl::memory::format_tag::undef) {
+        return convert_data_format(onednn_desc);
+    } else {
+        auto blk = desc.data.format_desc.blocking;
+        if (desc.data.ndims == 5 && blk.inner_nblks == 1
+                    && blk.inner_blks[0] == 2
+                    && blk.inner_idxs[0] == 1) {
+                    return cldnn::format::b_fs_zyx_fsv2;
+        }
+        std::stringstream msg;
+        msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
+            << "ndims: " << desc.data.ndims
+            << ", inner_nblks: " << blk.inner_nblks
+            << ", inner_blks: ";
+        for (int i = 0; i < blk.inner_nblks; i++)
+            msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+
+        throw std::runtime_error(msg.str());
+    }
+}
+
 
 // onednn -> cldnn
 static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
