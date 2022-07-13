@@ -29,6 +29,8 @@ struct ScoreErrorT {
     float maxRelError;
     float sumRelError;
     float sumSquaredRelError;
+    float maxAbsRefScore;
+    float sumAbsRefScore;
 };
 
 /**
@@ -98,6 +100,8 @@ void clear_score_error(ScoreErrorT* error) {
     error->maxRelError = 0.0;
     error->sumRelError = 0.0;
     error->sumSquaredRelError = 0.0;
+    error->maxAbsRefScore = 0.0;
+    error->sumAbsRefScore = 0.0;
 }
 
 /**
@@ -111,9 +115,13 @@ void update_score_error(ScoreErrorT* error, ScoreErrorT* totalError) {
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
     totalError->sumError += error->sumError;
+    totalError->sumAbsRefScore += error->sumAbsRefScore;
     totalError->sumSquaredError += error->sumSquaredError;
     if (error->maxError > totalError->maxError) {
         totalError->maxError = error->maxError;
+    }
+    if (error->maxAbsRefScore > totalError->maxAbsRefScore) {
+        totalError->maxAbsRefScore = error->maxAbsRefScore;
     }
     totalError->sumRelError += error->sumRelError;
     totalError->sumSquaredRelError += error->sumSquaredRelError;
@@ -147,13 +155,18 @@ void compare_scores(float* ptrScoreArray,
             float score = A[i * numColumns + j];
             // std::cout << "score" << score << std::endl;
             float refscore = B[i * numColumns + j];
+            float abs_refscore = fabs(refscore);
             float error = fabs(refscore - score);
-            float rel_error = error / (static_cast<float>(fabs(refscore)) + 1e-20f);
+            float rel_error = error / (static_cast<float>(abs_refscore) + 1e-20f);
             float squared_error = error * error;
             float squared_rel_error = rel_error * rel_error;
             scoreError->numScores++;
             scoreError->sumError += error;
+            scoreError->sumAbsRefScore += abs_refscore;
             scoreError->sumSquaredError += squared_error;
+            if (abs_refscore > scoreError->maxAbsRefScore) {
+                scoreError->maxAbsRefScore = abs_refscore;
+            }
             if (error > scoreError->maxError) {
                 scoreError->maxError = error;
             }
@@ -267,6 +280,8 @@ float get_gna_frequency_mhz() {
  * @return none.
  */
 void print_reference_compare_results(ScoreErrorT const& totalError, size_t framesNum, std::ostream& stream) {
+    stream << " max abs ref score: " << totalError.maxAbsRefScore << std::endl;
+    stream << " avg abs ref score: " << totalError.sumAbsRefScore / totalError.numScores << std::endl;
     stream << "         max error: " << totalError.maxError << std::endl;
     stream << "         avg error: " << totalError.sumError / totalError.numScores << std::endl;
     stream << "     avg rms error: " << totalError.sumRmsError / framesNum << std::endl;
