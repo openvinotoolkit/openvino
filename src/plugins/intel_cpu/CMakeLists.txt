@@ -77,16 +77,6 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:DNNL_ENABLE_EXCEPTIONS>)
 
-# Cross compiled function
-# TODO: The same for proposal, proposalONNX, topk
-cross_compiled_file(${TARGET_NAME}
-        ARCH AVX2 ANY
-                    src/nodes/proposal_imp.cpp
-        API         src/nodes/proposal_imp.hpp
-        NAME        proposal_exec
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
-)
-
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #  add test object library
