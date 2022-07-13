@@ -1,6 +1,6 @@
-# Changing input shapes {#openvino_docs_IE_DG_ShapeInference}
+# Changing Input Shapes {#openvino_docs_OV_UG_ShapeInference}
 
-## Introduction (C++)
+
 
 @sphinxdirective
 .. raw:: html
@@ -9,47 +9,47 @@
 @endsphinxdirective
 
 OpenVINO™ provides capabilities to change model input shape during the runtime.
-It may be useful in case you would like to feed model an input that has different size than model input shape. 
-In case you need to do this only once <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when-to-specify-input-shapes">prepare a model with updated shapes via Model Optimizer</a> for all the other cases follow instructions further.
+It may be useful when you want to feed model an input that has different size than model input shape. 
+If you need to do this only once, prepare a model with updated shapes via Model Optimizer. See [Specifying --input_shape Command-line Parameter](@ref when_to_specify_input_shapes) for more information. For all the other cases, follow the instructions below.
 
-### Set a new input shape with reshape method
+### Setting a New Input Shape with Reshape Method
 
 The `ov::Model::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers.
-Example: Changing the batch size and spatial dimensions of input of a model with an image input:
+For example, changing the batch size and spatial dimensions of input of a model with an image input:
 
 ![shape_inference_explained](./img/original_vs_reshaped_model.png)
 
-Please see the code to achieve that:
+Consider the code below to achieve that:
 
 @snippet snippets/ShapeInference.cpp picture_snippet
 
-### Set a new batch size with set_batch method
+### Setting a New Batch Size with set_batch Method
 
-Meaning of the model batch may vary depending on the model design.
-In order to change the batch dimension of the model, please <a href="_docs_OV_Runtime_UG_preprocessing_overview.html#declare-model-s-layout">set the ov::Layout</a> and call the `ov::set_batch` method.
+The meaning of the model batch may vary depending on the model design.
+In order to change the batch dimension of the model, [set the ov::Layout](@ref declare_model_s_layout) and call the `ov::set_batch` method.
 
 @snippet snippets/ShapeInference.cpp set_batch
 
-`ov::set_batch` method is a high level API of `ov::Model::reshape` functionality, so all information about `ov::Model::reshape` method implications are applicable for `ov::set_batch` too, including the troubleshooting section.
+The `ov::set_batch` method is a high level API of the `ov::Model::reshape` functionality, so all information about the `ov::Model::reshape` method implications are applicable for `ov::set_batch` too, including the troubleshooting section.
 
 Once the input shape of `ov::Model` is set, call the `ov::Core::compile_model` method to get an `ov::CompiledModel` object for inference with updated shapes.
 
-There are other approaches to change model input shapes during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when-to-specify-input-shapes">IR generation</a> or [ov::Model creation](../OV_Runtime_UG/model_representation.md).
+There are other approaches to change model input shapes during the stage of [IR generation](@ref when_to_specify_input_shapes) or [ov::Model creation](../OV_Runtime_UG/model_representation.md).
 
 ### Dynamic Shape Notice
 
 Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa.
-It is recommended to always set static shapes in case if the shape of data is not going to change from one inference to another.
-Setting static shapes avoids possible functional limitations, memory and run time overheads for dynamic shapes that vary depending on hardware plugin and model used.
-To learn more about dynamic shapes in OpenVINO please see a [dedicated article](../OV_Runtime_UG/ov_dynamic_shapes.md).
+It is recommended to always set static shapes when the shape of data is not going to change from one inference to another.
+Setting static shapes can avoid possible functional limitations, memory, and runtime overheads for dynamic shapes which may vary depending on hardware plugin and model used.
+To learn more about dynamic shapes in OpenVINO, see the [Dynamic Shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) page.
 
-### Usage of Reshape Method <a name="usage_of_reshape_method"></a>
+### Usage of the Reshape Method <a name="usage_of_reshape_method"></a>
 
 The primary method of the feature is `ov::Model::reshape`. It is overloaded to better serve two main use cases:
 
-1) To change input shape of model with single input you may pass new shape into the method. Please see the example of adjusting spatial dimensions to the input image:
+1) To change the input shape of the model with a single input, you may pass a new shape to the method. See the example of adjusting spatial dimensions to the input image below:
 
-@snippet snippets/ShapeInference.cpp spatial_reshape
+   @snippet snippets/ShapeInference.cpp spatial_reshape
 
 To do the opposite - resize input image to the input shapes of the model, use the [pre-processing API](../OV_Runtime_UG/preprocessing_overview.md).
 
@@ -80,10 +80,11 @@ To do the opposite - resize input image to the input shapes of the model, use th
 
 @endsphinxdirective
 
-Please find usage scenarios of `reshape` feature in our [samples](Samples_Overview.md) starting with [Hello Reshape Sample](../../samples/cpp/hello_reshape_ssd/README.html)
+The usage scenarios of the `reshape` feature can be found in [OpenVINO Samples](Samples_Overview.md), starting with the [Hello Reshape Sample](../../samples/cpp/hello_reshape_ssd/README.md).
 
-Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `ov::Model::reshape` method.
+In practice, some models are not ready to be reshaped. In such cases, a new input shape cannot be set with Model Optimizer or the `ov::Model::reshape` method.
 
+@anchor troubleshooting_reshape_errors
 ### Troubleshooting Reshape Errors
 
 Operation semantics may impose restrictions on input shapes of the operation. 
@@ -91,8 +92,8 @@ Shape collision during shape propagation may be a sign that a new shape does not
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-* [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value
-* [MatMul](../ops/matrix/MatMul_1.md) operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
+* The [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value.
+* The [MatMul](../ops/matrix/MatMul_1.md) operation with the `Const` second input and this input cannot be resized by spatial dimensions due to operation semantics.
 
 Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
@@ -100,32 +101,33 @@ Having the input of the shape [N, C, H, W], Global Pooling returns the output of
 Model architects usually express Global Pooling with the help of the `Pooling` operation with the fixed kernel size [H, W].
 During spatial reshape, having the input of the shape [N, C, H1, W1], Pooling with the fixed kernel size [H, W] returns the output of the shape [N, C, H2, W2], where H2 and W2 are commonly not equal to `1`.
 It breaks the classification model structure.
-For example, [publicly available Inception family models from TensorFlow*](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
+For example, the publicly available [Inception family models from TensorFlow](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
 
 - Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
-For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#custom-input-shape">Tensorflow Object Detection API models resizing techniques</a>.
+For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref custom-input-shape).
 
-### How To Fix Non-Reshape-able Model<a name="how-to-fix-non-reshape-able-model"></a>
+@anchor how-to-fix-non-reshape-able-model
+### How To Fix Non-Reshape-able Model
 
 Some operators which prevent normal shape propagation can be fixed. To do so you can:
-* see if the issue can be fixed via changing the values of some operators input. 
-E.g. most common problem of non-reshape-able models is a `Reshape` operator with hardcoded output shape.
+* see if the issue can be fixed via changing the values of some operators' input. 
+For example, the most common problem of non-reshape-able models is a `Reshape` operator with hard-coded output shape.
 You can cut-off hard-coded 2nd input of `Reshape` and fill it in with relaxed values.
-For the following example on the picture Model Optimizer CLI should be:
+For the following example on the picture, the Model Optimizer CLI should be:
 ```sh
 mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0 -1]`
 ```
-With `1:reshaped[2]` we request to cut 2nd input (counting from zero, so `1:` means 2nd inputs) of operation named `reshaped` and replace it with a `Parameter` with shape `[2]`.
-With `->[0 -1]` we replace this new `Parameter` by a `Constant` operator which has value `[0, -1]`. 
-Since `Reshape` operator has `0` and `-1` as a specific values (see the meaning in [the specification](../ops/shape/Reshape_1.md)) it allows to propagate shapes freely without losing the intended meaning of `Reshape`.
+With `1:reshaped[2]`, it's requested to cut the 2nd input (counting from zero, so `1:` means the 2nd input) of the operation named `reshaped` and replace it with a `Parameter` with shape `[2]`.
+With `->[0 -1]`, this new `Parameter` is replaced by a `Constant` operator which has the `[0, -1]` value. 
+Since the `Reshape` operator has `0` and `-1` as specific values (see the meaning in [this specification](../ops/shape/Reshape_1.md)), it allows propagating shapes freely without losing the intended meaning of `Reshape`.
 
 ![batch_relaxed](./img/batch_relaxation.png)
 
-* transform model during Model Optimizer conversion on the back phase. See [Model Optimizer extension article](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
-* transform OpenVINO Model during the runtime. See [OpenVINO Runtime Transformations article](../Extensibility_UG/ov_transformations.md)
-* modify the original model with the help of original framework
+* transform the model during Model Optimizer conversion on the back phase. For more information, see the [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+* transform OpenVINO Model during the runtime. For more information, see [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
+* modify the original model with the help of the original framework.
 
 ### Extensibility
 OpenVINO provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)
@@ -139,17 +141,17 @@ OpenVINO provides a special mechanism that allows adding support of shape infere
 @endsphinxdirective
 
 OpenVINO™ provides capabilities to change model input shape during the runtime.
-It may be useful in case you would like to feed model an input that has different size than model input shape. 
-In case you need to do this only once <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when-to-specify-input-shapes">prepare a model with updated shapes via Model Optimizer</a> for all the other cases follow instructions further.
+It may be useful when you want to feed model an input that has different size than model input shape. 
+If you need to do this only once, prepare a model with updated shapes via Model Optimizer. See [specifying input shapes](@ref when_to_specify_input_shapes) for more information. For all the other cases, follow the instructions below.
 
-### Set a new input shape with reshape method
+### Setting a New Input Shape with Reshape Method
 
 The [Model.reshape](api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape) method updates input shapes and propagates them down to the outputs of the model through all intermediate layers.
 Example: Changing the batch size and spatial dimensions of input of a model with an image input:
 
 ![shape_inference_explained](./img/original_vs_reshaped_model.png)
 
-Please see the code to achieve that:
+Consider the code below to achieve that:
 
 @sphinxdirective
 
@@ -159,10 +161,10 @@ Please see the code to achieve that:
  
 @endsphinxdirective
 
-### Set a new batch size with set_batch method
+### Setting a New Batch Size with the set_batch Method
 
-Meaning of the model batch may vary depending on the model design.
-In order to change the batch dimension of the model, please <a href="_docs_OV_Runtime_UG_preprocessing_overview.html#declare-model-s-layout">set the Layout</a> for inputs and call the [set_batch](api/ie_python_api/_autosummary/openvino.runtime.set_batch.html) method.
+The meaning of the model batch may vary depending on the model design.
+In order to change the batch dimension of the model, [set the layout](@ref declare_model_s_layout) for inputs and call the [set_batch](api/ie_python_api/_autosummary/openvino.runtime.set_batch.html) method.
 
 @sphinxdirective
 
@@ -176,20 +178,20 @@ In order to change the batch dimension of the model, please <a href="_docs_OV_Ru
 
 Once the input shape of [Model](api/ie_python_api/_autosummary/openvino.runtime.Model.html) is set, call the [compile_model](api/ie_python_api/_autosummary/openvino.runtime.compile_model.html) method to get a [CompiledModel](api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html) object for inference with updated shapes.
 
-There are other approaches to change model input shapes during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when-to-specify-input-shapes">IR generation</a> or [Model creation](../OV_Runtime_UG/model_representation.md).
+There are other approaches to change model input shapes during the stage of [IR generation](@ref when_to_specify_input_shapes) or [Model creation](../OV_Runtime_UG/model_representation.md).
 
 ### Dynamic Shape Notice
 
 Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa.
-It is recommended to always set static shapes in case if the shape of data is not going to change from one inference to another.
-Setting static shapes avoids possible functional limitations, memory and run time overheads for dynamic shapes that vary depending on hardware plugin and model used.
-To learn more about dynamic shapes in OpenVINO please see a [dedicated article](../OV_Runtime_UG/ov_dynamic_shapes.md).
+It is recommended to always set static shapes when the shape of data is not going to change from one inference to another.
+Setting static shapes can avoid possible functional limitations, memory, and runtime overheads for dynamic shapes which may vary depending on hardware plugin and used model.
+To learn more about dynamic shapes in OpenVINO, see the [Dynamic Shapes](../OV_Runtime_UG/ov_dynamic_shapes.md) article.
 
-### Usage of Reshape Method <a name="usage_of_reshape_method"></a>
+### Usage of the Reshape Method <a name="usage_of_reshape_method"></a>
 
 The primary method of the feature is [Model.reshape](api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape). It is overloaded to better serve two main use cases:
 
-1) To change input shape of model with single input you may pass new shape into the method. Please see the example of adjusting spatial dimensions to the input image:
+1) To change the input shape of a model with a single input, you may pass a new shape to the method. See the example of adjusting spatial dimensions to the input image:
 
 @sphinxdirective
 
@@ -202,12 +204,12 @@ The primary method of the feature is [Model.reshape](api/ie_python_api/_autosumm
 To do the opposite - resize input image to the input shapes of the model, use the [pre-processing API](../OV_Runtime_UG/preprocessing_overview.md).
 
 2) Otherwise, you can express reshape plan via dictionary mapping input and its new shape:
-Dictionary keys could be
-* `str` specifies input by its name
-* `int` specifies input by its index
-* `openvino.runtime.Output` specifies input by passing actual input object
+Dictionary keys could be:
+* The `str` key specifies input by its name.
+* The `int` key specifies input by its index.
+* The `openvino.runtime.Output` key specifies input by passing the actual input object.
 
-Dictionary values (representing new shapes) could be
+Dictionary values (representing new shapes) could be:
 * `list`
 * `tuple`
 * `PartialShape`
@@ -234,19 +236,19 @@ Dictionary values (representing new shapes) could be
 
 @endsphinxdirective
 
-Please find usage scenarios of `reshape` feature in our [samples](Samples_Overview.md), starting with [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.html)
+The usage scenarios of the `reshape` feature can be found in [OpenVINO Samples](Samples_Overview.md), starting with the [Hello Reshape Sample](../../samples/python/hello_reshape_ssd/README.md).
 
-Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `Model.reshape` method.
+In practice, some models are not ready to be reshaped. In such cases, a new input shape cannot be set with Model Optimizer or the `Model.reshape` method.
 
-### Troubleshooting Reshape Errors <a name="troubleshooting"></a>
+### Troubleshooting Reshape Errors
 
 Operation semantics may impose restrictions on input shapes of the operation. 
 Shape collision during shape propagation may be a sign that a new shape does not satisfy the restrictions. 
 Changing the model input shape may result in intermediate operations shape collision.
 
 Examples of such operations:
-* <a href="_docs_ops_shape_Reshape_1.html">Reshape</a> operation with a hard-coded output shape value
-* <a href="_docs_ops_matrix_MatMul_1.html">MatMul</a> operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
+* [Reshape](../ops/shape/Reshape_1.md) operation with a hard-coded output shape value
+* [MatMul](../ops/matrix/MatMul_1.md) operation with the `Const` second input cannot be resized by spatial dimensions due to operation semantics
 
 Model structure and logic should not change significantly after model reshaping.
 - The Global Pooling operation is commonly used to reduce output feature map of classification models output.
@@ -254,32 +256,32 @@ Having the input of the shape [N, C, H, W], Global Pooling returns the output of
 Model architects usually express Global Pooling with the help of the `Pooling` operation with the fixed kernel size [H, W].
 During spatial reshape, having the input of the shape [N, C, H1, W1], Pooling with the fixed kernel size [H, W] returns the output of the shape [N, C, H2, W2], where H2 and W2 are commonly not equal to `1`.
 It breaks the classification model structure.
-For example, [publicly available Inception family models from TensorFlow*](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
+For example, the publicly available [Inception family models from TensorFlow](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models) have this issue.
 
 - Changing the model input shape may significantly affect its accuracy.
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
-For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#custom-input-shape">Tensorflow Object Detection API models resizing techniques</a>.
+For details, refer to the [Tensorflow Object Detection API models resizing techniques](@ref custom-input-shape).
 
-### How To Fix Non-Reshape-able Model<a name="how-to-fix-non-reshape-able-model"></a>
+### How To Fix Non-Reshape-able Model
 
 Some operators which prevent normal shape propagation can be fixed. To do so you can:
 * see if the issue can be fixed via changing the values of some operators input. 
-E.g. most common problem of non-reshape-able models is a `Reshape` operator with hardcoded output shape.
+For example, the most common problem of non-reshape-able models is a `Reshape` operator with hard-coded output shape.
 You can cut-off hard-coded 2nd input of `Reshape` and fill it in with relaxed values.
 For the following example on the picture Model Optimizer CLI should be:
 ```sh
 mo --input_model path/to/model --input data[8,3,224,224],1:reshaped[2]->[0 -1]`
 ```
-With `1:reshaped[2]` we request to cut 2nd input (counting from zero, so `1:` means 2nd inputs) of operation named `reshaped` and replace it with a `Parameter` with shape `[2]`.
-With `->[0 -1]` we replace this new `Parameter` by a `Constant` operator which has value `[0, -1]`. 
-Since `Reshape` operator has `0` and `-1` as a specific values (see the meaning in [the specification](../ops/shape/Reshape_1.md)) it allows to propagate shapes freely without losing the intended meaning of `Reshape`.
+With `1:reshaped[2]`, it's requested to cut the 2nd input (counting from zero, so `1:` means the 2nd input) of the operation named `reshaped` and replace it with a `Parameter` with shape `[2]`.
+With `->[0 -1]`, this new `Parameter` is replaced by a `Constant` operator which has value `[0, -1]`. 
+Since the `Reshape` operator has `0` and `-1` as specific values (see the meaning in [this specification](../ops/shape/Reshape_1.md)), it allows propagating shapes freely without losing the intended meaning of `Reshape`.
 
 ![batch_relaxed](./img/batch_relaxation.png)
 
-* transform model during Model Optimizer conversion on the back phase. See [Model Optimizer extension article](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
-* transform OpenVINO Model during the runtime. See [OpenVINO Runtime Transformations article](../Extensibility_UG/ov_transformations.md)
-* modify the original model with the help of original framework
+* transform the model during Model Optimizer conversion on the back phase. See [Model Optimizer extension](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+* transform OpenVINO Model during the runtime. See [OpenVINO Runtime Transformations](../Extensibility_UG/ov_transformations.md).
+* modify the original model with the help of the original framework.
 
 ### Extensibility
 OpenVINO provides a special mechanism that allows adding support of shape inference for custom operations. This mechanism is described in the [Extensibility documentation](../Extensibility_UG/Intro.md)

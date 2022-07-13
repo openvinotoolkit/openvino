@@ -243,8 +243,9 @@ int main(int argc, char* argv[]) {
         };
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
-        gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = false;
+        gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;
         gnaPluginConfig[ov::intel_gna::pwl_max_error_percent.name()] = FLAGS_pwl_me;
+        gnaPluginConfig[ov::log::level.name()] = FLAGS_log;
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
@@ -299,6 +300,9 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_we.empty()) {
             slog::info << "Exported GNA embedded model to file " << FLAGS_we << slog::endl;
+            if (!FLAGS_compile_target.empty()) {
+                slog::info << "GNA embedded model target: " << FLAGS_compile_target << slog::endl;
+            }
             return 0;
         }
         // ---------------------------------------------------------------------------------------------------------
@@ -318,7 +322,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = input_data.second;
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       " ) is not equal to the number of inputs entered in the -i argument ( " +
                                        std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }

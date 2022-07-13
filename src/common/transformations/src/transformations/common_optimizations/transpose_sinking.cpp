@@ -98,6 +98,7 @@ ngraph::pass::TransposeEltwise::TransposeEltwise() {
         new_transpose->set_friendly_name(eltwise->get_friendly_name());
         copy_runtime_info({eltwise, transpose}, {new_transpose, new_eltwise});
         replace_node(transpose, new_eltwise);
+        MATCHER_SCOPE_ENABLE(TransposeEltwise);
         return true;
     };
 
@@ -125,6 +126,7 @@ ngraph::pass::TransposeConvert::TransposeConvert() {
         new_transpose->set_friendly_name(convert->get_friendly_name());
         copy_runtime_info({transpose, convert}, {new_convert, new_transpose});
         replace_node(convert, new_transpose);
+        MATCHER_SCOPE_ENABLE(TransposeConvert);
         return true;
     };
 
@@ -192,7 +194,7 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
 
         ngraph::copy_runtime_info({reduction, transpose}, new_ops);
         ngraph::replace_node(reduction, new_transpose);
-
+        MATCHER_SCOPE_ENABLE(TransposeReduction);
         return true;
     };
 
@@ -261,6 +263,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         ngraph::replace_node(fq, new_transpose);
         // The root node (reduction) left unchanged during current matcher pass.
         // We return false here for further MatcherPasses to be applicable for this node as a root node
+        MATCHER_SCOPE_ENABLE(TransposeFQReduction);
         return false;
     };
 
@@ -312,7 +315,7 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
             ngraph::copy_runtime_info({transpose1, transpose2}, new_transpose);
             ngraph::replace_node(m.get_match_root(), new_transpose);
         }
-
+        MATCHER_SCOPE_ENABLE(TransposeFuse);
         return true;
     };
 

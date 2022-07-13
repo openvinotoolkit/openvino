@@ -126,6 +126,12 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 32768;
             break;
         }
+        case ngraph::helpers::ActivationTypes::SoftSign: {
+            data_start_from = -100;
+            data_range = 200;
+            resolution = 32768;
+            break;
+        }
         default: {
             data_start_from = -10;
             data_range = 20;

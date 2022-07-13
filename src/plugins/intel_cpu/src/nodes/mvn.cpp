@@ -26,11 +26,11 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
@@ -42,7 +42,7 @@ namespace {
 
 struct MVNKey {
     MVN::MVNAttrs mvnAttrs;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const MVNKey& rhs) const;
@@ -377,7 +377,7 @@ private:
                 uint8 imm = 1;
                 imm = ~((imm << tail_num) - imm);
                 vblendps(vmm_val, vmm_val, vmm_zero, imm);
-            } else if (isa == cpu::x64::avx512_common) {
+            } else if (isa == cpu::x64::avx512_core) {
                 uint64_t tail_mask = 1;
                 tail_mask = ~((tail_mask << tail_num) - tail_mask);
                 mov(reg_aux, tail_mask);
@@ -412,7 +412,7 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -726,7 +726,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -802,7 +802,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     };
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -841,7 +841,7 @@ MVN::MVNExecutor::MVNExecutor(const MVNAttrs& mvnAttrs)
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
 MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                                              const mkldnn::primitive_attr& attr):
+                                              const dnnl::primitive_attr& attr):
                                               MVNExecutor(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
@@ -853,13 +853,13 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
     jcp.across_channels = mvnAttrs.execAcrossChannels_;
     int N = 0;
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = mvnAttrs.shape5D;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
         jcp.normalize_variance = false;
-        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+        mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>(jcp));
         if (mvnAttrs.normalizeVariance_) {
             jcp.normalize_variance = true;
-            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
+            mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>(jcp));
         }
     } else if (mayiuse(cpu::x64::avx2)) {
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
@@ -930,7 +930,7 @@ void MVN::prepareParams() {
         mvnAttrs.layout = MVNLayoutType::block;
     }
 
-    MVNKey key = {mvnAttrs, mkldnn::primitive_attr()};
+    MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
     setPostOps(key.attr, true);
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutor> {
@@ -977,8 +977,8 @@ void MVN::transformTo5DCase(const SizeVector& shape) {
     }
 }
 
-void MVN::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    mkldnn::post_ops ops;
+void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
+    dnnl::post_ops ops;
     VectorDims postOpDims(5);
     std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = mvnAttrs.shape5D;
 
@@ -1000,11 +1000,11 @@ void MVN::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     attr.set_post_ops(ops);
 }
 
-void MVN::executeDynamicImpl(mkldnn::stream strm) {
+void MVN::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MVN::execute(mkldnn::stream strm) {
+void MVN::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute MVN node. Primitive didn't created";
     }
@@ -1018,7 +1018,7 @@ void MVN::execute(mkldnn::stream strm) {
 
 void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // blk size in vmm
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         blk_size = 8;
@@ -1036,7 +1036,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
     size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
 
-    for (size_t b = 0lu; b < N; b++) {
+    parallel_for(N, [&](int b) {
         size_t cb = b * C3;
         if (mvnAttrs.execAcrossChannels_) {
             // Calculate mean value for one instance in batch
@@ -1153,7 +1153,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                 }
             });
         }
-    }
+    });
 }
 
 void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
@@ -1166,7 +1166,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
 
-    for (size_t b = 0lu; b < N; b++) {
+    parallel_for(N, [&](int b) {
         size_t cb = b * C3;
         if (mvnAttrs.execAcrossChannels_) {
             // Parallel sum for each channel for mean
@@ -1251,12 +1251,12 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
                 }
             });
         }
-    }
+    });
 }
 
 void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
     } else {
         blk_size = 8;

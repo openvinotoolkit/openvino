@@ -69,11 +69,12 @@ Options:
                               In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
                               You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-    -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+    -extensions "<absolute_path>" Required for custom layers (extensions). Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"      Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -hint "performance hint (latency or throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
+    -hint "performance hint (latency or throughput or cumulative_throughput or none)"   Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.
                                'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
+                               'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                'latency': device performance mode will be set to LATENCY.
                                'none': no device performance mode will be set.
                               Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
@@ -90,6 +91,7 @@ Options:
     -cache_dir "<path>"       Optional. Enables caching of loaded models to specified directory. List of devices which support caching is shown at the end of this message.
     -load_from_file           Optional. Loads model from file directly without ReadNetwork. All CNNNetwork options (like re-shape) will be ignored
     -latency_percentile       Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
+    -dopt                     Optional. Specify denormals is optimized by treating as zero.
 
   Device-specific performance options:
     -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
@@ -99,6 +101,7 @@ Options:
                                 letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes("NUMA") or
                                 completely disable("NO") CPU inference threads pinning
+    -cpu_experimental ("<brgconv>")          Optional. Enable experimental setting for CPU plugin.
 
   Statistics dumping options:
     -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.

@@ -19,11 +19,51 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
+static format get_recommended_format(layout input_layout, data_types output_type) {
+    if (data_type_traits::is_i8_u8(output_type)) {
+        switch (input_layout.format) {
+            case format::b_fs_yx_fsv16:         return format::b_fs_yx_fsv32;
+            case format::bs_fs_yx_bsv32_fsv16:  return format::bs_fs_yx_bsv32_fsv32;
+            case format::b_fs_zyx_fsv16:        return format::b_fs_zyx_fsv32;
+            case format::bs_fs_zyx_bsv32_fsv16: return format::bs_fs_zyx_bsv32_fsv32;
+            case format::b_fs_yx_fsv2:
+            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv32;
+            case format::b_fs_zyx_fsv2:
+            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv32;
+            case format::bs_fs_yx_bsv8_fsv2:
+            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
+            case format::bs_fs_zyx_bsv8_fsv2:
+            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            default:
+                break;
+        }
+    } else if (data_type_traits::is_floating_point(output_type)) {
+        switch (input_layout.format) {
+            case format::b_fs_yx_fsv32:         return format::b_fs_yx_fsv16;
+            case format::bs_fs_yx_bsv32_fsv32:  return format::bs_fs_yx_bsv32_fsv16;
+            case format::b_fs_zyx_fsv32:        return format::b_fs_zyx_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv32: return format::bs_fs_zyx_bsv32_fsv16;
+            case format::b_fs_yx_fsv2:
+            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv16;
+            case format::b_fs_zyx_fsv2:
+            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv16;
+            case format::bs_fs_yx_bsv8_fsv2:
+            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
+            case format::bs_fs_zyx_bsv8_fsv2:
+            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+            default:
+                break;
+        }
+    }
+
+    return format::any;
+}
+
 layout convolution_inst::calc_output_layout(convolution_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights(0).get_output_layout();  // weights are stored after inputs
+    auto weights_layout = node.weights(0).get_output_layout().convert_to_weights_layout(desc->grouped_weights_shape);
 
     auto pad = desc->pad;
     auto stride = desc->stride;
@@ -36,16 +76,12 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     auto input_type = input_layout.data_type;
 
-    // FIXME: use optional output data type once it's correct in IE
     auto output_type = input_type;
-    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
-
     if (node.has_fused_primitives()) {
         output_type = node.get_fused_output_layout().data_type;
     }
 
     if ((input_type == data_types::u8 || input_type == data_types::i8) &&
-         // !node.get_primitive()->output_data_type &&
          !node.has_fused_primitives()) {
         output_type = data_types::f32;
     }
@@ -57,7 +93,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
     uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
     uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
-
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -141,22 +176,22 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                               "expected value",
                               1,
                               "Winograd 2x3 convolution does not support dilatation");
-        if (input_layout.size.feature[0] % 32 != 0)
+        if (input_layout.feature() % 32 != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                                 "Input for winograd 2x3 convolution should have features count divisable by 32");
-        if (weights_layout.size.batch[0] % 32 != 0)
+        if (weights_layout.ofm() % 32 != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                                 "Number of filters (OFM) for winograd 2x3 convolution should be divisable by 32");
 
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "input width",
-                              input_layout.size.spatial[0],
+                              input_layout.spatial(0),
                               "filter width",
                               3,
                               "Convolution input is smaller than weights");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "input height",
-                              input_layout.size.spatial[1],
+                              input_layout.spatial(1),
                               "filter height",
                               3,
                               "Convolution input is smaller than weights");
@@ -169,27 +204,19 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
         return layout{output_type,
                       input_layout.format,
-                      tensor{input_layout.size.batch[0],
-                             weights_layout.size.batch[0] * weights_layout.size.group[0],
-                             input_layout.size.spatial[0],
-                             input_layout.size.spatial[1] - winograd_filter_height + 1},
+                      tensor{input_layout.batch(),
+                             weights_layout.ofm() * weights_layout.group(),
+                             input_layout.spatial(0),
+                             input_layout.spatial(1) - winograd_filter_height + 1},
                       input_layout.data_padding};
     }
 
     // Adjust output format for mixed precision case in onednn
     auto out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        if (data_type_traits::is_i8_u8(output_type)) {
-            if (input_layout.format == format::b_fs_yx_fsv16)
-                out_fmt = format::b_fs_yx_fsv32;
-            else if (input_layout.format == format::bs_fs_yx_bsv32_fsv16)
-                out_fmt = format::bs_fs_yx_bsv32_fsv32;
-        } else if (data_type_traits::is_floating_point(output_type)) {
-            if (input_layout.format == format::b_fs_yx_fsv32)
-                out_fmt = format::b_fs_yx_fsv16;
-            else if (input_layout.format == format::bs_fs_yx_bsv32_fsv32)
-                out_fmt = format::bs_fs_yx_bsv32_fsv16;
-        }
+        format recommended_fmt = get_recommended_format(input_layout, output_type);
+        if (recommended_fmt != format::any)
+            out_fmt = recommended_fmt;
     }
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
@@ -226,7 +253,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                                        0,
                                        "must be positive(>= 1)");
 
-        tensor output_size(input_layout.size.batch[0],
+        tensor output_size(input_layout.batch(),
                            desc->output_size.feature[0],
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
@@ -246,10 +273,8 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                                                                          true,
                                                                          1);
 
-    tensor::value_type output_features =
-        desc->output_size.feature[0] != 0 ? desc->output_size.feature[0] : number_of_features;
-    tensor output_size = tensor(input_layout.size.batch[0],
-                                output_features,
+    tensor output_size = tensor(input_layout.batch(),
+                                weights_layout.ofm() * weights_layout.group(),
                                 output_range.spatial[0],
                                 output_range.spatial[1],
                                 output_range.spatial[2]);
@@ -309,48 +334,44 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
-                          input_layout.size.raw.size(),
+                          input_layout.get_rank(),
                           "output number of dimensions",
-                          output_layout.size.raw.size(),
-                          "Input/output dims mismatch");
+                          output_layout.get_rank(),
+                          "Input/output rank mismatch");
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
-        auto weights_ifm = filter_inst.size.feature[0];
-        if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
-            weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
-        }
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument.grouped_weights_shape);
 
         if (bias_term()) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias batch[0]",
-                                  bias_inst.size.batch[0],
+                                  bias_inst.batch(),
                                   "expected size of batch",
                                   1,
                                   "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
-                                  bias_inst.size.feature[0],
+                                  bias_inst.feature(),
                                   "expected feature map number",
                                   output_size.feature[0] / split,
                                   "Bias/fm mismatch");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[2]",
-                                  bias_inst.size.spatial[2],
+                                  bias_inst.spatial(2),
                                   "expected size of spatial[2]",
                                   1,
                                   "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
-                                  bias_inst.size.spatial[1],
+                                  bias_inst.spatial(1),
                                   "expected size of spatial[1]",
                                   1,
                                   "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
-                                  bias_inst.size.spatial[0],
+                                  bias_inst.spatial(0),
                                   "expected size of spatial[0]",
                                   1,
                                   "Biases isn't 1D vector.");
@@ -358,12 +379,6 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
         auto pad = argument.pad;
 
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Weights number of dimensions",
-                              filter_inst.size.raw.size(),
-                              "output number of dimensions",
-                              output_layout.size.raw.size(),
-                              "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
                               node.get_output_layout().data_padding.filling_value(),
@@ -382,21 +397,12 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "expected output size",
                               1,
                               "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
-                              input_layout.size.feature[0],
+                              filter_inst.ifm() * filter_inst.group(),
                               "input feature maps number",
-                              weights_ifm,
+                              input_layout.feature(),
                               "Weights/ifm mismatch");
-
-        if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Weights feature maps number",
-                                  input_layout.size.feature[0],
-                                  "input feature maps number",
-                                  weights_ifm,
-                                  "Weights/ifm mismatch");
-        }
     }
 }
 }  // namespace cldnn

@@ -11,9 +11,8 @@
 #include <array>
 #include <tuple>
 
-#include <mkldnn.hpp>
-#include <mkldnn_debug.h>
-#include <mkldnn_types.h>
+#include <dnnl_debug.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -25,9 +24,9 @@
 #include "emitters/cpu_generator.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -36,8 +35,8 @@ namespace node {
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
-    host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_common) ?
-        dnnl::impl::cpu::x64::avx512_common : dnnl::impl::cpu::x64::avx2;
+    host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
+        dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
 
     // Create a deep local copy of the input snippet to perform canonicalization & code generation
     // Todo: Probably better to implement a proper copy constructor
@@ -101,7 +100,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-                size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_common) ? 16 : 8;
+                size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
 
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
@@ -150,7 +149,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         }
 
         impl_desc_type impl_type = impl_desc_type::unknown;
-        if (mayiuse(x64::avx512_common)) {
+        if (mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;

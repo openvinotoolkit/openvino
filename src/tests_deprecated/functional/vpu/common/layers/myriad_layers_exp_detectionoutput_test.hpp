@@ -39,8 +39,8 @@ static void generateData(Blob::Ptr inputBoxesBlob,
     // boxes generator
     auto genXY = [](int min, int max, int minSize, int maxSize)
         {
-            int a = min + maxSize * (float(std::rand()) / RAND_MAX);
-            int b = min + maxSize * (float(std::rand()) / RAND_MAX);
+            int a = min + maxSize * (float(std::rand()) / float(RAND_MAX));
+            int b = min + maxSize * (float(std::rand()) / float(RAND_MAX));
             if (b < a)
                 std::swap(a, b);
             if (b - a < minSize)
@@ -81,14 +81,14 @@ static void generateData(Blob::Ptr inputBoxesBlob,
     {
         for (int class_idx = 0; class_idx < numClasses; ++class_idx)
         {
-            float dx = 0.5*layerParams.deltas_weights[0] + layerParams.deltas_weights[0] * (float(std::rand()) / RAND_MAX);
-            float dy = 0.5*layerParams.deltas_weights[1] + layerParams.deltas_weights[1] * (float(std::rand()) / RAND_MAX);
+            float dx = 0.5*layerParams.deltas_weights[0] + layerParams.deltas_weights[0] * (float(std::rand()) / float(RAND_MAX));
+            float dy = 0.5*layerParams.deltas_weights[1] + layerParams.deltas_weights[1] * (float(std::rand()) / float(RAND_MAX));
 
             const float minD = 0.95;
             const float maxD = 1.10;
 
-            float d_log_w = std::log(layerParams.deltas_weights[2] * (minD + (maxD - minD) * (float(std::rand()) / RAND_MAX)));
-            float d_log_h = std::log(layerParams.deltas_weights[3] * (minD + (maxD - minD) * (float(std::rand()) / RAND_MAX)));
+            float d_log_w = std::log(layerParams.deltas_weights[2] * (minD + (maxD - minD) * (float(std::rand()) / float(RAND_MAX))));
+            float d_log_h = std::log(layerParams.deltas_weights[3] * (minD + (maxD - minD) * (float(std::rand()) / float(RAND_MAX))));
 
             ie_fp16* ideltas = &inputDeltas[(roi_idx * numClasses + class_idx) * 4];
 

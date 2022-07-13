@@ -87,6 +87,27 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
     }
 }
 
+inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
+    switch (dt) {
+    case cldnn::data_types::bin:
+        return InferenceEngine::Precision::ePrecision::BIN;
+    case cldnn::data_types::u8:
+        return InferenceEngine::Precision::ePrecision::U8;
+    case cldnn::data_types::i8:
+        return InferenceEngine::Precision::ePrecision::I8;
+    case cldnn::data_types::f16:
+        return InferenceEngine::Precision::ePrecision::FP16;
+    case cldnn::data_types::f32:
+        return InferenceEngine::Precision::ePrecision::FP32;
+    case cldnn::data_types::i32:
+        return InferenceEngine::Precision::ePrecision::I32;
+    case cldnn::data_types::i64:
+        return InferenceEngine::Precision::ePrecision::I64;
+    default:
+        IE_THROW(ParameterMismatch) << "The plugin does not support " << cldnn::data_type_traits::name(dt) << " data type";
+    }
+}
+
 inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     switch (l) {
         // TODO: change 6d case once new layout added in IE
@@ -167,31 +188,6 @@ inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     }
 
     return cldnn::format::bfyx;  // Should not get here
-}
-
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
-inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
-    std::vector<uint16_t> ie_order_aligned = ie_order;
-    // if order size is less than 4 - fill the rest with just copy
-    rank = std::max(rank, (size_t)4);
-    for (auto o = ie_order_aligned.size(); o < rank; o++)
-        ie_order_aligned.push_back((uint16_t)o);
-
-    std::vector<uint16_t> cldnn_order;
-    // 1. Switch permute order values for spatial dims
-    for (auto const& o : ie_order_aligned) {
-        if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
-        else
-            cldnn_order.push_back(o);
-    }
-
-    // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
-        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
-    }
-
-    return cldnn_order;
 }
 
 inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {

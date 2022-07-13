@@ -38,40 +38,40 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node) 
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
 
-    if (input_layout.size.spatial[0] % block_size != 0 || input_layout.size.spatial[1] % block_size != 0)
+    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0)
         CLDNN_ERROR_MESSAGE(
             node.id(),
             "Sizes of spatials x, y must be divisible by block size. Actual spatial sizes are " +
-                std::to_string(input_layout.size.spatial[0]) + ", " + std::to_string(input_layout.size.spatial[1]) +
+                std::to_string(input_layout.spatial(0)) + ", " + std::to_string(input_layout.spatial(1)) +
                     " (x, y). Actual block size is " + std::to_string(block_size));
 
 
     if (input_layout.format.dimension() == 5) {
-        if (input_layout.size.spatial[2] % block_size != 0)
+        if (input_layout.spatial(2) % block_size != 0)
         CLDNN_ERROR_MESSAGE(
             node.id(),
             "Sizes of spatials z must be divisible by block size. Actual spatial sizes are " +
-                std::to_string(input_layout.size.spatial[2]) +
+                std::to_string(input_layout.spatial(2)) +
                     " (z). Block size is " + std::to_string(block_size));
 
-        const size_t feature = input_layout.size.feature[0] * block_size * block_size * block_size;
-        const size_t z = input_layout.size.spatial[2] / block_size;
-        const size_t y = input_layout.size.spatial[1] / block_size;
-        const size_t x = input_layout.size.spatial[0] / block_size;
+        const size_t feature = input_layout.feature() * block_size * block_size * block_size;
+        const size_t z = input_layout.spatial(2) / block_size;
+        const size_t y = input_layout.spatial(1) / block_size;
+        const size_t x = input_layout.spatial(0) / block_size;
 
         return layout{
             output_type,
             input_format,
-            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
+            tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
     } else {
-        const size_t feature = input_layout.size.feature[0] * block_size * block_size;
-        const size_t y = input_layout.size.spatial[1] / block_size;
-        const size_t x = input_layout.size.spatial[0] / block_size;
+        const size_t feature = input_layout.feature() * block_size * block_size;
+        const size_t y = input_layout.spatial(1) / block_size;
+        const size_t x = input_layout.spatial(0) / block_size;
 
         return layout{
             output_type,
             input_format,
-            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
+            tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y))};
     }
 }
 

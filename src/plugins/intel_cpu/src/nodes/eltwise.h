@@ -70,7 +70,7 @@ class Eltwise : public Node {
 public:
     struct EltwiseData {
         Algorithm algo;
-        mkldnn::algorithm onednnAlgorithm;
+        dnnl::algorithm onednnAlgorithm;
         float alpha;
         float beta;
         float gamma;
@@ -90,18 +90,18 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const NodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
     void fuseInto(NodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -109,7 +109,7 @@ public:
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
 
-    mkldnn::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
+    dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
@@ -118,7 +118,7 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDynamicBatchLim(int lim) override;
 
@@ -136,7 +136,7 @@ private:
     executorPtr execPtr = nullptr;
     BroadcastingPolicy broadcastingPolicy;
 
-    mkldnn::algorithm onednnAlgorithm = mkldnn::algorithm::undef;
+    dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
@@ -172,7 +172,7 @@ private:
     size_t getOpInputsNum() const;
 
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem, const int channelAxis = 1);
 
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);

@@ -23,6 +23,9 @@ else()
     unset(IE_OWN_TBB_CONFIG)
 endif()
 
+unset(TBB_DIR)
+unset(TBB_DIR CACHE)
+
 find_package(TBB
     CONFIG
     PATHS ${TBBROOT}/cmake

@@ -8,12 +8,57 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 #include <cmath>
 #include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
+
+static void test_abs_basic_bfwzyx(const char* kernel_name){
+    auto& engine = get_test_engine();
+
+    std::vector<int> shape = {2, 3, 7, 6, 5, 4};
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
+    auto input_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
+    set_values(input, input_raw);
+    
+    auto elt_dat = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
+    auto elt_dat_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
+    set_values(elt_dat, elt_dat_raw);
+
+    topology topo(input_layout("input", input->get_layout()),
+                  activation("act", "input", activation_func::abs),
+                  data("elt_dat", elt_dat),
+                  eltwise("elt", {"act", "elt_dat"}, eltwise_mode::prod));
+    build_options bo;
+    implementation_desc act_impl = { format::bfwzyx, kernel_name };
+    bo.set_option(build_option::force_implementations({{"act",act_impl}}));
+    network net(engine, topo, bo);
+    net.set_input_data("input", input);
+    auto res = net.execute();
+    EXPECT_EQ(res.size(), size_t(1));
+    EXPECT_EQ(res.begin()->first, "elt");
+
+    auto output_memory = res.at("elt").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int w_size = output_layout.spatial(3);
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    auto bfwzyx = std::vector<int>{b_size, f_size, w_size, z_size, y_size, x_size};
+    EXPECT_EQ(output_layout.format, format::bfwzyx);
+    EXPECT_EQ(bfwzyx, shape);
+    for (size_t i = 0; i < input_raw.size(); ++i)
+        EXPECT_FLOAT_EQ(abs(input_raw[i])*elt_dat_raw[i], output_ptr[i]);
+}
+TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_opt) {test_abs_basic_bfwzyx("activation_ref");}
+TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_ref) {test_abs_basic_bfwzyx("activation_opt");}
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
@@ -55,10 +100,10 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -100,10 +145,10 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -146,10 +191,10 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -192,10 +237,10 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -239,10 +284,10 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -286,10 +331,10 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -332,10 +377,10 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -345,6 +390,41 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = input_ptr[i] / (1 + std::abs(input_ptr[i]));
         EXPECT_FLOAT_EQ(res, output_ptr[i]);
+    }
+}
+
+TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f16, format::yxfb, {1, 1, 2, 2}});
+    set_values(input, {FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f)});
+    VF<FLOAT16> output_vec = {FLOAT16(0.5f), FLOAT16(0.66650391f), FLOAT16(0.75f), FLOAT16(0.81835938f)};
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("not", "input", activation_func::softsign));
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "not");
+
+    auto output_memory = outputs.at("not").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 2);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
+        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -378,10 +458,10 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -415,10 +495,10 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 2);
@@ -451,10 +531,10 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 2);
@@ -508,10 +588,10 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -584,11 +664,11 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int z_size = output_layout.size.spatial[2];
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfzyx);
     EXPECT_EQ(z_size, 2);
     EXPECT_EQ(y_size, 4);
@@ -682,10 +762,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
             cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-            int y_size = output_layout.size.spatial[1];
-            int x_size = output_layout.size.spatial[0];
-            int f_size = output_layout.size.feature[0];
-            int b_size = output_layout.size.batch[0];
+            int y_size = output_layout.spatial(1);
+            int x_size = output_layout.spatial(0);
+            int f_size = output_layout.feature();
+            int b_size = output_layout.batch();
             EXPECT_EQ(output_layout.format, format::yxfb);
             EXPECT_EQ(y_size, 4);
             EXPECT_EQ(x_size, 5);
@@ -832,10 +912,10 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
             cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
 
-            int y_size = output_layout.size.spatial[1];
-            int x_size = output_layout.size.spatial[0];
-            int f_size = output_layout.size.feature[0];
-            int b_size = output_layout.size.batch[0];
+            int y_size = output_layout.spatial(1);
+            int x_size = output_layout.spatial(0);
+            int f_size = output_layout.feature();
+            int b_size = output_layout.batch();
             EXPECT_EQ(output_layout.format, format::bfyx);
             EXPECT_EQ(y_size, 4);
             EXPECT_EQ(x_size, 2);
@@ -910,10 +990,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-        int y_size = output_layout.size.spatial[1];
-        int x_size = output_layout.size.spatial[0];
-        int f_size = output_layout.size.feature[0];
-        int b_size = output_layout.size.batch[0];
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
         EXPECT_EQ(output_layout.format, format::yxfb);
         EXPECT_EQ(y_size, 4);
         EXPECT_EQ(x_size, 2);
@@ -995,10 +1075,10 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -1060,10 +1140,10 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -1148,11 +1228,11 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int z_size = output_layout.size.spatial[2];
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfzyx);
     EXPECT_EQ(z_size, 2);
     EXPECT_EQ(y_size, 4);
@@ -1265,10 +1345,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-        int y_size = output_layout.size.spatial[1];
-        int x_size = output_layout.size.spatial[0];
-        int f_size = output_layout.size.feature[0];
-        int b_size = output_layout.size.batch[0];
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
         EXPECT_EQ(output_layout.format, format::yxfb);
         EXPECT_EQ(y_size, 4);
         EXPECT_EQ(x_size, 2);
@@ -1487,11 +1567,11 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -1532,10 +1612,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
         cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
 
