@@ -90,7 +90,7 @@
 #include <sys/resource.h>
 #endif
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,

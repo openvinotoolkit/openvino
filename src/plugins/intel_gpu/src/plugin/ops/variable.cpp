@@ -11,7 +11,6 @@
 
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -53,6 +52,5 @@ void CreateAssignOp(Program& p, const std::shared_ptr<ngraph::op::v6::Assign>& o
 REGISTER_FACTORY_IMPL(v6, Assign);
 REGISTER_FACTORY_IMPL(v6, ReadValue);
 
-} // namespace intel_gpu
-} // namespace runtime
-} // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

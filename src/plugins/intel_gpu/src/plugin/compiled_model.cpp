@@ -30,7 +30,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
@@ -237,5 +236,4 @@ std::shared_ptr<InferenceEngine::RemoteContext> CompiledModel::GetContext() cons
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
