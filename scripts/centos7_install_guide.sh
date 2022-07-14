@@ -11,14 +11,15 @@ Help()
    # Display Help
    echo "Add description of the script functions here."
    echo
-   echo "Syntax: scriptTemplate [-h|g|p|c|m]"
+   echo "Syntax: scriptTemplate [-h|g|p|c|m|b|y]"
    echo "options:"
-   echo "h     Print this Help."
+   echo "h     print this Help."
    echo "g     gcc version(default 8)"
    echo "p     python version(default 7)"
    echo "c     cmake file path(default "~/")"
    echo "m     model name(default resnet-50-pytorch)" 
-   echo "b     Use benchmark_app c++(default false)"
+   echo "b     use benchmark_app c++(default false)"
+   echo "y     update yum(default false)" 
 }
 
 usage() 
@@ -68,7 +69,7 @@ yumUpdate=false
 ############################################################
 
 # Get the options
-while getopts "g:p:c:m:h:b:y:" option; do
+while getopts "g:p:c:m:b:y:h" option; do
     case "${option}" in
         g) gccSet=$OPTARG;;
         p) pySet=$OPTARG;;
@@ -78,7 +79,6 @@ while getopts "g:p:c:m:h:b:y:" option; do
         y) yumUpdate=$OPTARG;;
         h) Help 
         exit;; # display Help
-        *) usage;;   
         \?) usage;;      
     esac
 done
@@ -88,9 +88,20 @@ if [ $OPTIND -eq 1 ]; then
     usage
     exit 1
 fi 
-
-echo "set gcc version: $gccSet";
-echo "set python version: 3.$pySet";
+# check gccSet pySet
+if [ $gccSet -eq 7 -o  $gccSet -eq 8 ]; then
+  echo "set gcc version: $gccSet";
+else    
+  usage
+  exit 1
+fi 
+# check py
+if [ $pySet -eq 6 -o $pySet -eq 7 -o $pySet -eq 8 -o  $pySet -eq 9 ]; then
+  echo "set python version: 3.$pySet";
+else    
+  usage
+  exit 1
+fi 
 
 # get the absolute path from script's dir
 ovPath=$(cd `dirname $0` && cd ../.. && pwd)
@@ -296,4 +307,8 @@ echo 'env setup, OV install and evaluation finished.'
 
 conda deactivate && cd 
 exit 1
+
+
+
+
 
