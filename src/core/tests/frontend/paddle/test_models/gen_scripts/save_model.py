@@ -7,33 +7,39 @@ import numpy as np
 import paddle
 
 
-#print numpy array like C structure
-def print_alike(arr):
+#print numpy array like C structure       
+def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
     shape = arr.shape
     rank = len(shape)
+
     #print("shape: ", shape, "rank: %d" %(rank))
 
-    #for idx, value in np.ndenumerate(arr):
+    # for idx, value in np.ndenumerate(arr):
     #    print(idx, value)
-    
+
     def print_array(arr, end=' '):
         shape = arr.shape
         rank = len(arr.shape)
         if rank > 1:
-            line = "{"
+            line = seperator_begin
             for i in range(arr.shape[0]):
-                line += print_array(arr[i,:], end="},\n" if i < arr.shape[0]-1 else "}")
+                line += print_array(
+                    arr[i, :],
+                    end=seperator_end +
+                    ",\n" if i < arr.shape[0] - 1 else seperator_end)
             line += end
             return line
         else:
-            line = "{"           
-            for i in range(arr.shape[0]):              
-                line += "{:.2f}".format(arr[i]) #str(arr[i])
-                line += ", " if i < shape[0]-1 else ' '
+            line = seperator_begin
+            for i in range(arr.shape[0]):
+                line += "{:.2f}".format(arr[i])  # str(arr[i])
+                line += ", " if i < shape[0] - 1 else ' '
             line += end
-            #print(line)
+            # print(line)
             return line
-    # print(print_array(arr, "}"))
+
+    if verbose:
+        print(print_array(arr, seperator_end))        
 
 
 def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):

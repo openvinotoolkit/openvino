@@ -106,7 +106,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
@@ -190,20 +189,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return rank <= 5lu;
                 });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
+        if (device_info.supports_immad) {
+            pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+        } else {
+            pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceSum>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMean>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMax>(node);
             });
+        }
 
         auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
             if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
@@ -476,5 +481,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

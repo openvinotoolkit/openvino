@@ -120,7 +120,7 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
 void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
-    if (eng.is_the_same_buffer(*mem_new, *_output)) {
+    if (_output && eng.is_the_same_buffer(*mem_new, *_output)) {
         return;
     }
 
@@ -263,12 +263,12 @@ void primitive_inst::allocate_internal_buffers(void) {
             _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
     }
 }
-memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, uint32_t net_id,
         bool is_internal) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
         if (_engine.configuration().use_memory_pool)
-                return pool.get_memory(layout, id, 0, dependencies, type, reusable);
+                return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
         return pool.get_memory(layout, type);
     };
 
@@ -332,7 +332,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 memory::ptr primitive_inst::allocate_output() {
-    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
+    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, get_network_id(), _network.is_internal());
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

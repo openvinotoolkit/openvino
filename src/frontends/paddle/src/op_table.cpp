@@ -84,11 +84,14 @@ OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
 OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
+OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(strided_slice);
+OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
 OP_CONVERTER(tensor_array_to_tensor);
+OP_CONVERTER(top_k_v2);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
@@ -183,12 +186,15 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"softplus", op::softplus},
             {"sigmoid", op::sigmoid},
             {"split", op::split},
+            {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
             {"strided_slice", op::strided_slice},
+            {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"tensor_array_to_tensor", op::tensor_array_to_tensor},
+            {"top_k_v2", op::top_k_v2},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},

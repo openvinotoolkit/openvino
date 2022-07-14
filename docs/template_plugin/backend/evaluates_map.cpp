@@ -138,6 +138,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -148,7 +154,13 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i64):
-        bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f32, ET>(op, outputs, inputs);
@@ -162,6 +174,12 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
     case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i64, ET>(op, outputs, inputs);
         break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f32):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f32, ET>(op, outputs, inputs);
         break;
@@ -173,6 +191,48 @@ bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
         break;
     case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i64):
         bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::i8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::i8, element::Type_t::u8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::f16):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::f16, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i32):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i32, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i64):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i64, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::i8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::i8, ET>(op, outputs, inputs);
+        break;
+    case bucketize_v3::getElementMask(element::Type_t::u8, element::Type_t::u8):
+        bucketize_v3::evaluate<element::Type_t::u8, element::Type_t::u8, ET>(op, outputs, inputs);
         break;
     default:
         return false;
@@ -1028,6 +1088,177 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
+    runtime::reference::non_max_suppression5(info.boxes_data.data(),
+                                             info.boxes_shape,
+                                             info.scores_data.data(),
+                                             info.scores_shape,
+                                             info.max_output_boxes_per_class,
+                                             info.iou_threshold,
+                                             info.score_threshold,
+                                             info.soft_nms_sigma,
+                                             selected_indices.data(),
+                                             info.out_shape,
+                                             selected_scores.data(),
+                                             info.out_shape,
+                                             &valid_outputs,
+                                             info.sort_result_descending);
+
+    auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
+
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
+    return true;
+}
+
+namespace nms_v9 {
+using V9BoxEncoding = op::v9::NonMaxSuppression::BoxEncodingType;
+
+struct InfoForNMS9 {
+    int64_t max_output_boxes_per_class;
+    float iou_threshold;
+    float score_threshold;
+    float soft_nms_sigma;
+    Shape out_shape;
+    Shape boxes_shape;
+    Shape scores_shape;
+    std::vector<float> boxes_data;
+    std::vector<float> scores_data;
+    size_t out_shape_size;
+    bool sort_result_descending;
+    ngraph::element::Type output_type;
+};
+
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+
+PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                          int64_t max_output_boxes_per_class) {
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape result = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+        const auto num_boxes_boxes = boxes_ps[1];
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+
+            result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
+        }
+    }
+    return result;
+}
+
+void normalize_corner(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float y1 = current_box[0];
+        float x1 = current_box[1];
+        float y2 = current_box[2];
+        float x2 = current_box[3];
+
+        float ymin = std::min(y1, y2);
+        float ymax = std::max(y1, y2);
+        float xmin = std::min(x1, x2);
+        float xmax = std::max(x1, x2);
+
+        current_box[0] = ymin;
+        current_box[1] = xmin;
+        current_box[2] = ymax;
+        current_box[3] = xmax;
+    }
+}
+
+void normalize_center(float* boxes, const Shape& boxes_shape) {
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i) {
+        float* current_box = boxes + 4 * i;
+
+        float x_center = current_box[0];
+        float y_center = current_box[1];
+        float width = current_box[2];
+        float height = current_box[3];
+
+        float y1 = y_center - height / 2.0;
+        float x1 = x_center - width / 2.0;
+        float y2 = y_center + height / 2.0;
+        float x2 = x_center + width / 2.0;
+
+        current_box[0] = y1;
+        current_box[1] = x1;
+        current_box[2] = y2;
+        current_box[3] = x2;
+    }
+}
+
+void normalize_box_encoding(float* boxes, const Shape& boxes_shape, const V9BoxEncoding box_encoding) {
+    if (box_encoding == V9BoxEncoding::CORNER) {
+        normalize_corner(boxes, boxes_shape);
+    } else {
+        normalize_center(boxes, boxes_shape);
+    }
+}
+
+std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
+                                      const Shape& boxes_shape,
+                                      const V9BoxEncoding box_encoding) {
+    auto result = get_floats(boxes, boxes_shape);
+    normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+    return result;
+}
+
+std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
+    auto result = get_floats(scores, scores_shape);
+    return result;
+}
+
+InfoForNMS9 get_info_for_nms9_eval(const std::shared_ptr<op::v9::NonMaxSuppression>& nms9,
+                                   const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForNMS9 result;
+
+    result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+    result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+    result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+    result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
+
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
+    result.out_shape = selected_indices_shape.to_shape();
+
+    result.boxes_shape = inputs[boxes_port]->get_shape();
+    result.scores_shape = inputs[scores_port]->get_shape();
+
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms9->get_box_encoding());
+    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+    result.out_shape_size = shape_size(result.out_shape);
+
+    result.sort_result_descending = nms9->get_sort_result_descending();
+
+    result.output_type = nms9->get_output_type();
+
+    return result;
+}
+}  // namespace nms_v9
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::NonMaxSuppression>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    auto info = nms_v9::get_info_for_nms9_eval(op, inputs);
+
+    std::vector<int64_t> selected_indices(info.out_shape_size);
+    std::vector<float> selected_scores(info.out_shape_size);
+    int64_t valid_outputs = 0;
+
     runtime::reference::non_max_suppression(info.boxes_data.data(),
                                             info.boxes_shape,
                                             info.scores_data.data(),
@@ -1045,12 +1276,12 @@ bool evaluate(const shared_ptr<op::v5::NonMaxSuppression>& op,
 
     auto selected_scores_type = (outputs.size() < 3) ? element::f32 : outputs[1]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1216,12 +1447,12 @@ bool evaluate(const shared_ptr<op::v4::NonMaxSuppression>& op,
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1387,12 +1618,12 @@ bool evaluate(const shared_ptr<op::v3::NonMaxSuppression>& op,
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1558,12 +1789,12 @@ bool evaluate(const shared_ptr<op::v1::NonMaxSuppression>& op,
 
     auto selected_scores_type = (inputs.size() < 4) ? element::f32 : inputs[3]->get_element_type();
 
-    runtime::reference::nms5_postprocessing(outputs,
-                                            info.output_type,
-                                            selected_indices,
-                                            selected_scores,
-                                            valid_outputs,
-                                            selected_scores_type);
+    runtime::reference::nms_postprocessing(outputs,
+                                           info.output_type,
+                                           selected_indices,
+                                           selected_scores,
+                                           valid_outputs,
+                                           selected_scores_type);
     return true;
 }
 
@@ -1626,8 +1857,11 @@ std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores
 InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::v8::MatrixNms>& nms,
                                  const std::vector<std::shared_ptr<HostTensor>>& inputs) {
     InfoForNMS result;
+    const auto& nms_attrs = nms->get_attrs();
+    const auto nms_top_k = nms_attrs.nms_top_k;
+    const auto keep_top_k = nms_attrs.keep_top_k;
 
-    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
+    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms_top_k, keep_top_k);
     result.selected_outputs_shape = selected_outputs_shape.to_shape();
     result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
 
@@ -1684,7 +1918,7 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
     runtime::reference::nms_common::nms_common_postprocessing(prois,
                                                               pscores,
                                                               pselected_num,
-                                                              op->get_output_type(),
+                                                              op->get_attrs().output_type,
                                                               selected_outputs,
                                                               selected_indices,
                                                               valid_outputs,
@@ -1692,97 +1926,22 @@ bool evaluate(const shared_ptr<op::v8::MatrixNms>& op,
     return true;
 }
 
-namespace multiclass_nms_v8 {
-using SortResultType = op::v8::MulticlassNms::SortResultType;
-struct InfoForNMS {
-    Shape selected_outputs_shape;
-    Shape selected_indices_shape;
-    Shape boxes_shape;
-    Shape scores_shape;
-    std::vector<float> boxes_data;
-    std::vector<float> scores_data;
-    size_t selected_outputs_shape_size;
-    size_t selected_indices_shape_size;
-};
-
-constexpr size_t boxes_port = 0;
-constexpr size_t scores_port = 1;
-
-PartialShape infer_selected_outputs_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                          int nms_top_k,
-                                          int keep_top_k) {
-    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-    const auto scores_ps = inputs[scores_port]->get_partial_shape();
-
-    PartialShape result = {Dimension::dynamic(), 6};
-
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            int64_t max_output_boxes_per_class = 0;
-            if (nms_top_k >= 0)
-                max_output_boxes_per_class = std::min(num_boxes, (int64_t)nms_top_k);
-            else
-                max_output_boxes_per_class = num_boxes;
-
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
-
-            result[0] = max_output_boxes_per_batch * scores_ps[0].get_length();
-        }
-    }
-
-    return result;
-}
-
-std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
-    auto result = get_floats(boxes, boxes_shape);
-    return result;
-}
-
-std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
-    auto result = get_floats(scores, scores_shape);
-    return result;
-}
-
-InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::v8::MulticlassNms>& nms,
-                                 const std::vector<std::shared_ptr<HostTensor>>& inputs) {
-    InfoForNMS result;
-
-    auto selected_outputs_shape = infer_selected_outputs_shape(inputs, nms->get_nms_top_k(), nms->get_keep_top_k());
-    result.selected_outputs_shape = selected_outputs_shape.to_shape();
-    result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
-
-    result.boxes_shape = inputs[boxes_port]->get_shape();
-    result.scores_shape = inputs[scores_port]->get_shape();
-
-    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
-    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
-
-    result.selected_outputs_shape_size = shape_size(result.selected_outputs_shape);
-    result.selected_indices_shape_size = shape_size(result.selected_indices_shape);
-
-    return result;
-}
-}  // namespace multiclass_nms_v8
-
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
-    auto info = multiclass_nms_v8::get_info_for_nms_eval(op, inputs);
+    auto info = runtime::reference::multiclass_nms_impl::get_info_for_nms_eval(op, inputs);
 
     std::vector<float> selected_outputs(info.selected_outputs_shape_size);
     std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
-    std::vector<int64_t> valid_outputs(inputs[0]->get_shape()[0]);
+    std::vector<int64_t> valid_outputs(info.selected_numrois_shape_size);
 
     runtime::reference::multiclass_nms(info.boxes_data.data(),
                                        info.boxes_shape,
                                        info.scores_data.data(),
                                        info.scores_shape,
+                                       nullptr,
+                                       Shape(),  // won't be used
                                        op->get_attrs(),
                                        selected_outputs.data(),
                                        info.selected_outputs_shape,
@@ -1809,7 +1968,58 @@ bool evaluate(const shared_ptr<op::v8::MulticlassNms>& op,
     runtime::reference::nms_common::nms_common_postprocessing(prois,
                                                               pscores,
                                                               pselected_num,
-                                                              op->get_output_type(),
+                                                              op->get_attrs().output_type,
+                                                              selected_outputs,
+                                                              selected_indices,
+                                                              valid_outputs,
+                                                              op->get_input_element_type(0));
+
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v9::MulticlassNms>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    auto info = runtime::reference::multiclass_nms_impl::get_info_for_nms_eval(op, inputs);
+
+    std::vector<float> selected_outputs(info.selected_outputs_shape_size);
+    std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
+    std::vector<int64_t> valid_outputs(info.selected_numrois_shape_size);
+
+    runtime::reference::multiclass_nms(info.boxes_data.data(),
+                                       info.boxes_shape,
+                                       info.scores_data.data(),
+                                       info.scores_shape,
+                                       info.roisnum_data.data(),
+                                       info.roisnum_shape,
+                                       op->get_attrs(),
+                                       selected_outputs.data(),
+                                       info.selected_outputs_shape,
+                                       selected_indices.data(),
+                                       info.selected_indices_shape,
+                                       valid_outputs.data());
+
+    void* pscores = nullptr;
+    void* pselected_num = nullptr;
+    void* prois;
+    size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
+
+    outputs[0]->set_shape({num_selected, 6});
+    prois = outputs[0]->get_data_ptr();
+
+    if (outputs.size() >= 2) {
+        outputs[1]->set_shape({num_selected, 1});
+        pscores = outputs[1]->get_data_ptr();
+    }
+    if (outputs.size() >= 3) {
+        pselected_num = outputs[2]->get_data_ptr();
+    }
+
+    runtime::reference::nms_common::nms_common_postprocessing(prois,
+                                                              pscores,
+                                                              pselected_num,
+                                                              op->get_attrs().output_type,
                                                               selected_outputs,
                                                               selected_indices,
                                                               valid_outputs,
@@ -1902,11 +2112,11 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     const auto attrs = op->get_attrs();
-    size_t rois_num = attrs.max_detections_per_image;
+    const size_t output_roi_count = attrs.max_detections_per_image;
 
-    const Shape output_boxes_shape = Shape{rois_num, 4};
-    const Shape output_classes_shape = Shape{rois_num};
-    const Shape output_scores_shape = Shape{rois_num};
+    const Shape output_boxes_shape = Shape{output_roi_count, 4};
+    const Shape output_classes_shape = Shape{output_roi_count};
+    const Shape output_scores_shape = Shape{output_roi_count};
 
     const auto output_type = op->get_input_element_type(0);
 
@@ -1914,6 +2124,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
     const auto input_deltas_data = get_floats(inputs[1], inputs[1]->get_shape());
     const auto input_scores_data = get_floats(inputs[2], inputs[2]->get_shape());
     const auto input_im_info_data = get_floats(inputs[3], inputs[3]->get_shape());
+    const auto input_roi_count = inputs[0]->get_shape()[0];
 
     std::vector<float> output_boxes(shape_size(output_boxes_shape));
     std::vector<int32_t> output_classes(shape_size(output_classes_shape));
@@ -1930,6 +2141,7 @@ bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op
                                                                 input_deltas_data.data(),
                                                                 input_scores_data.data(),
                                                                 input_im_info_data.data(),
+                                                                input_roi_count,
                                                                 attrs,
                                                                 output_boxes.data(),
                                                                 output_scores.data(),

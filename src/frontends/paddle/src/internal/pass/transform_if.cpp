@@ -60,7 +60,7 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         const auto else_branch = std::make_shared<Model>(results, params);
         const auto& else_params = else_branch->get_parameters();
 
-        auto if_node = std::make_shared<opset8::If>(cond);
+        auto if_node = std::make_shared<If>(cond);
         if_node->set_then_body(then_branch);
         if_node->set_else_body(else_branch);
 

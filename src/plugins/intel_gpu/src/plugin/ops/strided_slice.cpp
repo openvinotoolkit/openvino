@@ -13,7 +13,6 @@
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
@@ -253,5 +252,4 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v1, StridedSlice);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

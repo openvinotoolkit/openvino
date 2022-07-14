@@ -181,6 +181,51 @@ public:
     std::string key;
 };
 
+using LoadNetWorkPropertiesParams = std::tuple<
+        std::string,                                      // Device name
+        std::map<std::string, std::string>,               // Configuration key and its default value
+        std::map<std::string, std::string>                // Configuration key and its default value
+>;
+
+class SetPropLoadNetWorkGetPropTests : public testing::WithParamInterface<LoadNetWorkPropertiesParams>,
+                           public ConfigBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<LoadNetWorkPropertiesParams> obj) {
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::map<std::string, std::string> loadNetWorkConfig;
+        std::tie(targetDevice, configuration, loadNetWorkConfig) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        if (!configuration.empty()) {
+            result << "configItem=";
+            for (auto& configItem : configuration) {
+                result << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+
+        if (!loadNetWorkConfig.empty()) {
+            result << "loadNetWorkConfig=";
+            for (auto& configItem : loadNetWorkConfig) {
+                result << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+
+        return result.str();
+    }
+
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::map<std::string, std::string> entry;
+        std::tie(targetDevice, configuration, loadNetWorkConfig) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        cnnNet = InferenceEngine::CNNNetwork(function);
+    }
+
+public:
+    std::map<std::string, std::string> loadNetWorkConfig;
+};
+
 using EmptyConfigTests = BehaviorTestsEmptyConfig;
 using CorrectSingleOptionDefaultValueConfigTests = BehaviorTestsSingleOptionDefault;
 using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsSingleOptionCustom;
@@ -191,5 +236,6 @@ using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
+using ExclusiveAsyncReqTests = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions

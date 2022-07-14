@@ -13,7 +13,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
@@ -77,5 +76,4 @@ REGISTER_FACTORY_IMPL(v0, Squeeze);
 REGISTER_FACTORY_IMPL(v0, Unsqueeze);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

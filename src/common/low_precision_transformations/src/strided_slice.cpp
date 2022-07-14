@@ -89,6 +89,7 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(StridedSliceTransformation);
         return transform(*context, m);
     };
 
