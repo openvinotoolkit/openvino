@@ -3,13 +3,12 @@
 //
 
 #include "data_inst.h"
+#include "kernel_selector_helper.h"
+#include "non_max_suppression/non_max_suppression_kernel_ref.h"
+#include "non_max_suppression/non_max_suppression_kernel_selector.h"
 #include "non_max_suppression_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "non_max_suppression/non_max_suppression_kernel_selector.h"
-#include "non_max_suppression/non_max_suppression_kernel_ref.h"
-
 
 namespace cldnn {
 namespace ocl {
@@ -44,7 +43,7 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        args.outputs = { instance.output_memory_ptr() };
+        args.outputs = {instance.output_memory_ptr()};
         if (instance.has_second_output())
             args.inputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
@@ -107,19 +106,22 @@ public:
         }
 
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.second_output_node().get_output_layout()));
+            layout second_output_layout = arg.second_output_node().get_output_layout();
+            second_output_layout.format = arg.input_scores().get_output_layout().format;
+            params.inputs.push_back(convert_data_tensor(second_output_layout));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
+            layout third_output_layout = arg.third_output_node().get_output_layout();
+            third_output_layout.format = arg.input_scores().get_output_layout().format;
+            params.inputs.push_back(convert_data_tensor(third_output_layout));
             params.has_third_output = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;
-        params.box_encoding = primitive->center_point_box ?
-            kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
-
+        params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
+                                                          : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
@@ -171,11 +173,25 @@ private:
 namespace detail {
 
 attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
-    implementation_map<non_max_suppression>::add(impl_types::ocl, non_max_suppression_impl::create, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    implementation_map<non_max_suppression>::add(impl_types::ocl,
+                                                 non_max_suppression_impl::create,
+                                                 {
+                                                     std::make_tuple(data_types::i32, format::bfyx),
+
+                                                     std::make_tuple(data_types::f16, format::bfyx),
+                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+
+                                                     std::make_tuple(data_types::f32, format::bfyx),
+                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+                                                 });
 }
 
 }  // namespace detail
