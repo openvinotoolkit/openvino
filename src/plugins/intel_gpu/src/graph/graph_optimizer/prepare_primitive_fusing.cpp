@@ -634,6 +634,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return false;
         };
 
+        auto activation_supports_fusings= [&](activation_node& node) -> bool {
+            auto& input = node.input();
+
+            // Check if this activation node can be fused as an activation of its parent's node
+            if (input.get_users().size() == 1)
+                return false;
+
+            return true;
+        };
+
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
             if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
@@ -977,7 +987,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<gather>()) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
                                       (parents[i]->is_type<lrn>()) ||
-                                      (parents[i]->is_type<activation>());
+                                      (parents[i]->is_type<activation>() && activation_supports_fusings(parents[i]->as<activation>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
