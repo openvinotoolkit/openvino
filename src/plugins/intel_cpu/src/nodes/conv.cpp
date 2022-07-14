@@ -279,6 +279,11 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+
+    // Due to performance issue, brgconv will only be enabled by default:
+    // 1, support amx
+    // 2, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
+    shouldTryBrgconv = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && !isDynamicNode();
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -312,43 +317,51 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
 }
 
 const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
-    if (!cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV))
-        return Node::getPrimitivesPriority();
-
     std::vector<impl_desc_type> priorities = {
-            impl_desc_type::unknown,
-            impl_desc_type::brgconv_avx512_amx_1x1,
-            impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw,
-            impl_desc_type::jit_avx512_amx_1x1,
-            impl_desc_type::jit_avx512_amx,
-            impl_desc_type::brgconv_avx512_1x1,
-            impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1,
-            impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw,
-            impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw,
-            impl_desc_type::jit_avx_1x1,
-            impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw,
-            impl_desc_type::jit_sse42_1x1,
-            impl_desc_type::jit_sse42,
-            impl_desc_type::gemm_any,
-            impl_desc_type::gemm_blas,
-            impl_desc_type::gemm_avx512,
-            impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx,
-            impl_desc_type::gemm_sse42,
-            impl_desc_type::jit_gemm,
-            impl_desc_type::ref_any,
-            impl_desc_type::ref,
+        impl_desc_type::unknown,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
+        impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
+
+    if (!shouldTryBrgconv) {
+        // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1
+        for (auto it = priorities.begin(); it != priorities.end(); ) {
+            if (((*it) & brgconv_avx512) == brgconv_avx512)
+                it = priorities.erase(it);
+            else
+                ++it;
+        }
+    }
+
     for (const auto& impl : priorities) {
         if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
             implPriorities.push_back(impl);
@@ -369,6 +382,15 @@ void Convolution::getSupportedDescriptors() {
                  dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
                  getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
+
+        // AVX512 brconv is disabled by default due to performance issues. User can force it via Primitives priority mechanism.
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
+                if (desc_type & impl_desc_type::brgconv_avx512) {
+                    shouldTryBrgconv = true;
+                }
+            });
+        }
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -518,7 +540,7 @@ void Convolution::getSupportedDescriptors() {
 
             bool acceptedFormat = inputDataType == memory::data_type::bf16;
             bool nspcAdded = false;
-            acceptedFormat |= cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) && inputDataType == memory::data_type::f32;
+            acceptedFormat |= shouldTryBrgconv && inputDataType == memory::data_type::f32;
             if (acceptedFormat && impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
@@ -696,9 +718,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
+    auto attrsNum = shouldTryBrgconv ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
+    if (shouldTryBrgconv) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 
@@ -923,9 +945,9 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     dnnl::primitive_attr attrs[2];
-    auto attrsNum = cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV) ? 2 : 1;
+    auto attrsNum = shouldTryBrgconv ? 2 : 1;
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (cpuExperimental.count(EXPERIMENTAL_KEY_BRGCONV)) {
+    if (shouldTryBrgconv) {
         setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
     }
 

@@ -16,7 +16,6 @@
 #include "intel_gpu/primitives/permute.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 /*
@@ -312,5 +311,4 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 REGISTER_FACTORY_IMPL(v0, MatMul);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/cum_sum.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t rank) {
@@ -75,5 +74,4 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
 REGISTER_FACTORY_IMPL(v0, CumSum);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

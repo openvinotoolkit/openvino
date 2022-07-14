@@ -464,12 +464,6 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool> denormals_optimization{"DENORMALS_OPTIMIZATION"};
 
 /**
- * @brief The name for experimental setting for CPU plugin.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<std::string> cpu_experimental{"CPU_EXPERIMENTAL"};
-
-/**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
  *
