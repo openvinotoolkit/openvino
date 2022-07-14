@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
@@ -61,6 +62,7 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         const auto& else_params = else_branch->get_parameters();
 
         auto if_node = std::make_shared<If>(cond);
+        ov::pass::disable_fold_subgraph_empty_inputs(if_node);
         if_node->set_then_body(then_branch);
         if_node->set_else_body(else_branch);
 

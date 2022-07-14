@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
@@ -45,6 +46,7 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
         const auto& cond = inputs.back();
         const auto cond_name = cond.get_node_shared_ptr()->get_friendly_name();
         auto loop = std::make_shared<Loop>(trip_count, cond);
+        ov::pass::disable_fold_subgraph_empty_inputs(loop);
         const auto block_idx = while_node->get_subblock_index();
         const auto sub_model = functions[block_idx];
         loop->set_function(sub_model);

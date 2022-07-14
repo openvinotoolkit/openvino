@@ -22,6 +22,10 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         if (multi_subgraph_op == nullptr) {
             return false;
         }
+        const auto& rt_info = multi_subgraph_op->get_rt_info();
+        if (rt_info.count(DisableFoldSubgraphEmptyInputs::get_type_info_static())) {
+            return false;
+        }
         auto multi_subgraph_op_inputs = multi_subgraph_op->input_values();
 
         std::vector<ov::Output<ov::Node>> empty_inputs;
@@ -60,4 +64,17 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+void ov::pass::disable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info().emplace(DisableFoldSubgraphEmptyInputs::get_type_info_static(),
+                                DisableFoldSubgraphEmptyInputs{});
+}
+
+void ov::pass::enable_fold_subgraph_empty_inputs(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info().erase(DisableFoldSubgraphEmptyInputs::get_type_info_static());
+}
+
+bool ov::pass::fold_subgraph_empty_inputs_is_disabled(const std::shared_ptr<ov::Node>& node) {
+    return node->get_rt_info().count(DisableFoldSubgraphEmptyInputs::get_type_info_static());
 }
