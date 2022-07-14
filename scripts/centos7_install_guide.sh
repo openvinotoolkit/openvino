@@ -16,20 +16,21 @@ Help()
    echo "h     print this Help."
    echo "g     gcc version(default 8)"
    echo "p     python version(default 7)"
-   echo "c     cmake file path(default "~/")"
+   echo "c     cmake dir(default "~")"
    echo "m     model name(default resnet-50-pytorch)" 
    echo "b     use benchmark_app c++(default false)"
    echo "y     update yum(default false)" 
 }
 
 usage() 
-{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake file path>] [-m <evaluation model>] [-b benchmark_app c++ <true or false>] [-y <true or false>]" [-h help] 1>&2; exit 1; }
+{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake dir>] [-m <evaluation model>] \
+ [-b benchmark_app c++ <true or false>] [-y <true or false>]" [-h help] 1>&2; exit 1; }
 
 CppBenchmarkFunc()
 {
-cd $ovPath/openvino/$installDir/samples/cpp/
+cd $ovDir/openvino/$installDir/samples/cpp/
 . build_samples.sh -b .
-benchmark_appPath=$ovPath/openvino/$installDir/samples/cpp/intel64/Release/benchmark_app
+benchmark_appPath=$ovDir/openvino/$installDir/samples/cpp/intel64/Release/benchmark_app
 if command -v $benchmark_appPath; then
   echo "$benchmark_appPath exists"
   $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
@@ -59,7 +60,7 @@ fi
 # Set variables
 gccSet=7
 pySet=7
-cmakePath=~
+cmakeDir=~
 model=resnet-50-pytorch
 benchmarkCpp=false
 yumUpdate=false
@@ -73,7 +74,7 @@ while getopts "g:p:c:m:b:y:h" option; do
     case "${option}" in
         g) gccSet=$OPTARG;;
         p) pySet=$OPTARG;;
-        c) cmakePath=$OPTARG;;
+        c) cmakeDir=$OPTARG;;
         m) model=$OPTARG;;
         b) benchmarkCpp=$OPTARG;;
         y) yumUpdate=$OPTARG;;
@@ -104,7 +105,7 @@ else
 fi 
 
 # get the absolute path from script's dir
-ovPath=$(cd `dirname $0` && cd ../.. && pwd)
+ovDir=$(cd `dirname $0` && cd ../.. && pwd)
 
 ############################################################
 #     0.system dependency and environment                  #
@@ -143,16 +144,16 @@ fi
 #     1.Download CMake                                     #
 ############################################################
 echo "############################################################"
-echo ">>> 1.Download CMake" 
+echo ">>> 1.Download CMake 3.18.4" 
 
 cmakeVersion=cmake-3.18.4-Linux-x86_64
 
-if [ ! -d $cmakePath/$cmakeVersion ]; then
+if [ ! -d $cmakeDir/$cmakeVersion ]; then
    echo "$cmakeVersion not exit, now download"
    wget https://cmake.org/files/v3.18/$cmakeVersion.tar.gz \
-   --directory-prefix $cmakePath
-   tar -xvf $cmakePath/$cmakeVersion.tar.gz -C $cmakePath
-   export PATH=$cmakePath/$cmakeVersion/bin:$PATH
+   --directory-prefix $cmakeDir
+   tar -xvf $cmakeDir/$cmakeVersion.tar.gz -C $cmakeDir
+   export PATH=$cmakeDir/$cmakeVersion/bin:$PATH
 else
   echo "$cmakeVersion exists"
 fi
@@ -208,7 +209,7 @@ echo ">>> 3. Build OV with cmake"
 # after git clone, update, install py dependency
 echo "############################################################"
 echo ">>> 3.1 submodule update"
-cd $ovPath/openvino
+cd $ovDir/openvino
 git submodule update --init --recursive
 
 echo "############################################################"
@@ -231,14 +232,14 @@ pathDPYTHON_INCLUDE_DIR=$(find $pyPath/include -maxdepth 1 -name python3.$pySet*
 
 echo "############################################################"
 echo ">>> 3.3 cmake to build OV"
-if [ -f $ovPath/openvino/$installDir/tools/openvino-2022.1.0-000-cp3${pySet}* ]; then
+if [ -f $ovDir/openvino/$installDir/tools/openvino-2022.1.0-000-cp3${pySet}* ]; then
   echo "whls exist and whls were already installed "
   
   # check mo and benchmark_app 
  if ! command -v mo; then
   echo "mo not exists"
   echo ">>> 4.Install python wheel"
-  cd $ovPath/openvino/$installDir/tools && pip install openvino-2022* openvino_dev* 
+  cd $ovDir/openvino/$installDir/tools && pip install openvino-2022* openvino_dev* 
  fi
  
 else 
@@ -261,7 +262,7 @@ else
 echo "############################################################"
   echo ">>> 4.Install python wheel"
   
-  cd $ovPath/openvino/$installDir/tools
+  cd $ovDir/openvino/$installDir/tools
   pip install openvino-2022* openvino_dev*  
 fi
 
@@ -302,9 +303,10 @@ fi
 echo "############################################################"
 echo "Congratulation! centos7-install-guide is finished."
 echo "############################################################"
-echo "Here is an OV usage example on centos7"
+echo "Here is an OV usage example on centos7:"
 echo "conda activate py3$pySet"
 echo "benchmark_app -m ~/ov_models/public/$model/FP32/$model.xml -d CPU"
-conda deactivate && cd $ovPath/openvino 
+echo "############################################################"
+conda deactivate && cd $ovDir/openvino 
 exit 1
 
