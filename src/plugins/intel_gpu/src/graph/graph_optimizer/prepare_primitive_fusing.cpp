@@ -634,12 +634,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
-                auto out_layout = node.get_output_layout();
-                if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                    return false;
-                }
+            auto out_layout = node.get_output_layout();
+            if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                return false;
             }
             return true;
         };
