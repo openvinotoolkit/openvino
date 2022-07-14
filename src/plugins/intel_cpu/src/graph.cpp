@@ -153,7 +153,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
-        node->setCPUExperimental(config.cpuExperimental);
         node->setRuntimeCache(rtParamsCache);
 
         graphNodes.push_back(node);
@@ -266,7 +265,6 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
-        node->setCPUExperimental(config.cpuExperimental);
         node->setRuntimeCache(rtParamsCache);
         graphNodes.push_back(node);
 
