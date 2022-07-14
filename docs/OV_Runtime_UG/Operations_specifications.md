@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-   
+
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
@@ -16,6 +16,7 @@
    Assign-3 <openvino_docs_ops_infrastructure_Assign_3>
    Atan-1 <openvino_docs_ops_arithmetic_Atan_1>
    Atanh-3 <openvino_docs_ops_arithmetic_Atanh_3>
+   AUGRUSequence-10 <openvino_docs_ops_sequence_AUGRUSequence_10>
    AvgPool-1 <openvino_docs_ops_pooling_AvgPool_1>
    BatchNormInference-1 <openvino_docs_ops_normalization_BatchNormInference_1>
    BatchNormInference-5 <openvino_docs_ops_normalization_BatchNormInference_5>
