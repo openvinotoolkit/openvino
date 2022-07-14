@@ -78,8 +78,6 @@ The most of the attributes are in sync with the specification <a href="https://g
 
 * **7**: `A` - 2D tensor of type *T* `[batch_size, seq_length, 1]`, the attention score. **Required.**
 
-* **7**: `A` - 4D tensor of type *T* `[batch_size, num_directions, seq_length, hidden_size]`, the attention score. **Required.**
-
 **Outputs**
 
 * **1**: `Y` - 4D tensor of type *T1* `[batch_size, num_directions, seq_length, hidden_size]`, concatenation of all the intermediate output values of the hidden.
