@@ -23,13 +23,13 @@ Help()
 }
 
 usage() 
-{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake file path>] [-m <evaluation model>] [-b benchmark_app c++ <true or false>]" [-h help] 1>&2; exit 1; }
+{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake file path>] [-m <evaluation model>] [-b benchmark_app c++ <true or false>] [-y <true or false>]" [-h help] 1>&2; exit 1; }
 
 CppBenchmarkFunc()
 {
-cd $ovPath/openvino/$installDic/samples/cpp/
+cd $ovPath/openvino/$installDir/samples/cpp/
 . build_samples.sh -b .
-benchmark_appPath=$ovPath/openvino/$installDic/samples/cpp/intel64/Release/benchmark_app
+benchmark_appPath=$ovPath/openvino/$installDir/samples/cpp/intel64/Release/benchmark_app
 if command -v $benchmark_appPath; then
   echo "$benchmark_appPath exists"
   $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
@@ -140,21 +140,21 @@ else
 fi
 
 ############################################################
-#     1.Download CMake 3.18.4                              #
+#     1.Download CMake                                     #
 ############################################################
 echo "############################################################"
-echo ">>> 1.Download CMake 3.18.4" 
+echo ">>> 1.Download CMake" 
 
-DIR=cmake-3.18.4-Linux-x86_64
+cmakeVersion=cmake-3.18.4-Linux-x86_64
 
-if [ ! -d $cmakePath/$DIR ]; then
-   echo "$DIR not exit, now download"
-   wget https://cmake.org/files/v3.18/cmake-3.18.4-Linux-x86_64.tar.gz \
+if [ ! -d $cmakePath/$cmakeVersion ]; then
+   echo "$cmakeVersion not exit, now download"
+   wget https://cmake.org/files/v3.18/$cmakeVersion.tar.gz \
    --directory-prefix $cmakePath
-   tar -xvf $cmakePath/cmake-3.18.4-Linux-x86_64.tar.gz -C $cmakePath
-   export PATH=$cmakePath/cmake-3.18.4-Linux-x86_64/bin:$PATH
+   tar -xvf $cmakePath/$cmakeVersion.tar.gz -C $cmakePath
+   export PATH=$cmakePath/$cmakeVersion/bin:$PATH
 else
-  echo "$DIR exists"
+  echo "$cmakeVersion exists"
 fi
 
 ############################################################
@@ -173,9 +173,6 @@ fi
 ############################################################
 #     2.1 Enable devtoolset                                #
 ############################################################
-
-# Countermeasures for the message on the right: "MANPATH: unbound variable"
-# MANPATH="" 
 
 echo "############################################################"
 echo ">>> 2.1 Enable devtoolset-$gccSet"
@@ -219,10 +216,10 @@ echo ">>> 3.2 pip install python dependency"
 pip install -U pip wheel setuptools cython patchelf
 # todo
 
-# different dic to cmake, e.g. "build_gcc8_py39", "install_gcc8_py38"
-buildDic=build_gcc${gccSet}"_py3"${pySet}
-installDic=install_gcc${gccSet}"_py3"${pySet}
-mkdir -p $buildDic && mkdir -p $installDic && cd $buildDic
+# different dir to cmake, e.g. "build_gcc8_py39", "install_gcc8_py38"
+buildDir=build_gcc${gccSet}"_py3"${pySet}
+installDir=install_gcc${gccSet}"_py3"${pySet}
+mkdir -p $buildDir && mkdir -p $installDir && cd $buildDir
 
 # check python path before cmake
 pathDPYTHON_EXECUTABLE=$pyPath/bin/python
@@ -234,22 +231,21 @@ pathDPYTHON_INCLUDE_DIR=$(find $pyPath/include -maxdepth 1 -name python3.$pySet*
 
 echo "############################################################"
 echo ">>> 3.3 cmake to build OV"
-if [ -f $ovPath/openvino/$installDic/tools/openvino-2022.1.0-000-cp3${pySet}* ]; then
+if [ -f $ovPath/openvino/$installDir/tools/openvino-2022.1.0-000-cp3${pySet}* ]; then
   echo "whls exist and whls were already installed "
   
   # check mo and benchmark_app 
  if ! command -v mo; then
   echo "mo not exists"
   echo ">>> 4.Install python wheel"
-  cd $ovPath/openvino/$installDic/tools && pip install openvino-2022* openvino_dev* 
+  cd $ovPath/openvino/$installDir/tools && pip install openvino-2022* openvino_dev* 
  fi
  
 else 
-  export PATH=$cmakePath/cmake-3.18.4-Linux-x86_64/bin:$PATH
   echo "whls not exist, now cmake"
-  # not need OpenCV and TBB
+  # will download prebuild TBB instead of using system's 
   cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON \
-  -DCMAKE_INSTALL_PREFIX=../$installDic -DENABLE_SYSTEM_TBB=OFF -DENABLE_OPENCV=OFF \
+  -DCMAKE_INSTALL_PREFIX=../$installDir -DENABLE_SYSTEM_TBB=OFF -DENABLE_OPENCV=OFF \
   -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DTREAT_WARNING_AS_ERROR=OFF \
   -DPYTHON_EXECUTABLE=$pathDPYTHON_EXECUTABLE \
   -DPYTHON_LIBRARY=$pathDPYTHON_LIBRARY \
@@ -265,7 +261,7 @@ else
 echo "############################################################"
   echo ">>> 4.Install python wheel"
   
-  cd $ovPath/openvino/$installDic/tools
+  cd $ovPath/openvino/$installDir/tools
   pip install openvino-2022* openvino_dev*  
 fi
 
@@ -286,7 +282,7 @@ else
 
   echo "$model not exists, now install onnx, pytorch, omz_downloader and omz_converter"
   pip install onnx==1.11.0 # python3.6 not support ONNX 1.12
-  pip install openvino-dev[pytorch] # Pytorch will install ONNX's dependency
+  pip install openvino-dev[pytorch] # install ONNX's dependency
   omz_downloader --name $model -o ~/ov_models/
   omz_converter --name $model -o ~/ov_models/ -d ~/ov_models/
 fi
@@ -303,12 +299,12 @@ else
   benchmark_app -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
 fi
 
-echo 'env setup, OV install and evaluation finished.'
-
-conda deactivate && cd 
+echo "############################################################"
+echo "Congratulation! centos7-install-guide is finished."
+echo "############################################################"
+echo "Here is an OV usage example on centos7"
+echo "conda activate py3$pySet"
+echo "benchmark_app -m ~/ov_models/public/$model/FP32/$model.xml -d CPU"
+conda deactivate && cd $ovPath/openvino 
 exit 1
-
-
-
-
 
