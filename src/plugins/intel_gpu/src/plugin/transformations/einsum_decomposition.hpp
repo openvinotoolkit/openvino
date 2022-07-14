@@ -8,7 +8,6 @@
 #include <transformations_visibility.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 /**
@@ -21,5 +20,4 @@ public:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

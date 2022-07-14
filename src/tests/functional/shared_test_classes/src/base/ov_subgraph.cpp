@@ -199,12 +199,9 @@ void SubgraphBaseTest::compile_model() {
         functionRefs = ov::clone_model(*function);
     }
 
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-        if (!configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16))
-            configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        // we will test brgconv kernels even it's disabled default
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_CPU_EXPERIMENTAL, "brgconv"});
+    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
