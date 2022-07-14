@@ -13,7 +13,6 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
@@ -90,5 +89,4 @@ public:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
