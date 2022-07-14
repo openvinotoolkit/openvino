@@ -27,6 +27,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
 namespace test {
@@ -45,7 +46,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
         result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_" << CommonTestUtils::vec2str(inOutShape.second) << ")";
     }
     result << ")_";
-    result << "target_device=" << target_device;
+    result << "targetDevice=" << targetDevice << "_";
     if (!configuration.empty()) {
         for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
@@ -61,11 +62,134 @@ void OVInferRequestDynamicTests::SetUp() {
     std::tie(function, inOutShapes, target_device, configuration) = this->GetParam();
 }
 
+bool OVInferRequestDynamicTests::checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual) {
+    bool result = true;
+    auto net = ie->compile_model(function, CommonTestUtils::DEVICE_TEMPLATE);
+    ov::InferRequest req;
+    req = net.create_infer_request();
+    auto tensor = req.get_tensor(function->inputs().back().get_any_name());
+    tensor.set_shape(in.get_shape());
+    for (int i = 0; i < in.get_size(); i++) {
+        tensor.data<float>()[i] = in.data<float>()[i];
+    }
+    req.infer();
+    for (int i = 0; i < actual.get_size(); i++) {
+        if (fabs(req.get_output_tensor(0).data<float>()[i] - actual.data<float>()[i]) > std::numeric_limits<float>::epsilon())
+            return false;
+    }
+    return result;
+}
+
 void OVInferRequestDynamicTests::TearDown() {
     if (!configuration.empty()) {
         PluginCache::get().reset();
     }
     APIBaseTest::TearDown();
+}
+
+/*
+We have to check that we don't get a segmentation fault during
+inference if we set the first two times to the same shape and
+then a different one for the case with upper bounds.
+
+Previously, this resulted in a segmentation fault for the CPU plugin.
+*/
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetwork) {
+    std::vector<ov::Shape> vectorShapes{inOutShapes[0].first, inOutShapes[0].first, inOutShapes[1].first};
+    const std::string tensor_name = "input_tensor";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = { ov::Dimension(1, inOutShapes[1].first[0]),
+                            ov::Dimension(1, inOutShapes[1].first[1]),
+                            ov::Dimension(1, inOutShapes[1].first[2]),
+                            ov::Dimension(1, inOutShapes[1].first[3])
+    };
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    const std::string outputname = function->outputs().back().get_any_name();
+    for (auto& shape : vectorShapes) {
+        ov::runtime::Tensor inTensor = ov::test::utils::create_and_fill_tensor(element::f32, shape, 100, -50);
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", inTensor));
+        OV_ASSERT_NO_THROW(req.infer());
+        ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
+    }
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetUnexpectedOutputTensorBeforeInfer) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    ov::runtime::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
+    auto outShape = refOutShape;
+    outShape[0] += 1;
+    otensor = ov::test::utils::create_and_fill_tensor(element::f32, outShape, 100, 50);
+    OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
+    OV_ASSERT_NO_THROW(req.infer());
+    ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorPreAllocatedMemoryBeforeInfer) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    ov::runtime::Tensor tensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
+    float ptr[5000];
+    ov::runtime::Tensor otensor(element::f32, refOutShape, ptr);
+    OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
+    OV_ASSERT_NO_THROW(req.infer());
+    ASSERT_EQ(req.get_tensor(outputname).data<float>(), ptr);
+    ASSERT_EQ(req.get_tensor(outputname).get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputShapeBeforeInfer) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    ov::runtime::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    OV_ASSERT_NO_THROW(otensor.set_shape(refOutShape));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
@@ -124,6 +248,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     EXPECT_NE(0, otensor.get_size()); // output tensor is allocated after infer
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
@@ -151,6 +276,7 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
     ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputname)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
@@ -179,6 +305,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     OV_ASSERT_NO_THROW(req.wait());
     OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
     ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) {
@@ -243,6 +370,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     const std::string outputName = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     OV_ASSERT_NO_THROW(tensor.set_shape(refShape2));
@@ -252,6 +380,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     req.wait();
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape2);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 }
 
 
@@ -295,6 +424,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     const std::string outputName = function->outputs().back().get_any_name();
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
@@ -324,6 +454,7 @@ TEST_P(OVInferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
     ASSERT_EQ(otensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
@@ -350,6 +481,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     OV_ASSERT_NO_THROW(req.wait());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 
     tensor = ov::Tensor(ov::element::f32, refShape2);
     OV_ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
@@ -359,6 +491,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     OV_ASSERT_NO_THROW(req.wait());
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape2);
+    ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
 }
 
 TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {

@@ -49,6 +49,17 @@ public:
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
 
+using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
+class OVSetPropComplieModleGetPropTests : public testing::WithParamInterface<CompileModelPropertiesParams>,
+                                          public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj);
+
+    void SetUp() override;
+
+    AnyMap compileModelProperties;
+};
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

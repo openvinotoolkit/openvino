@@ -24,6 +24,7 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ClampTransformation);
         return transform(*context, m);
     };
 

@@ -39,7 +39,6 @@ protected:
     std::shared_ptr<ngraph::Function> function;
     std::string deathTestStyle;
 };
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

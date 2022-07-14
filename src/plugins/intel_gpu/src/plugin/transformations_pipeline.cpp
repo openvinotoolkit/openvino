@@ -25,6 +25,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <ie_algorithm.hpp>
 
+#include "transformations/einsum_decomposition.hpp"
+
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
@@ -104,7 +106,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
@@ -124,6 +125,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<EinsumDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
@@ -187,20 +189,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return rank <= 5lu;
                 });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
+        if (device_info.supports_immad) {
+            pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+        } else {
+            pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceSum>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMean>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMax>(node);
             });
+        }
 
         auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
             if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
@@ -442,7 +450,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         });
 
-        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, true);
+        bool reshapeIgnorePerTensorQuantizationCheck = false;
+        if (device_info.supports_immad) // Disable reshape transform until onednn i8 fc is optimized
+            reshapeIgnorePerTensorQuantizationCheck = true;
+        auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, reshapeIgnorePerTensorQuantizationCheck);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
     }
@@ -470,5 +481,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

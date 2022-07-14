@@ -38,6 +38,8 @@ static const char model_message[] =
 static const char hint_message[] =
     "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
     "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
+    "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
+    "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
     "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
@@ -228,6 +230,11 @@ static constexpr char inference_only_message[] =
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
 
+static const char denormals_optimization_message[] = "Optional. Denormals is optimized by treating as zero";
+
+static constexpr char cpu_experimental_message[] =
+    "Optional. Enable experimental setting for CPU plugin. Setting should be 'brgconv' etc.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -361,6 +368,12 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
+/// @brief Define flag for denormals handling mode <br>
+DEFINE_bool(dopt, false, denormals_optimization_message);
+
+/// @brief Define flag for using experimental setting for CPU plugin <br>
+DEFINE_string(cpu_experimental, "", cpu_experimental_message);
+
 /**
  * @brief This function show a help message
  */
@@ -375,7 +388,8 @@ static void show_usage() {
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
     std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or none)\"   " << hint_message << std::endl;
+    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+              << hint_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
@@ -394,11 +408,12 @@ static void show_usage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
               << infer_threads_pinning_message << std::endl;
+    std::cout << "    -cpu_experimental         " << cpu_experimental_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
-    std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
+    std::cout << "    -report_type \"<type>\"   " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
     std::cout << "    -json_stats               " << json_stats_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
@@ -407,10 +422,11 @@ static void show_usage() {
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;
     std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
-    std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
-    std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
-    std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
-    std::cout << "    -imean                     " << input_image_mean_message << std::endl;
-    std::cout << "    -inference_only              " << inference_only_message << std::endl;
+    std::cout << "    -ip                       <value>     " << inputs_precision_message << std::endl;
+    std::cout << "    -op                       <value>     " << outputs_precision_message << std::endl;
+    std::cout << "    -iop                      \"<value>\"    " << iop_message << std::endl;
+    std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
+    std::cout << "    -imean                    " << input_image_mean_message << std::endl;
+    std::cout << "    -inference_only           " << inference_only_message << std::endl;
+    std::cout << "    -dopt                     " << denormals_optimization_message << std::endl;
 }

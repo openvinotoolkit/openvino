@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests = FuncTestUtils::SkipTestsConfig::readSkipTestConfigFiles(
+        ov::test::conformance::disabledTests = CommonTestUtils::readListFiles(
                 CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {

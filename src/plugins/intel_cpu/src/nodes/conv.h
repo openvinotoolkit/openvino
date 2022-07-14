@@ -69,6 +69,7 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
     class FusedSubgraph;
@@ -90,7 +91,7 @@ private:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     void addZeroPoints(dnnl::primitive_attr& attr);
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
@@ -108,12 +109,14 @@ private:
     bool isGrouped;
     bool isPrimitivesPriorityDefined = false;
     bool withSumBroadcast = false;
+    bool preferLegacyPostOps = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
+    std::vector<MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;
     size_t dw_conv_ih;
@@ -141,6 +144,9 @@ private:
     MemoryPtr inputZeroPointsMemPtr;
     MemoryPtr weightsZeroPointsMemPtr;
     MemoryPtr outputCompensationMemPtr;
+
+    dnnl::memory::data_type outputDataType;
+    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };
 
 }   // namespace node

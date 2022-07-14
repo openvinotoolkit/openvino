@@ -10,7 +10,7 @@
 #include "json_object.h"
 #include <string>
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 namespace cldnn {
 primitive_type_id deconvolution::type_id() {
@@ -24,7 +24,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights(0).get_output_layout();  // weights are stored after inputs
+    auto weights_layout = node.weights(0).get_output_layout().convert_to_weights_layout(desc->grouped_weights_shape);
 
     auto data_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !node.has_fused_primitives()) {
@@ -37,18 +37,8 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
 
     auto pad = desc->pad;
     auto strd = desc->stride;
-    auto group = desc->groups;
 
-    int32_t number_of_features = 0;
-    if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
-        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
-    } else {
-        if (format::is_grouped(weights_layout.format)) {
-            number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
-        } else {
-            number_of_features = weights_layout.size.batch[0];
-        }
-    }
+    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -70,16 +60,13 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
                                        0,
                                        "User-defined size of output layout must be positive (>= 1)");
 
-        tensor output_size(desc->output_size.batch[0],
+        tensor output_size(input_layout.batch(),
                            number_of_features,
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
         return {data_type, input_layout.format, output_size};
     }
-
-    // compute output_dim <= stride * (input_size - 1) + kernel_size - 2 * pad;
-    auto filter_size = weights_layout.size;
 
     int32_t off_factor = -2;
     size_t spatial_dims = input_layout.get_spatial_rank();
@@ -100,7 +87,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
         z = off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2);
     }
 
-    tensor output_size(input_layout.size.batch[0],
+    tensor output_size(input_layout.batch(),
                        number_of_features, x, y, z);
     return {data_type, input_layout.format, output_size};
 }
@@ -158,9 +145,9 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input size",
-                          input_layout.size.raw.size(),
+                          input_layout.get_rank(),
                           "output size",
-                          output_layout.size.raw.size(),
+                          output_layout.get_rank(),
                           "Input/output number of dimension does not match.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Stride size",
@@ -178,42 +165,37 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout();  // deconvolution filter
-        auto pad = argument.pad;
-        auto weights_ifm = filter_inst.size.feature[0];
-        if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
-            weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
-        }
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument.grouped_weights_shape);
 
         if (argument.bias.size() != 0) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias batch[0]",
-                                  bias_inst.size.batch[0],
+                                  bias_inst.batch(),
                                   "dimension size",
                                   1,
                                   "Batch[0] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
-                                  bias_inst.size.feature[0],
+                                  bias_inst.feature(),
                                   "output feature size / split",
-                                  output_size.feature[0] / split,
+                                  output_layout.feature(),
                                   "Biases/output feature maps number does not match.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[2]",
-                                  bias_inst.size.spatial[2],
+                                  bias_inst.spatial(2),
                                   "dimension size",
                                   1,
                                   "Spatial[2] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
-                                  bias_inst.size.spatial[1],
+                                  bias_inst.spatial(1),
                                   "dimension size",
                                   1,
                                   "Spatial[1] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
-                                  bias_inst.size.spatial[0],
+                                  bias_inst.spatial(0),
                                   "dimension size",
                                   1,
                                   "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
@@ -226,38 +208,11 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               0.0f,
                               "Unknown padding mode in deconvolution.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output feature size",
-                              output_size.feature.size(),
-                              "expected output feature size",
-                              1,
-                              "Only one-dimensional features are supported");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output feature size",
-                              output_size.feature.size(),
-                              "expected output feature size",
-                              1,
-                              "Only one-dimensional features are supported");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Output batch size",
-                              output_size.batch.size(),
-                              "expected output batch size",
-                              1,
-                              "Only one-dimensional features are supported");
-        CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              input_layout.size.feature[0],
+                              filter_inst.ifm() * filter_inst.group(),
                               "input feature maps number",
-                              weights_ifm,
+                              input_layout.feature(),
                               "Weights/ifm mismatch");
-
-        if (!argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Weights feature maps number",
-                                  input_layout.size.feature[0],
-                                  "input feature maps number",
-                                  weights_ifm,
-                                  "Weights/ifm mismatch");
-        }
     }
 }
 }  // namespace cldnn

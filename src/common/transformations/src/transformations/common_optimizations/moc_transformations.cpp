@@ -21,6 +21,7 @@
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
@@ -64,6 +65,7 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 
 bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
@@ -98,6 +100,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::Validate>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
+    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
@@ -161,6 +164,8 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>(m_use_shapes);
     common_fusions->add_matcher<ngraph::pass::MatMulConstTransposesExtraction>();
     common_fusions->add_matcher<ngraph::pass::PReluFusion>();
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(!m_use_shapes);
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
@@ -169,6 +174,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
+    decomp->add_matcher<ngraph::pass::ConvertNegative>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
