@@ -771,7 +771,6 @@ std::vector<IRDFTParams> generateParamsForIRDFT() {
                   expected_irdft3d_results_2,
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-3, -2, 2}),
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {4, 5, 12})),
-
        // irdft3d_reversed_axes
        IRDFTParams(Shape{3, 4, 8, 2},
                   Shape{4, 4, 8},
@@ -790,7 +789,6 @@ std::vector<IRDFTParams> generateParamsForIRDFT() {
                   expected_irdft3d_results_3,
                   op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, -2, -3}),
                   NULL),
-
         // irdft3d_reversed_axes_with_signals
         IRDFTParams(Shape{3, 4, 8, 2},
                     Shape{10, 3, 3},
@@ -800,7 +798,6 @@ std::vector<IRDFTParams> generateParamsForIRDFT() {
                     expected_irdft3d_results_4,
                     op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 1, 0}),
                     op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 3, 10})),
-
         // irdft3d_reversed_negative_axes_with_signals
         IRDFTParams(Shape{3, 4, 8, 2},
                     Shape{10, 3, 3},
