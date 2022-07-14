@@ -12,7 +12,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
@@ -29,17 +28,24 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
         order = order_constant->cast_vector<uint16_t>();
     }
 
-    auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
+    auto is_convert_color_type_impl = [](const std::shared_ptr<ov::Node> &node) {
         return ngraph::is_type<ngraph::op::v8::NV12toRGB>(node) ||
                ngraph::is_type<ngraph::op::v8::NV12toBGR>(node) ||
                ngraph::is_type<ngraph::op::v8::I420toRGB>(node) ||
                ngraph::is_type<ngraph::op::v8::I420toBGR>(node);
     };
 
+    auto is_convert_color_type = [&is_convert_color_type_impl](const std::shared_ptr<ov::Node> &node) {
+        if (ngraph::is_type<ngraph::op::v0::Convert>(node)) {
+            return is_convert_color_type_impl(node->get_input_node_shared_ptr(0));
+        }
+        return is_convert_color_type_impl(node);
+    };
+
     // Handle Transpose operation related to ConvertColor operation:
     // In case of ConvertColor operation we have NHWC (byxf) input format which should be converted to
     // NCHW (bfyx) by this Permute, so we replace Permute with Reorder (to bfyx) primitve
-    auto input = op->input(0).get_source_output().get_node_shared_ptr();
+    auto input = op->get_input_node_shared_ptr(0);
     if (is_convert_color_type(input) && order == std::vector<uint16_t>{0, 3, 1, 2}) {
         auto precision = input->get_element_type();
         p.AddPrimitive(cldnn::reorder(layerName,
@@ -72,5 +78,4 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
 REGISTER_FACTORY_IMPL(v1, Transpose);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -612,8 +612,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
-        auto reduce_supports_fusings = [](reduce_node& node) -> bool {
+        auto reduce_supports_fusings = [&](reduce_node& node) -> bool {
             auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
+            auto axes = node.as<reduce>().get_primitive()->axes;
+
+            // If reduce tensor size is small, it sets not to fuse eltwise which leads to select oneDNN reference reduction
+            // Because oneDNN optimized kernel does NOT support eltwise fusing
+            if (p.get_engine().get_device_info().supports_immad && node.get_output_layout().get_dims().size() <= 4 &&
+                ((find(axes.begin(), axes.end(), reduce::along_x) != axes.end() &&
+                node.input().get_output_layout().spatial(0) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
+                node.input().get_output_layout().spatial(1) > 16) ||
+                (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
+                node.input().get_output_layout().feature() > 16) ||
+                (node.get_output_layout().count() > 256)))
+                return false;
 
             if (keep_dims)
                 return true;
@@ -622,12 +635,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
-                auto out_layout = node.get_output_layout();
-                if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                    return false;
-                }
+            auto out_layout = node.get_output_layout();
+            if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                return false;
             }
             return true;
         };
@@ -862,15 +873,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
                            pooling_supports_fusings(input_data.as<pooling>());
 
-            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
-                           quantize_node.get_scale_shift_opt() &&
-                           out_dt_is_i8_u8;
+                           quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<resample>() &&
                            quantize_node.get_scale_shift_opt() &&
@@ -966,7 +974,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
-                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
+                                      (parents[i]->is_type<gather>()) ||
+                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
+                                      (parents[i]->is_type<lrn>()) ||
+                                      (parents[i]->is_type<activation>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow

@@ -6,6 +6,7 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -16,6 +17,7 @@
 #include "gemm_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
+#include "reduce_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "gemm_inst.h"
@@ -214,6 +216,15 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    // keep reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
+    if (use_onednn_impls && next.is_type<convolution>()) {
+        auto reorder_layout = next.get_dependency(0).get_output_layout();
+        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
+            (reorder_layout.feature() <= 4)) {
+            return false;
+        }
+    }
+
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (next.is_type<resample>() &&
         (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
@@ -307,44 +318,25 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
 
-        // Fuse reorder if the following onednn convolution supports bfyx input
-        if (next.is_type<convolution>() && fmt_prev == format::bfyx && prev_dt == next_dt &&
-            needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>())) {
-            auto& conv = next.as<convolution>();
-            if (conv.input().get_output_layout().format == fmt_next)
-                return true;
-        }
-
-        // Remove reorder to support mixed format convolutions of bsv32fsv16 or bsv32fsv32 output
-        if (next.is_type<convolution>() && (prev.is_type<eltwise>() || prev.is_type<quantize>()) &&
-            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            ((fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4))))
-            return true;
-
         // Remove reorder to support blocked input for first convolution
-        if (next.is_type<convolution>() && (fmt_prev == format::bs_fs_yx_bsv4_fsv2 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()))
+        if (next.is_type<convolution>() && needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
+            ((prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() < 8 &&
+                 (fmt_prev == format::b_fs_yx_fsv2 || fmt_prev == format::b_fs_zyx_fsv2)) ||
+             (prev_output_layout.data_type == data_types::f16 && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv2) ||
+             (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() < 8 && fmt_prev == format::b_fs_yx_fsv4) ||
+             (data_type_traits::is_i8_u8(prev_output_layout.data_type) && prev_output_layout.batch() >= 8 && fmt_prev == format::bs_fs_yx_bsv8_fsv4)))
             return true;
 
-        // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
-        //                                 b_fs_yx_fsv16 (fp32/fp16) -> b_fs_yx_fsv32 (i8/u8)
-        if (next.is_type<convolution>()) {
-            const bool fsv32_to_fsv16 = (((fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16) ||
-                                          (fmt_prev == format::bs_fs_yx_bsv32_fsv32 && fmt_next == format::bs_fs_yx_bsv32_fsv16)) &&
-                                          data_type_traits::is_i8_u8(prev_dt) && data_type_traits::is_floating_point(next_dt));
-            const bool fsv16_to_fsv32 = (((fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv32) ||
-                                          (fmt_prev == format::bs_fs_yx_bsv32_fsv16 && fmt_next == format::bs_fs_yx_bsv32_fsv32)) &&
-                                          data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_i8_u8(next_dt));
-            if (fsv32_to_fsv16 || fsv16_to_fsv32) {
-                auto& node = prev.get_users().front();
-                // Avoid to fuse padding reorder to previous onednn convolution
-                if (prev.get_preferred_impl_type() == impl_types::onednn &&
-                    (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
-                    return false;
-                else
-                    return true;
-            }
+        // Remove Reorder for Convolution if mixed layout.
+        if (next.is_type<convolution>() && !needs_onednn_small_ic_to_blocked(fmt_next, prev_output_layout, next.as<convolution>()) &&
+            is_mixed_layout(prev, next)) {
+            auto& node = prev.get_users().front();
+            // Avoid to fuse padding reorder to previous onednn convolution
+            if (prev.get_preferred_impl_type() == impl_types::onednn &&
+                (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
+                return false;
+            else
+                return true;
         }
 
         if (next.is_type<convolution>() &&
@@ -402,6 +394,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
     if (prev.is_type<reorder>())
         return true;
 
+
+    // fusing reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
+    if (use_onednn_impls && next->is_type<convolution>()) {
+        auto reorder_layout = next->get_dependency(0).get_output_layout();
+        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
+            (reorder_layout.feature() <= 4)) {
+            return true;
+        }
+    }
+
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (prev.is_type<resample>() &&
         (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
@@ -419,9 +421,15 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         fmt_prev == fmt_next)
         return true;
 
+    if (prev.is_type<quantize>() && next->is_type<convolution>()) {
+        auto prev_layout = prev.get_output_layout();
+        if (needs_onednn_small_ic_to_blocked(fmt_next, prev_layout, next->as<convolution>()))
+            return false;
+    }
+
     if (prev.is_type<quantize>() &&
         (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || (fmt_next == format::b_fs_yx_fsv32 && !use_onednn_impls) ||
-         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
+         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
     if (prev.is_type<permute>()) {
@@ -435,10 +443,16 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
     }
 
-    if (use_onednn_impls) {
-        if (prev.is_type<convolution>() && fmt_next == format::bs_fs_yx_bsv32_fsv16 && fmt_prev == format::bs_fs_yx_bsv4_fsv2)
+    if (use_onednn_impls && prev.is_type<convolution>()) {
+        if (fmt_next == format::bs_fs_yx_bsv32_fsv16 && fmt_prev == format::bs_fs_yx_bsv4_fsv2)
+            return true;
+        else if (fmt_next == format::b_fs_zyx_fsv32 && fmt_prev == format::b_fs_zyx_fsv16 && dt_prev != data_types::f32)
             return true;
     }
+
+    if (use_onednn_impls && prev.is_type<eltwise>() &&
+        is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
+        return true;
 
     return false;
 }
@@ -747,6 +761,43 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     return false;
 }
 
+static bool is_node_for_onednn(reduce_node const& node) {
+    auto reduce_prim = node.get_primitive();
+    // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
+    switch (reduce_prim->mode) {
+        case reduce_mode::mean:
+        case reduce_mode::max:
+        case reduce_mode::min:
+        case reduce_mode::sum:
+        case reduce_mode::prod:
+        case reduce_mode::sum_square:
+        case reduce_mode::l1:
+        case reduce_mode::l2:
+            break;
+        default:
+            return false;
+    }
+
+    auto& input = node.input();
+    auto input_layout = input.get_output_layout();
+    auto reduce_axes = reduce_prim->axes;
+    // redundant reduce is not acceptable on oneDNN reduction
+    if (node.get_output_layout() == input_layout) {
+        return false;
+    }
+    // tensor size mismatch of unreduced axis is not supported
+    for (size_t idx = 0 ; idx < input_layout.get_dims().size() ; idx++) {
+        bool reduced_axis = std::find(reduce_axes.begin(), reduce_axes.end(), idx) != reduce_axes.end();
+        if (!reduced_axis && (input_layout.get_dim(idx) != node.get_output_layout().get_dim(idx)))
+            return false;
+    }
+    if (input_layout.get_dims().size() > 4) {
+        return false;
+    }
+
+    return true;
+}
+
 static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_dependency(0).get_output_layout();
@@ -765,6 +816,44 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
     auto spatial_dims_num = input_layout.get_spatial_rank();
 
     return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
+}
+
+
+static bool is_node_for_onednn(program_node& node, fully_connected_node const& fc_node) {
+    bool is_suitable_for_onednn = true;
+    auto out_layout = node.get_output_layout();
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.node->is_type<eltwise>()) {
+            // FC checkings
+            auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
+            auto in_dt = in_layout.data_type;
+            auto out_dt = out_layout.data_type;
+            // if it is not eltwise sum and input is full tensor
+            if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
+                && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
+                && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
+                return false;
+            }
+
+            // WA: onednn sum/binary_add post-op are not supported due to perf drop.
+            auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
+            if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
+                return false;
+            }
+        }
+    }
+
+    auto fc_prim = fc_node.get_primitive();
+    size_t rank = cldnn::format::dimension(out_layout.format);
+    auto size = out_layout.size;
+    // OneDnn doesn't support spatial dimensions for output
+    for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
+        if (size.spatial[i] != 1) {
+            return false;
+        }
+    }
+
+    return is_suitable_for_onednn;
 }
 
 bool layout_optimizer::needs_all_usr_onednn_small_ic_to_blocked(const program_node& node) {
@@ -790,18 +879,15 @@ bool layout_optimizer::needs_all_usr_onednn_small_ic_to_blocked(const program_no
 }
 
 bool layout_optimizer::needs_onednn_small_ic_to_blocked(format fmt_next, layout& prev_output_layout, const convolution_node& node) {
-    auto next_output_layout = node.get_output_layout();
-    if (!(prev_output_layout.data_type == next_output_layout.data_type ||
-        (prev_output_layout.data_type == data_types::i8 && next_output_layout.data_type == data_types::u8) ||
-        (prev_output_layout.data_type == data_types::u8 && next_output_layout.data_type == data_types::i8)))
-        return false;
-
     // Target output_layout format
     if (!(fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16 ||
-        fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
+        fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv32 ||
+        fmt_next == format::bs_fs_zyx_bsv32_fsv16 || fmt_next == format::b_fs_zyx_fsv32 ||
+        fmt_next == format::b_fs_zyx_fsv16))
         return false;
 
-    if (next_output_layout.feature() >= 8 && prev_output_layout.feature() <= 4)
+    // Check input feature size from node.input() in case prev_output_layout used in post operations.
+    if (prev_output_layout.feature() <= 8 && node.input().get_output_layout().feature() <= 8)
         return true;
 
     return false;
@@ -922,6 +1008,37 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
     return format::b_fs_yx_fsv4;
 }
 
+bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, bool check_data_type,
+                                       std::vector<std::pair<format, format>> custom_list) const {
+    auto prev_layout = prev.get_output_layout();
+    auto prev_fmt = prev_layout.format;
+    auto prev_dt = prev_layout.data_type;
+    auto next_layout = next.get_output_layout();
+    auto next_fmt = next_layout.format;
+    auto next_dt = next_layout.data_type;
+
+    // std::pair<i8_u8_format, float_format>
+    std::vector<std::pair<format, format>> supported_list = {
+        { format::b_fs_yx_fsv32, format::b_fs_yx_fsv16 },
+        { format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv16 },
+        { format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv16 },
+        { format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 },
+    };
+    auto& check_list = custom_list.size() > 0 ? custom_list : supported_list;
+
+    for (auto& pair : check_list) {
+        if ((prev_fmt == pair.first && next_fmt == pair.second) &&
+            (!check_data_type || (data_type_traits::is_i8_u8(prev_dt) && data_type_traits::is_floating_point(next_dt))))
+            return true;
+
+        if ((next_fmt == pair.first && prev_fmt == pair.second) &&
+            (!check_data_type || (data_type_traits::is_i8_u8(next_dt) && data_type_traits::is_floating_point(prev_dt))))
+            return true;
+    }
+
+    return false;
+}
+
 layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              convolution_node const& node,
                                              layout const& weights_layout) {
@@ -934,13 +1051,13 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
-    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups);
+    bool is_dw = input_layout.feature() == static_cast<int>(prim->groups) && output_layout.feature() == static_cast<int>(prim->groups);
     int ofm_per_group = output_layout.feature() / prim->groups;
     int ifm_per_group = input_layout.feature() / prim->groups;
     int compute_block = 32;
-    bool valid_int8_dw = is_dw && output_layout.batch() % 16 == 0;
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
+    bool is_3d = input_layout.format.spatial_num() == 3;
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
@@ -959,41 +1076,44 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         bool i8_u8_output = data_type_traits::is_i8_u8(output_layout.data_type);
-        // bool is_first_conv = input_layout.size.feature[0] < 4;
+        bool fp16_output = output_layout.data_type == data_types::f16;
 
-        if (i8_u8_output) {
-            if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
+        // oneDNNv2.6 needs acdb format for shallow group conv
+        if (!non_grouped && is_2d &&
+            ((is_dw && ((i8_u8_input && input_layout.feature() < 16) || (fp16_output && input_layout.feature() < 8))) ||
+            (!is_dw && ((i8_u8_input && ofm_per_group % 32 != 0) || (fp16_output && ofm_per_group % 16 != 0))))) {
+            expected_format = cldnn::format::byxf;
+        } else if (i8_u8_output) {
+            if (non_grouped || valid_grouped || is_dw) {
                 if (input_layout.batch() >= 16) {
-                    expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
+                    expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv32_fsv32 : cldnn::format::bs_fs_zyx_bsv32_fsv32;
                 } else {
                     if (data_type_traits::is_floating_point(output_layout.data_type) &&
                         !has_any_convolutions_below(node)) {
-                        expected_format = cldnn::format::b_fs_yx_fsv16;
+                        expected_format = is_2d ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
                     } else {
-                        expected_format = cldnn::format::b_fs_yx_fsv32;
+                        expected_format = is_2d ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
                     }
                 }
             } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                        convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) && is_2d) {
                 // TODO: optimize clDNN kernels for good support of b_fs_yx_fsv32 format
                 expected_format = cldnn::format::b_fs_yx_fsv32;
+            } else if (is_3d && is_depthwise(node) && !non_grouped) {
+                expected_format = format::b_fs_zyx_fsv32;
             } else {
                 expected_format = imad_case(node);
             }
             expected_tensor = current_layout.size;
-        } else if ((output_layout.data_type == data_types::f16 || output_layout.data_type == data_types::f32) && is_2d) {
+        } else if (output_layout.data_type == data_types::f16 || output_layout.data_type == data_types::f32) {
             expected_tensor = current_layout.size;
 
-            if (input_layout.batch() >= 16 && onednn_valid_post_ops) {
-                if (non_grouped || valid_grouped || is_dw) {
-                    expected_format = cldnn::format::bs_fs_yx_bsv32_fsv16;
-                } else {
-                    expected_format = cldnn::format::b_fs_yx_fsv16;
-                }
+            if (input_layout.batch() >= 16 && (non_grouped || valid_grouped || is_dw)) {
+                expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv32_fsv16 : cldnn::format::bs_fs_zyx_bsv32_fsv16;
             } else {
-                expected_format = cldnn::format::b_fs_yx_fsv16;
+                expected_format = is_2d ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
             }
-        } else if (output_layout.data_type == data_types::f16 &&
+        } else if (fp16_output &&
                 convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim) &&
                 (output_layout.data_type == input_layout.data_type ||
                 !data_type_traits::is_floating_point(input_layout.data_type)) && is_2d) {
@@ -1165,7 +1285,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     auto in_dt = node.get_dependency(0).get_output_layout().data_type;
     auto out_dt = node.get_output_layout().data_type;
 
-    if (in_dt == data_types::f32 && !node.is_type<fully_connected>())
+    if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
 
     if (node.is_type<pooling>()) {
@@ -1191,6 +1311,9 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             return true;
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
             (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+            return true;
+        if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
+            (out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
@@ -1246,8 +1369,59 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
     return true;
 }
 
+impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->forced_impl_type.empty()) {
+        // Forcing impl type of one primitive
+        std::string forced_impl_type = debug_config->forced_impl_type;
+        if (node.is_type<fully_connected>()) {
+            if (forced_impl_type == "fc:ocl")
+                return impl_types::ocl;
+            else if (forced_impl_type == "fc:onednn")
+                return impl_types::onednn;
+        } else if (node.is_type<detection_output>()) {
+            if (forced_impl_type == "do:cpu")
+                return impl_types::cpu;
+            else if (forced_impl_type == "do:ocl")
+                return impl_types::ocl;
+        } else if (node.is_type<reduce>()) {
+            if (forced_impl_type == "reduce:ocl")
+                return impl_types::ocl;
+            else if (forced_impl_type == "reduce:onednn")
+                return impl_types::onednn;
+        }
+
+        // Forcing one layer
+        size_t found_type = forced_impl_type.rfind(":");
+        if (found_type != std::string::npos) {
+            impl_types preferred_type = impl_types::any;
+            auto impl_type = forced_impl_type.substr(found_type + 1);
+            if (impl_type == "ocl")
+                preferred_type = impl_types::ocl;
+            else if (impl_type == "onednn")
+                preferred_type = impl_types::onednn;
+            else if (impl_type == "cpu")
+                preferred_type = impl_types::cpu;
+
+            if (node.id() == forced_impl_type.substr(0, found_type)) {
+                GPU_DEBUG_COUT << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                    << forced_impl_type.substr(found_type + 1) << std::endl;
+                return preferred_type;
+            }
+        }
+    }
+#endif
+
+    return impl_types::any;
+}
+
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
     impl_types preferred_impl = impl_types::any;
+    auto forced_impl = get_forced_impl_type_by_config(node);
+    if (forced_impl != impl_types::any)
+        return forced_impl;
+
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
     } else if (node.is_type<detection_output>()) {
@@ -1265,13 +1439,25 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         else
             preferred_impl = impl_types::cpu;
     } else if (node.is_type<non_max_suppression>()) {
-        auto& nms_node = node.as<non_max_suppression>();
-        auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
-        const size_t kBatchNum = scoresTensor.Batch().v;
-        const size_t kClassNum = scoresTensor.Feature().v;
-        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
-        const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-        preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+        const std::set<format> blocked_formats = {
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+        };
+        if (blocked_formats.find(node.get_dependency(0).get_output_layout().format) != blocked_formats.end()) {
+            preferred_impl = impl_types::ocl;
+        } else {
+            auto& nms_node = node.as<non_max_suppression>();
+            auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
+            const size_t kBatchNum = scoresTensor.Batch().v;
+            const size_t kClassNum = scoresTensor.Feature().v;
+            const size_t kNStreams =
+                static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+            const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+            preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+        }
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
@@ -1281,11 +1467,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             format::b_fs_zyx_fsv16,
             format::b_fs_yx_fsv16,
             format::b_fs_yx_fsv32,
+            format::bs_fs_zyx_bsv8_fsv4,
             format::bs_fs_yx_bsv8_fsv4,
+            format::bs_fs_zyx_bsv8_fsv2,
             format::bs_fs_yx_bsv8_fsv2,
-            format::bs_fs_yx_bsv16_fsv16,
             format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv32_fsv16,
             format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_zyx_bsv32_fsv32,
             format::bs_fs_yx_bsv32_fsv32,
         };
 
@@ -1326,25 +1516,38 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             preferred_impl = impl_types::ocl;
         if (output_fmt == format::bfyx && output_dt == data_types::f32)
             preferred_impl = impl_types::ocl;
+    } else if (node.is_type<reduce>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        if (is_node_for_onednn(node.as<reduce>()))
+            return impl_types::onednn;
+        else
+            return impl_types::ocl;
     } else if (node.is_type<pooling>() || node.is_type<convolution>() || node.is_type<deconvolution>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_formats = {
-            format::b_fs_zyx_fsv16,
+            format::byxf,
             format::b_fs_zyx_fsv32,
             format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv16,
             format::b_fs_yx_fsv16,
-            format::bs_fs_yx_bsv16_fsv16,
+            // format::b_fs_zyx_fsv4,
+            // format::b_fs_zyx_fsv2,
             format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv32_fsv16,
             format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_zyx_bsv32_fsv32,
             format::bs_fs_yx_bsv32_fsv32,
-            format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_zyx_bsv8_fsv4,
             format::bs_fs_yx_bsv8_fsv4,
+            format::bs_fs_zyx_bsv8_fsv2,
             format::bs_fs_yx_bsv8_fsv2,
+            format::bs_fs_yx_bsv4_fsv4,
             format::bs_fs_yx_bsv4_fsv2,
-            format::bs_fs_zyx_bsv4_fsv4,
-            format::bs_fs_zyx_bsv4_fsv2,
         };
 
         impl_types impl_candidate = impl_types::onednn;
@@ -1354,18 +1557,13 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        if (node.is_type<convolution>()) {
-            // oneDNN doesn't have good support for groups with fsv16 fmt
-            auto& conv = node.as<convolution>();
-            auto input_layout = conv.input().get_output_layout();
-            auto output_layout = conv.get_output_layout();
-            bool has_groups = conv.get_primitive()->groups > 1;
-            bool is_depthwise = conv.get_primitive()->groups == input_layout.feature();
-            bool first_conv = input_layout.feature() <= 4;
-            if (((has_groups && !is_depthwise) || first_conv) &&
-                output_layout.format == format::b_fs_yx_fsv16 &&
-                !needs_onednn_small_ic_to_blocked(preferred_format, input_layout, conv))
-                impl_candidate = impl_types::ocl;
+        // WA: fallback cldnn if onednn pooling's layout is b_fs_zyx_fsv32 and i8.
+        if (node.is_type<pooling>()) {
+            auto pool_layout = node.get_output_layout();
+            if (pool_layout.data_type == data_types::i8) {
+                if (pool_layout.format == format::b_fs_zyx_fsv32 || pool_layout.format == format::bs_fs_zyx_bsv32_fsv32)
+                    impl_candidate = impl_types::ocl;
+            }
         }
 
         if (node.is_type<deconvolution>()) {
@@ -1421,33 +1619,20 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<eltwise>()) {
-                // FC checkings
-                if (node.is_type<fully_connected>()) {
-                    auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-                    auto out_layout = node.get_output_layout();
-                    auto in_dt = in_layout.data_type;
-                    auto out_dt = out_layout.data_type;
-                    // if it is not eltwise sum and input is full tensor
-                    if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
-                        && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
-                        && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
+        if (node.is_type<fully_connected>()) {
+            if (!is_node_for_onednn(node, node.as<fully_connected>()))
+                impl_candidate = impl_types::ocl;
 
-                    // WA: onednn sum/binary_add post-op are not supported due to perf drop.
-                    auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
-                    if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                // Gemm checkings
-                // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
-                // which don't correlate with fc checkings in the code above
-                // Temprorary WA: disable onednn gemm with sum post-op inside
-                } else {
+            // WA : Use cldnn FC due to perf drop of small batch size until onednn FC improve perf
+            if (node.get_output_layout().batch() < 32)
+                impl_candidate = impl_types::ocl;
+        } else {
+            for (auto& fo : node.get_fused_primitives()) {
+                if (fo.node->is_type<eltwise>()) {
+                    // Gemm checkings
+                    // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
+                    // which don't correlate with fc checkings in the code above
+                    // Temprorary WA: disable onednn gemm with sum post-op inside
                     auto& e_node = fo.node->as<eltwise>();
                     if (e_node.get_primitive()->mode == eltwise_mode::sum) {
                         impl_candidate = impl_types::ocl;
@@ -1455,21 +1640,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                     }
                 }
             }
-        }
 
-        if (node.is_type<fully_connected>()) {
-            auto fc_prim = node.as<fully_connected>().get_primitive();
-            auto out_layout = node.get_output_layout();
-            size_t rank = cldnn::format::dimension(out_layout.format);
-            auto size = out_layout.size;
-            // OneDnn doesn't support spatial dimensions for output
-            for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
-                if (size.spatial[i] != 1) {
-                    impl_candidate = impl_types::ocl;
-                    break;
-                }
-            }
-        } else {
             impl_candidate = impl_types::ocl;
             auto gemm_prim = node.as<gemm>().get_primitive();
             auto in0_l = node.get_dependency(0).get_output_layout();
@@ -1547,11 +1718,29 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         };
         if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
-            expected = format::bfyx;
-        } else if (use_onednn_impls && data_type_traits::is_i8_u8(layout.data_type) &&
-            needs_all_usr_onednn_small_ic_to_blocked(node)) {
+            if (node.get_output_layout().format.dimension() == 6) {
+                expected = format::bfwzyx;
+            } else if (node.get_output_layout().format.dimension() == 5) {
+                expected = format::bfzyx;
+            } else if (node.get_output_layout().format.dimension() == 4) {
+                expected = format::bfyx;
+            }
+        } else if (use_onednn_impls  && needs_all_usr_onednn_small_ic_to_blocked(node)) {
             // All user nodes are convolutions which satisfy options for onednn first conv
-            expected = format::bs_fs_yx_bsv8_fsv4;
+            if (layout.data_type == data_types::f16) {
+                if (layout.format.spatial_num() == 3) {
+                    expected = (layout.batch() < 8) ? format::b_fs_zyx_fsv2 : format::bs_fs_zyx_bsv8_fsv2;
+                } else {
+                    expected = (layout.batch() < 8) ? format::b_fs_yx_fsv2 : format::bs_fs_yx_bsv8_fsv2;
+                }
+            } else if (data_type_traits::is_i8_u8(layout.data_type)) {
+                if (layout.format.spatial_num() == 3) {
+                    expected = (layout.batch() < 8) ? format::b_fs_zyx_fsv4 : format::bs_fs_zyx_bsv8_fsv4;
+                } else {
+                    expected = (layout.batch() < 8) ? format::b_fs_yx_fsv4 : format::bs_fs_yx_bsv8_fsv4;
+                }
+            }
+            // TODO: check other types for first conv
         } else if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.batch() % 16 == 0) {
@@ -1585,7 +1774,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 }
             }
         } else if (layout.format.spatial_num() == 3 && (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
-            expected = format::b_fs_zyx_fsv16;
+            if (use_onednn_impls) {
+                expected = (layout.size.batch[0] >= 32) ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            } else {
+                expected = format::b_fs_zyx_fsv16;
+            }
         } else if (use_onednn_impls) {
             if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>() &&
                 (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
@@ -1596,6 +1789,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 if (layout.format.spatial_num() == 2 && layout.feature() % 32 == 0 && expected_conv_fmt == format::b_fs_yx_fsv32)
                     expected = expected_conv_fmt;
             }
+        }
+
+        // In case of input -> ... -> quantize -> concat
+        if (expected == format::any
+            && (node.get_users().size() == 1 && node.get_users().front()->is_type<concatenation>())
+            && (layout.batch() < 4 && layout.feature() < 4)) {
+                expected = format::get_default_format(layout.get_rank(), false, false);
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;

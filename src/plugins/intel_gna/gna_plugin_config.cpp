@@ -8,6 +8,7 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
+#include "common/gna_target.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
 #include <caseless.hpp>
@@ -39,9 +40,9 @@ static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode,
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 static const std::set<std::string> supportedTargets = {
-    GNAConfigParams::GNA_TARGET_2_0,
-    GNAConfigParams::GNA_TARGET_3_0,
-    ""
+    common::kGnaTarget2_0,
+    common::kGnaTarget3_0,
+    common::kGnaTargetUnspecified
 };
 
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
@@ -153,9 +154,9 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             auto target = ov::util::from_string(value, ov::intel_gna::execution_target);
             std::string target_str = "";
             if (ov::intel_gna::HWGeneration::GNA_2_0 == target) {
-                target_str = GNAConfigParams::GNA_TARGET_2_0;
+                target_str = common::kGnaTarget2_0;
             } else if (ov::intel_gna::HWGeneration::GNA_3_0 == target) {
-                target_str = GNAConfigParams::GNA_TARGET_3_0;
+                target_str = common::kGnaTarget3_0;
             }
             set_target(target_str);
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
@@ -276,11 +277,11 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             }
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
-            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE) {
+            if (value == PluginConfigParams::LOG_WARNING || value == PluginConfigParams::LOG_NONE || value == PluginConfigParams::LOG_DEBUG) {
                 gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
             } else {
-                log << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
-                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING and LOG_NONE are supported, not " << value;
+                log << "Currently only LOG_LEVEL = LOG_WARNING, LOG_DEBUG and LOG_NONE are supported, not " << value;
+                THROW_GNA_EXCEPTION << "Currently only LOG_LEVEL = LOG_WARNING, LOG_DEBUG and LOG_NONE are supported, not " << value;
             }
         } else {
             IE_THROW(NotFound)
@@ -373,12 +374,12 @@ Parameter Config::GetParameter(const std::string& name) const {
     } else if (name == ov::intel_gna::pwl_design_algorithm) {
         return gnaFlags.pwl_design_algorithm;
     } else if (name ==  ov::intel_gna::execution_target) {
-        return ((gnaExecTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
-                (gnaExecTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+        return ((gnaExecTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
+                (gnaExecTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name ==  ov::intel_gna::compile_target) {
-        return ((gnaCompileTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
-                (gnaCompileTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+        return ((gnaCompileTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
+                (gnaCompileTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;

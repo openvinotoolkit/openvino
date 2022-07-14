@@ -50,9 +50,10 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency', 'none'],
-                      help='Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'cumulative_throughput', 'latency', 'none'],
+                      help='Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
                             '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
+                            '\'cumulative_throughput\': device performance mode will be set to CUMULATIVE_THROUGHPUT. \n'
                             '\'latency\': device performance mode will be set to LATENCY. \n'
                             '\'none\': no device performance mode will be set. \n'
                             'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
@@ -151,6 +152,8 @@ def parse_args():
     args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
                       help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
+    args.add_argument('-dopt', '--denormals_optimization', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Denormals is optimized by treating as zeros.', )
     parsed_args = parser.parse_args()
 
     return parsed_args

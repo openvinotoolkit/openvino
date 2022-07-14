@@ -34,8 +34,7 @@ namespace op {
 namespace set_1 {
 OutputVector topk(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
-    std::int64_t k{node.get_attribute_value<std::int64_t>("k")};
-    auto k_node = default_opset::Constant::create(element::i64, Shape{}, {k});
+    const auto k_node = node.get_attribute_as_constant<std::int64_t>("k");
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
     std::shared_ptr<ngraph::Node> top_k =

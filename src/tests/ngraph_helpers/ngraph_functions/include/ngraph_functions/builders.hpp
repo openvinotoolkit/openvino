@@ -15,6 +15,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -559,17 +560,24 @@ std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
                                               float eps,
                                               ngraph::op::EpsMode epsMode);
 
-std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
-                                      const ngraph::Output<Node> &scores,
+
+enum class NmsVersion {
+    NmsVersion5,
+    NmsVersion9
+};
+
+std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node>& boxes,
+                                      const ngraph::Output<Node>& scores,
                                       const element::Type& maxBoxesPrec,
                                       const element::Type& thrPrec,
-                                      const int32_t &maxOutBoxesPerClass,
-                                      const float &iouThr,
-                                      const float &scoreThr,
-                                      const float &softNmsSigma,
-                                      const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
-                                      const bool &sortResDescend,
-                                      const ngraph::element::Type& outType);
+                                      const int32_t& maxOutBoxesPerClass,
+                                      const float& iouThr,
+                                      const float& scoreThr,
+                                      const float& softNmsSigma,
+                                      const bool isCenter,
+                                      const bool& sortResDescend,
+                                      const ngraph::element::Type& outType,
+                                      const NmsVersion nmsVersion = NmsVersion::NmsVersion5);
 
 std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const element::Type& depth_type,
@@ -587,5 +595,8 @@ std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &axes,
                                       const std::vector<int64_t> &signalSize,
                                       const ngraph::helpers::DFTOpType opType);
+
+std::shared_ptr<ngraph::Node> makeEinsum(const OutputVector& inputs,
+                                         const std::string& equation);
 }  // namespace builder
 }  // namespace ngraph
