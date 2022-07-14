@@ -36,6 +36,14 @@ typedef std::tuple<
     bool                                // transpose to reshape
 > removePermutationsAddParamPassParams;
 
+typedef std::tuple<
+    InferenceEngine::Precision,         // Network Precision
+    std::string,                        // Target Device
+    std::map<std::string, std::string>, // Configuration
+    std::vector<size_t>,                // Input shape
+    size_t                              // Splits number
+> removeSharedPermutationPassParams;
+
 namespace LayerTestsDefinitions {
 
 std::vector<size_t> GetKernelShape(std::vector<size_t> input_shape, size_t kernel_size, bool output_1d = false) {
@@ -465,15 +473,16 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         }
 };
 
-class RemoveSharedPermutationTest : public testing::WithParamInterface<removePermutationsPassParams>,
+class RemoveSharedPermutationTest : public testing::WithParamInterface<removeSharedPermutationPassParams>,
                                     public LayerTestsUtils::LayerTestsCommon {
     public:
-        static std::string getTestCaseName(testing::TestParamInfo<removePermutationsPassParams> obj) {
+        static std::string getTestCaseName(testing::TestParamInfo<removeSharedPermutationPassParams> obj) {
             InferenceEngine::Precision netPrecision;
             std::string targetDevice;
             std::map<std::string, std::string> configuration;
             std::vector<size_t> inputShape;
-            std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
+            size_t splits_num;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, splits_num) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -482,6 +491,7 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removePer
                 result << "_configItem=" << configItem.first << "_" << configItem.second;
             }
             result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+            result << "_splits=" << splits_num;
             return result.str();
         }
 
@@ -514,7 +524,8 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removePer
             //                         Concat
             InferenceEngine::Precision netPrecision;
             std::vector<size_t> inputShape;
-            std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
+            size_t splits_num;
+            std::tie(netPrecision, targetDevice, configuration, inputShape, splits_num) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             size_t shape_size = inputShape.size();
@@ -522,15 +533,17 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removePer
             ASSERT_LT(shape_size, 5);
 
             size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
-            auto params = ngraph::builder::makeParams(ngPrc, {{1, 2 * in_total_dims_size}});
+            auto params = ngraph::builder::makeParams(ngPrc, {{1, splits_num * in_total_dims_size}});
 
-            auto doubleInputShape = inputShape;
-            doubleInputShape[1] *= 2;
+            auto multipleInputShape = inputShape;
+            size_t mul_dim = inputShape.size() == 4  && inputShape[1] > 1 ? 1 : (inputShape.size() - 2);
+            multipleInputShape[mul_dim] *= splits_num;
             auto pattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
-                ngraph::Shape{doubleInputShape.size()}, doubleInputShape);
+                ngraph::Shape{multipleInputShape.size()}, multipleInputShape);
             auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
             auto permute = CreateTranspose(reshape, shape_size, true);
-            auto split = ngraph::builder::makeSplit(permute, ngPrc, 2, 2);
+            auto split = ngraph::builder::makeSplit(permute, ngPrc, splits_num, inputShape.size() == 4  && inputShape[1] > 1 ?
+                inputShape.size() - 2 : inputShape.size() - 1);
 
             auto conv1 = CreateConvolution(split->output(0), ngPrc, inputShape);
             auto permute1 = CreateTranspose(conv1, conv1->get_output_shape(0).size(), false);
@@ -619,6 +632,8 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removePer
         {1, 32, 9}
     };
 
+    const std::vector<size_t> splitsNum = {2, 4, 8};
+
     INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -668,7 +683,8 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removePer
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
-            ::testing::ValuesIn(inputShapes)),
+            ::testing::ValuesIn(inputShapes),
+            ::testing::ValuesIn(splitsNum)),
         RemoveSharedPermutationTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
