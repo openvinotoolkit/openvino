@@ -3101,6 +3101,30 @@ bool evaluate(const shared_ptr<op::v3::GRUCell>& op, const HostTensorVector& out
     return true;
 }
 
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v3::AUGRUCell>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::gru_cell<T>(inputs[0]->get_data_ptr<ET>(),
+                                    inputs[0]->get_shape(),
+                                    inputs[1]->get_data_ptr<ET>(),
+                                    inputs[1]->get_shape(),
+                                    inputs[2]->get_data_ptr<ET>(),
+                                    inputs[2]->get_shape(),
+                                    inputs[3]->get_data_ptr<ET>(),
+                                    inputs[3]->get_shape(),
+                                    inputs[4]->get_data_ptr<ET>(),
+                                    inputs[4]->get_shape(),
+                                    outputs[0]->get_data_ptr<ET>(),
+                                    op->get_activations()[0],
+                                    op->get_activations()[1],
+                                    op->get_clip(),
+                                    op->get_linear_before_reset(),
+                                    inputs[5]->get_data_ptr<ET>());
+    return true;
+}
+
 namespace rnn_seq_v5 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v5::RNNSequence>& op,
@@ -3373,6 +3397,56 @@ bool evaluate(const shared_ptr<op::v5::GRUSequence>& op,
     }
     return true;
 }
+
+namespace augru_seq {
+template <element::Type_t t1, element::Type_t t2>
+inline void evaluate(const shared_ptr<op::v5::AUGRUSequence>& op,
+                     const HostTensorVector& outputs,
+                     const HostTensorVector& inputs) {
+    using T1 = typename element_type_traits<t1>::value_type;
+    using T2 = typename element_type_traits<t2>::value_type;
+    runtime::reference::gru_sequence<T1, T2>(inputs[0]->get_data_ptr<char>(),
+                                             inputs[0]->get_shape(),
+                                             inputs[1]->get_data_ptr<char>(),
+                                             inputs[1]->get_shape(),
+                                             inputs[2]->get_data_ptr<char>(),
+                                             inputs[2]->get_shape(),
+                                             inputs[3]->get_data_ptr<char>(),
+                                             inputs[3]->get_shape(),
+                                             inputs[4]->get_data_ptr<char>(),
+                                             inputs[4]->get_shape(),
+                                             inputs[5]->get_data_ptr<char>(),
+                                             inputs[5]->get_shape(),
+                                             outputs[0]->get_data_ptr<char>(),
+                                             outputs[1]->get_data_ptr<char>(),
+                                             op->get_activations()[0],
+                                             op->get_activations()[1],
+                                             op->get_clip(),
+                                             op->get_direction(),
+                                             op->get_linear_before_reset(),
+                                             inputs[6]->get_data_ptr<char>());
+}
+}  // namespace augru_seq
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v5::AUGRUSequence>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    switch (inputs[2]->get_element_type()) {
+    case element::Type_t::i64:
+    case element::Type_t::u64:
+        augru_seq::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+        break;
+    case element::Type_t::i32:
+    case element::Type_t::u32:
+        augru_seq::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::ROIAlign>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
