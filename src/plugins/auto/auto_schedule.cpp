@@ -146,7 +146,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             }
 
             // remove CPU from default candidate list for Cumulative Throughput mode
-            if (GPUNums >= 2 && CPUNums > 0) {
+            if (GPUNums >= 3 && CPUNums > 0) {
                 validDevices.erase(itCPUDevice);
                 LOG_INFO_TAG("GPUNums:%d, remove CPU from default candidate list for "
                          "CUMULATIVE_THROUGHPUT",

@@ -10,7 +10,6 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
@@ -90,5 +89,4 @@ REGISTER_FACTORY_IMPL(v8, I420toRGB);
 REGISTER_FACTORY_IMPL(v8, I420toBGR);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
