@@ -152,6 +152,10 @@ void op::v5::Loop::validate_and_infer_types() {
                           get_input_size() == m_input_descriptions[0].size() + input_offset,
                           "Number of inputs must be the same as number of input descriptions");
 
+    // if output shape is not same with input in a back-edge, here will update the input shape
+    // Port map processing: output -> input
+    std::map<uint64_t, uint64_t> back_edges;
+
     // Input
     for (const auto& input_description : m_input_descriptions[0]) {
         auto index = input_description->m_input_index;
@@ -177,6 +181,7 @@ void op::v5::Loop::validate_and_infer_types() {
             auto input_partial_shape = input(index).get_partial_shape();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
@@ -191,14 +196,6 @@ void op::v5::Loop::validate_and_infer_types() {
     // Body
     m_bodies[0]->validate_nodes_and_infer_types();
 
-    // if output shape is not same with input in a back-edge, here will update the input shape
-    // Port map processing: output -> input
-    std::map<uint64_t, uint64_t> back_edges;
-    for (const auto& desc : get_input_descriptions()) {
-        if (const auto& merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc)) {
-            back_edges[merged_desc->m_body_value_index] = merged_desc->m_body_parameter_index;
-        }
-    }
     if (!back_edges.empty()) {
         bool need_reinvalidate = false;
         for (const auto& output_description : m_output_descriptions[0]) {
@@ -222,14 +219,7 @@ void op::v5::Loop::validate_and_infer_types() {
                         if (input_param_ps.rank().is_static()) {
                             const auto body_rank_len = body_value_shape.rank().get_length();
                             const auto input_rank_len = input_param_ps.rank().get_length();
-                            // if input and output shape are {n} or {} and not compatible, make output shape dynamic
-                            if (body_rank_len <= 1 && input_rank_len <= 1 &&
-                                !input_param_ps.compatible(body_value_shape)) {
-                                // reset sub model input shape
-                                input_param->set_partial_shape({-1});
-                                need_reinvalidate = true;
-                            } else if (body_rank_len == input_rank_len &&
-                                       !input_param_ps.compatible(body_value_shape)) {
+                            if (body_rank_len == input_rank_len && !input_param_ps.compatible(body_value_shape)) {
                                 ov::PartialShape new_ps(body_value_shape);
                                 for (auto i = 0; i < body_value_shape.size(); i++) {
                                     if (!body_value_shape[i].compatible(input_param_ps[i])) {
@@ -239,6 +229,10 @@ void op::v5::Loop::validate_and_infer_types() {
                                 // reset sub model input shape
                                 input_param->set_partial_shape(new_ps);
                                 need_reinvalidate = true;
+                            } else {
+                                NODE_VALIDATION_CHECK(this,
+                                    body_rank_len == input_rank_len,
+                                    "Output rank of the backedge should be same as parameter's rank of the backedge.");
                             }
                         }
                     }
