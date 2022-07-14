@@ -392,6 +392,9 @@ void RDFTExecutor::dft_on_axis(enum dft_type type,
         float* scatter_buffer = &gather_scatter_buffer[gather_size];
         for (size_t i = 0; i < total_work_size; i++) {
             coords_from_index(i, coords, iteration_range, axis);
+            std::cout << "axis " << axis << " coords:\n";
+            for (auto x : coords)
+                std::cout << x << std::endl;
             gather(gather_buffer, input_ptr,
                    axis, coords,
                    input_size, input_strides);
@@ -399,6 +402,12 @@ void RDFTExecutor::dft_on_axis(enum dft_type type,
                        input_size, signal_size, output_size,
                        type, use_fft, !parallelize_outer_axes);
             scatter(output_ptr, scatter_buffer, axis, coords, output_size, output_strides);
+            std::cout << "axis " << axis << " gather\n";
+            for (int i = 0; i < gather_size; i++)
+                std::cout << gather_buffer[i] << std::endl;
+            std::cout << "axis " << axis << " scatter\n";
+            for (int i = 0; i < scatter_size; i++)
+                std::cout << scatter_buffer[i] << std::endl;
         }
     }
 }
@@ -489,7 +498,7 @@ std::vector<float> RDFTExecutor::generate_twiddles_fft(size_t N) {
     std::vector<float> twiddles;
     for (size_t num_blocks = 1; num_blocks < N; num_blocks *= 2) {
         for (size_t block = 0; block < num_blocks; block++) {
-            float angle = 2 * PI * block / (num_blocks * 2);
+            double angle = 2 * PI * block / (num_blocks * 2);
             twiddles.push_back(std::cos(angle));
             twiddles.push_back(-std::sin(angle));
         }
@@ -597,25 +606,22 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
             int vlen = cpu_isa_traits<isa>::vlen;
             const int simd_size = vlen / output_type_size;
 
-            mov(input_ptr, ptr[param + GET_OFF(input)]);
-            mov(input_size, ptr[param + GET_OFF(input_size)]);
-            mov(twiddles_ptr, ptr[param + GET_OFF(twiddles)]);
-            mov(output_start, ptr[param + GET_OFF(output_start)]);
-            mov(output_end, ptr[param + GET_OFF(output_end)]);
+            mov(input_ptr, ptr[param1 + GET_OFF(input)]);
+            mov(input_size, ptr[param1 + GET_OFF(input_size)]);
+            mov(twiddles_ptr, ptr[param1 + GET_OFF(twiddles)]);
+            mov(output_start, ptr[param1 + GET_OFF(output_start)]);
+            mov(output_end, ptr[param1 + GET_OFF(output_end)]);
 
             // offset twiddles_ptr by input_size * complex_type_size<float>() * output_start bytes
-            mov(signal_size, ptr[param + GET_OFF(signal_size)]);
+            mov(signal_size, ptr[param1 + GET_OFF(signal_size)]);
             mov(rax, signal_size);
             lea(rax, ptr[rax * complex_type_size<float>()]);
             xor_(rdx, rdx);
             mul(output_start);
-            if (kernel_type_ == complex_to_complex) {
-                shl(rax, 1);
-            }
             add(twiddles_ptr, rax);
 
             // offset output_ptr by output_start * output_type_size bytes
-            mov(output_ptr, ptr[param + GET_OFF(output)]);
+            mov(output_ptr, ptr[param1 + GET_OFF(output)]);
             lea(output_ptr, ptr[output_ptr + output_type_size * output_start]);
 
             size_t reg_idx = 0;
@@ -623,7 +629,7 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
             Vmm vmm_signal_size = Vmm(reg_idx);
             if (is_inverse_) {
                 reg_idx++;
-                uni_vbroadcastss(Vmm(reg_idx), ptr[param + GET_OFF(signal_size)]);
+                uni_vbroadcastss(Vmm(reg_idx), ptr[param1 + GET_OFF(signal_size)]);
                 uni_vcvtdq2ps(vmm_signal_size, Vmm(reg_idx));
             }
 
@@ -650,18 +656,20 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
             Label loop_nonsimd;
 
             auto simd_loop = [this, vlen, simd_size,
-                              input_type_size, &reg_idx,
+                              input_type_size, reg_idx,
                               &vmm_signal_size,
                               &xmm_neg_mask,
                               &vmm_neg_mask] {
-                Vmm result = Vmm(reg_idx++);
-                Vmm inp_real = Vmm(reg_idx++);
-                Vmm inp_imag = Vmm(reg_idx++);
+                size_t idx = reg_idx;
+                Vmm result = Vmm(idx++);
+                Vmm inp_real = Vmm(idx++);
+                Vmm inp_imag = Vmm(idx++);
                 const Vmm& input = inp_real;
                 const Vmm& input_perm = inp_imag;
-                Vmm twiddles = Vmm(reg_idx++);
+                Vmm twiddles = Vmm(idx++);
                 const Vmm& cos = twiddles;
-                Vmm sin = Vmm(reg_idx++);
+                Vmm sin = Vmm(idx++);
+                Xmm tmp = Xmm(idx++);
 
                 uni_vpxor(result, result, result);
 
@@ -690,17 +698,19 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
 
                         add(twiddles_ptr, 2 * vlen);
                     } else if (kernel_type_ == complex_to_complex) {
+                        if (getenv("BR"))
+                            int3();
                         // output_real += input_real * cos(..) - input_imag * sin(..)
                         // output_imag += input_imag * cos(..) + input_real * sin(..)
                         uni_vbroadcastsd(input, ptr[input_ptr]);
-                        vpermilps(input_perm, input, 0b10110001); // swap real with imag
+                        uni_vpermilps(input_perm, input, 0b10110001); // swap real with imag
                         uni_vpxor(input_perm, input_perm, vmm_neg_mask); // negate imag part (or real part if is_inverse == true)
-                        uni_vmovups(cos, ptr[twiddles_ptr]);
-                        uni_vmovups(sin, ptr[twiddles_ptr + vlen]);
+                        load_twiddles_for_c2c(cos, twiddles_ptr, tmp, type_size);
+                        load_twiddles_for_c2c(sin, twiddles_ptr + vlen / 2, tmp, type_size);
                         uni_vfmadd231ps(result, input, cos);
                         uni_vfmadd231ps(result, input_perm, sin);
 
-                        add(twiddles_ptr, 2 * vlen);
+                        add(twiddles_ptr, vlen);
                     }
 
                     add(input_ptr, input_type_size);
@@ -715,7 +725,7 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
                     Label loop_backwards_exit;
 
                     mov(input_size, signal_size);
-                    sub(input_size, ptr[param + GET_OFF(input_size)]);
+                    sub(input_size, ptr[param1 + GET_OFF(input_size)]);
 
                     if (kernel_type_ == complex_to_complex) {
                         mov(rdx, 1ULL << 31);
@@ -742,19 +752,20 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
 
                             uni_vfmadd231ps(result, inp_real, cos);
                             uni_vfnmadd231ps(result, inp_imag, sin);
+                            add(twiddles_ptr, 2 * vlen);
                         } else if (kernel_type_ == complex_to_complex) {
                             // output_real += input_real * cos(..) - input_imag * sin(..)
                             // output_imag += input_imag * cos(..) + input_real * sin(..)
                             uni_vbroadcastsd(input, ptr[input_ptr]);
-                            vpermilps(input_perm, input, 0b10110001); // swap real with imag
+                            uni_vpermilps(input_perm, input, 0b10110001); // swap real with imag
                             uni_vpxor(input_perm, input_perm, vmm_neg_mask); // negate imag part
-                            uni_vmovups(cos, ptr[twiddles_ptr]);
-                            uni_vmovups(sin, ptr[twiddles_ptr + vlen]);
+                            load_twiddles_for_c2c(cos, twiddles_ptr, tmp, type_size);
+                            load_twiddles_for_c2c(sin, twiddles_ptr + vlen / 2, tmp, type_size);
                             uni_vfmadd231ps(result, input, cos);
                             uni_vfmadd231ps(result, input_perm, sin);
+                            add(twiddles_ptr, vlen);
                         }
 
-                        add(twiddles_ptr, 2 * vlen);
                         dec(input_size);
                         jmp(loop_backwards, T_NEAR);
                     }
@@ -775,13 +786,14 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
                                  input_type_size,
                                  output_type_size,
                                  &xmm_signal_size,
-                                 &reg_idx] {
-                Xmm xmm_inp_real = Xbyak::Xmm(reg_idx++);
-                Xmm xmm_inp_imag = Xbyak::Xmm(reg_idx++);
-                Xmm xmm_real = Xbyak::Xmm(reg_idx++);
-                Xmm xmm_imag = Xbyak::Xmm(reg_idx++);
-                Xmm xmm_cos = Xbyak::Xmm(reg_idx++);
-                Xmm xmm_sin = Xbyak::Xmm(reg_idx++);
+                                 reg_idx] {
+                size_t idx = reg_idx;
+                Xmm xmm_inp_real = Xbyak::Xmm(idx++);
+                Xmm xmm_inp_imag = Xbyak::Xmm(idx++);
+                Xmm xmm_real = Xbyak::Xmm(idx++);
+                Xmm xmm_imag = Xbyak::Xmm(idx++);
+                Xmm xmm_cos = Xbyak::Xmm(idx++);
+                Xmm xmm_sin = Xbyak::Xmm(idx++);
 
                 if (kernel_type_ != complex_to_real) {
                     xorps(xmm_real, xmm_real);
@@ -854,7 +866,7 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
                     Label loop_backwards_exit;
 
                     mov(input_size, signal_size);
-                    sub(input_size, ptr[param + GET_OFF(input_size)]);
+                    sub(input_size, ptr[param1 + GET_OFF(input_size)]);
 
                     test(is_signal_size_even, 1);
                     jz(loop_backwards);
@@ -926,8 +938,8 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
 
             L(loop_over_output);
             {
-                mov(input_ptr, ptr[param + GET_OFF(input)]);
-                mov(input_size, ptr[param + GET_OFF(input_size)]);
+                mov(input_ptr, ptr[param1 + GET_OFF(input)]);
+                mov(input_size, ptr[param1 + GET_OFF(input_size)]);
 
                 cmp(output_end, simd_size);
                 jae(loop_simd, T_NEAR);
@@ -935,15 +947,15 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
                 jmp(loop_nonsimd, T_NEAR);
 
                 L(loop_simd);
-                    simd_loop();
-                    jmp(loop_over_output_continue, T_NEAR);
+                simd_loop();
+                jmp(loop_over_output_continue, T_NEAR);
 
                 L(loop_nonsimd);
-                    nonsimd_loop();
+                nonsimd_loop();
 
                 L(loop_over_output_continue);
-                    cmp(output_end, 0);
-                    ja(loop_over_output, T_NEAR);
+                cmp(output_end, 0);
+                ja(loop_over_output, T_NEAR);
             }
 
             this->postamble();
@@ -952,14 +964,45 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
     private:
         void uni_vbroadcastsd(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
             movsd(x, op);
-            shufps(x, x, 0x0);
+            shufpd(x, x, 0x0);
         }
 
         void uni_vbroadcastsd(const Xbyak::Ymm& x, const Xbyak::Operand& op) {
             vbroadcastsd(x, op);
         }
 
-        Xbyak::Reg64 param = abi_param1;
+        void uni_vpermilps(const Xbyak::Xmm& x, const Xbyak::Operand& op, int8_t control) {
+            movups(x, op);
+            shufps(x, x, control);
+        }
+
+        void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control) {
+            vpermilps(x, op, control);
+        }
+
+        // for avx512
+        void load_twiddles_for_c2c(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
+            for (int i = 0; i < 4; i++) {
+                movups(tmp, ptr[reg_exp + type_size * i * 2]);
+                shufps(tmp, tmp, 0b01010000);
+                vinsertf32x4(x, x, tmp, i);
+            }
+        }
+
+        // for avx
+        void load_twiddles_for_c2c(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
+            for (int i = 0; i < 2; i++) {
+                movups(tmp, ptr[reg_exp + type_size * i * 2]);
+                shufps(tmp, tmp, 0b01010000);
+                vinsertf128(x, x, tmp, i);
+            }
+        }
+
+        void load_twiddles_for_c2c(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
+            movups(x, ptr[reg_exp]);
+            shufps(x, x, 0b01010000);
+        }
+
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;
         Xbyak::Reg64 input_size = rcx;
@@ -1200,6 +1243,15 @@ struct jit_fft_kernel_f32 : public jit_fft_kernel, public jit_generator {
         }
 
     private:
+        void uni_vpermilps(const Xbyak::Xmm& x, const Xbyak::Operand& op, int8_t control) {
+            movsd(x, op);
+            shufps(x, x, control);
+        }
+
+        void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control) {
+            uni_vpermilps(x, op, control);
+        }
+
         Xbyak::Reg64 input_ptr = rbx;
         Xbyak::Reg64 input_base_ptr = rcx;
         Xbyak::Reg64 output_ptr = rsi;
@@ -1330,48 +1382,46 @@ struct RDFTJitExecutor : public RDFTExecutor {
     }
 
     std::vector<float> generate_twiddles_dft(size_t input_size, size_t output_size, enum dft_type type) override {
-        std::vector<float> twiddles;
-        twiddles.reserve(input_size * output_size * 2);
+        std::vector<float> twiddles(input_size * output_size * 2);
         int simd_size = vlen / sizeof(float);
         if (type == real_to_complex || type == complex_to_complex) {
             simd_size /= 2; // there are two floats per one complex element in the output
         }
 
-        for (size_t K = 0; K < output_size / simd_size; K++) {
+        parallel_for(output_size / simd_size, [&] (size_t K) {
             for (size_t n = 0; n < input_size; n++) {
                 if (type == real_to_complex) {
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
+                        double angle = 2 * PI * (K * simd_size + k) * n / input_size;
+                        twiddles[((K * input_size + n) * simd_size + k) * 2] = std::cos(angle);
+                        twiddles[((K * input_size + n) * simd_size + k) * 2 + 1] = -std::sin(angle);
                     }
-                } else if (type == complex_to_real) {
+                } else if (type == complex_to_real || type == complex_to_complex) {
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
-                    }
-                    for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
-                    }
-                } else if (type == complex_to_complex) {
-                    for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(std::cos(2 * PI * (K * simd_size + k) * n / input_size));
+                        double angle = 2 * PI * (K * simd_size + k) * n / input_size;
+                        twiddles[(K * input_size + n) * 2 * simd_size + k] = std::cos(angle);
                     }
                     for (size_t k = 0; k < simd_size; k++) {
-                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
-                        twiddles.push_back(-std::sin(2 * PI * (K * simd_size + k) * n / input_size));
+                        double angle = 2 * PI * (K * simd_size + k) * n / input_size;
+                        twiddles[((K * input_size + n) * 2 + 1) * simd_size + k] = -std::sin(angle);
                     }
                 }
             }
-        }
+        });
         if ((output_size % simd_size) != 0) {
             size_t start = (output_size / simd_size) * simd_size;
-            for (size_t k = start; k < output_size; k++) {
+            parallel_for(output_size - start, [&] (size_t k) {
+                k += start;
                 for (size_t n = 0; n < input_size; n++) {
-                    twiddles.push_back(std::cos(2 * PI * k * n / input_size));
-                    twiddles.push_back(-std::sin(2 * PI * k * n / input_size));
+                    double angle = 2 * PI * k * n / input_size;
+                    twiddles[2 * (k * input_size + n)] = std::cos(angle);
+                    twiddles[2 * (k * input_size + n) + 1] = -std::sin(angle);
                 }
-            }
+            });
         }
+        std::cout << __func__ << std::endl;
+        for (int i = 0; i < twiddles.size(); i++)
+            std::cout << twiddles[i] << std::endl;
         return twiddles;
     }
 
@@ -1527,17 +1577,16 @@ struct RDFTRefExecutor : public RDFTExecutor {
         }
 
         std::vector<float> generate_twiddles_dft(size_t input_size, size_t output_size, enum dft_type type) override {
-            std::vector<float> twiddles;
-            twiddles.reserve(input_size * output_size * 2);
-            for (size_t k = 0; k < output_size; k++) {
+            std::vector<float> twiddles(input_size * output_size * 2);
+            parallel_for(output_size, [&] (size_t k) {
                 for (size_t n = 0; n < input_size; n++) {
-                    float angle = 2 * PI * k * n / input_size;
+                    double angle = 2 * PI * k * n / input_size;
                     if (!is_inverse)
                         angle = -angle;
-                    twiddles.push_back(std::cos(angle));
-                    twiddles.push_back(std::sin(angle));
+                    twiddles[(k * input_size + n) * 2] = std::cos(angle);
+                    twiddles[(k * input_size + n) * 2 + 1] = std::sin(angle);
                 }
-            }
+            });
             return twiddles;
         }
 
