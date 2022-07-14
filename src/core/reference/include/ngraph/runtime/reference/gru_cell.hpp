@@ -33,7 +33,8 @@ void gru_cell(const T* X,
               const std::string& activation_f,
               const std::string& activation_g,
               float clip,
-              bool linear_before_reset) {
+              bool linear_before_reset,
+              const T* A = nullptr) {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
     //
@@ -75,10 +76,10 @@ void gru_cell(const T* X,
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     // -------------------
 
-    Shape gate_shape{X_shape[0], H_shape[1]};
-    Shape all_gates_shape{X_shape[0], 3 * H_shape[1]};
-    Shape bias_shape{H_shape[1], H_shape[1]};
-    auto gate_shape_size = X_shape[0] * H_shape[1];
+    Shape gate_shape{X_shape[0], H_shape[1]};           // [batch_size, hidden_size]
+    Shape all_gates_shape{X_shape[0], 3 * H_shape[1]};  // [batch_size, 3*hidden_size]
+    Shape bias_shape{H_shape[1], H_shape[1]};           // [hidden_size, hidden_size]
+    auto gate_shape_size = X_shape[0] * H_shape[1];     // batch_size * hidden_size
     auto all_gates_shape_size = gate_shape_size * 3;
     auto bias_shape_size = H_shape[1] * H_shape[1];
 
@@ -147,6 +148,9 @@ void gru_cell(const T* X,
                    op::AutoBroadcastType::NUMPY);  //
     reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape,
                    op::AutoBroadcastType::NUMPY);  //
+    if (A) {                                       // Attention score input provided
+        reference::multiply(z_t.data(), A, z_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    }
     clip_activation(z_t, activation_f);
 
     // calculate r_t

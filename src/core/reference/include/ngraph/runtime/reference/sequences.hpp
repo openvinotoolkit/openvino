@@ -21,6 +21,7 @@ enum class CellType {
     GRU,
     LSTM,
     LSTM_v1,
+    AUGRU,
 };
 
 struct CellArgs {
@@ -175,6 +176,23 @@ void cell_pass(CellType type,
                                             args.activation_g,
                                             args.clip,
                                             args.linear_before_reset);
+        } else if (type == CellType::AUGRU) {
+            runtime::reference::gru_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                            squeeze_axis(shapes[0], 1),
+                                            reinterpret_cast<const T*>(H_i),
+                                            squeeze_axis(shapes[2], 1),
+                                            reinterpret_cast<const T*>(inputs[3]),
+                                            squeeze_axis(shapes[3], 0),
+                                            reinterpret_cast<const T*>(inputs[4]),
+                                            squeeze_axis(shapes[4], 0),
+                                            reinterpret_cast<const T*>(inputs[5]),
+                                            squeeze_axis(shapes[5], 0),
+                                            reinterpret_cast<T*>(outputs[1]),
+                                            args.activation_f,
+                                            args.activation_g,
+                                            args.clip,
+                                            args.linear_before_reset,
+                                            reinterpret_cast<const T*>(inputs[6] + time_step * sizeof(T)));
         }
 
         if (enable_mask) {
@@ -505,7 +523,8 @@ void gru_sequence(const char* X,
                   const std::string& activation_g,
                   const float clip,
                   const op::RecurrentSequenceDirection direction,
-                  const bool linear_before_reset) {
+                  const bool linear_before_reset,
+                  const char* A = nullptr) {
     OutputVector results;
     if (direction == op::RecurrentSequenceDirection::FORWARD || direction == op::RecurrentSequenceDirection::REVERSE) {
         CellArgs args;
@@ -516,12 +535,22 @@ void gru_sequence(const char* X,
         std::vector<const char*> inputs = {X, seq_lengths, H, W, R, B};
         std::vector<char*> outputs = {Y, Ho};
         std::vector<Shape> shapes = {X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
-        cell_pass<T, U>(CellType::GRU,
-                        inputs,
-                        shapes,
-                        outputs,
-                        args,
-                        direction == op::RecurrentSequenceDirection::REVERSE);
+        if (A) {
+            inputs.push_back(A);
+            cell_pass<T, U>(CellType::AUGRU,
+                            inputs,
+                            shapes,
+                            outputs,
+                            args,
+                            direction == op::RecurrentSequenceDirection::REVERSE);
+        } else {
+            cell_pass<T, U>(CellType::GRU,
+                            inputs,
+                            shapes,
+                            outputs,
+                            args,
+                            direction == op::RecurrentSequenceDirection::REVERSE);
+        }
     } else if (direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
         // Split bidirectional case to forward + reverse passes.
         // split inputs
@@ -553,20 +582,38 @@ void gru_sequence(const char* X,
         for (size_t i = 3; i < shapes.size(); ++i) {
             shapes[i][0] = 1;
         }
-        // forward pass
-        cell_pass<T, U>(CellType::GRU,
-                        {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0]},
-                        shapes,
-                        {forward_res_y.data(), forward_res_h.data()},
-                        args,
-                        false);
-        // reverse pass
-        cell_pass<T, U>(CellType::GRU,
-                        {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1]},
-                        shapes,
-                        {reverse_res_y.data(), reverse_res_h.data()},
-                        args,
-                        true);
+
+        if (A) {
+            // forward pass
+            cell_pass<T, U>(CellType::AUGRU,
+                            {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0], A},
+                            shapes,
+                            {forward_res_y.data(), forward_res_h.data()},
+                            args,
+                            false);
+            // reverse pass
+            cell_pass<T, U>(CellType::AUGRU,
+                            {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1], A},
+                            shapes,
+                            {reverse_res_y.data(), reverse_res_h.data()},
+                            args,
+                            true);
+        } else {
+            // forward pass
+            cell_pass<T, U>(CellType::GRU,
+                            {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0]},
+                            shapes,
+                            {forward_res_y.data(), forward_res_h.data()},
+                            args,
+                            false);
+            // reverse pass
+            cell_pass<T, U>(CellType::GRU,
+                            {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1]},
+                            shapes,
+                            {reverse_res_y.data(), reverse_res_h.data()},
+                            args,
+                            true);
+        }
 
         // Stack together respective outputs from both forward and reverse passes.
         std::vector<Shape> in_shapes_y = {{H_shape[0], 1, X_shape[1], H_shape[2]},
