@@ -32,18 +32,17 @@ usage()
 
 # added chmod 755 script.sh
 
-# check os version
+# check OS version
 if [ -f /etc/lsb-release ]; then
-  echo Ubuntu
+  echo "Ubuntu install guide is on the way"
 elif [ -f /etc/redhat-release ]; then
   echo "Demo to install and evaluate OV on centos7.x"
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
-  echo Raspbian
+  echo "no plan for Raspbian install guide"
 
 fi
 # Set variables
-
-gccSet=8
+gccSet=7
 pySet=7
 cmakePath=~
 model=resnet-50-pytorch
@@ -59,7 +58,6 @@ while getopts "g:p:c:m:h:b:" option; do
         g) gccSet=$OPTARG;;
         p) pySet=$OPTARG;;
         c) cmakePath=$OPTARG;;
-        #o) ovPath=$OPTARG;;
         m) model=$OPTARG;;
         b) benchmarkCpp=$OPTARG;;
         h) Help 
@@ -68,6 +66,7 @@ while getopts "g:p:c:m:h:b:" option; do
     esac
 done
 
+# if no arg, show the usage
 if [ $OPTIND -eq 1 ]; then
     usage
     exit 1
@@ -76,28 +75,33 @@ fi
 echo "set gcc version: $gccSet";
 echo "set python version: 3.$pySet";
 
+# get the absolute path from script's dir
+ovPath=$(cd `dirname $0` && cd ../.. && pwd)
+
 ############################################################
 #     0.system dependency and environment                  #
 ############################################################
-
+echo "############################################################"
 echo ">>> 0.system dependency and environment"
 
 <<comment
 sudo -i
-echo “proxy=http://child-prc.intel.com:913” >> /etc/yum.conf
+echo “proxy=XXXXXX:XXX” >> /etc/yum.conf
 exit
-sudo yum update
-sudo yum install gcc dnf centos-release-scl git
 comment
-echo proxy yum gcc dnf centos-release-scl git exist
 
-# download anaconda3 for python env
-if [ -d ~/anaconda3 ]; then
-  echo anaconda3 exists
-else 
+hash yum gcc dnf centos-release-scl git &>/dev/null &&
+echo "yum, gcc, dnf, centos-release-scl, git all installed" ||
+echo "install yum, gcc, dnf, centos-release-scl, git" && \
+sudo yum update && sudo yum install gcc dnf centos-release-scl git
+
+if [ ! -d ~/anaconda3 ]; then
+  # Download anaconda3 for python env
   wget https://repo.anaconda.com/archive/Anaconda3-2020.11-Linux-x86_64.sh
   sudo chmod +x Anaconda3-2020.11-Linux-x86_64.sh
   ./Anaconda3-2020.11-Linux-x86_64.sh
+else 
+  echo "anaconda3 exists"
 fi
 
 ############################################################
@@ -105,30 +109,30 @@ fi
 ############################################################
 echo "############################################################"
 echo ">>> 1.Download CMake 3.18.4" 
-echo "############################################################"
-DIC=cmake-3.18.4-Linux-x86_64
 
-if [ -d $cmakePath/$DIC ]; then
-    echo "$DIC exists."
-else
-   echo "$DIC not exit, now download"
+DIR=cmake-3.18.4-Linux-x86_64
+
+if [ ! -d $cmakePath/$DIR ]; then
+   echo "$DIR not exit, now download"
    wget https://cmake.org/files/v3.18/cmake-3.18.4-Linux-x86_64.tar.gz \
    --directory-prefix $cmakePath
    tar -xvf $cmakePath/cmake-3.18.4-Linux-x86_64.tar.gz -C $cmakePath
    export PATH=$cmakePath/cmake-3.18.4-Linux-x86_64/bin:$PATH
+else
+  echo "$DIR exists"
 fi
 
 ############################################################
 #     2.Install devtoolset and setup environment           #
 ############################################################
-
+echo "############################################################"
 echo ">>> 2.Install devtoolset-$gccSet and setup environment"
 
-if [ -d /opt/rh/devtoolset-$gccSet ]; then
-  echo "devtoolset-$gccSet exists"
-else 
+if [ ! -d /opt/rh/devtoolset-$gccSet ]; then
   echo "devtoolset-$gccSet not exists, now download"
   sudo yum -y install devtoolset-$gccSet
+else 
+  echo "devtoolset-$gccSet exists"
 fi
 
 ############################################################
@@ -136,24 +140,54 @@ fi
 ############################################################
 
 # Countermeasures for the message on the right: "MANPATH: unbound variable"
-# now comment, for it causes conda activate error 
 # MANPATH="" 
 
+echo "############################################################"
+echo ">>> 2.1 Enable devtoolset-$gccSet"
 # instead $scl enable devtoolset-8 bash, no need to exit
 source /opt/rh/devtoolset-$gccSet/enable
 gccVersion=$(gcc --version | grep gcc | awk '{print $3}')
 echo "use devtoolset, now gcc version is $gccVersion."
+
+echo "############################################################"
+echo ">>> 2.2 use anaconda3 to create py3$pySet env"
 # conda create python env
 pyPath=~/anaconda3/envs/py3$pySet
-if [ -d $pyPath ]; then
-  echo "$pyPath exists."
-  conda activate py3$pySet
-  pyVersion=$(python --version 2>&1| awk '{print $2}')
-  echo "now python version is $pyVersion."
-else
+
+echo "############################################################"
+echo ">>> 2.3 Activate py3$pySet env"
+if [ ! -d $pyPath ]; then
   echo "$pyPath not exists, now conda create"
   conda create -n py3$pySet python=3.$pySet
+else
+  echo "$pyPath exists."
+  #conda activate py3$pySet
+  source ~/anaconda3/bin/activate py3$pySet
+  pyVersion=$(python --version 2>&1| awk '{print $2}')
+  echo "now python version is $pyVersion."
 fi
+
+############################################################
+#     3. Build OV with cmake                               #
+############################################################
+echo "############################################################"
+echo ">>> 3. Build OV with cmake"
+
+# after git clone, update, install py dependency
+echo "############################################################"
+echo ">>> 3.1 submodule update"
+cd $ovPath/openvino
+git submodule update --init --recursive
+
+echo "############################################################"
+echo ">>> 3.2 pip install python dependency"
+pip install -U pip wheel setuptools cython patchelf
+# todo
+
+# different dic to cmake, e.g. "build_gcc8_py39", "install_gcc8_py38"
+buildDic=build_gcc${gccSet}"_py3"${pySet}
+installDic=install_gcc${gccSet}"_py3"${pySet}
+mkdir -p $buildDic && mkdir -p $installDic && cd $buildDic
 
 # check python path before cmake
 pathDPYTHON_EXECUTABLE=$pyPath/bin/python
@@ -163,33 +197,8 @@ pathDPYTHON_LIBRARY=$(find $pyPath/lib -maxdepth 1 -name libpython3.$pySet*.so)
 pathDPYTHON_INCLUDE_DIR=$(find $pyPath/include -maxdepth 1 -name python3.$pySet*)
 #echo $pathDPYTHON_INCLUDE_DIR
 
-############################################################
-#     3. Build OV with cmake                               #
-############################################################
-
-echo ">>> 3. Build OV with cmake"
-
-if [ -d $ovPath/openvino ]; then
-  echo OV exists
-  git submodule update --init --recursive
-  pip install -U pip wheel setuptools cython patchelf
-else 
-  #cd 
-  #git clone https://github.com/openvinotoolkit/openvino -b 2022.1.0
-  #cd openvino
-  git submodule update --init --recursive
-  pip install -U pip wheel setuptools cython patchelf
-fi
-
-cd ../..
-ovPath=${PWD}
-
-cd $ovPath/openvino
-# different dic to cmake, e.g. "build_gcc8_py39", "install_gcc8_py38"
-buildDic=build_gcc${gccSet}"_py3"${pySet}
-installDic=install_gcc${gccSet}"_py3"${pySet}
-mkdir -p $buildDic && mkdir -p $installDic && cd $buildDic
-
+echo "############################################################"
+echo ">>> 3.3 cmake to build OV"
 if [ -f $ovPath/openvino/$installDic/tools/openvino-2022.1.0-000-cp3${pySet}* ]; then
   echo "whls exist and whls were already installed "
   
@@ -218,7 +227,7 @@ else
 ############################################################
 #     4.Install python wheel                               #
 ############################################################
-
+echo "############################################################"
   echo ">>> 4.Install python wheel"
   
   cd $ovPath/openvino/$installDic/tools
@@ -228,7 +237,7 @@ fi
 ############################################################
 #     5.Model evaluation                                   #
 ############################################################
-
+echo "############################################################"
 echo ">>> 5.$model evaluation with benchmark_app"
 
 mkdir -p ~/ov_models
@@ -277,4 +286,8 @@ echo 'env setup, OV install and evaluation finished.'
 conda deactivate && cd 
 
 exit
+
+
+
+
 
