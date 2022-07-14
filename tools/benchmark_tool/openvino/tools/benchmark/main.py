@@ -185,7 +185,7 @@ def run(args):
                     device_number_streams[device] = config[device][key]
 
                 if is_flag_set_in_command_line('dopt'):
-                    config[device]['DENORMALS_OPTIMIZATION'] = 'YES'
+                    config[device]['CPU_DENORMALS_OPTIMIZATION'] = 'YES'
 
             if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference

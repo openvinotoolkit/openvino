@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "ie_plugin_config.hpp"
+#include "cpu/cpu_config.hpp"
 #include "ie_common.h"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
@@ -167,14 +168,14 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
-        } else if (PluginConfigParams::KEY_DENORMALS_OPTIMIZATION == key) {
+        } else if (CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION == key) {
             if (val == PluginConfigParams::YES) {
                 denormalsOptMode = DenormalsOptMode::DO_On;
             } else if (val == PluginConfigParams::NO) {
                 denormalsOptMode = DenormalsOptMode::DO_Off;
             } else {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DENORMALS_OPTIMIZATION
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
                 << ". Expected only YES/NO";
             }
         } else {

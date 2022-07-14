@@ -6,11 +6,11 @@ from openvino.runtime import Core
 
 device_name = 'CPU'
 xml_path = 'modelWithDenormals.xml'
-# ! [ov:denormals_optimization:part0]
+# ! [ov:intel_cpu:denormals_optimization:part0]
 core = Core()
-core.set_property({'DENORMALS_OPTIMIZATION': 'YES'})
+core.set_property({'CPU_DENORMALS_OPTIMIZATION': 'YES'})
 model = core.read_model(model=xml_path)
 compiled_model = core.compile_model(model=model, device_name=device_name)
-# ! [ov:denormals_optimization:part0]
+# ! [ov:intel_cpu:denormals_optimization:part0]
 
 assert compiled_model
