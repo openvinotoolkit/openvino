@@ -3,6 +3,7 @@
 //
 
 #include "pyopenvino/core/properties/properties.hpp"
+
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 
@@ -28,6 +29,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::affinity, "affinity");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
+    wrap_property_RW(m_properties, ov::intel_cpu::denormals_optimization, "denormals_optimization");
     wrap_property_RW(m_properties, ov::cpu_experimental, "cpu_experimental");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
@@ -38,9 +40,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::optimal_batch_size, "optimal_batch_size");
     wrap_property_RO(m_properties, ov::max_batch_size, "max_batch_size");
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
-
-    // Submodule properties - CPU specific properties
-    wrap_property_RW(m_properties, ov::intel_cpu::denormals_optimization, "denormals_optimization");
 
     // Submodule hint
     py::module m_hint =
