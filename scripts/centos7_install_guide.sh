@@ -22,7 +22,21 @@ Help()
 }
 
 usage() 
-{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake file path>] [-m <evaluation model>] [-b <true or false>]" 1>&2; exit 1; }
+{ echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake file path>] [-m <evaluation model>] [-b benchmark_app c++ <true or false>]" [-h help] 1>&2; exit 1; }
+
+CppBenchmarkFunc()
+{
+cd $ovPath/openvino/$installDic/samples/cpp/
+. build_samples.sh -b .
+benchmark_appPath=$ovPath/openvino/$installDic/samples/cpp/intel64/Release/benchmark_app
+if command -v $benchmark_appPath; then
+  echo "$benchmark_appPath exists"
+  $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
+else
+  echo "not find $benchmark_appPath"
+  exit
+ fi
+}
 
 ############################################################
 ############################################################
@@ -47,22 +61,25 @@ pySet=7
 cmakePath=~
 model=resnet-50-pytorch
 benchmarkCpp=false
+yumUpdate=false
 
 ############################################################
 # Process the input options. Add options as needed.        #
 ############################################################
 
 # Get the options
-while getopts "g:p:c:m:h:b:" option; do
+while getopts "g:p:c:m:h:b:y:" option; do
     case "${option}" in
         g) gccSet=$OPTARG;;
         p) pySet=$OPTARG;;
         c) cmakePath=$OPTARG;;
         m) model=$OPTARG;;
         b) benchmarkCpp=$OPTARG;;
+        y) yumUpdate=$OPTARG;;
         h) Help 
         exit;; # display Help
-        *) usage;;         
+        *) usage;;   
+        \?) usage;;      
     esac
 done
 
@@ -84,16 +101,23 @@ ovPath=$(cd `dirname $0` && cd ../.. && pwd)
 echo "############################################################"
 echo ">>> 0.system dependency and environment"
 
+echo "proxy exists"
+
 <<comment
 sudo -i
-echo “proxy=XXXXXX:XXX” >> /etc/yum.conf
+echo "proxy=XXXXXX:XXX" >> /etc/yum.conf
 exit
 comment
 
-hash yum gcc dnf centos-release-scl git &>/dev/null &&
-echo "yum, gcc, dnf, centos-release-scl, git all installed" ||
-echo "install yum, gcc, dnf, centos-release-scl, git" && \
-sudo yum update && sudo yum install gcc dnf centos-release-scl git
+if $yumUpdate; then
+  echo "yum will update"
+  sudo yum update
+else
+  echo "yum will not update"
+fi
+
+echo "install yum, gcc, dnf, centos-release-scl, git" 
+sudo yum install gcc dnf centos-release-scl git
 
 if [ ! -d ~/anaconda3 ]; then
   # Download anaconda3 for python env
@@ -259,19 +283,6 @@ fi
 ############################################################
 #     5.2 run benchmark_app                                #
 ############################################################
-CppBenchmarkFunc()
-{
-cd $ovPath/openvino/$installDic/samples/cpp/
-. build_samples.sh -b .
-benchmark_appPath=$ovPath/openvino/$installDic/samples/cpp/intel64/Release/benchmark_app
-if command -v $benchmark_appPath; then
-  echo "$benchmark_appPath exists"
-  $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
-else
-  echo "not find $benchmark_appPath"
-  exit
- fi
-}
 
 if $benchmarkCpp; then
   echo "use benchmark_app c++ version"
@@ -284,10 +295,5 @@ fi
 echo 'env setup, OV install and evaluation finished.'
 
 conda deactivate && cd 
-
-exit
-
-
-
-
+exit 1
 
