@@ -90,7 +90,7 @@
 #include <sys/resource.h>
 #endif
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -587,7 +587,8 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
+    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
+        node.is_type<assign>() || node.is_type<read_value>()) {
         return;
     }
     node.constant = true;
@@ -1399,7 +1400,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
-            prim.type() != cldnn::scatter_nd_update::type_id()) {
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1427,10 +1429,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
-            prim.type() != cldnn::quantize::type_id())
+            prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id())
             can_use_bs_fs_yx_bsv16_fsv16 = false;
     }
-
 
     size_t total_conv_layers = lo.get_total_conv_count();
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and

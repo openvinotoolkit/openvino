@@ -20,7 +20,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
@@ -380,5 +379,4 @@ REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v1, BinaryConvolution);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

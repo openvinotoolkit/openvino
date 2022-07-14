@@ -175,6 +175,26 @@ std::vector<InputShape> inShapesDynamic = {
                 {4, 4, 4, 200},
                 {4, 4, 4, 300}
             }
+        },
+        {
+            // dynamic shape
+            {-1, -1, -1, -1, -1},
+            { // target static shapes
+                {4, 24, 5, 6, 4},
+                {8, 32, 9, 10, 2},
+                {4, 24, 5, 6, 4},
+                {16, 48, 9, 12, 2}
+            }
+        },
+        {
+            // dynamic shape
+            {-1, {1, 50}, -1, {1, 30}, -1},
+            { // target static shapes
+                {1, 16, 1, 8, 8},
+                {8, 32, 5, 14, 6},
+                {4, 16, 9, 10, 8},
+                {8, 32, 5, 14, 6}
+            }
         }
 };
 std::vector<ngraph::Shape> inShapesStatic = {

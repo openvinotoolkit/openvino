@@ -24,14 +24,10 @@ layout gather_elements_inst::calc_output_layout(gather_elements_node const& node
     auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
 
-    if (node.has_fused_primitives()) {
-        input_layout_origin.data_type = node.get_fused_output_layout().data_type;
-    }
-
-    auto output_type = indices_layout_origin.data_type;
-    auto output_format = op->output_format;
+    auto output_type = (node.has_fused_primitives()) ? node.get_fused_output_layout().data_type :
+                       input_layout_origin.data_type;
     auto output_shape = op->output_shape;
-
+    auto output_format = op->output_format;
     // calculate initial output shape
     return layout(output_type, output_format, output_shape);
 }

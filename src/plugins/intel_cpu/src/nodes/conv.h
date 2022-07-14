@@ -69,6 +69,7 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
     class FusedSubgraph;
@@ -135,6 +136,8 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
+    // if we have amx support and shape is static or user specified we will try brgconv
+    bool shouldTryBrgconv = false;
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;

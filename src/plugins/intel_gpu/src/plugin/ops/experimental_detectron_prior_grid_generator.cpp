@@ -8,7 +8,6 @@
 #include <ngraph/op/experimental_detectron_prior_grid_generator.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 namespace {
 cldnn::tensor mkTensor(const ov::Shape& shape) {
@@ -50,5 +49,4 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronPriorGridGenerator);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
