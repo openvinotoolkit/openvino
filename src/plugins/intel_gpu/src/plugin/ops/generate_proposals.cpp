@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateGenerateProposalsIEInternalOp(
@@ -90,5 +89,4 @@ static void CreateGenerateProposalsIEInternalOp(
 REGISTER_FACTORY_IMPL(internal, GenerateProposalsIEInternal);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
