@@ -229,10 +229,6 @@ void op::v5::Loop::validate_and_infer_types() {
                                 // reset sub model input shape
                                 input_param->set_partial_shape(new_ps);
                                 need_reinvalidate = true;
-                            } else {
-                                NODE_VALIDATION_CHECK(this,
-                                    body_rank_len == input_rank_len,
-                                    "Output rank of the backedge should be same as parameter's rank of the backedge.");
                             }
                         }
                     }
