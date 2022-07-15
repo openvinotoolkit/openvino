@@ -72,7 +72,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // compute how many outputs in rows and columns will be generate by filter.
     // outp <= (input_size + (2*pad) - kernel_size)/ stride
-    auto filter_size = weights_layout.size;
+    auto filter_size = weights_layout.get_tensor();
 
     auto input_type = input_layout.data_type;
 
@@ -224,12 +224,12 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     auto group = desc->groups;
     int32_t number_of_features = 0;
     if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
-        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
+        number_of_features = weights_layout.feature() * static_cast<int32_t>(group);
     } else {
         if (format::is_grouped(weights_layout.format)) {
-            number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
+            number_of_features = weights_layout.batch() * static_cast<int32_t>(group);
         } else {
-            number_of_features = weights_layout.size.batch[0];
+            number_of_features = weights_layout.batch();
         }
     }
 
@@ -265,7 +265,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         return {output_type, out_fmt, output_size};
     }
 
-    auto output_range = calc_sliding_window_output_range<swor_mode::all>(input_layout.size,
+    auto output_range = calc_sliding_window_output_range<swor_mode::all>(input_layout.get_tensor(),
                                                                          filter_size,
                                                                          pad,
                                                                          stride,
@@ -330,7 +330,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-    auto output_size = output_layout.size;
+    auto output_size = output_layout.get_tensor();
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",

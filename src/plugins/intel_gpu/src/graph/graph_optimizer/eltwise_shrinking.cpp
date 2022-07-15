@@ -56,7 +56,7 @@ void eltwise_shrinking::run(program& p) {
                     }
 
                     auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-                    auto filter_size = weights_node_ptr->get_output_layout().size;
+                    auto filter_size = weights_node_ptr->get_output_layout().get_tensor();
                     // make sure this is conv 1x1
                     if (filter_size.spatial[0] != 1 || filter_size.spatial[1] != 1 || conv->stride.size() != 2) {
                         can_shrink = false;
