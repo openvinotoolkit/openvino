@@ -25,9 +25,9 @@ shift
 done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
-    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake/inferenceengine2022.2.0
-    export ngraph_DIR=$INSTALLDIR/runtime/cmake/ngraph2022.2.0
-    export OpenVINO_DIR=$INSTALLDIR/runtime/cmake/openvino2022.2.0
+    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
+    export ngraph_DIR=$INSTALLDIR/runtime/cmake
+    export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
     system_type=$(ls "$INSTALLDIR/runtime/lib/")
     IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
