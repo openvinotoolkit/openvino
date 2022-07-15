@@ -216,14 +216,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
-    // XXX: to be fixed
-    // keep reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
-    if (use_onednn_impls && next.is_type<convolution>()) {
+
+    // Do not remove reorder if it is necessary to fulfill required_input
+    if (next.is_type<convolution>()) {
+        // XXX: data padding was not taken into consideration
+        auto &conv = next.as<convolution>();
         auto reorder_layout = next.get_dependency(0).get_output_layout();
-        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
-            (reorder_layout.feature() <= 4)) {
+        if (reorder_layout.format == conv.get_required_input0())
             return false;
-        }
     }
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
@@ -265,37 +265,36 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
         return true;
 
-    // Additional check: fmt_prev == fmt_next is added only when onednn is enabled.
-    // XXX: to be fixed
-    if (next.is_type<convolution>() &&
-        (!use_onednn_impls || fmt_prev == fmt_next) &&
-        (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
-        ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
-        (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() % 16 == 0 && prev_output_layout.feature() == 3) ||
-        (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3 &&
-        (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
-        return true;
+    if (!use_onednn_impls) {
+        if (next.is_type<convolution>() &&
+            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
+            ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
+            (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() % 16 == 0 && prev_output_layout.feature() == 3) ||
+            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3 &&
+            (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+            return true;
 
-    if (next.is_type<convolution>() &&
-        fmt_prev == format::bfyx && !use_onednn_impls &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
-        next_output_layout.feature() >= 16 && prev_output_layout.feature() <= 4 &&
-        next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
-        next.as<convolution>().get_primitive()->weights_zero_points.empty())
-        return true;
+        if (next.is_type<convolution>() &&
+            fmt_prev == format::bfyx &&
+            (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
+            next_output_layout.feature() >= 16 && prev_output_layout.feature() <= 4 &&
+            next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
+            next.as<convolution>().get_primitive()->weights_zero_points.empty())
+            return true;
 
-    if (next.is_type<convolution>() && !use_onednn_impls &&
-        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-        ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-        (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.feature() >= 16 &&
-        (prev_output_layout.feature() == 3 || (prev_output_layout.feature() == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
-        return true;
+        if (next.is_type<convolution>() &&
+            (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
+            ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
+            (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.feature() >= 16 &&
+            (prev_output_layout.feature() == 3 || (prev_output_layout.feature() == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
+            return true;
+    }
 
     if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
         (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
@@ -385,17 +384,6 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
     if (prev.is_type<reorder>())
         return true;
 
-
-    // XXX: need to remove
-    // fusing reorder(b_fs_zyx_fsv2/bs_fs_zyx_bsv8_fsv2) before first conv(shallow feature)
-    if (use_onednn_impls && next->is_type<convolution>()) {
-        auto reorder_layout = next->get_dependency(0).get_output_layout();
-        if ((reorder_layout.format == format::b_fs_zyx_fsv2 || reorder_layout.format == format::bs_fs_zyx_bsv8_fsv2) &&
-            (reorder_layout.feature() <= 4)) {
-            return true;
-        }
-    }
-
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (prev.is_type<resample>() &&
         (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
@@ -435,17 +423,20 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
     }
 
-    // XXX: need to remove
-    if (use_onednn_impls && prev.is_type<convolution>()) {
-        if (fmt_next == format::bs_fs_yx_bsv32_fsv16 && fmt_prev == format::bs_fs_yx_bsv4_fsv2)
-            return true;
-        else if (fmt_next == format::b_fs_zyx_fsv32 && fmt_prev == format::b_fs_zyx_fsv16 && dt_prev != data_types::f32)
+
+    // Remove Reorder after convolution if possible.
+    if (use_onednn_impls) {
+        if (prev.is_type<convolution>()) {
+            auto &conv = prev.as<convolution>();
+            auto reorder_layout = next->get_dependency(0).get_output_layout();
+            if (reorder_layout.format == conv.get_required_output() &&
+                    reorder_layout.data_padding == conv.get_output_layout().data_padding)
+                return true;
+        }
+        if (prev.is_type<eltwise>() &&
+            is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
             return true;
     }
-
-    if (use_onednn_impls && prev.is_type<eltwise>() &&
-        is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
-        return true;
 
     return false;
 }
