@@ -497,7 +497,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
 }
 
 template <typename T>
-void make_per_tensor_if_possible(cldnn::data_node& node) {
+bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
     auto ptr = node.get_attached_memory_ptr();
     auto engine = ptr->get_engine();
     auto& stream = engine->get_program_stream();
@@ -505,19 +505,19 @@ void make_per_tensor_if_possible(cldnn::data_node& node) {
     mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
     auto val = old_data[0];
     for (size_t i = 1; i < num_elems; i++) {
-        if (val != old_data[i])
-            return;
+        if (val != old_data[i]) {
+            zp_val = DNNL_RUNTIME_S32_VAL;
+            return false;
+        }
     }
 
-    auto l = layout {node.get_output_layout().data_type, node.get_output_layout().format, tensor{1, 1, 1, 1}};
-    auto new_mem = engine->allocate_memory(l);
-    mem_lock<T, mem_lock_type::write> new_data{new_mem, stream};
-    new_data[0] = val;
-    node.attach_memory(new_mem, false);
+    zp_val = val;
+    return true;
 }
 
-template void make_per_tensor_if_possible<int8_t>(cldnn::data_node& node);
-template void make_per_tensor_if_possible<uint8_t>(cldnn::data_node& node);
+template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
+template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+
 
 }  // namespace onednn
 }  // namespace cldnn

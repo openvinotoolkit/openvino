@@ -87,7 +87,7 @@ pip install openvino-dev[extras]
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
 | tensorflow2                     |   [TensorFlow* 2.x](https://www.tensorflow.org/versions#tensorflow_2)            |
 
-For example, to install and configure the components for working with TensorFlow 2.x, MXNet and Caffe, use the following command:  
+For example, to install and configure the components for working with TensorFlow 2.x, Apache MXNet and Caffe, use the following command:  
    ```sh
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```

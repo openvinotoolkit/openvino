@@ -736,7 +736,7 @@ sub-graph of the original graph isomorphic to the specified pattern.
 2. [Specific Operation Front Phase Transformations](#specific-operation-front-phase-transformations) triggered for the
 node with a specific `op` attribute value.
 3. [Generic Front Phase Transformations](#generic-front-phase-transformations).
-4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, MXNet, and PaddlePaddle models), specified using the `--transformations_config` command-line parameter:
+4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the `--transformations_config` command-line parameter:
     1. [Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformation).
     2. [Front Phase Transformations Using Start and End Points](#start-end-points-front-phase-transformations).
     3. [Generic Front Phase Transformations Enabled with Transformations Configuration File](#generic-transformations-config-front-phase-transformations).
