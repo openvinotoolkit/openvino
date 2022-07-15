@@ -30,7 +30,7 @@ Please refer to Test Guide available here:
     openvino/src/bindings/python/docs/test_examples.md
 
 Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO:tm: uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to main Python API folder first and use following commands:
-```
+```shell
 cd .../openvino/src/bindings/python/
 
 flake8 src/openvino/ --config=setup.cfg
