@@ -40,7 +40,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
 #ifdef ENABLE_ONEDNN_FOR_GPU
     size_t onednn_impls_counter = 0;
     size_t all_impls_counter = 0;
-    const float onednn_min_threshold = 0.1f;
+    const float onednn_min_threshold = 0.09f;
     bool should_update_fmt_map = false;
 
     // Calculate onednn kernels number and all kernels number inside the network
@@ -425,7 +425,13 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto in_layout = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
         auto out_layout = in_layout;
         in_layout.format = get_target_output_format(fmt_map, travel_direction_wrapper<dir>::first(node, next));
-        out_layout.format = get_target_input0_format(fmt_map, travel_direction_wrapper<dir>::second(node, next));
+        auto target_input0_format = get_target_input0_format(fmt_map, travel_direction_wrapper<dir>::second(node, next));
+
+        // If the dimensions are different, use the original dimension. For example: bfzyx -> bfyz
+        // It is to conserve the size on z-axis.
+        if (out_layout.format != format::any && target_input0_format != format::any &&
+            out_layout.format.dimension() == target_input0_format.dimension())
+            out_layout.format = target_input0_format;
 
         // When the input is fed into different convolutions, create separate cache entry
         bool needs_split_reorder = false;
