@@ -153,6 +153,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         case dnnl::memory::format_tag::NCdhw16n16c: return cldnn::format::bs_fs_zyx_bsv16_fsv16;
         case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::bs_fs_zyx_bsv8_fsv4;
         case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::bs_fs_zyx_bsv8_fsv2;
+        case dnnl::memory::format_tag::cdBa2b: return cldnn::format::b_fs_yx_fsv2;  // This happens axis sizes are 1. (dlens fp16)
         default: throw std::invalid_argument("[clDNN] Unsupported onednn layout");
     }
 }
@@ -382,6 +383,11 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
                     && blk.inner_blks[0] == 2
                     && blk.inner_idxs[0] == 1) {
                     return cldnn::format::b_fs_zyx_fsv2;
+        }
+        if (desc.data.ndims == 4 && blk.inner_nblks == 1
+                    && blk.inner_blks[0] == 2
+                    && blk.inner_idxs[0] == 1) {
+                    return cldnn::format::b_fs_yx_fsv2;
         }
         std::stringstream msg;
         msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
