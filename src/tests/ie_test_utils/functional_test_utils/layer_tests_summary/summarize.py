@@ -136,7 +136,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
                 op_res[op].update({device.tag: device_general_test_count})
             else:
                 op_res.update({op: {device.tag: device_general_test_count}})
-        pass_rate_avg[device.tag] /= len(results[device.tag])
+        pass_rate_avg[device.tag] /= len(covered_ops[device.tag])
         pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
         general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
