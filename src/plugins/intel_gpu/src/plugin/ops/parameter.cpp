@@ -102,7 +102,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     std::vector<float> meanValues;
 
     if ((meanChannels > 0) &&
-        (meanChannels != networkInputLayout.feature())) {
+        (meanChannels != static_cast<size_t>(networkInputLayout.feature()))) {
         IE_THROW() << "Mismatched mean values channels in input " << inputName;
     }
 
@@ -238,7 +238,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             int width = inputDims[3];
             std::vector<cldnn::primitive_id> reorders;
 
-            for (auto i = 0; i < inputDims[0]; i++) {
+            for (size_t i = 0; i < inputDims[0]; i++) {
                 auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
                 std::string y_name = inputName + "_Y" + std::to_string(i);
                 std::string uv_name = inputName + "_UV" + std::to_string(i);

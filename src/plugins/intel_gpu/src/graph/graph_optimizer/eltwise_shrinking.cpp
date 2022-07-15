@@ -32,8 +32,8 @@ void eltwise_shrinking::run(program& p) {
             // TODO: support cases which already have stride!
             if (eltw->stride.empty() && !node->get_users().empty()) {
                 bool can_shrink = true;
-                int32_t stride_x = 0;
-                int32_t stride_y = 0;
+                size_t stride_x = 0;
+                size_t stride_y = 0;
                 convs_to_shrink.clear();
                 auto users = node->get_users();
                 for (auto user : users) {
@@ -96,7 +96,7 @@ void eltwise_shrinking::run(program& p) {
                             dep_stride_y = 1;
                         }
 
-                        e->stride.push_back({0, 0, dep_stride_x, dep_stride_y});
+                        e->stride.push_back({0, 0, static_cast<tensor::value_type>(dep_stride_x), static_cast<tensor::value_type>(dep_stride_y)});
                     }
                     node->recalc_output_layout();
 

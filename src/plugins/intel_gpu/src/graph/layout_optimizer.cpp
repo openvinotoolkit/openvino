@@ -844,7 +844,7 @@ static bool is_node_for_onednn(program_node& node, fully_connected_node const& f
     }
 
     auto fc_prim = fc_node.get_primitive();
-    size_t rank = cldnn::format::dimension(out_layout.format);
+    int32_t rank = cldnn::format::dimension(out_layout.format);
     auto size = out_layout.get_tensor();
     // OneDnn doesn't support spatial dimensions for output
     for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
@@ -1427,7 +1427,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();
-        const size_t lws_max = device_info.max_work_group_size;
+        const int64_t lws_max = device_info.max_work_group_size;
         auto& detection_output_node = node.as<detection_output>();
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();

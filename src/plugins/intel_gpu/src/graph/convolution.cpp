@@ -221,18 +221,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
-    auto group = desc->groups;
-    int32_t number_of_features = 0;
-    if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
-        number_of_features = weights_layout.feature() * static_cast<int32_t>(group);
-    } else {
-        if (format::is_grouped(weights_layout.format)) {
-            number_of_features = weights_layout.batch() * static_cast<int32_t>(group);
-        } else {
-            number_of_features = weights_layout.batch();
-        }
-    }
-
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
                                        "User defined output spatial X",

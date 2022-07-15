@@ -3662,8 +3662,10 @@ public:
             case cldnn::pooling_mode::average:
             case cldnn::pooling_mode::average_no_padding:
             {
-                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pooling->size[1]) > -2 * pad_width + width ||
-                    (((output_tensor.spatial[1] - 1) * stride_height) + pooling->size[0]) > -2 * pad_width + height;
+                int pool_size_w = pooling->size[1];
+                int pool_size_h = pooling->size[0];
+                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) > -2 * pad_width + width ||
+                                    (((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) > -2 * pad_height + height;
 
                 auto divider = [=](int actual_x, int actual_y) {
                     auto x = kernel_width;

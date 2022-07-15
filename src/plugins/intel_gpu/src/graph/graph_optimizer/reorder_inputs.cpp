@@ -615,7 +615,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto input_layout = input.get_output_layout();
         auto output_layout = conv_node.get_output_layout();
         auto conv_format = output_layout.format;
-        auto group_size = conv_node.get_groups();
+        int32_t group_size = conv_node.get_groups();
         bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
         if (conv_node.impl_type == impl_types::onednn &&
             lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {

@@ -92,7 +92,7 @@ public:
 
         while (unique_indices.size() != count) {
             std::vector<T> indices;
-            for (size_t i = 0; i < last_indices_dim; i++) {
+            for (size_t i = 0; i < static_cast<size_t>(last_indices_dim); i++) {
                 indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
             }
 

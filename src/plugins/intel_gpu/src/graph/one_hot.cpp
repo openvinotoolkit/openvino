@@ -86,7 +86,7 @@ one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) :
 
     const auto& one_hot_axis = node.get_primitive()->one_hot_axis;
 
-    for (size_t i = 0, j = 0; j < output_dims.size() - 1; ++i, ++j) {
+    for (int64_t i = 0, j = 0; j < static_cast<int64_t>(output_dims.size()) - 1; ++i, ++j) {
         if (j == one_hot_axis)
             ++j;
         if (input_dims[i] != output_dims[j]) {

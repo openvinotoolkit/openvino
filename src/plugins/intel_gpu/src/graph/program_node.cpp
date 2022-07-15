@@ -491,8 +491,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
     auto& cur_post_ops = get_fused_primitives_onednn();
 
-    size_t cur_post_op_idx = 1;
-    size_t prev_post_op_idx = 0;
+    int64_t cur_post_op_idx = 1;
+    int64_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
     GPU_DEBUG_IF(debug_config->verbose >= 3) {
@@ -513,7 +513,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     }
 
     // Get post-ops size for current node
-    auto post_ops_size = cur_post_ops.size();
+    int64_t post_ops_size = cur_post_ops.size();
 
     auto get_optimized_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {
@@ -728,8 +728,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                 dnnl::algorithm next_alg;
                 float next_scale, next_alpha, next_beta;
-                size_t next_idx = cur_idx + 1;
-                size_t next_post_op_idx = cur_post_op_idx + 1;
+                int64_t next_idx = cur_idx + 1;
+                int64_t next_post_op_idx = cur_post_op_idx + 1;
 
                 bool can_optimize_eltw_and_sum = false;
 

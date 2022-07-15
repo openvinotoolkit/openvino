@@ -324,7 +324,7 @@ private:
 struct layout {
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type), format(fmt), size(size), data_padding(apadding) {}
+        : data_type(data_type), format(fmt), data_padding(apadding), size(size) {}
 
     layout(const layout& other) = default;
 

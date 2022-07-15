@@ -121,8 +121,8 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
     const auto& l2_pad = l2.data_padding;
     auto l1_size = l1.get_tensor();
     auto l2_size = l2.get_tensor();
-    auto offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
-    auto offset_last_element_l2 = l2.get_linear_offset(l2_size - tensor{1});
+    int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
+    int64_t offset_last_element_l2 = l2.get_linear_offset(l2_size - tensor{1});
     if (l1 == l2)
         return {true, true};
     if (l1.data_type != l2.data_type)

@@ -69,12 +69,12 @@ void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu
     dst_ptr += offset;
 
     if (layout.data_padding) {
-        for (size_t b = 0; b < size.batch[0]; b++) {
-            for (size_t f = 0; f < size.feature[0]; f++) {
-                for (size_t w = 0; w < size.spatial[3]; w++) {
-                    for (size_t z = 0; z < size.spatial[2]; z++) {
-                        for (size_t y = 0; y < size.spatial[1]; y++) {
-                            for (size_t x = 0; x < size.spatial[0]; x++) {
+        for (int64_t b = 0; b < size.batch[0]; b++) {
+            for (int64_t f = 0; f < size.feature[0]; f++) {
+                for (int64_t w = 0; w < size.spatial[3]; w++) {
+                    for (int64_t z = 0; z < size.spatial[2]; z++) {
+                        for (int64_t y = 0; y < size.spatial[1]; y++) {
+                            for (int64_t x = 0; x < size.spatial[0]; x++) {
                                 *dst_ptr++ = src_ptr[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))];
                             }
                         }
@@ -124,7 +124,7 @@ void checkInputBlob(const Blob::Ptr &blob,
             checkAlloc(nv12_ptr->y(), str_input_not_allocated);
             checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
         } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
-            for (auto i = 0; i < batched_ptr->size(); i++) {
+            for (size_t i = 0; i < batched_ptr->size(); i++) {
                 auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
                 checkAlloc(nv12_ptr->y(), str_input_not_allocated);
                 checkAlloc(nv12_ptr->uv(), str_input_not_allocated);

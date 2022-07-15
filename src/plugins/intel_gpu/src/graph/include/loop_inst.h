@@ -41,8 +41,8 @@ public:
         back_edges(this->get_primitive()->back_edges),
         use_current_iteration(!this->get_primitive()->current_iteration_id.empty()),
         use_execution_condition(!this->get_primitive()->condition_id.empty()),
-        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration),
-        iteration_axis(0) {}
+        iteration_axis(0),
+        max_iteration(this->get_primitive()->max_iteration < 0 ? DEFAULT_MAX_NUM_ITERATION : this->get_primitive()->max_iteration) {}
 
     mutable size_t iteration_axis;
     int64_t max_iteration;
