@@ -36,9 +36,14 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
         }
     }
 
-
     if (node.has_fused_primitives()) {
         output_type = node.get_fused_output_layout().data_type;
+
+        // pooling doesn't support i32 data type
+        // FIXME: Someday delete this, when pooling supports i32 output.
+        if (desc->mode == pooling_mode::max && output_type == data_types::i32) {
+            output_type = data_types::f32;
+        }
     }
 
     if (!desc->argmax.empty())
