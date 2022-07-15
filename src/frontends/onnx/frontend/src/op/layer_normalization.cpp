@@ -95,7 +95,6 @@ OutputVector layer_normalization(const Node& node) {
     if (num_nodes > 2) {
         result = std::make_shared<default_opset::Add>(result, nodes[2]);
     }
-    // - onnxruntime also doesn't support the last two
     // - we'd have to unroll MVN to have them
     return result->outputs();
 }
