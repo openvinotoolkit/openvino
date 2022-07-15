@@ -976,8 +976,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<gather>()) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
-                                      (parents[i]->is_type<lrn>()) ||
-                                      (parents[i]->is_type<activation>());
+                                      (parents[i]->is_type<lrn>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
