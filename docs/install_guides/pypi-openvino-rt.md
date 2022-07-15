@@ -78,9 +78,9 @@ If installation was successful, you will not see any error messages (no console 
 
 For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](troubleshooting.md). The following sections also provide explanations to several error messages. 
 
-<!--### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
+### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.-->
+On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
