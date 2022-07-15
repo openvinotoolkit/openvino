@@ -238,6 +238,37 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
     return result.str();
 }
 
+void CompiledKernelsCacheTest::SetUp() {
+    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    std::pair<ov::AnyMap, std::string> userConfig;
+    std::tie(targetDevice, userConfig) = GetParam();
+    configuration = userConfig.first;
+    std::string ext = userConfig.second;
+    std::string::size_type pos = 0;
+    if ((pos = ext.find(",", pos)) != std::string::npos) {
+    m_extList.push_back(ext.substr(0, pos));
+    m_extList.push_back(ext.substr(pos + 1));
+} else {
+    m_extList.push_back(ext);
+}
+    std::replace(test_name.begin(), test_name.end(), '/', '_');
+    std::replace(test_name.begin(), test_name.end(), '\\', '_');
+    cache_path = "compiledModel" + test_name + "_cache";
+}
+
+void CompiledKernelsCacheTest::TearDown() {
+    std::remove(cache_path.c_str());
+    core->set_property(ov::cache_dir());
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
+}
+
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
     core->set_property(ov::cache_dir(cache_path));
     try {
