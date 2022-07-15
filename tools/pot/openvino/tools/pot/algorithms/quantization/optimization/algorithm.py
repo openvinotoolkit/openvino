@@ -17,7 +17,7 @@ from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ...quantization import fake_quantize as fqut
 from ....graph.model_utils import save_model
-from ....samplers.index_sampler import IndexSampler
+from ....samplers.creator import create_sampler
 from ....utils.logger import get_logger
 
 try:
@@ -318,7 +318,10 @@ class OptimizationAlgorithm(Algorithm):
     def calculate_error_on_subset(self, subset_indices, model):
         def metric_error(subset_indices, model):
             self._engine.set_model(model)
-            metrics, _ = self._engine.predict(None, IndexSampler(subset_indices))
+
+            index_sampler = create_sampler(self._engine, samples=subset_indices)
+            metrics, _ = self._engine.predict(None , sampler=index_sampler)
+
             error_rate = 0
             if self._default_metrics_values is not None:
                 metrics_value = []
