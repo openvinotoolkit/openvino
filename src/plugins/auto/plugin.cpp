@@ -81,11 +81,12 @@ std::vector<std::string> MultiDeviceInferencePlugin::_availableDevices{"CPU",
                                                                        "GPU",
                                                                        "GNA",
                                                                        "TEMPLATE",
-                                                                       "MYRAID",
+                                                                       "MYRIAD",
                                                                        "HDDL",
                                                                        "VPUX",
                                                                        "MULTI",
                                                                        "HETERO",
+                                                                       "AUTO",
                                                                        "CUDA",
                                                                        "HPU_GOYA"};
 
@@ -809,6 +810,7 @@ std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(std
         if (realDevName.empty()) {
             return false;
         }
+        realDevName = DeviceIDParser(realDevName).getDeviceName();
         if (_availableDevices.end() ==
             std::find_if(_availableDevices.begin(), _availableDevices.end(), [&realDevName] (const std::string& device) {
                 return device.find(realDevName) != std::string::npos;
