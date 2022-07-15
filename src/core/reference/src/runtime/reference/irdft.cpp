@@ -104,9 +104,9 @@ void irdft(const std::vector<float>& input_data,
            const std::vector<int64_t>& axes_data,
            float* irdft_result,
            const Shape& fft_output_shape,
-           const Shape& irdft_output_shape) {
+           const Shape& irdft_output_shape,
+           const int64_t last_signal_size) {
     // calculate inverse FFT over the outer axes
-    const int64_t last_signal_size = irdft_output_shape.back();
     const auto outer_ifft_axes = get_outer_fft_axes(axes_data);
     auto outer_ifft_shape = input_data_shape;
     for (const auto& a : outer_ifft_axes) {

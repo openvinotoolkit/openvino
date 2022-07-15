@@ -2456,7 +2456,8 @@ bool evaluate(const shared_ptr<op::v9::IRDFT>& op, const HostTensorVector& outpu
                               info.axes_data,
                               irfft_result.data(),
                               info.fft_output_shape,
-                              info.output_shape);
+                              info.output_shape,
+                              info.last_signal_size);
 
     const auto output_type = op->get_input_element_type(0);
     runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);
