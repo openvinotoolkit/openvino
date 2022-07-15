@@ -8,7 +8,7 @@ device_name = 'CPU'
 xml_path = 'modelWithDenormals.xml'
 # ! [ov:intel_cpu:denormals_optimization:part0]
 core = Core()
-core.set_property({'CPU_DENORMALS_OPTIMIZATION': 'YES'})
+core.set_property("CPU", openvino.runtime.properties.denormals_optimization(True))
 model = core.read_model(model=xml_path)
 compiled_model = core.compile_model(model=model, device_name=device_name)
 # ! [ov:intel_cpu:denormals_optimization:part0]

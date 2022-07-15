@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header for advanced hardware related properties for CPU plugin
+ * @brief A header for advanced hardware related properties for CPU device
  *        To use in set_property, compile_model, import_model, get_property methods
  *
  * @file openvino/runtime/intel_cpu/properties.hpp
@@ -31,11 +31,11 @@ namespace intel_cpu {
  *
  * Computation with denormals is very time consuming. FTZ(Flushing denormals to zero) and DAZ(Denormals as zero)
  * could significantly improve the performance while it does not comply with IEEE standard. In most cases this behavior
- * have little impact for model accuracy. Users could enable this optimization if see no or acceptable accuracy drop.
+ * has little impact for model accuracy. Users could enable this optimization if see no or acceptable accuracy drop.
  * The following code enables denormals optimization
  *
  * @code
- * ie.set_property(ov::denormals_optimization(ture)); // enable denormals optimization
+ * ie.set_property(ov::denormals_optimization(true)); // enable denormals optimization
  * @endcode
  *
  * While following code disable denormals optimization
