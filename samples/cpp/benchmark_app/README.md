@@ -101,7 +101,6 @@ Options:
                                 threads->(NUMA)nodes("NUMA") or
                                 completely disable("NO") CPU inference threads pinning
     -dopt                     Optional. Specify denormals is optimized by treating as zero for CPU plugin.
-    -cpu_experimental ("<brgconv>")          Optional. Enable experimental setting for CPU plugin.
 
   Statistics dumping options:
     -report_type "<type>"       Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency.
