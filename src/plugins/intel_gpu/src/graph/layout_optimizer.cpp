@@ -1628,9 +1628,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         };
 
         // XXX: we may need to take into considration a situation where there are more than 1 conv
-        if (use_onednn_impls && node.get_users().front()->is_type<convolution>() && node.get_users().front()->as<convolution>().get_required_input0() != format::any) {
-            auto &conv = node.get_users().front()->as<convolution>();
-            expected = conv.get_required_input0();
+        if (use_onednn_impls) {
+                if (node.get_users().front()->is_type<convolution>() && node.get_users().front()->as<convolution>().get_required_input0() != format::any) {
+                    auto &conv = node.get_users().front()->as<convolution>();
+                    expected = conv.get_required_input0();
+                } else
+                    expected = format::any;
         } else if (only_gemm_users(node)) {
             // TODO: Gemm is not supporting fsv layouts
             if (node.get_output_layout().format.dimension() == 6) {
