@@ -127,7 +127,6 @@ jobs:
         -GNinja
         -DVERBOSE_BUILD=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DENABLE_OPENCV=OFF
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
         -DENABLE_PYTHON=ON

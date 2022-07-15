@@ -126,7 +126,7 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
-ie_option (ENABLE_OPENCV "enables OpenCV" ON)
+ie_option (ENABLE_OPENCV "enables OpenCV" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
