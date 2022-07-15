@@ -99,6 +99,13 @@ jobs:
 
   - script: |
       set -e
+      # python3-setuptools and pip upgrade
+      python3 -m pip install --upgrade pip
+      # For running Paddle frontend unit tests
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
+      # For running ONNX frontend unit tests
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/requirements_test_onnx.txt
+      # install OpenVINO build deps
       $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       export CCACHE_DIR=$(OPENCV_CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
@@ -118,12 +125,6 @@ jobs:
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
-      # python3-setuptools and pip upgrade
-      python3 -m pip install --upgrade pip
-      # For running Paddle frontend unit tests
-      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
-      # For running ONNX frontend unit tests
-      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/requirements_test_onnx.txt
 
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
