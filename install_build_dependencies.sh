@@ -42,20 +42,47 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
+            libboost-regex-dev \
             $x86_64_specific_packages \
-            unzip \
-            shellcheck \
-            patchelf \
-            python3-pip \
-            python3-enchant \
-            python3-setuptools \
-            libtbb-dev \
+            libgtk2.0-dev \
             pkg-config \
             libgflags-dev \
             zlib1g-dev \
+            unzip \
+            automake \
+            libtool \
+            autoconf \
+            shellcheck \
+            `# python and wheel packages` \
+            patchelf \
+            libenchant1c2a \
+            python3-pip \
+            python3-enchant \
+            python3-setuptools \
+            `# openvino` \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libglib2.0-dev \
+            libgtk2.0-dev \
+            libswscale-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libgstreamer1.0-0 \
+            gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
+            libtbb-dev \
+            libtinfo5 \
+            libopenblas-dev \
+            `# samples` \
+            pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
+            `# myriad` \
+            libusb-1.0-0-dev \
+            `# hddl` \
             libudev1 \
             libusb-1.0-0 \
+            `# cl_compiler` \
             libtinfo5
     # hddl
     if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
