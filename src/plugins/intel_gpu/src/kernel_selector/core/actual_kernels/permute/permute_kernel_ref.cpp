@@ -5,7 +5,6 @@
 #include "permute_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <string>
-static bool f_first = false;
 namespace kernel_selector {
 ParamsKey PermuteKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -30,14 +29,12 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
-    CommonDispatchData dispatchData;
+bool Process_F_First(const permute_params& params) {
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
     std::function<bool(const std::vector<uint16_t>&)> f_to_x = [](const std::vector<uint16_t>& order) {
-        if ((int32_t) order[1] == order.size() - 1) return true;
-        return false;
+        return ((int32_t) order[2] == 1);
     };
 
     std::function<bool(const DataLayout&)> is_fsv = [](const DataLayout& layout) {
@@ -54,8 +51,16 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
         return false;
     };
 
+    return (f_to_x(params.order) && is_fsv(in_layout) && SimpleLayout(out_layout));
+}
+
+CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
+    CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
+
     const auto& in =  params.inputs[0];
-    if (f_to_x(params.order) && is_fsv(in_layout) && SimpleLayout(out_layout)) {
+    if (Process_F_First(params)) {
         // f is contiguous in output
         // if both input and output are blocked format, need to process with f axis only for the blocked size (TODO)
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::FEATURE},
@@ -64,14 +69,12 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
                                                                          Tensor::DataChannelName::BATCH}};
         dispatchData.gws = {in.Feature().v, in.X().v * in.Y().v, in.Z().v * in.W().v * in.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-        f_first = true;
     } else {
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-        f_first = false;
     }
 
     return dispatchData;
@@ -186,7 +189,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     jit.AddConstant(MakeJitConstant("IN_IDX", "INPUT0_GET_INDEX(" + input_order + ")"));
-    if (f_first) {
+    if (Process_F_First(params)) {
         jit.AddConstant(MakeJitConstant("F_FIRST", 1));
     }
     if (reorder_to_different_dim) {
