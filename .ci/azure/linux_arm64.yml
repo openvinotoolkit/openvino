@@ -99,15 +99,7 @@ jobs:
 
   - script: |
       set -e
-      # install OpenVINO build deps
       $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
-      # python3-setuptools and pip upgrade
-      python3 -m pip install --upgrade pip
-      # For running Paddle frontend unit tests
-      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
-      # For running ONNX frontend unit tests
-      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/core/tests/requirements_test_onnx.txt
-
       export CCACHE_DIR=$(OPENCV_CCACHE_DIR)
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
@@ -159,7 +151,6 @@ jobs:
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DOUTPUT_ROOT=$(INSTALL_OPENVINO)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
