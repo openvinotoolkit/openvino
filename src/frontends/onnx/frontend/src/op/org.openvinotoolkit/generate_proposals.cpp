@@ -10,9 +10,26 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
+
+namespace {
+void validate_generate_proposals_inputs(const OutputVector& inputs) {
+    OPENVINO_ASSERT(inputs.size() == 4, "GenerateProposals operator expects 4 inputs, got ", inputs.size());
+
+    const auto scores_rank = inputs[0].get_partial_shape().rank();
+    OPENVINO_ASSERT(scores_rank.compatible(4), "GenerateProposals input scores rank should be 4, is ", scores_rank);
+
+    const auto& anchors_shape = inputs[3].get_partial_shape();
+    const auto anchors_rank = anchors_shape.rank();
+    OPENVINO_ASSERT(anchors_rank.compatible(2), "GenerateProposals input anchors rank should be 2, is ", anchors_rank);
+    OPENVINO_ASSERT(anchors_shape[1].compatible(4),
+                    "GenerateProposals input anchors shape should be {A, 4}, is ",
+                    anchors_shape);
+}
+}  // namespace
+
 OutputVector generate_proposals(const Node& node) {
     const auto inputs = node.get_ng_inputs();
-    OPENVINO_ASSERT(inputs.size() == 4, "GenerateProposals operator expects 4 inputs, got ", inputs.size());
+    validate_generate_proposals_inputs(inputs);
 
     const auto& scores = inputs[0];
     const auto& deltas = inputs[1];
@@ -26,6 +43,7 @@ OutputVector generate_proposals(const Node& node) {
     attrs.post_nms_count = node.get_attribute_value<int64_t>("post_nms_topN", 300);
     attrs.normalized = !node.get_attribute_value<int64_t>("legacy_plus_one", true);
 
+    // Broadcast anchors from [A, 4] to [H, W, A, 4] where [H, W] is taken from scores shape.
     const auto zero = default_opset::Constant::create(element::i64, Shape{1}, {0});
     const auto scores_shape = std::make_shared<default_opset::ShapeOf>(scores);
     const auto anchors_shape = std::make_shared<default_opset::ShapeOf>(anchors);
