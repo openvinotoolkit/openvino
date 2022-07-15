@@ -624,7 +624,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
                 (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
-                node.input().get_output_layout().feature() > 16)))
+                node.input().get_output_layout().feature() > 16) ||
+                (node.get_output_layout().count() > 256)))
                 return false;
 
             if (keep_dims)
@@ -634,12 +635,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
-                auto out_layout = node.get_output_layout();
-                if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                    return false;
-                }
+            auto out_layout = node.get_output_layout();
+            if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                return false;
             }
             return true;
         };
@@ -977,7 +976,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<gather>()) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
-                                      (parents[i]->is_type<activation>());
+                                      (parents[i]->is_type<lrn>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow

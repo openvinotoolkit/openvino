@@ -39,7 +39,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
@@ -131,6 +130,23 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
     }
 
     return network;
+}
+
+Graph::variable_states_map Graph::AllocateVariablesMemories() {
+    Graph::variable_states_map states {};
+    const auto& memStatesInfo = m_program->GetVariablesStatesInfo();
+    for (const auto& memStateInfo : memStatesInfo) {
+        std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
+        std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {
+            return first.size.batch[0] < second.size.batch[0];
+        });
+        std::vector<cldnn::network::VariableState::Ptr> memoryStates;
+        memoryStates.reserve(orderedLayouts.size());
+        for (const auto& layout : orderedLayouts)
+            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(GetEngine()->allocate_memory(layout, false)));
+        states.insert({memStateInfo.first, memoryStates });
+    }
+    return states;
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
@@ -766,5 +782,4 @@ InferenceEngine::SizeVector Graph::GetOutputSize(std::string outName) const {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
