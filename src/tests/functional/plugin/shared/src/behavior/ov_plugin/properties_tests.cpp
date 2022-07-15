@@ -46,12 +46,12 @@ void OVPropertiesTests::TearDown() {
 }
 
 std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj) {
-    std::string device_name;
+    std::string target_device;
     AnyMap properties;
     AnyMap compileModelProperties;
-    std::tie(device_name, properties, compileModelProperties) = obj.param;
+    std::tie(target_device, properties, compileModelProperties) = obj.param;
     std::ostringstream result;
-    result << "device_name=" << device_name << "_";
+    result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
         result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
     }
@@ -63,7 +63,7 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
 
 void OVSetPropComplieModleGetPropTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::tie(device_name, properties, compileModelProperties) = this->GetParam();
+    std::tie(target_device, properties, compileModelProperties) = this->GetParam();
     model = ngraph::builder::subgraph::makeConvPoolRelu();
 }
 
@@ -120,10 +120,10 @@ TEST_P(OVPropertiesDefaultTests, CheckDefaultValues) {
 }
 
 TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
-    OV_ASSERT_NO_THROW(core->set_property(device_name, properties));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
 
     ov::CompiledModel exeNetWork;
-    OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, device_name, compileModelProperties));
+    OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, target_device, compileModelProperties));
 
     for (const auto& property_item : compileModelProperties) {
         Any exeNetProperty;
@@ -134,7 +134,7 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     //the value of get property should be the same as set property
     for (const auto& property_item : properties) {
         Any property;
-        OV_ASSERT_NO_THROW(property = core->get_property(device_name, property_item.first));
+        OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
         ASSERT_EQ(property_item.second.as<std::string>(), property.as<std::string>());
     }
 }

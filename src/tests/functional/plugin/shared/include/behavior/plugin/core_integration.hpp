@@ -83,13 +83,13 @@ class IEClassSeveralDevicesTest : public virtual ov::test::behavior::APIBaseTest
                                   public BehaviorTestsUtils::IEClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
 public:
-    std::vector<std::string> deviceNames;
+    std::vector<std::string> target_devices;
     void SetUp() override {
         target_device = CommonTestUtils::DEVICE_MULTI;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
-        deviceNames = GetParam();
+        target_devices = GetParam();
     }
 
 protected:
@@ -100,15 +100,15 @@ using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestQueryNetwork = IEClassSeveralDevicesTest;
 using IEClassSeveralDevicesTestDefaultCore = IEClassSeveralDevicesTest;
 
-bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &deviceName) {
-    auto supportedMetricKeys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+bool supportsAvaliableDevices(InferenceEngine::Core &ie, const std::string &target_device) {
+    auto supportedMetricKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
     return supportedMetricKeys.end() != std::find(std::begin(supportedMetricKeys),
                                                   std::end(supportedMetricKeys),
                                                   METRIC_KEY(AVAILABLE_DEVICES));
 }
 
-bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &deviceName) {
-    auto supportedConfigKeys = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+    auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
                                                   std::end(supportedConfigKeys),
                                                   CONFIG_KEY(DEVICE_ID));
@@ -296,11 +296,11 @@ TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     bool value = false;
     ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}));
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
     ASSERT_TRUE(value);
 
     ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(NO)}}));
-    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_NO_THROW(value = ie.GetConfig(target_device, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
     ASSERT_FALSE(value);
 }
 
@@ -327,16 +327,16 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string deviceID, clearDeviceName;
+    std::string deviceID, cleartarget_device;
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = target_device.substr(0, pos);
+        cleartarget_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_SKIP();
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_SKIP();
     }
@@ -427,26 +427,26 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
 TEST_P(IEClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_SKIP();
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
         GTEST_SKIP();
 
-    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
-    for (auto& dev_name : deviceNames) {
-        multiDeviceName += dev_name;
-        if (&dev_name != &(deviceNames.back())) {
-            multiDeviceName += ",";
+    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : target_devices) {
+        multitarget_device += dev_name;
+        if (&dev_name != &(target_devices.back())) {
+            multitarget_device += ",";
         }
     }
-    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, multiDeviceName));
+    ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, multitarget_device));
 }
 
 TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
@@ -796,16 +796,16 @@ TEST_P(IEClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
 
-    std::string deviceID, clearDeviceName;
+    std::string deviceID, cleartarget_device;
     auto pos =  target_device.find('.');
     if (pos != std::string::npos) {
-        clearDeviceName =  target_device.substr(0, pos);
+        cleartarget_device =  target_device.substr(0, pos);
         deviceID =   target_device.substr(pos + 1,   target_device.size());
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_SKIP();
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_SKIP();
     }
@@ -971,26 +971,26 @@ TEST_P(IEClassLoadNetworkTestWithThrow, LoadNetworkActualWithThrow) {
 TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_SKIP();
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
         GTEST_SKIP();
 
-    std::string multiDeviceName = CommonTestUtils::DEVICE_MULTI + std::string(":");
-    for (auto& dev_name : deviceNames) {
-        multiDeviceName += dev_name;
-        if (&dev_name != &(deviceNames.back())) {
-            multiDeviceName += ",";
+    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    for (auto& dev_name : target_devices) {
+        multitarget_device += dev_name;
+        if (&dev_name != &(target_devices.back())) {
+            multitarget_device += ",";
         }
     }
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, multiDeviceName));
+    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, multitarget_device));
 }
 
 using IEClassLoadNetworkTest = IEClassQueryNetworkTest;
@@ -1236,24 +1236,24 @@ TEST_P(IEClassSetGlobalConfigTest, SetGlobalConfigNoThrow) {
 TEST_P(IEClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     InferenceEngine::Core ie;
 
-    std::string clearDeviceName;
-    auto pos = deviceNames.begin()->find('.');
+    std::string cleartarget_device;
+    auto pos = target_devices.begin()->find('.');
     if (pos != std::string::npos) {
-        clearDeviceName = deviceNames.begin()->substr(0, pos);
+        cleartarget_device = target_devices.begin()->substr(0, pos);
     }
-    if (!supportsDeviceID(ie, clearDeviceName) || !supportsAvaliableDevices(ie, clearDeviceName)) {
+    if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_SKIP();
     }
-    std::vector<std::string> deviceIDs = ie.GetMetric(clearDeviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    if (deviceIDs.size() < deviceNames.size())
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
         GTEST_SKIP();
 
-    for (size_t i = 0; i < deviceNames.size(); ++i) {
-        ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, deviceNames[i]));
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, target_devices[i]));
     }
     std::string res;
-    for (size_t i = 0; i < deviceNames.size(); ++i) {
-        ASSERT_NO_THROW(res = ie.GetConfig(deviceNames[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
+    for (size_t i = 0; i < target_devices.size(); ++i) {
+        ASSERT_NO_THROW(res = ie.GetConfig(target_devices[i], InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>());
         ASSERT_EQ(res, std::to_string(i + 2));
     }
 }
