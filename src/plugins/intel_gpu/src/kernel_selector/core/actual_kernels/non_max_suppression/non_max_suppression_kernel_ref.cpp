@@ -50,6 +50,10 @@ inline std::string GetToInputTypeStr(uint32_t idx) {
     return "TO_" + GetInputTypeStr(idx);
 }
 
+inline std::string GetToInputIndexStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_GET_INDEX";
+}
+
 JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppression_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -109,11 +113,13 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     if (params.has_second_output) {
         jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexSecondOutput())));
         jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexSecondOutput())));
+        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexSecondOutput())));
     }
 
     if (params.has_third_output) {
         jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexThirdOutput())));
         jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexThirdOutput())));
+        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexThirdOutput())));
     }
 
     return jit;
@@ -146,8 +152,9 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
 
     const auto& input = params.inputs[1];
     if (idx == 0) {
-        dispatchData.gws = {input.Batch().v, input.Feature().v, params.engineInfo.maxWorkGroupSize};
-        dispatchData.lws = {1, 1, params.engineInfo.maxWorkGroupSize};
+        const size_t boxesGroupSize = std::min(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
+        dispatchData.gws = {input.Batch().v, input.Feature().v, boxesGroupSize};
+        dispatchData.lws = {1, 1, boxesGroupSize};
     } else if (idx == 1) {
         const size_t kSplitNum = 16;
         dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
@@ -261,7 +268,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     // Build clKernelData.
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(orgParams, static_cast<int>(i));
-        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options, i);
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
 

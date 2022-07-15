@@ -192,9 +192,6 @@ def run(args):
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
 
-                if is_flag_set_in_command_line('cpu_experimental'):
-                    config[device]['CPU_EXPERIMENTAL'] = args.cpu_experimental
-
                 if is_flag_set_in_command_line('pin'):
                     ## set to user defined value
                     config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
