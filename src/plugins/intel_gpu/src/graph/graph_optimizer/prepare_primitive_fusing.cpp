@@ -634,7 +634,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return false;
         };
 
-        auto activation_supports_fusings= [&](activation_node& node) -> bool {
+        auto activation_supports_fusings = [&](activation_node& node) -> bool {
             auto& input = node.input();
 
             // Check if this activation node can be fused as an activation of its parent's node
