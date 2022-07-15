@@ -49,7 +49,8 @@ if [ -f /etc/lsb-release ]; then
             python3-pip \
             python3-enchant \
             python3-setuptools \
-            libpython3-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
             `# openvino` \
             libtbb-dev \
             `# samples` \
