@@ -76,7 +76,7 @@ In the next step, the original model is wrapped by the NNCF object using the `cr
 @endsphinxtabset
 
 ### 4. Fine-tune the model
-This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle, you can skip this step which means that the post-training optimization will be applied to the model.
+This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the case of Filter Pruning method we recommend using the training schedule and learning rate similar to what was used for the training of original model.
 
 @sphinxtabset
 
@@ -160,5 +160,9 @@ The pruned model requres an extra step that should be done to get performance im
 
 After that the model can be deployed with OpenVINO in the same way as the baseline model.
 For more details about model deployment with OpenVINO, see the corresponding [documentation](../../OV_Runtime_UG/openvino_intro.md).
+
+## Examples
+- [PyTorch Image Classiication example](https://github.com/openvinotoolkit/nncf/blob/develop/examples/torch/classification)
+- [TensorFlow Image Classification example](https://github.com/openvinotoolkit/nncf/tree/develop/examples/tensorflow/classification)
 
 

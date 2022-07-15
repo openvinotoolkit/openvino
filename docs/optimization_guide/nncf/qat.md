@@ -3,10 +3,10 @@
 ## Introduction
 Quantization-aware Training is a popular method that allows quantizing a model and applying fine-tuning to restore accuracy degradation caused by quantization. In fact, this is the most accurate quantization method. This document describes how to apply QAT from the Neural Network Compression Framework (NNCF) to get 8-bit quantized models. This assumes that you are knowledgeable in Python* programming and familiar with the training code for the model in the source DL framework.
 
-> **NOTE**: Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model).
-
 ## Using NNCF QAT
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with PyTorch or TensorFlow 2:
+
+> **NOTE**: Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model).
 
 ### 1. Import NNCF API
 In this step, you add NNCF-related imports in the beginning of the training script:
@@ -28,7 +28,7 @@ In this step, you add NNCF-related imports in the beginning of the training scri
 @endsphinxtabset
 
 ### 2. Create NNCF configuration
-Here, you should define NNCF configuration which consists of model-related parameters (`"input_info"` section) and parameters optimization methods (`"compression"` section). For faster convergence, it is also recommended to register a dataset object specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
+Here, you should define NNCF configuration which consists of model-related parameters (`"input_info"` section) and parameters of optimization methods (`"compression"` section). For faster convergence, it is also recommended to register a dataset object specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
 
 @sphinxtabset
 
@@ -164,7 +164,7 @@ To restore the model from checkpoint you should use the following API:
 For more details on saving/loading checkpoints in the NNCF, see the following [documentation](https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models).
 
 ## Deploying quantized model
-The quantized model can be deployed in OpenVINO in the same way as the baseline model. No extra steps or options are required in this case. For more details, see the corresponding [documentation](../../OV_Runtime_UG/openvino_intro.md).
+The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are required in this case. For more details, see the corresponding [documentation](../../OV_Runtime_UG/openvino_intro.md).
 
 ## Examples
 - [Quantizing PyTorch model with NNCF](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training)
