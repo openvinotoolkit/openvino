@@ -26,7 +26,7 @@ nncf_config_dict = {
     ]
 }
 nncf_config = NNCFConfig.from_dict(nncf_config_dict)
-nncf_config = register_default_init_args(nncf_config, data_loader) # data_loader is an instance of torch.utils.data.DataLoader
+nncf_config = register_default_init_args(nncf_config, train_loader) # train_loader is an instance of torch.utils.data.DataLoader
 #! [nncf_congig]
 
 #! [wrap_model]

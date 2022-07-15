@@ -16,7 +16,7 @@ nncf_config_dict = {
     },
 }
 nncf_config = NNCFConfig.from_dict(nncf_config_dict)
-nncf_config = register_default_init_args(nncf_config, data_loader) # data_loader is an instance of torch.utils.data.DataLoader
+nncf_config = register_default_init_args(nncf_config, train_loader) # train_loader is an instance of torch.utils.data.DataLoader
 #! [nncf_congig]
 
 #! [wrap_model]
@@ -30,8 +30,8 @@ compression_ctrl.distributed() # call it before the training loop
 
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
-# tune quantized model for 50 epochs as the baseline
-for epoch in range(0, 50):
+# tune quantized model for 5 epochs as the baseline
+for epoch in range(0, 5):
     compression_ctrl.scheduler.epoch_step() # Epoch control API
     
     for i, data in enumerate(train_loader):

@@ -16,7 +16,7 @@ nncf_config_dict = {
     },
 }
 nncf_config = NNCFConfig.from_dict(nncf_config_dict)
-nncf_config = register_default_init_args(nncf_config, dataset, batch_size=1) # dataset is an instance of tf.data.Dataset
+nncf_config = register_default_init_args(nncf_config, train_dataset, batch_size=1) # train_dataset is an instance of tf.data.Dataset
 #! [nncf_congig]
 
 #! [wrap_model]
