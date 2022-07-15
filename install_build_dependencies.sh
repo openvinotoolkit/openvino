@@ -30,8 +30,9 @@ if [ -f /etc/lsb-release ]; then
     fi
 
     sudo -E apt update
+
+    # build step tools
     sudo -E apt-get install -y \
-            `# build step tools` \
             build-essential \
             cmake \
             ccache \
@@ -44,37 +45,17 @@ if [ -f /etc/lsb-release ]; then
             $x86_64_specific_packages \
             unzip \
             shellcheck \
-            `# python and wheel packages` \
             patchelf \
             python3-pip \
             python3-enchant \
             python3-setuptools \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libopenblas-dev \
-            automake \
-            libtool \
-            autoconf \
-            libgtk2.0-dev \
-            `# openvino` \
             libtbb-dev \
-            `# samples` \
             pkg-config \
             libgflags-dev \
             zlib1g-dev \
-            `# myriad` \
             libusb-1.0-0-dev \
-            `# hddl` \
             libudev1 \
             libusb-1.0-0 \
-            `# cl_compiler` \
             libtinfo5
     # hddl
     if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
