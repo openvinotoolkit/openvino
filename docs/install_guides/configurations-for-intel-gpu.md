@@ -75,5 +75,15 @@ To check if you have this driver installed:
 4. Click the **Driver** tab to see the driver version. 
    ![](../img/DeviceDriverVersion.PNG)
 
-You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="openvino_docs_install_guides_installing_openvino_windows_header.html">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+You are done updating your device driver and are ready to use your GPU. Now you are ready to try out the toolkit.
+
+Developing in Python:
+   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
+   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+
+Developing in C++:
+   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
+   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 
