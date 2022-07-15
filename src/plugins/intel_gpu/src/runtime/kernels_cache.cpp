@@ -217,7 +217,11 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     if (is_cache_enabled()) {
         // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
         // If read is successful, then remove kernels from compilation bucket
-        auto bin = ov::util::load_binary(cacheAccessMutex, cached_bin_name);
+        std::vector<uint8_t> bin;
+        {
+            std::lock_guard<std::mutex> lock(cacheAccessMutex);
+            bin = ov::util::load_binary(cached_bin_name);
+        }
         if (!bin.empty()) {
             precompiled_kernels.push_back(bin);
         }
@@ -248,7 +252,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
-                ov::util::save_binary(cacheAccessMutex, cached_bin_name, getProgramBinaries(program));
+                std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);

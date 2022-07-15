@@ -18,7 +18,6 @@
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
 
-#include <fstream>
 #include <vector>
 #include <list>
 #include <utility>
@@ -55,7 +54,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool is_cpu() const override { return false; }
 
 private:
-    std::string get_cache_path() const {
+    std::string get_cache_directory() const {
         auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
         if (path.empty()) {
             return {};
@@ -67,8 +66,8 @@ private:
         return path;
     }
 
-    std::string get_cache_filepath(std::vector<uint8_t> key) const {
-        auto path = get_cache_path();
+    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
+        auto path = get_cache_directory();
         if (path.empty()) {
             return {};
         }
@@ -79,18 +78,27 @@ private:
     }
 
     void build_primitive() {
-        auto cache_outpath = get_cache_path();
+        auto cache_outpath = get_cache_directory();
         if (cache_outpath.empty()) {
             _prim = PrimType(_pd);
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
             assert(!key.empty());
 
-            std::vector<uint8_t> cache = ov::util::load_binary(cacheAccessMutex, get_cache_filepath(key));
+            std::vector<uint8_t> cache;
+            {
+                std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+            }
+
             if (cache.empty()) {
                 _prim = PrimType(_pd);
                 cache = _prim.get_cache_blob();
-                ov::util::save_binary(cacheAccessMutex, get_cache_filepath(key), cache);
+
+                {
+                    std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                }
             } else {
                 _prim = PrimType(_pd, cache);
             }

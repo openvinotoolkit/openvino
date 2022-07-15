@@ -371,9 +371,7 @@ std::wstring ov::util::get_ov_lib_path_w() {
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-std::vector<uint8_t> ov::util::load_binary(std::mutex& mutex, const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex);
-
+std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* filename = widefilename.c_str();
@@ -405,8 +403,7 @@ std::vector<uint8_t> ov::util::load_binary(std::mutex& mutex, const std::string&
     return {};
 }
 
-void ov::util::save_binary(std::mutex& mutex, const std::string& path, std::vector<uint8_t> binary) {
-    std::lock_guard<std::mutex> lock(mutex);
+void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* filename = widefilename.c_str();
