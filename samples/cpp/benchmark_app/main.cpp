@@ -391,10 +391,6 @@ int main(int argc, char* argv[]) {
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-
-                if (isFlagSetInCommandLine("dopt")) {
-                    device_config.emplace(ov::intel_cpu::denormals_optimization(true));
-                }
             } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();

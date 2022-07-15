@@ -29,7 +29,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::affinity, "affinity");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
-    wrap_property_RW(m_properties, ov::intel_cpu::denormals_optimization, "denormals_optimization");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -64,6 +63,11 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
+
+    // Submodule intel_cpu
+    py::module intel_cpu =
+        m_properties.def_submodule("intel_cpu", "openvino.runtime.properties.intel_cpu submodule that simulates ov::intel_cpu");
+    wrap_property_RW(intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
 
     // Submodule device
     py::module m_device =
