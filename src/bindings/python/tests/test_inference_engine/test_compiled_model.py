@@ -19,8 +19,8 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 
 def test_get_property_model_name(device):
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, device)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, device)
     network_name = exec_net.get_property("NETWORK_NAME")
     assert network_name == "test_model"
 
@@ -30,18 +30,18 @@ def test_get_property(device):
     core = Core()
     if core.get_property(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, device)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, device)
     profiling_enabled = exec_net.get_property("PERF_COUNT")
     assert not profiling_enabled
 
 
 def test_get_runtime_model(device):
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, device)
-    runtime_func = exec_net.get_runtime_model()
-    assert isinstance(runtime_func, Model)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, device)
+    runtime_model = exec_net.get_runtime_model()
+    assert isinstance(runtime_model, Model)
 
 
 def test_export_import():
@@ -246,20 +246,20 @@ def test_inputs_docs(device):
 
 
 def test_infer_new_request_numpy(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
     assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
     tensor = Tensor(img)
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
@@ -267,12 +267,12 @@ def test_infer_new_request_tensor_numpy_copy(device):
 
 
 def test_infer_tensor_numpy_shared_memory(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
@@ -280,23 +280,23 @@ def test_infer_tensor_numpy_shared_memory(device):
 
 
 def test_infer_new_request_wrong_port_name(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
     tensor = Tensor(img)
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     with pytest.raises(RuntimeError) as e:
         exec_net.infer_new_request({"_data_": tensor})
     assert "Check" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
     assert "Incompatible key type for input: 0.0" in str(e.value)

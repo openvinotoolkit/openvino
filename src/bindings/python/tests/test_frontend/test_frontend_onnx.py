@@ -490,18 +490,18 @@ def test_op_extension_specify_opset(opset_prefix):
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
     fw_operation = "Floor"
     ov_operation = opset_prefix + fw_operation
-    ie.add_extension(OpExtension(ov_operation, fw_operation))
+    core.add_extension(OpExtension(ov_operation, fw_operation))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -513,14 +513,14 @@ def test_op_extension_specify_wrong_opset(opset_prefix):
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # add extensions
     fw_operation = "Floor"
     ov_operation = opset_prefix + fw_operation
-    ie.add_extension(OpExtension(ov_operation, fw_operation))
+    core.add_extension(OpExtension(ov_operation, fw_operation))
     with pytest.raises(RuntimeError):
-        ie.read_model(onnx_model_for_op_extension_test)
+        core.read_model(onnx_model_for_op_extension_test)
 
 
 def test_op_extension_via_onnx_extension_set_attrs_values():
@@ -530,19 +530,19 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
     from openvino.frontend.onnx import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
 
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    ie.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
-    ie.add_extension(OpExtension("Floor"))
-    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+    core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    core.add_extension(OpExtension("Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Floor"))
+    core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
                                                                 "strides": [2, 2],
                                                                 "pads_begin": [0, 0],
                                                                 "pads_end": [1, 1],
@@ -550,7 +550,7 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
                                                                 "auto_pad": "same_upper",
                                                                 "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -561,18 +561,18 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     from openvino.frontend import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
-    ie.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
-    ie.add_extension(OpExtension("Floor"))
-    ie.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    ie.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
+    core.add_extension(OpExtension("Multiply", "Mul", {}, {"auto_broadcast": "numpy"}))
+    core.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.}))
+    core.add_extension(OpExtension("Floor"))
+    core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
                                                                 "strides": [2, 2],
                                                                 "pads_begin": [0, 0],
                                                                 "pads_end": [1, 1],
@@ -580,7 +580,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
                                                                 "auto_pad": "same_upper",
                                                                 "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 
@@ -591,16 +591,16 @@ def test_op_extension_via_frontend_extension_map_attributes():
     from openvino.frontend import OpExtension
     from openvino.runtime import Core
 
-    ie = Core()
+    core = Core()
     # check the model is valid
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
-    ie.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
+    core.add_extension(OpExtension("Elu", "Elu", {"alpha": "alpha"}))
+    core.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
 
-    ie.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
+    core.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
                                                             "strides": "strides",
                                                             "auto_pad": "auto_pad"},
                                  {"pads_begin": [0, 0],
@@ -608,7 +608,7 @@ def test_op_extension_via_frontend_extension_map_attributes():
                                   "exclude-pad": True,
                                   "rounding_type": "floor"}))
 
-    model = ie.read_model(onnx_model_for_op_extension_test)
+    model = core.read_model(onnx_model_for_op_extension_test)
     assert model
 
 

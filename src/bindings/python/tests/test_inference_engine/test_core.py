@@ -71,9 +71,9 @@ def test_core_class():
 
 
 def test_compile_model(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.compile_model(func, device)
+    core = Core()
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, device)
     assert isinstance(exec_net, CompiledModel)
 
 
@@ -149,8 +149,8 @@ def test_net_from_buffer_valid():
 
 
 def test_get_version(device):
-    ie = Core()
-    version = ie.get_versions(device)
+    core = Core()
+    version = core.get_versions(device)
     assert isinstance(version, dict), "Returned version must be a dictionary"
     assert device in version, f"{device} plugin version wasn't found in versions"
     assert hasattr(version[device], "major"), "Returned version has no field 'major'"
@@ -160,8 +160,8 @@ def test_get_version(device):
 
 
 def test_available_devices(device):
-    ie = Core()
-    devices = ie.available_devices
+    core = Core()
+    devices = core.available_devices
     assert device in devices, (
         f"Current device '{device}' is not listed in "
         f"available devices '{', '.join(devices)}'"
@@ -169,8 +169,8 @@ def test_available_devices(device):
 
 
 def test_get_property():
-    ie = Core()
-    conf = ie.get_property("CPU", "CPU_BIND_THREAD")
+    core = Core()
+    conf = core.get_property("CPU", "CPU_BIND_THREAD")
     assert conf == "YES"
 
 
@@ -179,8 +179,8 @@ def test_get_property():
     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
 )
 def test_get_property_list_of_str():
-    ie = Core()
-    param = ie.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
+    core = Core()
+    param = core.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), (
         "Parameter value for 'OPTIMIZATION_CAPABILITIES' "
         f"metric must be a list but {type(param)} is returned"
@@ -195,8 +195,8 @@ def test_get_property_list_of_str():
     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
 )
 def test_get_property_tuple_of_two_ints():
-    ie = Core()
-    param = ie.get_property("CPU", "RANGE_FOR_STREAMS")
+    core = Core()
+    param = core.get_property("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), (
         "Parameter value for 'RANGE_FOR_STREAMS' "
         f"metric must be tuple but {type(param)} is returned"
@@ -211,8 +211,8 @@ def test_get_property_tuple_of_two_ints():
     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
 )
 def test_get_property_tuple_of_three_ints():
-    ie = Core()
-    param = ie.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
+    core = Core()
+    param = core.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), (
         "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' "
         f"metric must be tuple but {type(param)} is returned"
@@ -228,8 +228,8 @@ def test_get_property_tuple_of_three_ints():
     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
 )
 def test_get_property_str():
-    ie = Core()
-    param = ie.get_property("CPU", "FULL_DEVICE_NAME")
+    core = Core()
+    param = core.get_property("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), (
         "Parameter value for 'FULL_DEVICE_NAME' "
         f"metric must be string but {type(param)} is returned"
@@ -237,9 +237,9 @@ def test_get_property_str():
 
 
 def test_query_model(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    query_res = ie.query_model(model=func, device_name=device)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    query_res = core.query_model(model=func, device_name=device)
     ops_func = func.get_ordered_ops()
     ops_func_names = [op.friendly_name for op in ops_func]
     assert [
@@ -251,26 +251,26 @@ def test_query_model(device):
 @pytest.mark.dynamic_library()
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
-    ie = Core()
-    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.compile_model(func, "BLA")
+    core = Core()
+    core.register_plugin("openvino_intel_cpu_plugin", "BLA")
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, "BLA")
     assert isinstance(exec_net, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
 @pytest.mark.dynamic_library()
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
-    ie = Core()
+    core = Core()
     if platform == "linux" or platform == "linux2":
-        ie.register_plugins(plugins_xml)
+        core.register_plugins(plugins_xml)
     elif platform == "darwin":
-        ie.register_plugins(plugins_osx_xml)
+        core.register_plugins(plugins_osx_xml)
     elif platform == "win32":
-        ie.register_plugins(plugins_win_xml)
+        core.register_plugins(plugins_win_xml)
 
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.compile_model(func, "CUSTOM")
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(func, "CUSTOM")
     assert isinstance(exec_net, CompiledModel), (
         "Cannot load the network to "
         "the registered plugin with name 'CUSTOM' "
@@ -280,11 +280,11 @@ def test_register_plugins():
 
 @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
 def test_unregister_plugin(device):
-    ie = Core()
-    ie.unload_plugin(device)
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    core.unload_plugin(device)
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
-        ie.load_network(func, device)
+        core.load_network(func, device)
     assert (
         f"Device with '{device}' name is not registered in the InferenceEngine"
         in str(e.value)
@@ -386,10 +386,10 @@ def test_read_model_from_buffer_no_weights(device):
 
 
 def test_infer_new_request_return_type(device):
-    ie = Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
-    exec_net = ie.compile_model(func, device)
+    exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
     arr = res[list(res)[0]][0]
 
