@@ -748,7 +748,7 @@ openvino/tools/mo/middle/FusedBatchNormNonConstant.py
 openvino/tools/mo/middle/FusedBatchNormTraining.py
 openvino/tools/mo/middle/FuseReshapesSequence.py
 openvino/tools/mo/middle/fusings.py
-openvino/tools/mo/middle/GatherNdNormalizer.py
+openvino/tools/mo/middle/GatherNDDecomposition.py
 openvino/tools/mo/middle/GroupNorm.py
 openvino/tools/mo/middle/GRURNNSequenceToTensorIterator.py
 openvino/tools/mo/middle/InputCut.py
