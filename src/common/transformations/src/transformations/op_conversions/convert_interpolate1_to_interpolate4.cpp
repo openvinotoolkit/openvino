@@ -44,20 +44,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         if (attrsV0.mode == "nearest") {
             attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::NEAREST;
         } else if (attrsV0.mode == "linear") {
-            // If we write only
-            //    attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::linear;
-            // instead of a conditional statements below when attrsV0.mode == "linear",
-            // then we have a performance drop, because CPU have no optimized
-            // version of the 'linear' mode.
-            // TODO: delete this conditional statement, when CPU will have
-            // optimized version of the 'linear' mode.
-            if (input_shape_rank < 5) {
-                attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::LINEAR_ONNX;
-            } else if (input_shape_rank == 5) {
-                attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::LINEAR;
-            } else {
-                return false;
-            }
+            attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::LINEAR;
         } else if (attrsV0.mode == "cubic") {
             attrsV4.mode = ov::opset4::Interpolate::InterpolateMode::CUBIC;
         } else if (attrsV0.mode == "linear_onnx") {

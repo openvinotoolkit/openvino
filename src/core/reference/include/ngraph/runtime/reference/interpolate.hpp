@@ -636,13 +636,7 @@ static op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialSha
     if (attrs_v0.mode == "nearest") {
         attrs_v4.mode = InterpolateMode::NEAREST;
     } else if (attrs_v0.mode == "linear") {
-        if (input_shape_rank < 5) {
-            attrs_v4.mode = InterpolateMode::LINEAR_ONNX;
-        } else if (input_shape_rank == 5) {
-            attrs_v4.mode = InterpolateMode::LINEAR;
-        } else {
-            OPENVINO_ASSERT(false, "Failed to process ", attrs_v0.mode);
-        }
+        attrs_v4.mode = InterpolateMode::LINEAR;
     } else if (attrs_v0.mode == "cubic") {
         attrs_v4.mode = InterpolateMode::CUBIC;
     } else if (attrs_v0.mode == "linear_onnx") {

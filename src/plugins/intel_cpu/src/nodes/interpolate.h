@@ -62,6 +62,9 @@ struct jit_interpolate_config_params {
     int indices_size;
     int spatial_dim_size;
     int C, ID, IH, IW, OD, OH, OW;
+
+    bool antialias;
+    std::vector<float> dataScales;
 };
 
 struct jit_interpolate_call_args {
@@ -148,6 +151,10 @@ private:
             virtual ~InterpolateExecutor() = default;
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
+        protected:
+           bool checkLinearMemcpy(const uint8_t *in_ptr_, uint8_t *out_ptr_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW, bool hasPostOps);
+
         private:
             void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
                             InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
@@ -191,6 +198,12 @@ private:
             void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
                 int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
             void NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+
+            // linear
+            void linearPlanar(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void linearCGathered(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_,
                 int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
             // onnx linear

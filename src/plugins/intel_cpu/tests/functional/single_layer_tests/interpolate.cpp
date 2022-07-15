@@ -706,6 +706,43 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCP
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+const auto interpolateCasesLinear5D_Smoke =
+    ::testing::Combine(::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear),
+                       ::testing::ValuesIn(coordinateTransformModes_Smoke),
+                       ::testing::ValuesIn(defNearestModes),
+                       ::testing::ValuesIn(antialias),
+                       ::testing::ValuesIn(pads5D),
+                       ::testing::ValuesIn(pads5D),
+                       ::testing::ValuesIn(cubeCoefs));
+const auto interpolateCasesLinear5D_Full =
+    ::testing::Combine(::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear),
+                       ::testing::ValuesIn(coordinateTransformModes_Full),
+                       ::testing::ValuesIn(defNearestModes),
+                       ::testing::ValuesIn(antialias),
+                       ::testing::ValuesIn(pads5D),
+                       ::testing::ValuesIn(pads5D),
+                       ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear5D_Layout_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateCasesLinear5D_Smoke,
+                                            ::testing::ValuesIn(shapeParams5D_Smoke),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice5D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateLinear5D_Layout_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateCasesLinear5D_Full,
+                                            ::testing::ValuesIn(shapeParams5D_Full),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice5D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
+
 const auto interpolateCasesNN5D_Smoke = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),
@@ -780,6 +817,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_corner_Layout_Test, InterpolateLayerC
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+const std::vector<ShapeParams> shapeParams5D_LinearAntialias = {
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 10, 10}, {2, 7, 6, 12, 20}, {1, 11, 4, 10, 10}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f, 0.2f, 0.25f}},
+        defaultAxes5D.front()
+    },
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, {2, 20}, -1, -1, -1}, {{1, 11, 4, 4, 4}, {1, 11, 5, 5, 8}, {1, 11, 4, 4, 4}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 11, 5, 6, 2}},
+        defaultAxes5D.front()}
+};
+
+const std::vector<bool> antialiasLinear = {
+    true,
+    false,
+};
+
+const auto interpolateLinearAntialiasCases =
+    ::testing::Combine(::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear),
+                       ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC),
+                       ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+                       ::testing::ValuesIn(antialiasLinear),
+                       ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+                       ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+                       ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(InterpolateLinear_antialias_Layout_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateLinearAntialiasCases,
+                                            ::testing::ValuesIn(shapeParams5D_LinearAntialias),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice5D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
 

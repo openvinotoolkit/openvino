@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,26 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+    inline int getBlockSize(bool isAVX512 = mayiuse(cpu::x64::avx512_core)) {
+        return isAVX512 ? 16 : 8;
+    }
+
+    inline int getBlockSize(cpu_isa_t isa) {
+        return getBlockSize(isa == cpu::x64::avx512_core);
+    }
+
+    inline int getLinearDia(float scale, bool antialias) {
+        return antialias ? static_cast<int>(std::ceil(2 / scale)) : 2;
+    }
+
+    inline void getLinearParameters(const std::vector<float>& dataScales, bool antialias, int& diaOD, int& diaOH, int& diaOW) {
+        size_t dimSize = dataScales.size();
+
+        diaOD = getLinearDia(dimSize == 5 ? dataScales[dimSize - 3] : 1.f, antialias);
+        diaOH = getLinearDia(dataScales[dimSize - 2], antialias);
+        diaOW = getLinearDia(dataScales[dimSize - 1], antialias);
+    }
 
 template <cpu_isa_t isa>
 struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
@@ -117,6 +137,25 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 }
                 break;
             }
+        case InterpolateMode::linear: {
+            mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+            mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
+
+            switch (jcp_.layout) {
+            case InterpolateLayoutType::planar: {
+                linear_planar();
+                break;
+            }
+            case InterpolateLayoutType::block:
+            case InterpolateLayoutType::by_channel: {
+                linear_c_gathered();
+                break;
+            }
+            default:
+                assert(!"unsupported memory layout for interpolate layer with linear_onnx mode.");
+            }
+            break;
+        }
             case InterpolateMode::linear_onnx: {
                 switch (jcp_.layout) {
                     case InterpolateLayoutType::planar: {
@@ -149,10 +188,6 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 }
                 break;
             }
-            case InterpolateMode::linear: {
-                assert(!"unsupported mode for interpolate layer with JITTED implimentation.");
-                break;
-            }
             default: {
                 assert(!"unsupported mode for interpolate layer.");
             }
@@ -163,6 +198,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         emit_emitters_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
+        if (jcp_.mode == InterpolateMode::linear && jcp_.layout != InterpolateLayoutType::planar) {
+            prepare_linear_vperm_constant();
+        }
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
             prepare_cubic_planar_table();
         }
@@ -209,6 +247,43 @@ private:
     Vmm vmm_d_bias = Vmm(5);
 
     // for linear
+    Xbyak::Reg64 reg_weight_od = reg_src_aux;
+    Xbyak::Reg64 reg_weight_oh = reg_src_aux1;
+    Xbyak::Reg64 reg_weight_ow = reg_src_aux2;
+    Xbyak::Reg64 aux_reg_weight_od = reg_work_amount;
+    Xbyak::Reg64 aux_reg_weight_oh = reg_tbl_y;
+    Xbyak::Reg64 aux_reg_weight_ow = reg_tbl_x;
+    Xbyak::Reg32 reg_index_od = edi;
+    Xbyak::Reg32 reg_index_oh = ecx;
+    Xbyak::Reg32 reg_index_ow = edx;
+
+    // already defined for cubic
+    // Vmm vmm_src = Vmm(6);
+    Vmm vmm_tmp = Vmm(6);
+    Vmm vmm_indexD = Vmm(7);
+    Vmm vmm_indexDH = Vmm(8);
+    Vmm vmm_weightsD = vmm_d_weights;
+    Vmm vmm_weightsDH = vmm_d_bias;
+    Vmm vmm_weights = Vmm(9);
+    Vmm vmm_weights_sum = Vmm(10);
+
+    // for linear (blocked, by channel)
+    Vmm vmm_index_saved_1 = vmm_index;
+    Vmm vmm_index_saved_2 = vmm_indexD;
+    Vmm vmm_weights_saved_1 = vmm_indexDH;
+    Vmm vmm_weights_saved_2 = Vmm(11);
+    Vmm vmm_invalid_weights = Vmm(12);
+    Xmm xmm_invalid_weights = Xmm(vmm_invalid_weights.getIdx());
+    Vmm vmm_vperm_indices_l = Vmm(13);
+    Vmm vmm_vperm_indices_r = Vmm(14);
+    Vmm vmm_zero_const = Vmm(15);
+    Xmm xmm_zero_const = Xmm(vmm_zero_const.getIdx());
+
+    Xbyak::Label l_invalid_weight;
+    Xbyak::Label l_vperm_constant_l;
+    Xbyak::Label l_vperm_constant_r;
+
+    // for linear_onnx
     Vmm vmm_weightT = Vmm(15);
     Vmm vmm_weightB = Vmm(14);
     Vmm vmm_weightL = Vmm(13);
@@ -498,6 +573,886 @@ private:
         L(out_loop_end);
     }
 
+    inline void copy_input_to_output() {
+        int blk_size = getBlockSize(isa);
+        int input_size = jcp_.IW * jcp_.IH;
+
+        switch (jcp_.layout) {
+        case InterpolateLayoutType::planar:
+            input_size *= jcp_.ID;
+            break;
+        case InterpolateLayoutType::block:
+            input_size *= blk_size;
+            break;
+        case InterpolateLayoutType::by_channel:
+            input_size *= jcp_.C;
+            break;
+        default:
+            return;
+        }
+
+        mov(reg_src_aux, reg_src);
+        add(reg_src_aux, (input_size - vector_step) * jcp_.src_data_size);
+
+        Xbyak::Label copy_loop_label;
+        Xbyak::Label copy_loop_end;
+
+        L(copy_loop_label);
+        {
+            cmp(reg_src, reg_src_aux);
+            jg(copy_loop_end, T_NEAR);
+
+            load(reg_src, vmm_val, vector_step);
+            if (attr_.post_ops_.len() != 0)
+                apply_post_ops(jcp_.dst_prc, 1);
+            store(vmm_val, reg_dst, vector_step);
+
+            add(reg_src, vector_step * jcp_.src_data_size);
+            add(reg_dst, vector_step * jcp_.dst_data_size);
+
+            jmp(copy_loop_label, T_NEAR);
+        }
+        L(copy_loop_end);
+
+        int remaining_bytes = input_size % vector_step;
+        load(reg_src, vmm_val, remaining_bytes);
+        if (attr_.post_ops_.len() != 0)
+            apply_post_ops(jcp_.dst_prc, 1);
+        store(vmm_val, reg_dst, remaining_bytes);
+    }
+
+    inline void linear_divide_and_store(int step) {
+        if (step > 1) {
+            uni_vdivps(vmm_val, vmm_val, vmm_weights_sum);
+            if (isa == cpu::x64::avx512_core) {
+                vcmpps(k_mask, vmm_val, vmm_val, 0);
+                vmovups(vmm_val | k_mask, vmm_val);
+            } else {
+                uni_vcmpps(vmm_mask, vmm_val, vmm_val, 0);
+                uni_vandps(vmm_val, vmm_val, vmm_mask);
+            }
+        } else {
+            Xbyak::Xmm xmm_weights_sum = Xbyak::Xmm(vmm_weights_sum.getIdx());
+            Xbyak::Xmm xmm_mask = Xbyak::Xmm(vmm_mask.getIdx());
+            Xbyak::Xmm xmm_val = Xbyak::Xmm(vmm_val.getIdx());
+
+            uni_vdivss(xmm_val, xmm_val, xmm_weights_sum);
+            if (isa == cpu::x64::avx512_core) {
+                vcmpss(k_mask, xmm_mask, xmm_val, 0);
+                vmovups(xmm_val | k_mask, xmm_val);
+            } else {
+                uni_vcmpps(xmm_mask, xmm_val, xmm_val, 0);
+                uni_vandps(xmm_val, xmm_val, xmm_mask);
+            }
+        }
+
+        if (attr_.post_ops_.len() != 0)
+            apply_post_ops(jcp_.dst_prc, 1);
+        store(vmm_val, reg_dst, step);
+        add(reg_dst, step * jcp_.dst_data_size);
+    }
+
+    inline void linear_planar_scalar_1sp(int sizeOW, int indexOffset) {
+        Xbyak::Label loop_ix_label;
+        Xbyak::Label loop_ix_end;
+        Xbyak::Label skip_loop_ix;
+
+        mov(aux_reg_weight_ow, reg_weight_ow);
+        add(reg_weight_ow, sizeOW * sizeof(float));
+
+        L(loop_ix_label);
+        {
+            Xbyak::Xmm xmm_weights_sum = Xbyak::Xmm(vmm_weights_sum.getIdx());
+            Xbyak::Xmm xmm_weightsDH = Xbyak::Xmm(vmm_weightsDH.getIdx());
+            Xbyak::Xmm xmm_weights = Xbyak::Xmm(vmm_weights.getIdx());
+            Xbyak::Xmm xmm_index = Xbyak::Xmm(vmm_index.getIdx());
+            Xbyak::Xmm xmm_src = Xbyak::Xmm(vmm_src.getIdx());
+
+            cmp(aux_reg_weight_ow, reg_weight_ow);
+            jge(loop_ix_end, T_NEAR);
+            
+            if (jcp_.spatial_dim_size > 1) {
+                uni_vmulss(xmm_weights, xmm_weightsDH, ptr[aux_reg_weight_ow]);
+            } else {
+                uni_vmovd(xmm_weights, ptr[aux_reg_weight_ow]);
+            }
+            vucomiss(xmm_weights, xmm_zero_const);
+            je(skip_loop_ix, T_NEAR);
+           
+            uni_vaddss(xmm_weights_sum, xmm_weights_sum, xmm_weights);
+
+            mov(reg_index_ow, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
+            if (jcp_.spatial_dim_size > 1) {
+                add(reg_index_ow, reg_index_oh);
+            }
+            
+            uni_vmovd(xmm_src, ptr[reg_src + reg_index_ow.cvt64() * sizeof(float)]);
+
+            uni_vfmadd231ss(vmm_val, vmm_src, vmm_weights);
+
+            L(skip_loop_ix);
+
+            add(aux_reg_weight_ow, jcp_.OW * sizeof(float));
+
+            jmp(loop_ix_label, T_NEAR);
+        }
+        L(loop_ix_end);
+
+        sub(reg_weight_ow, sizeOW * sizeof(float));
+    }
+
+    inline void linear_planar_scalar_2sp(int sizeOH, int sizeOW, int indexOffset) {
+        Xbyak::Label loop_iy_label;
+        Xbyak::Label loop_iy_end;
+        Xbyak::Label skip_loop_iy;
+
+        mov(aux_reg_weight_oh, reg_weight_oh);
+        add(reg_weight_oh, sizeOH * sizeof(float));
+
+        L(loop_iy_label);
+        {
+            Xbyak::Xmm xmm_weightsDH = Xbyak::Xmm(vmm_weightsDH.getIdx());
+            Xbyak::Xmm xmm_weightsD = Xbyak::Xmm(vmm_weightsD.getIdx());
+
+            cmp(aux_reg_weight_oh, reg_weight_oh);
+            jge(loop_iy_end, T_NEAR);
+
+            mov(reg_index_oh, ptr[aux_reg_weight_oh + indexOffset * sizeof(float)]);
+            if (jcp_.spatial_dim_size > 2) {
+                uni_vmulss(xmm_weightsDH, xmm_weightsD, ptr[aux_reg_weight_oh]);
+                add(reg_index_oh, reg_index_od);
+            } else {
+                uni_vmovd(xmm_weightsDH, ptr[aux_reg_weight_oh]);
+            }
+            vucomiss(xmm_weightsDH, xmm_zero_const);
+            je(skip_loop_iy, T_NEAR);
+
+            linear_planar_scalar_1sp(sizeOW, indexOffset);
+
+            L(skip_loop_iy);
+
+            add(aux_reg_weight_oh, jcp_.OH * sizeof(float));
+            jmp(loop_iy_label, T_NEAR);
+        }
+        L(loop_iy_end);
+
+        sub(reg_weight_oh, sizeOH * sizeof(float));
+    }
+
+    inline void linear_planar_scalar_3sp(int sizeOD, int sizeOH, int sizeOW, int indexOffset) {
+        Xbyak::Label loop_iz_label;
+        Xbyak::Label loop_iz_end;
+        Xbyak::Label skip_loop_iz;
+
+        mov(aux_reg_weight_od, reg_weight_od);
+        add(reg_weight_od, sizeOD * sizeof(float));
+
+        L(loop_iz_label);
+        {
+            Xbyak::Xmm xmm_weightsD = Xbyak::Xmm(vmm_weightsD.getIdx());
+
+            cmp(aux_reg_weight_od, reg_weight_od);
+            jge(loop_iz_end, T_NEAR);
+
+            uni_vmovd(xmm_weightsD, ptr[aux_reg_weight_od]);
+            vucomiss(xmm_weightsD, xmm_zero_const);
+            je(skip_loop_iz, T_NEAR);
+
+            mov(reg_index_od, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
+            linear_planar_scalar_2sp(sizeOH, sizeOW, indexOffset);
+
+            L(skip_loop_iz);
+
+            add(aux_reg_weight_od, jcp_.OD * sizeof(float));
+            jmp(loop_iz_label, T_NEAR);
+        }
+        L(loop_iz_end);
+
+        sub(reg_weight_od, sizeOD * sizeof(float));
+    }
+
+    inline void linear_planar_scalar(int sizeOD, int sizeOH, int sizeOW) {
+        int indexOffset = sizeOD + sizeOH + sizeOW;
+
+        if (jcp_.spatial_dim_size > 2) {
+            linear_planar_scalar_3sp(sizeOD, sizeOH, sizeOW, indexOffset);
+        } else if (jcp_.spatial_dim_size > 1) {
+            linear_planar_scalar_2sp(sizeOH, sizeOW, indexOffset);
+        } else {
+            linear_planar_scalar_1sp(sizeOW, indexOffset);
+        }
+    }
+
+    inline void linear_planar_vector_1sp(int sizeOW, int indexOffset, int step) {
+        Xbyak::Label loop_ix_label;
+        Xbyak::Label loop_ix_end;
+        Xbyak::Label skip_loop_ix;
+
+        mov(aux_reg_weight_ow, reg_weight_ow);
+        add(reg_weight_ow, sizeOW * sizeof(float));
+
+        L(loop_ix_label);
+        {
+            cmp(aux_reg_weight_ow, reg_weight_ow);
+            jge(loop_ix_end, T_NEAR);
+
+            if (jcp_.spatial_dim_size > 1) {
+                uni_vmulps(vmm_weights, vmm_weightsDH, ptr[aux_reg_weight_ow]);
+                uni_vpaddd(vmm_index, vmm_indexDH, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
+            } else {
+                uni_vmovups(vmm_weights, ptr[aux_reg_weight_ow]);
+                uni_vmovdqu(vmm_index, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
+            }
+            uni_vaddps(vmm_weights_sum, vmm_weights_sum, vmm_weights);
+
+            vcmpneqps(vmm_mask, vmm_weights, vmm_zero_const);
+            vgatherdps(vmm_src, ptr[reg_src + vmm_index * sizeof(float)], vmm_mask);
+
+            uni_vfmadd231ps(vmm_val, vmm_src, vmm_weights);
+
+            add(aux_reg_weight_ow, jcp_.OW * sizeof(float));
+
+            jmp(loop_ix_label, T_NEAR);
+        }
+        L(loop_ix_end);
+
+        sub(reg_weight_ow, sizeOW * sizeof(float));
+    }
+
+    inline void linear_planar_vector_2sp(int sizeOH, int sizeOW, int indexOffset, int step) {
+        Xbyak::Label loop_iy_label;
+        Xbyak::Label loop_iy_end;
+        Xbyak::Label skip_loop_iy;
+
+        mov(aux_reg_weight_oh, reg_weight_oh);
+        add(reg_weight_oh, sizeOH * sizeof(float));
+
+        L(loop_iy_label);
+        {
+            Xbyak::Xmm xmm_weightsDH = Xbyak::Xmm(vmm_weightsDH.getIdx());
+
+            cmp(aux_reg_weight_oh, reg_weight_oh);
+            jge(loop_iy_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weightsDH, ptr[aux_reg_weight_oh]);
+            vucomiss(xmm_weightsDH, xmm_zero_const);
+            je(skip_loop_iy, T_NEAR);
+
+            uni_vpbroadcastd(vmm_indexDH, ptr[aux_reg_weight_oh + indexOffset * sizeof(float)]);
+            if (jcp_.spatial_dim_size > 2) {
+                uni_vmulps(vmm_weightsDH, vmm_weightsDH, vmm_weightsD);
+                uni_vpaddd(vmm_indexDH, vmm_indexDH, vmm_indexD);
+            }
+            
+            linear_planar_vector_1sp(sizeOW, indexOffset, step);
+            
+            L(skip_loop_iy);
+
+            add(aux_reg_weight_oh, jcp_.OH * sizeof(float));
+            jmp(loop_iy_label, T_NEAR);
+        }
+        L(loop_iy_end);
+
+        sub(reg_weight_oh, sizeOH * sizeof(float));
+    }
+
+    inline void linear_planar_vector_3sp(int sizeOD, int sizeOH, int sizeOW, int indexOffset, int step) {
+        Xbyak::Label loop_iz_label;
+        Xbyak::Label loop_iz_end;
+        Xbyak::Label skip_loop_iz;
+
+        mov(aux_reg_weight_od, reg_weight_od);
+        add(reg_weight_od, sizeOD * sizeof(float));
+
+        L(loop_iz_label);
+        {
+            Xbyak::Xmm xmm_weightsD = Xbyak::Xmm(vmm_weightsD.getIdx());
+
+            cmp(aux_reg_weight_od, reg_weight_od);
+            jge(loop_iz_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weightsD, ptr[aux_reg_weight_od]);
+            vucomiss(xmm_weightsD, xmm_zero_const);
+            je(skip_loop_iz, T_NEAR);
+
+            uni_vpbroadcastd(vmm_indexD, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
+
+            linear_planar_vector_2sp(sizeOH, sizeOW, indexOffset, step);
+
+            L(skip_loop_iz);
+
+            add(aux_reg_weight_od, jcp_.OD * sizeof(float));
+            jmp(loop_iz_label, T_NEAR);
+        }
+        L(loop_iz_end);
+
+        sub(reg_weight_od, sizeOD * sizeof(float));
+    }
+
+    inline void linear_planar_vector(int sizeOD, int sizeOH, int sizeOW, int step) {
+        int indexOffset = sizeOD + sizeOH + sizeOW;
+        
+        if (jcp_.spatial_dim_size > 2) {
+            linear_planar_vector_3sp(sizeOD, sizeOH, sizeOW, indexOffset, step);
+        } else if (jcp_.spatial_dim_size > 1) {
+            linear_planar_vector_2sp(sizeOH, sizeOW, indexOffset, step);
+        } else {
+            linear_planar_vector_1sp(sizeOW, indexOffset, step);
+        }
+    }
+
+    inline void linear_planar_inner(int sizeOD, int sizeOH, int sizeOW, int step) {
+        Xbyak::Label loop_ox_label;
+        Xbyak::Label loop_ox_end;
+
+        L(loop_ox_label);
+        {
+            cmp(reg_weight_ow, reg_index);
+            jg(loop_ox_end, T_NEAR);
+
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+            uni_vpxor(vmm_weights_sum, vmm_weights_sum, vmm_weights_sum);
+
+            if (step == scalar_step) {
+                linear_planar_scalar(sizeOD, sizeOH, sizeOW);
+            } else {
+                linear_planar_vector(sizeOD, sizeOH, sizeOW, step);
+            }
+
+            linear_divide_and_store(step);
+
+            add(reg_weight_ow, step * sizeof(float));
+            jmp(loop_ox_label, T_NEAR);
+        }
+        L(loop_ox_end);
+    }
+
+    void linear_planar() {
+        if (jcp_.IW == jcp_.OW && jcp_.IH == jcp_.OH && jcp_.ID == jcp_.OD) {
+            copy_input_to_output();
+            return;
+        }
+
+        int diaOD, diaOH, diaOW;
+        getLinearParameters(jcp_.dataScales, jcp_.antialias, diaOD, diaOH, diaOW);
+
+        int sizeOD = jcp_.OD * diaOD;
+        int sizeOH = jcp_.OH * diaOH;
+        int sizeOW = jcp_.OW * diaOW;
+
+        Xbyak::Label loop_oz_label;
+        Xbyak::Label loop_oz_end;
+        Xbyak::Label loop_oy_label;
+        Xbyak::Label loop_oy_end;
+
+        uni_vpxor(vmm_zero_const, vmm_zero_const, vmm_zero_const);
+
+        mov(reg_index, ptr[reg_params + GET_OFF(weight_ptr[0])]);
+        if (jcp_.spatial_dim_size > 2) {
+            mov(reg_weight_od, reg_index);
+        }
+
+        mov(reg_weight_oh, reg_index);
+        add(reg_weight_oh, sizeOD * sizeof(float));
+
+        mov(reg_weight_ow, reg_weight_oh);
+        add(reg_weight_ow, sizeOH * sizeof(float));
+        
+        add(reg_index, jcp_.OD * sizeof(float));
+        L(loop_oz_label);
+        {
+            if (jcp_.spatial_dim_size > 2) {
+                cmp(reg_weight_od, reg_index);
+                jge(loop_oz_end, T_NEAR);
+            }
+
+            add(reg_index, (sizeOD - jcp_.OD + jcp_.OH) * sizeof(float));
+
+            L(loop_oy_label);
+            {
+                if (jcp_.spatial_dim_size > 1) {
+                    cmp(reg_weight_oh, reg_index);
+                    jge(loop_oy_end, T_NEAR);
+                }
+                
+                add(reg_index, (sizeOH - jcp_.OH + jcp_.OW - vector_step) * sizeof(float));
+                linear_planar_inner(sizeOD, sizeOH, sizeOW, vector_step);
+
+                add(reg_index, (vector_step - scalar_step) * sizeof(float));
+
+                linear_planar_inner(sizeOD, sizeOH, sizeOW, scalar_step);
+                sub(reg_index, (jcp_.OW - scalar_step) * sizeof(float));
+                mov(reg_weight_ow, reg_index);
+                sub(reg_index, (sizeOH - jcp_.OH) * sizeof(float));
+                
+                if (jcp_.spatial_dim_size > 1) {
+                    add(reg_weight_oh, sizeof(float));
+                    jmp(loop_oy_label, T_NEAR);
+                }
+            }
+            L(loop_oy_end);
+
+            if (jcp_.spatial_dim_size > 2) {
+                sub(reg_index, jcp_.OH * sizeof(float));
+                mov(reg_weight_oh, reg_index);
+
+                sub(reg_index, (sizeOD - jcp_.OD) * sizeof(float));
+                add(reg_weight_od, sizeof(float));
+
+                jmp(loop_oz_label, T_NEAR);
+            }
+        }
+        L(loop_oz_end);
+    }
+
+    inline void rotate_float(Vmm vmm_reg, bool is_left)
+    {
+        uint8_t shufpd_imm = is_left ? 0b10010011 : 0b00111001;
+        Vmm vmm_indices = is_left ? vmm_vperm_indices_l : vmm_vperm_indices_r;
+
+        if (isa == cpu::x64::sse41) {
+            uni_vshufps(vmm_reg, vmm_reg, vmm_reg, shufpd_imm);
+        } else if (isa == cpu::x64::avx2) {
+            Xbyak::Ymm ymm_reg = Xbyak::Ymm(vmm_reg.getIdx());
+            Xbyak::Ymm ymm_indices = Xbyak::Ymm(vmm_indices.getIdx());
+
+            vpermps(ymm_reg, ymm_indices, ymm_reg);
+        } else {
+            Xbyak::Zmm zmm_reg = Xbyak::Zmm(vmm_reg.getIdx());
+            Xbyak::Zmm zmm_indices = Xbyak::Zmm(vmm_indices.getIdx());
+
+            vpermps(zmm_reg, zmm_indices, zmm_reg);
+        }
+    }
+
+    inline void rotate_int(Vmm vmm_reg, bool is_left)
+    {
+        uint8_t shufpd_imm = is_left ? 0b10010011 : 0b00111001;
+        Vmm vmm_indices = is_left ? vmm_vperm_indices_l : vmm_vperm_indices_r;
+
+        if (isa == cpu::x64::sse41) {
+            uni_vpshufd(vmm_reg, vmm_reg, shufpd_imm);
+        } else if (isa == cpu::x64::avx2) {
+            Xbyak::Ymm ymm_reg = Xbyak::Ymm(vmm_reg.getIdx());
+            Xbyak::Ymm ymm_indices = Xbyak::Ymm(vmm_indices.getIdx());
+
+            vpermd(ymm_reg, ymm_indices, ymm_reg);
+        } else {
+            Xbyak::Zmm zmm_reg = Xbyak::Zmm(vmm_reg.getIdx());
+            Xbyak::Zmm zmm_indices = Xbyak::Zmm(vmm_indices.getIdx());
+
+            vpermd(zmm_reg, zmm_indices, zmm_reg);
+        }
+    }
+
+    inline void linear_c_gathered_1sp(int diaOW, int indexOffset, int step, bool save_weights) {
+        Xbyak::Label loop_ix_label;
+        Xbyak::Label loop_ix_end;
+        Xbyak::Label skip_loop_ix;
+
+        mov(aux_reg_weight_ow, reg_weight_ow);
+        add(reg_weight_ow, diaOW * sizeof(float));
+
+        L(loop_ix_label);
+        {
+            Xbyak::Xmm xmm_weights = Xbyak::Xmm(vmm_weights.getIdx());
+
+            cmp(aux_reg_weight_ow, reg_weight_ow);
+            jge(loop_ix_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weights, ptr[aux_reg_weight_ow]);
+            vucomiss(xmm_weights, xmm_zero_const);
+            je(skip_loop_ix, T_NEAR);
+
+            mov(reg_index_ow, ptr[aux_reg_weight_ow + indexOffset * sizeof(float)]);
+            if (jcp_.spatial_dim_size > 1) {
+                uni_vmulps(vmm_weights, vmm_weights, vmm_weightsDH);
+                add(reg_index_ow, reg_index_oh);
+            }
+            uni_vaddps(vmm_weights_sum, vmm_weights_sum, vmm_weights);
+
+            int blkSize = getBlockSize(isa);
+            int stride = (jcp_.layout == InterpolateLayoutType::by_channel ? jcp_.C : blkSize) * jcp_.src_data_size;
+
+            Xbyak::Reg64 reg_index_ow_64 = reg_index_ow.cvt64();
+            imul(reg_index_ow_64, reg_index_ow_64, stride);
+
+            if (save_weights) {
+                Xbyak::Xmm xmm_tmp = Xbyak::Xmm(vmm_tmp.getIdx());
+
+                if (isa == cpu::x64::sse41) {
+                    Xbyak::Label skip_reg_save;
+                    Xbyak::Xmm xmm_weights_saved_1 = Xbyak::Xmm(vmm_weights_saved_1.getIdx());
+
+                    vucomiss(xmm_weights_saved_1, xmm_invalid_weights);
+                    je(skip_reg_save, T_NEAR);
+
+                    uni_vmovdqu(vmm_index_saved_2, vmm_index_saved_1);
+                    uni_vmovdqu(vmm_weights_saved_2, vmm_weights_saved_1);
+                    uni_vmovdqu(vmm_weights_saved_1, vmm_invalid_weights);
+
+                    L(skip_reg_save);
+                }
+
+                vmovd(xmm_tmp, reg_index_ow);
+                if (isa == cpu::x64::avx512_core) {
+                    mov(reg_tmp_32, 1);
+                    kmovw(k_mask, reg_tmp_32);
+
+                    vpblendmd(vmm_index_saved_1 | k_mask, vmm_index_saved_1, vmm_tmp);
+                    vblendmps(vmm_weights_saved_1 | k_mask, vmm_weights_saved_1, vmm_weights);
+                } else {
+                    vpblendd(vmm_index_saved_1, vmm_index_saved_1, vmm_tmp, 1);
+                    uni_vblendps(vmm_weights_saved_1, vmm_weights_saved_1, vmm_weights, 1);
+                }
+
+                rotate_int(vmm_index_saved_1, false);
+                rotate_float(vmm_weights_saved_1, false);
+            }
+
+            add(reg_index_ow_64, reg_src);
+
+            load(reg_index_ow_64, vmm_src, step);
+            uni_vfmadd231ps(vmm_val, vmm_src, vmm_weights);
+
+            L(skip_loop_ix);
+
+            add(aux_reg_weight_ow, sizeof(float));
+
+            jmp(loop_ix_label, T_NEAR);
+        }
+        L(loop_ix_end);
+
+        sub(reg_weight_ow, diaOW * sizeof(float));
+    }
+
+    inline void linear_c_gathered_2sp(int diaOH, int diaOW, int indexOffset, int step, bool save_weights) {
+        Xbyak::Label loop_iy_label;
+        Xbyak::Label loop_iy_end;
+        Xbyak::Label skip_loop_iy;
+
+        mov(aux_reg_weight_oh, reg_weight_oh);
+        add(reg_weight_oh, diaOH * sizeof(float));
+
+        L(loop_iy_label);
+        {
+            Xbyak::Xmm xmm_weightsDH = Xbyak::Xmm(vmm_weightsDH.getIdx());
+
+            cmp(aux_reg_weight_oh, reg_weight_oh);
+            jge(loop_iy_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weightsDH, ptr[aux_reg_weight_oh]);
+            vucomiss(xmm_weightsDH, xmm_zero_const);
+            je(skip_loop_iy, T_NEAR);
+
+            mov(reg_index_oh, ptr[aux_reg_weight_oh + indexOffset * sizeof(float)]);
+            if (jcp_.spatial_dim_size > 2) {
+                uni_vmulps(vmm_weightsDH, vmm_weightsDH, vmm_weightsD);
+                add(reg_index_oh, reg_index_od);
+            }
+
+            linear_c_gathered_1sp(diaOW, indexOffset, step, save_weights);
+
+            L(skip_loop_iy);
+
+            add(aux_reg_weight_oh, sizeof(float));
+            jmp(loop_iy_label, T_NEAR);
+        }
+        L(loop_iy_end);
+
+        sub(reg_weight_oh, diaOH * sizeof(float));
+    }
+
+    inline void linear_c_gathered_3sp(int diaOD, int diaOH, int diaOW, int indexOffset, int step, bool save_weights) {
+        Xbyak::Label loop_iz_label;
+        Xbyak::Label loop_iz_end;
+        Xbyak::Label skip_loop_iz;
+
+        mov(aux_reg_weight_od, reg_weight_od);
+        add(reg_weight_od, diaOD * sizeof(float));
+
+        L(loop_iz_label);
+        {
+            Xbyak::Xmm xmm_weightsD = Xbyak::Xmm(vmm_weightsD.getIdx());
+
+            cmp(aux_reg_weight_od, reg_weight_od);
+            jge(loop_iz_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weightsD, ptr[aux_reg_weight_od]);
+            vucomiss(xmm_weightsD, xmm_zero_const);
+            je(skip_loop_iz, T_NEAR);
+
+            mov(reg_index_od, ptr[aux_reg_weight_od + indexOffset * sizeof(float)]);
+            linear_c_gathered_2sp(diaOH, diaOW, indexOffset, step, save_weights);
+
+            L(skip_loop_iz);
+
+            add(aux_reg_weight_od, sizeof(float));
+            jmp(loop_iz_label, T_NEAR);
+        }
+        L(loop_iz_end);
+
+        sub(reg_weight_od, diaOD * sizeof(float));
+    }
+
+    inline void linear_c_gathered_block_next(int diaOD, int diaOH, int diaOW, int step, bool save_weights) {
+        if (save_weights) {
+            linear_c_gathered_block_fast(step, false);
+            if (isa == cpu::x64::sse41) {
+                linear_c_gathered_block_fast(step, true);
+            }
+        } else {
+            linear_c_gathered_block(diaOD, diaOH, diaOW, step, false);
+        }
+    }
+
+    inline void linear_c_gathered_block(int diaOD, int diaOH, int diaOW, int step, bool save_weights) {
+        int indexOffset = diaOD * jcp_.OD + diaOH * jcp_.OH + diaOW * jcp_.OW;
+
+        uni_vpxor(vmm_val, vmm_val, vmm_val);
+        uni_vpxor(vmm_weights_sum, vmm_weights_sum, vmm_weights_sum);
+        if (save_weights) {
+            uni_vmovdqu(vmm_weights_saved_1, vmm_invalid_weights);
+            if (isa == cpu::x64::sse41) {
+                uni_vmovdqu(vmm_weights_saved_2, vmm_invalid_weights);
+            }
+        }
+
+        if (jcp_.spatial_dim_size > 2) {
+            linear_c_gathered_3sp(diaOD, diaOH, diaOW, indexOffset, step, save_weights);
+        } else if (jcp_.spatial_dim_size > 1) {
+            linear_c_gathered_2sp(diaOH, diaOW, indexOffset, step, save_weights);
+        } else {
+            linear_c_gathered_1sp(diaOW, indexOffset, step, save_weights);
+        }
+
+        linear_divide_and_store(step);
+    }
+
+    inline void linear_c_gathered_block_fast(int step, bool use_second_reg) {
+        Vmm vmm_index_saved = use_second_reg ? vmm_index_saved_2 : vmm_index_saved_1;
+        Vmm vmm_weights_saved = use_second_reg ? vmm_weights_saved_2 : vmm_weights_saved_1;
+        Vmm vmm_index_orig = vmm_weightsD;
+        Vmm vmm_weights_orig = vmm_weightsDH;
+        Xbyak::Reg32 reg_counter = reg_index_oh;
+        Xbyak::Label main_loop_label;
+        Xbyak::Label main_loop_end;
+
+        uni_vmovdqu(vmm_index_orig, vmm_index_saved);
+        uni_vmovdqu(vmm_weights_orig, vmm_weights_saved);
+        if (!use_second_reg) {
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+        }
+        mov(reg_counter, vector_step);
+
+        L(main_loop_label);
+        {
+            Xbyak::Xmm xmm_weights_saved = Xbyak::Xmm(vmm_weights_saved.getIdx());
+            Xbyak::Xmm xmm_index_saved = Xbyak::Xmm(vmm_index_saved.getIdx());
+
+            rotate_float(vmm_weights_saved, true);
+            vucomiss(xmm_weights_saved, xmm_invalid_weights);
+            je(main_loop_end, T_NEAR);
+
+            uni_vbroadcastss(vmm_weights, xmm_weights_saved);
+
+            rotate_int(vmm_index_saved, true);
+            uni_vmovd(reg_index_ow, xmm_index_saved);
+
+            Xbyak::Reg64 reg_index_ow_64 = reg_index_ow.cvt64();
+            add(reg_index_ow_64, reg_src);
+
+            load(reg_index_ow_64, vmm_src, step);
+            uni_vfmadd231ps(vmm_val, vmm_src, vmm_weights);
+
+            dec(reg_counter);
+            jnz(main_loop_label, T_NEAR);
+        }
+        L(main_loop_end);
+
+        uni_vmovdqu(vmm_index_saved, vmm_index_orig);
+        uni_vmovdqu(vmm_weights_saved, vmm_weights_orig);
+
+        if (isa != cpu::x64::sse41 || use_second_reg) {
+            linear_divide_and_store(step);
+        }
+    }
+
+    void linear_by_channel_inner(int diaOD, int diaOH, int diaOW, bool save_weights) {
+        int oc_off_max = jcp_.C > vector_step ? (jcp_.C - vector_step) * sizeof(float) : 0;
+
+        if (jcp_.C > vector_step) {
+            Xbyak::Label loop_c_label;
+            Xbyak::Label loop_c_end;
+
+            xor_(reg_oc_off, reg_oc_off);
+            linear_c_gathered_block(diaOD, diaOH, diaOW, vector_step, save_weights);
+            add(reg_src, vector_step * jcp_.src_data_size);
+            add(reg_oc_off, vector_step * sizeof(float));
+
+            L(loop_c_label);
+            {
+                cmp(reg_oc_off, oc_off_max);
+                jg(loop_c_end, T_NEAR);
+
+                linear_c_gathered_block_next(diaOD, diaOH, diaOW, vector_step, save_weights);
+
+                add(reg_src, vector_step * jcp_.src_data_size);
+                add(reg_oc_off, vector_step * sizeof(float));
+                jmp(loop_c_label, T_NEAR);
+            }
+            L(loop_c_end);
+        }
+
+        if (tail_step != 0) {
+            linear_c_gathered_block_next(diaOD, diaOH, diaOW, tail_step, save_weights);
+        }
+        if (jcp_.C > vector_step) {
+            int src_diff = rnd_up(jcp_.C - vector_step + 1, vector_step);
+            sub(reg_src, src_diff * jcp_.src_data_size);
+        }
+    }
+
+    void linear_gathered_inner(int diaOD, int diaOH, int diaOW, bool save_weights) {
+        int blk_size = getBlockSize(isa);
+        int oc_off_max = (blk_size * div_up(jcp_.C, blk_size) - vector_step) * sizeof(float);
+
+        xor_(reg_oc_off, reg_oc_off);
+        linear_c_gathered_block(diaOD, diaOH, diaOW, vector_step, save_weights);
+
+        if (isa == cpu::x64::sse41) {
+            mov(reg_oc_off, vector_step * sizeof(float));
+            add(reg_src, vector_step * jcp_.src_data_size);
+            
+            linear_c_gathered_block_next(diaOD, diaOH, diaOW, vector_step, save_weights);
+
+            sub(reg_src, vector_step * jcp_.src_data_size);
+        }
+
+        if (jcp_.C > blk_size) {
+            int src_stride = jcp_.ID * jcp_.IH * jcp_.IW * blk_size * jcp_.src_data_size;
+            int dst_stride = jcp_.OD * jcp_.OH * jcp_.OW * blk_size * jcp_.dst_data_size;
+            Xbyak::Label loop_blk_label;
+            Xbyak::Label loop_blk_end;
+
+            L(loop_blk_label);
+            {
+                add(reg_src, src_stride);
+                add(reg_dst, dst_stride - blk_size * jcp_.dst_data_size);
+                add(reg_oc_off, vector_step * sizeof(float));
+                cmp(reg_oc_off, oc_off_max);
+                jg(loop_blk_end, T_NEAR);
+
+                linear_c_gathered_block_next(diaOD, diaOH, diaOW, vector_step, save_weights);
+
+                if (isa == cpu::x64::sse41) {
+                    add(reg_oc_off, vector_step * sizeof(float));
+
+                    add(reg_src, vector_step * jcp_.src_data_size);
+                    linear_c_gathered_block_next(diaOD, diaOH, diaOW, vector_step, save_weights);
+                    sub(reg_src, vector_step * jcp_.src_data_size);
+                }
+
+                jmp(loop_blk_label, T_NEAR);
+            }
+            L(loop_blk_end);
+
+            int iterations_count = div_up(jcp_.C, blk_size);
+            int src_diff = iterations_count * src_stride;
+            int dst_diff = iterations_count * dst_stride - blk_size * jcp_.dst_data_size;
+
+            sub(reg_src, src_diff);
+            sub(reg_dst, dst_diff);
+        }
+    }
+
+    void linear_c_gathered() {
+        if (jcp_.IW == jcp_.OW && jcp_.IH == jcp_.OH && jcp_.ID == jcp_.OD) {
+            copy_input_to_output();
+            return;
+        }
+
+        int diaOD, diaOH, diaOW;
+        getLinearParameters(jcp_.dataScales, jcp_.antialias, diaOD, diaOH, diaOW);
+
+        int sizeOH = jcp_.OH * diaOH;
+        int sizeOW = jcp_.OW * diaOW;
+
+        bool save_weights = false;
+        int blk_size = getBlockSize(isa);
+        if (jcp_.C > vector_step) {
+            int diaTotal = diaOW;
+            if (jcp_.spatial_dim_size > 1) {
+                diaTotal *= diaOH;
+            }
+            if (jcp_.spatial_dim_size > 2) {
+                diaTotal *= diaOD;
+            }
+
+            if (diaTotal <= vector_step || (isa == cpu::x64::sse41 && diaTotal <= vector_step * 2)) {
+                save_weights = true;
+            }
+        }
+
+        Xbyak::Label loop_oy_label;
+        Xbyak::Label loop_oy_end;
+        Xbyak::Label loop_ox_label;
+        Xbyak::Label loop_ox_end;
+
+        uni_vpxor(vmm_zero_const, vmm_zero_const, vmm_zero_const);
+        if (jcp_.C > vector_step) {
+            uni_vbroadcastss(vmm_invalid_weights, ptr[rip + l_invalid_weight]);
+
+            if (isa != cpu::x64::sse41) {
+                uni_vmovdqu(vmm_vperm_indices_l, ptr[rip + l_vperm_constant_l]);
+                uni_vmovdqu(vmm_vperm_indices_r, ptr[rip + l_vperm_constant_r]);
+            }
+        }
+        
+        mov(reg_weight_od, ptr[reg_params + GET_OFF(weight_ptr[0])]);
+        mov(reg_weight_oh, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
+
+        mov(reg_weight_ow, reg_weight_oh);
+        add(reg_weight_ow, sizeOH * sizeof(float));
+        mov(reg_index, reg_weight_ow);
+
+        L(loop_oy_label);
+        {
+            if (jcp_.spatial_dim_size > 1) {
+                cmp(reg_weight_oh, reg_index);
+                jge(loop_oy_end, T_NEAR);
+            }
+
+            add(reg_index, sizeOW * sizeof(float));
+            
+            L(loop_ox_label);
+            {
+                cmp(reg_weight_ow, reg_index);
+                jge(loop_ox_end, T_NEAR);
+
+                if (jcp_.layout == InterpolateLayoutType::by_channel) {
+                    linear_by_channel_inner(diaOD, diaOH, diaOW, save_weights);
+                } else {
+                    linear_gathered_inner(diaOD, diaOH, diaOW, save_weights);
+                }
+
+                add(reg_weight_ow, diaOW * sizeof(float));
+                jmp(loop_ox_label, T_NEAR);
+            }
+            L(loop_ox_end);
+            
+            if (jcp_.spatial_dim_size > 1) {
+                sub(reg_index, sizeOW * sizeof(float));
+                mov(reg_weight_ow, reg_index);
+
+                add(reg_weight_oh, diaOH * sizeof(float));
+
+                jmp(loop_oy_label, T_NEAR);
+            }
+        }
+        L(loop_oy_end);
+    }
+
     void linear_onnx_c_gathered() {
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         // load weight
@@ -544,10 +1499,6 @@ private:
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
-        Xbyak::Label blk_tail_loop_label;
-        Xbyak::Label blk_tail_loop_end_label;
-        Xbyak::Label tail_loop_label;
-        Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
         {
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
@@ -1249,6 +2200,33 @@ private:
         }
     }
 
+    inline void prepare_linear_vperm_constant() {
+        L(l_invalid_weight);
+        {
+            float invalid_weight_f = 2.0f;
+            uint32_t invalid_weight_u;
+
+            static_assert(sizeof(invalid_weight_f) == sizeof(invalid_weight_u), "'float' has a weird size.");
+            std::memcpy(&invalid_weight_u, &invalid_weight_f, sizeof(float));
+
+            dd(invalid_weight_u);
+        }
+
+        if (isa != cpu::x64::sse41) {
+            L(l_vperm_constant_l);
+            for (size_t i = 1; i < vlen / sizeof(int); ++i) {
+                dd(i);
+            }
+            dd(0);
+
+            L(l_vperm_constant_r);
+            dd(vlen / sizeof(int) - 1);
+            for (size_t i = 0; i < vlen / sizeof(int) - 1; ++i) {
+                dd(i);
+            }
+        }
+    }
+
     inline void prepare_cubic_planar_table() {
         auto broadcast_int = [&](int val) {
             for (size_t d = 0; d < vlen / sizeof(int); ++d) {
@@ -1598,11 +2576,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
         if (interpMode == ngInterpMode::nearest) {
             interpAttrs.mode = InterpolateMode::nearest;
         } else if (interpMode == ngInterpMode::linear) {
-            if (dataRank < 5) {
-                interpAttrs.mode = InterpolateMode::linear_onnx;
-            } else {
-                interpAttrs.mode = InterpolateMode::linear;
-            }
+            interpAttrs.mode = InterpolateMode::linear;
         } else if (interpMode == ngInterpMode::linear_onnx) {
             interpAttrs.mode = InterpolateMode::linear_onnx;
         } else if (interpMode == ngInterpMode::cubic) {
@@ -1784,7 +2758,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     const auto &dataMinDims = getInputShapeAtPort(DATA_ID).getMinDims();
     bool isBlkApplied = getInputShapeAtPort(DATA_ID).getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] > 1;
 
-    if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
+    if (!mayiuse(cpu::x64::sse41)) {
         pushDesc(LayoutType::ncsp, ref);
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
@@ -1902,10 +2876,8 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutor> {
         std::shared_ptr<InterpolateExecutor> executor;
-        if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
-            key.nodeAttrs.mode == InterpolateMode::cubic) &&
-            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-                (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32))) {
+        if ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
+            (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == Precision::FP32)) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                key.srcDims,
                                                                key.dstDims,
@@ -2067,7 +3039,7 @@ void Interpolate::execute(dnnl::stream strm) {
             });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::block) {
-            size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+            size_t blkSize = getBlockSize();
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
@@ -2130,7 +3102,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, ui
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+            int blk_size = getBlockSize();
             int CB = div_up(C, blk_size);
             const uint8_t *in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t *out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -2187,6 +3159,66 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8
     });
 }
 
+void Interpolate::InterpolateJitExecutor::linearPlanar(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_, int B, int C,
+                                                                     int ID, int IH, int IW, int OD, int OH, int OW) {
+    bool hasPostOps = interpolateKernel->attr_.post_ops_.len() > 0;
+    if (checkLinearMemcpy(in_ptr_, out_ptr_, B, C, ID, IH, IW, OD, OH, OW, hasPostOps)) {
+        return;
+    }
+    
+    float* weightTable = reinterpret_cast<float*>(&indexTable[0]);
+
+    parallel_for2d(B, C, [&](size_t b, size_t c) {
+        uint8_t* out_ptr_nc = out_ptr_ + (OH * OW * OD * C * b + OH * OW * OD * c) * dstDataSize;
+        const uint8_t* in_ptr_nc = in_ptr_ + (IH * IW * ID * C * b + IH * IW * ID * c) * srcDataSize;
+        auto arg = jit_interpolate_call_args();
+        arg.src_ptr[0] = in_ptr_nc;
+        arg.weight_ptr[0] = &weightTable[0];
+        arg.dst = out_ptr_nc;
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
+        arg.post_op_data = post_ops_data_;
+        (*interpolateKernel)(&arg);
+    });
+}
+
+void Interpolate::InterpolateJitExecutor::linearCGathered(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_, int B, int C,
+                                                                     int ID, int IH, int IW, int OD, int OH, int OW) {
+    bool isByChannel = (configured_for_layout == by_channel) ? true : false;
+
+    int blkSize = getBlockSize();
+    int CB = isByChannel ? 1 : div_up(C, blkSize);
+    int CGatherLen = isByChannel ? C : blkSize;
+    int CSize = CB * CGatherLen;
+    
+    bool hasPostOps = interpolateKernel->attr_.post_ops_.len() > 0;
+    if (checkLinearMemcpy(in_ptr_, out_ptr_, B, CSize, ID, IH, IW, OD, OH, OW, hasPostOps)) {
+        return;
+    }
+
+    bool antialias = interpolateKernel->jcp_.antialias;
+    std::vector<float> dataScales = interpolateKernel->jcp_.dataScales;
+    size_t dimSize = dataScales.size();
+
+    int diaOD = getLinearDia(dimSize == 5 ? dataScales[dimSize - 3] : 1.f, antialias);
+    int sizeOD = OD * diaOD;
+
+    float* weightTable = reinterpret_cast<float*>(&indexTable[0]);
+
+    parallel_for2d(B, OD, [&](size_t b, size_t d) {
+        uint8_t* out_ptr_nc = out_ptr_ + (OD * CB * b + d) * OH * OW * CGatherLen * dstDataSize;
+        const uint8_t* in_ptr_nc = in_ptr_ + (ID * CB * b) * IH * IW * CGatherLen * srcDataSize;
+        auto arg = jit_interpolate_call_args();
+
+        arg.src_ptr[0] = in_ptr_nc;
+        arg.weight_ptr[0] = &weightTable[diaOD * d];
+        arg.weight_ptr[1] = &weightTable[sizeOD];
+        arg.dst = out_ptr_nc;
+        arg.oc_off = 0;
+        arg.post_op_data = post_ops_data_;
+        (*interpolateKernel)(&arg);
+    });
+}
+
 void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, int B, int C,
                                                                      int ID, int IH, int IW, int OD, int OH, int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
@@ -2233,7 +3265,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_
 
     bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
-    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    int blkSize = getBlockSize();
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int workAmount = isByChannel ? C : CB;
@@ -2291,7 +3323,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t *in_ptr_,
     int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    int blkSize = getBlockSize();
     int CB = div_up(C, blkSize);
     int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
@@ -2365,6 +3397,19 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t *in_ptr_, ui
         (*interpolateKernel)(&arg);
     });
 }
+
+
+bool Interpolate::InterpolateExecutor::checkLinearMemcpy(const uint8_t *in_ptr_, uint8_t *out_ptr_,
+                int B, int C, int ID, int IH, int IW, int OD, int OH, int OW, bool hasPostOps) {
+    if (IW == OW && IH == OH && ID == OD && !hasPostOps && inputPrec == outputPrec) {
+        size_t spatialDimSize = IW * IH * ID;
+        size_t size = B * C * spatialDimSize * srcDataSize;
+        cpu_memcpy(out_ptr_, in_ptr_, size);
+        return true;
+    }
+    return false;
+}
+
 
 // =====================================================================================================================
 // index layout:
@@ -2611,70 +3656,118 @@ void Interpolate::InterpolateExecutor::buildTblLinear(const SizeVector& srcDimPa
     size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
-    if (!(IW == OW && IH == OH && ID == OD)) {
-        float ax = antialias ? fx : 1.0f;
-        float ay = antialias ? fy : 1.0f;
-        float az = antialias ? fz : 1.0f;
+    if (IW == OW && IH == OH && ID == OD) {
+        return;
+    }
 
-        int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
-        int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
-        int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
+    float ax = antialias ? fx : 1.0f;
+    float ay = antialias ? fy : 1.0f;
+    float az = antialias ? fz : 1.0f;
 
-        int diaOD = 2 * rz + 1;
-        int diaOH = 2 * ry + 1;
-        int diaOW = 2 * rx + 1;
-        int sizeOD = OD * diaOD;
-        int sizeOH = OH * diaOH;
-        int sizeOW = OW * diaOW;
-        indexTable.resize((sizeOD + sizeOH + sizeOW) * 2);
-        float *weightTable = reinterpret_cast<float*>(&indexTable[0]);
-        float *weightOD = static_cast<float*>(&weightTable[0]);
-        float *weightOH = static_cast<float*>(&weightTable[sizeOD]);
-        float *weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
+    int rx = (fx > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
+    int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
+    int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
 
-        int *idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
-        int *idxOD = static_cast<int*>(&idxTable[0]);
-        int *idxOH = static_cast<int*>(&idxTable[sizeOD]);
-        int *idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+    int diaOD = static_cast<int>(std::ceil(2 / az));
+    int diaOH = static_cast<int>(std::ceil(2 / ay));
+    int diaOW = static_cast<int>(std::ceil(2 / ax));
+    int sizeOD = OD * diaOD;
+    int sizeOH = OH * diaOH;
+    int sizeOW = OW * diaOW;
+    indexTable.resize((sizeOD + sizeOH + sizeOW) * 2);
+    float *weightTable = reinterpret_cast<float*>(&indexTable[0]);
+    float *weightOD = static_cast<float*>(&weightTable[0]);
+    float *weightOH = static_cast<float*>(&weightTable[sizeOD]);
+    float *weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-        for (int oz = 0; oz < OD; oz++) {
-            float iz = coordTransToInput(oz, fz, ID, OD);
-            int iz_r = static_cast<int>(std::round(iz));
-            for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
-                idxOD[oz * diaOD + i] = r;
-                if (r < 0 || r >= static_cast<int>(ID)) {
-                    weightOD[oz * diaOD + i] = 0.f;
-                } else {
-                    float dz = iz - r;
-                    weightOD[oz * diaOD + i] = az * triangleCoeff(az * dz);
-                }
+    int *idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
+    int *idxOD = static_cast<int*>(&idxTable[0]);
+    int *idxOH = static_cast<int*>(&idxTable[sizeOD]);
+    int *idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+
+    const bool jitPlanarLayout = configured_for_layout == InterpolateLayoutType::planar && mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32;
+    for (int oz = 0; oz < OD; oz++) {
+        float iz = coordTransToInput(oz, fz, ID, OD);
+        int iz_r = static_cast<int>(std::round(iz));
+        int i = 0;
+        for (int r = iz_r - rz; r <= iz_r + rz; r++) {
+            if (r < 0 || r >= static_cast<int>(ID)) {
+                continue;
             }
+
+            float dz = iz - r;
+            float weight = az * triangleCoeff(az * dz);
+            if (weight == 0.0f) {
+                continue;
+            }
+
+            int index = jitPlanarLayout ? i * OD + oz : oz * diaOD + i;
+
+            idxOD[index] = r * IH * IW;
+            weightOD[index] = weight;
+            i++;
         }
-        for (int oy = 0; oy < OH; oy++) {
-            float iy = coordTransToInput(oy, fy, IH, OH);
-            int iy_r = static_cast<int>(std::round(iy));
-            for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
-                idxOH[oy * diaOH + i] = r;
-                if (r < 0 || r >= static_cast<int>(IH)) {
-                    weightOH[oy * diaOH + i] = 0.f;
-                } else {
-                    float dy = iy - r;
-                    weightOH[oy * diaOH + i] = ay * triangleCoeff(ay * dy);
-                }
-            }
+        for (; i < diaOD; i++) {
+            int index = jitPlanarLayout ? i * OD + oz : oz * diaOD + i;
+
+            idxOD[index] = 0;
+            weightOD[index] = 0.0f;
         }
-        for (int ox = 0; ox < OW; ox++) {
-            float ix = coordTransToInput(ox, fx, IW, OW);
-            int ix_r = static_cast<int>(std::round(ix));
-            for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
-                idxOW[ox * diaOW + i] = r;
-                if (r < 0 || r >= static_cast<int>(IW)) {
-                    weightOW[ox * diaOW + i] = 0.f;
-                } else {
-                    float dx = ix - r;
-                    weightOW[ox * diaOW + i] = ax * triangleCoeff(ax * dx);
-                }
+    }
+    for (int oy = 0; oy < OH; oy++) {
+        float iy = coordTransToInput(oy, fy, IH, OH);
+        int iy_r = static_cast<int>(std::round(iy));
+        int i = 0;
+        for (int r = iy_r - ry; r <= iy_r + ry; r++) {
+            if (r < 0 || r >= static_cast<int>(IH)) {
+                continue;
             }
+
+            float dy = iy - r;
+            float weight = ay * triangleCoeff(ay * dy);
+            if (weight == 0.0f) {
+                continue;
+            }
+
+            int index = jitPlanarLayout ? i * OH + oy : oy * diaOH + i;
+
+            idxOH[index] = r * IW;
+            weightOH[index] = weight;
+            i++;
+        }
+        for (; i < diaOH; i++) {
+            int index = jitPlanarLayout ? i * OH + oy : oy * diaOH + i;
+
+            idxOH[index] = 0;
+            weightOH[index] = 0.0f;
+        }
+    }
+    for (int ox = 0; ox < OW; ox++) {
+        float ix = coordTransToInput(ox, fx, IW, OW);
+        int ix_r = static_cast<int>(std::round(ix));
+        int i = 0;
+        for (int r = ix_r - rx; r <= ix_r + rx; r++) {
+            if (r < 0 || r >= static_cast<int>(IW)) {
+                continue;
+            }
+
+            float dx = ix - r;
+            float weight = ax * triangleCoeff(ax * dx);
+            if (weight == 0.0f) {
+                continue;
+            }
+
+            int index = jitPlanarLayout ? i * OW + ox : ox * diaOW + i;
+
+            idxOW[index] = r;
+            weightOW[index] = weight;
+            i++;
+        }
+        for (; i < diaOW; i++) {
+            int index = jitPlanarLayout ? i * OW + ox : ox * diaOW + i;
+
+            idxOW[index] = 0;
+            weightOW[index] = 0.0f;
         }
     }
 }
@@ -2972,11 +4065,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
                                           float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t spatialDimSize = IW * IH * ID;
-        // TODO: enable when fusing into interp with linear mode will support
-        if (/*fusedWith.empty() &&*/ inputPrec == outputPrec) {
-            size_t size = B * C * spatialDimSize * srcDataSize;
-            cpu_memcpy(out_ptr_, in_ptr_, size);
-        } else {
+        if (!checkLinearMemcpy(in_ptr_, out_ptr_, B, C, ID, IH, IW, OD, OH, OW, false)) {
             parallel_for2d(B, C, [&](size_t b, size_t c) {
                 const uint8_t *in_ptr_nc = in_ptr_ + (spatialDimSize * C * b + spatialDimSize * c) * srcDataSize;
                 uint8_t *out_ptr_nc = out_ptr_ + (spatialDimSize * C * b + spatialDimSize * c) * dstDataSize;
@@ -2997,9 +4086,9 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
     int ry = (fy > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
     int rz = (fz > 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / az));
 
-    int diaOD = 2 * rz + 1;
-    int diaOH = 2 * ry + 1;
-    int diaOW = 2 * rx + 1;
+    int diaOD = static_cast<int>(std::ceil(2 / az));
+    int diaOH = static_cast<int>(std::ceil(2 / ay));
+    int diaOW = static_cast<int>(std::ceil(2 / ax));
     int sizeOD = OD * diaOD;
     int sizeOH = OH * diaOH;
     int sizeOW = OW * diaOW;
@@ -3065,7 +4154,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
                                 }
                                 float w = weightOD[oz * diaOD + iz] * weightOH[oy * diaOH + iy] * weightOW[ox * diaOW + ix];
                                 float value = getValue(in_ptr_nc,
-                                    (idxOD[oz * diaOD + iz] * IH * IW + idxOH[oy * diaOH + iy] * IW + idxOW[ox * diaOW + ix]) * srcDataSize, inputPrec);
+                                    (idxOD[oz * diaOD + iz] + idxOH[oy * diaOH + iy] + idxOW[ox * diaOW + ix]) * srcDataSize, inputPrec);
 
                                 sum += w * value;
                                 wsum += w;
@@ -3133,6 +4222,8 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
     jcp.dst_prc = interpAttrs.outPrc;
+    jcp.antialias = interpAttrs.antialias;
+    jcp.dataScales = dataScales;
     jcp.src_data_size = jcp.src_prc.size();
     jcp.dst_data_size = jcp.dst_prc.size();
     jcp.indices_size = sizeof(int);
@@ -3179,6 +4270,14 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *
                 NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             } else {
                 NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            }
+            break;
+        }
+        case InterpolateMode::linear: {
+            if (configured_for_layout == InterpolateLayoutType::planar) {
+                linearPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            } else {
+                linearCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
             }
             break;
         }
@@ -3253,7 +4352,7 @@ size_t Interpolate::getSpatialDimsNum(const Dim rank) {
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
+    if (!mayiuse(cpu::x64::sse41)) {
         return false;
     }
 
