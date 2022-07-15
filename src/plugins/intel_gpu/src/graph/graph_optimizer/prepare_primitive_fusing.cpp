@@ -624,7 +624,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
                 (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
-                node.input().get_output_layout().feature() > 16)))
+                node.input().get_output_layout().feature() > 16) ||
+                (node.get_output_layout().count() > 256)))
                 return false;
 
             if (keep_dims)
