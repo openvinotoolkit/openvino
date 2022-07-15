@@ -13,7 +13,7 @@ KERNEL (permute_ref)(
 #endif
     )
 {
-#if IS_FSV
+#ifdef F_FIRST
     //gws(f, x * y, z * w * b)
     const uint gid_0 = get_global_id(0);
     const uint gid_1 = get_global_id(1);
