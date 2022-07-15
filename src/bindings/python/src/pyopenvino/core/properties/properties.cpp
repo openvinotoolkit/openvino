@@ -65,8 +65,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
 
     // Submodule intel_cpu
-    py::module intel_cpu =
-        m_properties.def_submodule("intel_cpu", "openvino.runtime.properties.intel_cpu submodule that simulates ov::intel_cpu");
+    py::module intel_cpu = m_properties.def_submodule("intel_cpu",
+        "openvino.runtime.properties.intel_cpu submodule that simulates ov::intel_cpu");
     wrap_property_RW(intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
 
     // Submodule device
