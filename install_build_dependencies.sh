@@ -58,7 +58,7 @@ if [ -f /etc/lsb-release ]; then
             libavformat-dev \
             libgstreamer1.0-0 \
             gstreamer1.0-plugins-base \
-            libopenblas-dev
+            libopenblas-dev \
             automake \
             libtool \
             autoconf \
