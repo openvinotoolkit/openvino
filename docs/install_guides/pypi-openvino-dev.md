@@ -64,7 +64,7 @@ There are two options to install OpenVINO Development Tools:
 
 #### Installing Default Components
 
-To install [default components in the package](#whats-in-the-package), use the following command:
+To install the default components in the package (see the [What's in the Package](#whats-in-the-package) section of this article), use the following command:
 ```
 pip install openvino-dev
 ```
