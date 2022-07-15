@@ -50,6 +50,17 @@ if [ -f /etc/lsb-release ]; then
             python3-enchant \
             python3-setuptools \
             libpython3-dev \
+            `# junk` \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libglib2.0-dev \
+            libgtk2.0-dev \
+            libswscale-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libgstreamer1.0-0 \
+            gstreamer1.0-plugins-base \
+            libusb-1.0-0-dev \
             `# openvino` \
             libtbb-dev \
             `# samples` \
