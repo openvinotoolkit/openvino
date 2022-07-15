@@ -866,6 +866,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gelu) {
     std::vector<float> output = {23., 0., 0., 225., 94., 103., 74., 86., 140., 127., 0., 0.};
 
     test_case.add_input<float>(Shape{3, 4}, input);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/fusedgemm.onnx"));
