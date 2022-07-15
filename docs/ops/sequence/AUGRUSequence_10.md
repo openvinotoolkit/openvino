@@ -6,7 +6,7 @@
 
 **Short description**: *AUGRUSequence* operation represents a series of AUGRU cells (GRU with attentional update gate).
 
-**Detailed description**: The difference between *AUGRUSequence* and [GRUSequence](../GRUSequence_5.md) is the additional attention score input `A`, which is a multiplier for the update gate.
+**Detailed description**: The difference between *AUGRUSequence* and [GRUSequence](./GRUSequence_5.md) is the additional attention score input `A`, which is a multiplier for the update gate.
 The formula was described in the [paper arXiv:1809.03672](https://arxiv.org/abs/1809.03672).
 
 The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence.
