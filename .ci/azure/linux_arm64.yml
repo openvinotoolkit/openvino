@@ -151,6 +151,7 @@ jobs:
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DOUTPUT_ROOT=$(INSTALL_OPENVINO)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
+        -DENABLE_REQUIREMENTS_INSTALL=OFF
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
