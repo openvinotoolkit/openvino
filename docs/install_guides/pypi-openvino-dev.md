@@ -107,6 +107,8 @@ For example, to install and configure the components for working with TensorFlow
    ```
    If installation was successful, you will not see any error messages (no console output).
 
+<a name="whats-in-the-package"></a>
+
 ## What's in the Package?
 
 > **NOTE**: The openvino-dev package installs [OpenVINO™ Runtime](https://pypi.org/project/openvino) as a dependency, which is the engine that runs the deep learning model and includes a set of libraries for an easy inference integration into your applications.  
@@ -118,12 +120,12 @@ For example, to install and configure the components for working with TensorFlow
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | `mo` |**Model Optimizer** imports, converts, and optimizes models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include Caffe\*, TensorFlow\*, MXNet\*, PaddlePaddle\*, and ONNX\*.                                               |
 | [Benchmark Tool](../../tools/benchmark_tool/README.md)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
 | [Accuracy Checker](@ref omz_tools_accuracy_checker) and <br> [Annotation Converter](@ref omz_tools_accuracy_checker_annotation_converters) | `accuracy_check` <br> `convert_annotation` |**Accuracy Checker**  is a deep learning accuracy validation tool that allows you to collect accuracy metrics against popular datasets. The main advantages of the tool are the flexibility of configuration and a set of supported datasets, preprocessing, postprocessing, and metrics. <br> **Annotation Converter** is a utility that prepares datasets for evaluation with Accuracy Checker.                                             |
-| [Post-Training Optimization Tool](../../tools/pot/docs/pot_introduction.md)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models.                                            |
+| [Post-Training Optimization Tool](../../tools/pot/docs/Introduction.md)| `pot` |**Post-Training Optimization Tool** allows you to optimize trained models with advanced capabilities, such as quantization and low-precision optimizations, without the need to retrain or fine-tune models.                                            |
 | [Model Downloader and other Open Model Zoo tools](@ref omz_tools_downloader)| `omz_downloader` <br> `omz_converter` <br> `omz_quantizer` <br> `omz_info_dumper`| **Model Downloader** is a tool for getting access to the collection of high-quality and extremely fast pre-trained deep learning [public](@ref omz_models_group_public) and [Intel](@ref omz_models_group_intel)-trained models. These free pre-trained models can be used to speed up the development and production deployment process without training your own models. The tool downloads model files from online sources and, if necessary, patches them to make them more usable with Model Optimizer. A number of additional tools are also provided to automate the process of working with downloaded models:<br> **Model Converter** is a tool for converting Open Model Zoo models that are stored in an original deep learning framework format into the OpenVINO Intermediate Representation (IR) using Model Optimizer. <br> **Model Quantizer** is a tool for automatic quantization of full-precision models in the IR format into low-precision versions using the Post-Training Optimization Tool. <br> **Model Information Dumper** is a helper utility for dumping information about the models to a stable, machine-readable format.                                          |      
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](./troubleshooting.md). The following sections also provide explanations to several error messages. 
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](troubleshooting.md). The following sections also provide explanations to several error messages. 
 
 ### zsh: no matches found : openvino-dev[...]
 
