@@ -70,36 +70,24 @@ if [ -f /etc/lsb-release ]; then
             libtinfo5 \
             libopenblas-dev
     # hddl
-    if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
-        sudo -E apt-get install -y libjson-c2
-    else
-        sudo -E apt-get install -y libjson-c3
+    if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
+        # ubuntu 18.04
+        sudo -E apt-get install -y \
+            libjson-c3 \
+            libboost-filesystem1.65.1 \
+            libboost-program-options1.65.1 \
+            libboost-system1.65.1
+    elif apt-cache search --names-only '^libjson-c4'| grep -q libjson-c4; then
+        # ubuntu 20.04
+        sudo -E apt-get install -y \
+            libjson-c4 \
+            libboost-filesystem1.71.0 \
+            libboost-program-options1.71.0
     fi
-    # opencv
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
-    fi
-    # hddl
-    # if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
-    #     # ubuntu 18.04
-    #     sudo -E apt-get install -y \
-    #         libjson-c3 \
-    #         libboost-filesystem1.65.1 \
-    #         libboost-program-options1.65.1 \
-    #         libboost-system1.65.1
-    # elif apt-cache search --names-only '^libjson-c4'| grep -q libjson-c4; then
-    #     # ubuntu 20.04
-    #     sudo -E apt-get install -y \
-    #         libjson-c4 \
-    #         libboost-filesystem1.71.0 \
-    #         libboost-program-options1.71.0
-    # fi
     # for python3-enchant
-    # if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
-    #     sudo -E apt-get install -y libenchant1c2a
-    # fi
+    if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
+        sudo -E apt-get install -y libenchant1c2a
+    fi
     # samples
     if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
         sudo -E apt-get install -y nlohmann-json3-dev
