@@ -7,7 +7,11 @@
 #include "ie_parallel.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-#    include <tbb/task_scheduler_init.h>
+#    if (TBB_INTERFACE_VERSION < 12000)
+#        include <tbb/task_scheduler_init.h>
+#    else
+#        include <oneapi/tbb/global_control.h>
+#    endif
 #endif
 
 #include <memory>
@@ -38,7 +42,11 @@ private:
     mutable std::mutex tbbMutex;
     bool tbbThreadsCreated = false;
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#    if (TBB_INTERFACE_VERSION < 12000)
     std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
+#    else
+    std::shared_ptr<oneapi::tbb::task_scheduler_handle> tbbTaskScheduler = nullptr;
+#    endif
 #endif
 };
 
@@ -54,7 +62,11 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
     if (tbbTerminateFlag) {
         if (!tbbTaskScheduler) {
+#    if (TBB_INTERFACE_VERSION < 12000)
             tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
+#    else
+            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
+#    endif
         }
     } else {
         tbbTaskScheduler = nullptr;
@@ -71,16 +83,15 @@ void ExecutorManagerImpl::resetTbb() {
     std::lock_guard<std::mutex> guard(tbbMutex);
     if (tbbTerminateFlag) {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        try {
-            if (tbbTaskScheduler && tbbThreadsCreated) {
-                tbbTaskScheduler->terminate();
-            }
-            tbbThreadsCreated = false;
-            tbbTaskScheduler = nullptr;
-        } catch (std::exception& e) {
-            tbbTaskScheduler = nullptr;
-            IE_THROW() << e.what();
+        if (tbbTaskScheduler && tbbThreadsCreated) {
+#    if (TBB_INTERFACE_VERSION < 12000)
+            tbbTaskScheduler->terminate();
+#    else
+            tbb::finalize(*tbbTaskScheduler, std::nothrow);
+#    endif
         }
+        tbbThreadsCreated = false;
+        tbbTaskScheduler = nullptr;
 #endif
         tbbTerminateFlag = false;
     }

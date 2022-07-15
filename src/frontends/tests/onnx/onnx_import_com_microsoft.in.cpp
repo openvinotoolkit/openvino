@@ -866,6 +866,71 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gelu) {
     std::vector<float> output = {23., 0., 0., 225., 94., 103., 74., 86., 140., 127., 0., 0.};
 
     test_case.add_input<float>(Shape{3, 4}, input);
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/fusedgemm.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    std::vector<float> inputA = {
+        0.760289272,
+        0.155913759,
+        0.781790674,
+        -0.916164881,
+        -0.599392663,
+        0.264654594,
+        0.793851873,
+        0.177088557,
+        0.082737454,
+        0.070692121,
+        -0.811413035,
+        -0.098108588,
+        0.650090827,
+        -0.987659751,
+        -0.815909968,
+        -0.375566031,
+        -0.192777789,
+        -0.843511765,
+    };
+
+    std::vector<float> inputB = {
+        -0.599338344, -0.893724541, -0.362130441, -0.510642812, -0.943908814, -0.247790266, -0.732624930, 0.660286910,
+        -0.264866660, -0.907203793, 0.339617010,  -0.322529173, 0.714601048,  0.581729832,  -0.609115490, -0.369882312,
+        -0.462432785, -0.554824440, -0.833489997, -0.899945507, -0.088337136, -0.253637339, -0.443307744, -0.677004897,
+    };
+
+    std::vector<float> inputC = {
+        -0.540039918,
+        -0.235745675,
+        -0.337291175,
+        -0.702340580,
+        0.532629731,
+        -0.794515569,
+        -0.532012999,
+        0.372558416,
+        0.582367524,
+        -0.483044018,
+        0.656635884,
+        -0.655929499,
+    };
+
+    std::vector<float> output = {
+        -8.75421E-05,
+        -9.65321E-05,
+        0.239491309,
+        -2.70329E-05,
+        0.151090653,
+        -5.53371E-05,
+        -1.22197E-05,
+        0.413963711,
+        0.618195780,
+        0.011654445,
+        0.815541101,
+        -2.46706E-05,
+    };
+
+    test_case.add_input<float>(Shape{3, 6}, inputA);
+    test_case.add_input<float>(Shape{6, 4}, inputB);
+    test_case.add_input<float>(Shape{3, 4}, inputC);
     test_case.add_expected_output<float>(Shape{3, 4}, output);
     test_case.run_with_tolerance_as_fp(1e-6);
 }

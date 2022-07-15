@@ -32,16 +32,6 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt = ifmt;
     }
 
-    if (node.is_valid_output_layout() && input_layout.feature() <= 4) {
-        auto users = node.get_users();
-        if (users.size() > 0 && users.front()->is_type<convolution>()) {
-            auto expected_fmt = node.get_output_layout().format;
-            if (expected_fmt == format::b_fs_zyx_fsv2 || expected_fmt == format::bs_fs_zyx_bsv8_fsv2) {
-                ofmt = expected_fmt;
-            }
-        }
-    }
-
     if (ifmt.is_nv12()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };

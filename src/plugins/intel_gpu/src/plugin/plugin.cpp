@@ -54,7 +54,6 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -615,7 +614,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
                 return val;
         }
     } else {
-        IE_THROW() << "Unsupported config key : " << name;
+        IE_THROW() << "3-Unsupported config key : " << name;
     }
 }
 
@@ -1091,8 +1090,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)

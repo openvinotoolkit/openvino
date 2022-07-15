@@ -15,24 +15,27 @@ from .utils.check_graph import check_model
 from .utils.config import merge_configs
 
 TEST_MODELS = [
-    ('resnet_example', 'pytorch')
+    ('resnet_example', 'pytorch', 'DefaultQuantization', 'CPU'),
+    ('resnet_example', 'pytorch', 'RangeSupervision', 'ANY'),
+    ('act_act_example', 'pytorch', 'DefaultQuantization', 'GNA')
 ]
 
 
 @pytest.fixture(scope='module', params=TEST_MODELS,
-                ids=['{}_{}'.format(*m) for m in TEST_MODELS])
+                ids=['_'.join(m) for m in TEST_MODELS])
 def _params(request):
     return request.param
 
 
-def test_ranger_graph(_params, tmp_path, models):
-    model_name, model_framework = _params
+def test_graph_with_stats(_params, tmp_path, models):
+    model_name, model_framework, algo_name, target_device = _params
 
     algorithm_config = Dict({
         'algorithms': [{
-            'name': 'Ranger',
+            'name': algo_name,
             'params': {
-                'target_device': 'ANY',
+                'target_device': target_device,
+                'preset': 'performance',
                 'stat_subset_size': 1
             }
         }]
@@ -53,4 +56,5 @@ def test_ranger_graph(_params, tmp_path, models):
     pipeline = create_pipeline(config.compression.algorithms, engine)
 
     optimized_model = pipeline.run(model)
-    check_model(tmp_path, optimized_model, model_name + '_ranger', model_framework)
+    final_model_name = model_name + '_' + algo_name
+    check_model(tmp_path, optimized_model, final_model_name, model_framework)
