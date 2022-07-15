@@ -49,7 +49,7 @@ compression_ctrl.export_model("compressed_model.pb", save_format='frozen_graph')
 #! [export] 
 
 #! [save_checkpoint]
-from nncf.tensorflow.utils.state import TFCompressionState
+from nncf.tensorflow.utils.state import TFCompressionState 
 
 checkpoint = tf.train.Checkpoint(model=model,
                                  compression_state=TFCompressionState(compression_ctrl),

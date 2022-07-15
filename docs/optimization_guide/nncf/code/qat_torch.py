@@ -30,9 +30,13 @@ compression_ctrl.distributed() # call it before the training loop
 
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
-# tune quantized model for 5 epochs as the baseline
-for epoch in range(0, 5):
-    train(train_loader, model, criterion, optimizer, epoch)
+# tune quantized model for 50 epochs as the baseline
+for epoch in range(0, 50):
+    compression_ctrl.scheduler.epoch_step() # Epoch control API
+    
+    for i, data in enumerate(train_loader):
+        compression_ctrl.scheduler.step()   # Training iteration control API 
+        ... # training loop body
 #! [tune_model]
 
 #! [export]
