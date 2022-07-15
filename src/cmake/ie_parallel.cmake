@@ -117,7 +117,6 @@ function(set_ie_threading_interface_for TARGET_NAME)
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
-            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR path.\

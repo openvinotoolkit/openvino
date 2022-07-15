@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <type_traits>
 
+#define TBB_PREVIEW_WAITING_FOR_WORKERS 1
+
 #define IE_THREAD_TBB      0
 #define IE_THREAD_OMP      1
 #define IE_THREAD_SEQ      2

@@ -285,6 +285,10 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
 TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     bool value = false;
+
+    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_FALSE(value);
+
     ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}));
     ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
     ASSERT_TRUE(value);

@@ -390,14 +390,18 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
 
 TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
+    bool value = false;
 
-    bool value = true;
-    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
     OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
     EXPECT_EQ(value, false);
+
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
     OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
     EXPECT_EQ(value, true);
+
+    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    EXPECT_EQ(value, false);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
