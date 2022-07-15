@@ -250,14 +250,14 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        // ex) 0(b), 3(f), 1(y), 2(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
-        }
-        return true;
+        // [0, 2, 1, 3]        bfyx   => byxf   | b => new_b (0), f => new_x (2), y => new_f(1), x => new_y(3)
+        // [0, 2, 1, 4, 3]     bfzyx  => bzyxf  | b => new_b (0), f => new_x (2), z => new_f (1) , y => new_z(4), x => new_y(3)
+        // [0, 2, 1, 5, 4, 3]  bfwzyx => bwzyxf | b => new_b (0), f => new_x (2), w => new_f (1) , z => new_w(5), y => new_z(4)  => new_y(3)
+        if (order[0] != 0 || order[1] != 2 || order[2] != 1) return false;
+        if (order.size() == 4) return order[3] == 3;
+        if (order.size() == 5) return ((order[3] == 4) && (order[4] == 3));
+        if (order.size() == 6) return ((order[3] == 5) && (order[4] == 4) && (order[5] == 3));
+        return false;
     };
 
     const permute_params& params = static_cast<const permute_params&>(p);
