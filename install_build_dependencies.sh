@@ -43,21 +43,25 @@ if [ -f /etc/lsb-release ]; then
             libboost-regex-dev \
             $x86_64_specific_packages \
             libgtk2.0-dev \
-            pkg-config \
-            libgflags-dev \
-            zlib1g-dev \
             unzip \
             automake \
             libtool \
             autoconf \
             shellcheck \
             patchelf \
-            libenchant1c2a \
+            `# openvino` \
+            libtbb-dev \
+            `# python` \
             python3-pip \
             python3-enchant \
             python3-setuptools \
+            `# samples` \
+            pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
+            `# myriad` \
             libusb-1.0-0-dev \
-            libtbb-dev \
+            `# cl_compiler` \
             libtinfo5
     # hddl
     if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
