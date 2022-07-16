@@ -40,8 +40,8 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            libboost-regex-dev \
             $x86_64_specific_packages \
+            libgtk2.0-dev \
             unzip \
             shellcheck \
             patchelf \
@@ -55,6 +55,9 @@ if [ -f /etc/lsb-release ]; then
             pkg-config \
             libgflags-dev \
             zlib1g-dev \
+            `# hddl` \
+            libudev1 \
+            libusb-1.0-0 \
             `# myriad` \
             libusb-1.0-0-dev \
             `# cl_compiler` \
