@@ -44,9 +44,6 @@ if [ -f /etc/lsb-release ]; then
             $x86_64_specific_packages \
             libgtk2.0-dev \
             unzip \
-            automake \
-            libtool \
-            autoconf \
             shellcheck \
             patchelf \
             `# openvino` \
