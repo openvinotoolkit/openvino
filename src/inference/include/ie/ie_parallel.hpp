@@ -17,8 +17,6 @@
 #include <cstddef>
 #include <type_traits>
 
-#define TBB_PREVIEW_WAITING_FOR_WORKERS 1
-
 #define IE_THREAD_TBB      0
 #define IE_THREAD_OMP      1
 #define IE_THREAD_SEQ      2
@@ -30,6 +28,9 @@
 #    endif
 #    ifndef TBB_PREVIEW_LOCAL_OBSERVER
 #        define TBB_PREVIEW_LOCAL_OBSERVER 1
+#    endif
+#    ifndef TBB_PREVIEW_WAITING_FOR_WORKERS
+#        define TBB_PREVIEW_WAITING_FOR_WORKERS 1
 #    endif
 #    ifndef TBB_PREVIEW_NUMA_SUPPORT
 #        define TBB_PREVIEW_NUMA_SUPPORT 1
