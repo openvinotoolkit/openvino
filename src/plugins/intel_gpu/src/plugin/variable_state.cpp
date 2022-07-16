@@ -5,7 +5,6 @@
 #include <blob_factory.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 VariableState::VariableState(const std::string &name,
@@ -68,7 +67,5 @@ void VariableState::IterateOverStates(std::function<void(cldnn::network::Variabl
     }
 }
 
-} // namespace intel_gpu
-} // namespace runtime
-} // namespace ov
-
+}  // namespace intel_gpu
+}  // namespace ov

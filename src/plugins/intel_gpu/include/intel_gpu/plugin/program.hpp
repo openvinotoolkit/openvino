@@ -42,7 +42,6 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
 }
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 std::string layer_type_lower(const ngraph::Node* op);
@@ -194,5 +193,4 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
