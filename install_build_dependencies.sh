@@ -61,11 +61,7 @@ if [ -f /etc/lsb-release ]; then
             `# myriad` \
             libusb-1.0-0-dev \
             `# cl_compiler` \
-            libtinfo5 \
-            `# test` \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev
+            libtinfo5
     # hddl
     if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
         # ubuntu 18.04
