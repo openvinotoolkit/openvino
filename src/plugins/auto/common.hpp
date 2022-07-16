@@ -121,7 +121,6 @@ public:
     DeviceMap<SoExecNetwork>                       _networksPerDevice;
     std::mutex                                     _mutex;
     bool                                           _needPerfCounters;
-    bool                                           _batchingDisabled = {false};
     bool                                           _bindBuffer = false;
     virtual ~MultiScheduleContext() = default;
 };
@@ -134,6 +133,7 @@ public:
     IE::CNNNetwork              _network;
     std::string                 _strDevices;
     unsigned int                _modelPriority = 0;
+    bool                        _batchingDisabled = {false};
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;

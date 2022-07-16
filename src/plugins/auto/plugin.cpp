@@ -465,8 +465,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         loads.push_back([&]() {
             auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
             if (tmpiter != fullConfig.end()) {
-                if (tmpiter->second == PluginConfigParams::NO)
-                    multiSContext->_batchingDisabled = true;
                 p.config.insert({tmpiter->first, tmpiter->second});
             }
             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
