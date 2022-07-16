@@ -155,9 +155,9 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
-set(GNA_PATH "../${OV_CPACK_RUNTIMEDIR}")
+set(GNA_PATH "${OV_CPACK_RUNTIMEDIR}")
 if(WIN32)
-    set(GNA_PATH "../${OV_CPACK_LIBRARYDIR}/../Release")
+    set(GNA_PATH "${OV_CPACK_LIBRARYDIR}/../Release")
 endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"

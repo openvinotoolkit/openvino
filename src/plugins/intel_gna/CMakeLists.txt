@@ -82,7 +82,7 @@ foreach(gna_lib IN LISTS gna_libraries)
     if(gna_lib MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR
        WIN32 OR NOT BUILD_SHARED_LIBS)
         install(FILES ${gna_lib}
-                DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                DESTINATION ${OV_CPACK_RUNTIMEDIR}
                 COMPONENT gna)
         set(gna_library_installed ON)
     endif()
@@ -104,7 +104,7 @@ if(NOT BUILD_SHARED_LIBS)
     if(WIN32)
         file(GLOB_RECURSE gna_libraries  "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
         install(FILES ${gna_libraries}
-                DESTINATION ${IE_CPACK_LIBRARY_PATH}
+                DESTINATION ${OV_CPACK_LIBRARYDIR}
                 COMPONENT gna)
     endif()
 endif()
