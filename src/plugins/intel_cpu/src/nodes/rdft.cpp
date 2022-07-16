@@ -56,20 +56,6 @@ bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-static void normalize_axes(std::vector<int>& axes, size_t rank, bool inverse) {
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += rank;
-        }
-    }
-    if (!inverse)
-        std::sort(axes.begin(), axes.end(), std::greater<int>());
-    else
-        std::sort(axes.begin(), axes.end());
-}
-
-static std::vector<int> generate_fft_indices(int vlen);
-
 RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
                Node(op, eng, cache) {
     std::string errorMessage;
@@ -129,6 +115,14 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
 
+static void normalize_axes(std::vector<int>& axes, size_t rank) {
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis += rank;
+        }
+    }
+}
+
 void RDFT::execute(dnnl::stream strm) {
     const auto& input_mem = getParentEdgeAt(DATA_INDEX)->getMemory();
     const auto& output_mem = getChildEdgeAt(0)->getMemory();
@@ -142,16 +136,15 @@ void RDFT::execute(dnnl::stream strm) {
     const auto& axes_mem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
     auto axes_ptr = reinterpret_cast<const int32_t*>(axes_mem->GetPtr());
     std::vector<int> axes(axes_ptr, axes_ptr + axes_mem->getStaticDims()[0]);
-    normalize_axes(axes, rank, inverse);
 
     std::vector<int> signal_sizes;
     if (SIGNAL_SIZE_INDEX < getOriginalInputsNumber()) {
         const auto& signal_size_mem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
         auto signal_ptr = reinterpret_cast<const int32_t*>(signal_size_mem->GetPtr());
         signal_sizes = std::vector<int>(signal_ptr, signal_ptr + signal_size_mem->getStaticDims()[0]);
-        if (!inverse)
-            std::reverse(signal_sizes.begin(), signal_sizes.end());
     }
+
+    normalize_axes(axes, rank);
 
     const auto& input_strides = input_mem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& output_strides = output_mem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -392,9 +385,6 @@ void RDFTExecutor::dft_on_axis(enum dft_type type,
         float* scatter_buffer = &gather_scatter_buffer[gather_size];
         for (size_t i = 0; i < total_work_size; i++) {
             coords_from_index(i, coords, iteration_range, axis);
-            std::cout << "axis " << axis << " coords:\n";
-            for (auto x : coords)
-                std::cout << x << std::endl;
             gather(gather_buffer, input_ptr,
                    axis, coords,
                    input_size, input_strides);
@@ -402,12 +392,6 @@ void RDFTExecutor::dft_on_axis(enum dft_type type,
                        input_size, signal_size, output_size,
                        type, use_fft, !parallelize_outer_axes);
             scatter(output_ptr, scatter_buffer, axis, coords, output_size, output_strides);
-            std::cout << "axis " << axis << " gather\n";
-            for (int i = 0; i < gather_size; i++)
-                std::cout << gather_buffer[i] << std::endl;
-            std::cout << "axis " << axis << " scatter\n";
-            for (int i = 0; i < scatter_size; i++)
-                std::cout << scatter_buffer[i] << std::endl;
         }
     }
 }
@@ -423,14 +407,14 @@ void RDFTExecutor::rdft_nd(float* input_ptr, float* output_ptr,
     const std::vector<size_t> iteration_range(output_shape.begin(), output_shape.end() - 1);
 
     dft_on_axis(real_to_complex, input_ptr, output_ptr,
-                twiddles[0].data(), axes[0],
-                signal_sizes[0],
+                twiddles.back().data(), axes.back(),
+                signal_sizes.back(),
                 input_shape, input_strides,
                 output_shape, output_strides,
                 iteration_range);
     input_ptr = output_ptr;
 
-    for (size_t i = 1; i < axes.size(); i++) {
+    for (size_t i = 0; i < axes.size() - 1; i++) {
         auto axis = axes[i];
         dft_on_axis(complex_to_complex, input_ptr, output_ptr,
                     twiddles[i].data(), axis,
@@ -508,7 +492,6 @@ std::vector<float> RDFTExecutor::generate_twiddles_fft(size_t N) {
 
 std::vector<float> RDFTExecutor::generate_twiddles_common(size_t signal_size, size_t output_size,
                                                           enum dft_type type, bool use_fft) {
-    assert(signal_size);
     if (use_fft) {
         return generate_twiddles_fft(signal_size);
     }
@@ -523,10 +506,8 @@ void RDFTExecutor::generate_twiddles(const std::vector<int>& signal_sizes,
         size_t N = signal_sizes[i];
         size_t K = output_shape[axis];
         auto type = complex_to_complex;
-        if (i == 0 && !is_inverse)
-            type = real_to_complex;
-        if (i == axes.size() - 1 && is_inverse)
-            type = complex_to_real;
+        if (i == axes.size() - 1)
+            type = is_inverse ? complex_to_real : real_to_complex;
         twiddles.push_back(generate_twiddles_common(N, K, type, can_use_fft(N)));
     }
 }
@@ -698,8 +679,6 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
 
                         add(twiddles_ptr, 2 * vlen);
                     } else if (kernel_type_ == complex_to_complex) {
-                        if (getenv("BR"))
-                            int3();
                         // output_real += input_real * cos(..) - input_imag * sin(..)
                         // output_imag += input_imag * cos(..) + input_real * sin(..)
                         uni_vbroadcastsd(input, ptr[input_ptr]);
@@ -1419,9 +1398,6 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 }
             });
         }
-        std::cout << __func__ << std::endl;
-        for (int i = 0; i < twiddles.size(); i++)
-            std::cout << twiddles[i] << std::endl;
         return twiddles;
     }
 
