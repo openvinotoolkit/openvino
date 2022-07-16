@@ -8,7 +8,7 @@
 
 int main() {
 ov::Core core;
-std::shared_ptr<ov::Model> model = std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{});
+std::shared_ptr<ov::Model> model = core.read_model("model.xml");
 ov::CompiledModel compiled_model;
 
 //! [create_infer_request]
