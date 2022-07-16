@@ -123,7 +123,7 @@ if(BUILD_SHARED_LIBS)
     # for InferenceEngineUnitTest
     # For public tests
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     # For private tests
     if (NOT WIN32)
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
