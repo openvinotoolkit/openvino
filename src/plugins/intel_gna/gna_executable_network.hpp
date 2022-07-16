@@ -47,7 +47,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         setOutputs(plg->GetOutputs());
     }
 
-    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+    GNAExecutableNetwork(const InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
     }
