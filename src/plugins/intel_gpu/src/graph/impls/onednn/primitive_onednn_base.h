@@ -47,6 +47,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _pd(pd),
           _prim(pd) { }
 
+    typed_primitive_onednn_impl(const typed_program_node<PType>& arg,
+                                const PrimDescType& pd)
+        : typed_primitive_impl<PType>({}, arg.can_be_optimized()?"undef":pd.impl_info_str()),
+          _outer(arg),
+          _pd(),
+          _prim() { }
+
     bool is_cpu() const override { return false; }
 
 protected:
@@ -184,6 +191,8 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        if (instance.can_be_optimized())
+            return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }
