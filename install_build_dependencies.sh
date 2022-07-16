@@ -42,7 +42,6 @@ if [ -f /etc/lsb-release ]; then
             git-lfs \
             libboost-regex-dev \
             $x86_64_specific_packages \
-            libgtk2.0-dev \
             unzip \
             shellcheck \
             patchelf \
