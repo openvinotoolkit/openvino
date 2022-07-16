@@ -25,12 +25,12 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      # Dynamic:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
-      Static:
-        CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
+      # Static:
+      #   CMAKE_BUILD_SHARED_LIBS: 'OFF'
+      #   PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     maxParallel: 2
 
   # About 150% of total time
@@ -188,6 +188,16 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+
+  - script: |
+      cmake -DCPACK_GENERATOR=DEB .
+      cmake --build . --target package -j8
+      cmake -UCPACK_GENERATOR .
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Debian packages'
+
+  - script: ls -alR $(BUILD_DIR)/.*deb
+    displayName: 'List Debian packages'
 
   - task: CMake@1
     inputs:
