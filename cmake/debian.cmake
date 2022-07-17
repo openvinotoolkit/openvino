@@ -11,14 +11,17 @@ macro(ov_debian_components)
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
     unset(CPACK_COMPONENTS_ALL)
     foreach(item ${cpack_components_all})
-        # filter out some components, which are not needed to wrapped to .deb package
+        # filter out some components, which are not needed to be wrapped to .deb package
         if(# NOT ${item} MATCHES ".*(python).*" AND
-           # python wheels are not need to be wrapped by debian packages
+           # python wheels are not needed to be wrapped by debian packages
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
-           NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER)
+           # not appropriate components
+           NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
+           NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
+           NOT item STREQUAL OV_CPACK_COMP_SETUPVARS)
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()

@@ -91,6 +91,9 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
     set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
+    # scripts
+    set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
+    set(OV_CPACK_COMP_SETUPVARS "setupvars")
 endmacro()
 
 ov_define_component_names()
