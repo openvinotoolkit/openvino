@@ -235,7 +235,7 @@ macro(ie_add_sample)
 
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
-        set(ov_link_libraries openvino::runtime::c openvino::runtime::c2)
+        set(ov_link_libraries openvino::runtime::c)
     else()
         set(ov_link_libraries openvino::runtime)
     endif()
