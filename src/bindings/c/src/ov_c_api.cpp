@@ -102,21 +102,23 @@ struct ov_property {
  * @variable global value for error info
  */
 char const* error_infos[] = {
-    "no error.",
+    "no error",
     "general error",
     "not implement",
     "network load failed",
     "input parameter mismatch",
     "cannot find the value",
     "out of bounds",
+    "calloc failure",
+    "invalid parameters",
     "run with unexpected error",
-    "request is busy now",
-    "result is not ready now",
-    "allocated failed",
+    "request is busy",
+    "result is not ready",
+    "not allocated",
     "inference start with error",
-    "network is not ready now",
+    "network is not ready",
     "inference is canceled",
-    "unknown value",
+    "unknown error",
 };
 
 /**
@@ -291,7 +293,7 @@ ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
     try {
         std::unique_ptr<ov_dimensions_t> dims(new ov_dimensions_t);
         if (!dims) {
-            return ov_status_e::MALLOC_FAILED;
+            return ov_status_e::CALLOC_FAILED;
         }
         *dimensions = dims.release();
     }
@@ -372,7 +374,7 @@ const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
 
 ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape) {
     if (!partial_shape || !shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -446,7 +448,7 @@ const char* ov_layout_to_string(ov_layout_t* layout) {
 
 ov_status_e ov_property_create(ov_property_t** property) {
     if (!property) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_property_t> _property(new ov_property_t);
@@ -533,7 +535,7 @@ void ov_property_value_free(ov_property_value_t value) {
 
 ov_status_e ov_get_openvino_version(ov_version_t* version) {
     if (!version) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -561,7 +563,7 @@ void ov_version_free(ov_version_t* version) {
 
 ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
     if (!core || !xml_config_file) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -583,7 +585,7 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
                                const char* bin_path,
                                ov_model_t** model) {
     if (!core || !model_path || !model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -604,7 +606,7 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
                                            const ov_tensor_t* weights,
                                            ov_model_t** model) {
     if (!core || !model_str || !weights || !model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -628,7 +630,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   ov_compiled_model_t** compiled_model,
                                   const ov_property_t* property) {
     if (!core || !model || !compiled_model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -654,7 +656,7 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             ov_compiled_model_t** compiled_model,
                                             const ov_property_t* property) {
     if (!core || !model_path || !compiled_model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -681,7 +683,7 @@ void ov_compiled_model_free(ov_compiled_model_t* compiled_model) {
 
 ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property) {
     if (!core || !property) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -850,7 +852,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
 
 ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices) {
     if (!core) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto available_devices = core->object->get_available_devices();
@@ -886,7 +888,7 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
                                  const char* device_name,
                                  ov_compiled_model_t** compiled_model) {
     if (!core || !content || !device_name || !compiled_model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         mem_istream model_stream(content, content_size);
@@ -903,7 +905,7 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
                                                 const char* device_name,
                                                 ov_core_version_list_t* versions) {
     if (!core || !device_name || !versions) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto object = core->object->get_versions(device_name);
@@ -948,7 +950,7 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
 
 ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* output_nodes) {
     if (!model || !output_nodes) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
@@ -966,7 +968,7 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
 
 ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes) {
     if (!model || !input_nodes) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
@@ -984,7 +986,7 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
 
 ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name) {
     if (!node || !tensor_name) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -997,7 +999,7 @@ ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_nam
 
 ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
     if (!nodes || !tensor_name || idx >= nodes->num) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1010,13 +1012,13 @@ ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t i
 
 ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape) {
     if (!node || !tensor_shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
         auto shape = node->object->get_shape();
         if (shape.size() > MAX_DIMENSION) {
-            return ov_status_e::GENERAL_ERROR;
+            return ov_status_e::INVALID_PARAM;
         }
         tensor_shape->rank = shape.size();
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
@@ -1028,7 +1030,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
 ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape) {
     if (!nodes || idx >= nodes->num || !tensor_shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1048,7 +1050,7 @@ ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
                                                size_t idx,
                                                ov_partial_shape_t** partial_shape) {
     if (!nodes || idx >= nodes->num || !partial_shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1070,7 +1072,7 @@ ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
                                               size_t idx,
                                               ov_element_type_e* tensor_type) {
     if (!nodes || idx >= nodes->num) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1084,7 +1086,7 @@ ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
 
 ov_status_e ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type) {
     if (!node || !tensor_type) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1100,7 +1102,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
                                    const char* tensor_name,
                                    ov_output_const_node_t** input_node) {
     if (!model || !tensor_name || !input_node) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
@@ -1113,7 +1115,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
 
 ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
@@ -1146,7 +1148,7 @@ ov_status_e ov_model_reshape_by_name(const ov_model_t* model,
                                      const char* tensor_name,
                                      const ov_partial_shape_t* partial_shape) {
     if (!model || !tensor_name || !partial_shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::map<std::string, ov::PartialShape> in_shape;
@@ -1166,7 +1168,7 @@ ov_status_e ov_model_reshape_by_names(const ov_model_t* model,
                                       const ov_partial_shape_t* partial_shapes[],
                                       size_t cnt) {
     if (!model || !tensor_names || !partial_shapes || cnt < 1) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::map<std::string, ov::PartialShape> in_shapes;
@@ -1190,7 +1192,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
                                       const ov_partial_shape_t** partial_shape,
                                       size_t cnt) {
     if (!model || !ports || !partial_shape || cnt < 1) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::map<size_t, ov::PartialShape> in_shapes;
@@ -1219,7 +1221,7 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
                                       const ov_partial_shape_t* partial_shapes[],
                                       size_t cnt) {
     if (!model || !output_nodes || !partial_shapes || cnt < 1) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::map<ov::Output<ov::Node>, ov::PartialShape> in_shapes;
@@ -1240,7 +1242,7 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
 
 ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name) {
     if (!model || !friendly_name) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto& result = model->object->get_friendly_name();
@@ -1271,7 +1273,7 @@ void ov_free(const char* content) {
 ov_status_e ov_preprocess_prepostprocessor_create(const ov_model_t* model,
                                                   ov_preprocess_prepostprocessor_t** preprocess) {
     if (!model || !preprocess) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_prepostprocessor_t> _preprocess(new ov_preprocess_prepostprocessor_t);
@@ -1291,7 +1293,7 @@ void ov_preprocess_prepostprocessor_free(ov_preprocess_prepostprocessor_t* prepr
 ov_status_e ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* preprocess,
                                                  ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
@@ -1307,7 +1309,7 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_pre
                                                          const char* tensor_name,
                                                          ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !tensor_name || !preprocess_input_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
@@ -1323,7 +1325,7 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_pr
                                                           const size_t tensor_index,
                                                           ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
@@ -1343,7 +1345,7 @@ void ov_preprocess_inputinfo_free(ov_preprocess_inputinfo_t* preprocess_input_in
 ov_status_e ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* preprocess_input_info,
                                            ov_preprocess_inputtensorinfo_t** preprocess_input_tensor_info) {
     if (!preprocess_input_info || !preprocess_input_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_inputtensorinfo_t> _preprocess_input_tensor_info(
@@ -1364,7 +1366,7 @@ void ov_preprocess_inputtensorinfo_free(ov_preprocess_inputtensorinfo_t* preproc
 ov_status_e ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* preprocess_input_info,
                                                ov_preprocess_preprocesssteps_t** preprocess_input_steps) {
     if (!preprocess_input_info || !preprocess_input_steps) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_preprocesssteps_t> _preprocess_input_steps(new ov_preprocess_preprocesssteps_t);
@@ -1384,7 +1386,7 @@ void ov_preprocess_preprocesssteps_free(ov_preprocess_preprocesssteps_t* preproc
 ov_status_e ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
                                                  const ov_preprocess_resizealgorithm_e resize_algorithm) {
     if (!preprocess_input_process_steps) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_process_steps->object->resize(resize_algorithm_map[resize_algorithm]);
@@ -1398,7 +1400,7 @@ ov_status_e ov_preprocess_inputtensorinfo_set_element_type(
     ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
     const ov_element_type_e element_type) {
     if (!preprocess_input_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_tensor_info->object->set_element_type(GET_OV_ELEMENT_TYPE(element_type));
@@ -1411,7 +1413,7 @@ ov_status_e ov_preprocess_inputtensorinfo_set_element_type(
 ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
                                                    const ov_tensor_t* tensor) {
     if (!preprocess_input_tensor_info || !tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_tensor_info->object->set_from(*(tensor->object));
@@ -1424,7 +1426,7 @@ ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo
 ov_status_e ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
                                                      ov_layout_t* layout) {
     if (!preprocess_input_tensor_info || !layout) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_tensor_info->object->set_layout(layout->object);
@@ -1438,7 +1440,7 @@ ov_status_e ov_preprocess_inputtensorinfo_set_color_format(
     ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
     const ov_color_format_e colorFormat) {
     if (!preprocess_input_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat));
@@ -1453,7 +1455,7 @@ ov_status_e ov_preprocess_inputtensorinfo_set_spatial_static_shape(
     const size_t input_height,
     const size_t input_width) {
     if (!preprocess_input_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_tensor_info->object->set_spatial_static_shape(input_height, input_width);
@@ -1467,7 +1469,7 @@ ov_status_e ov_preprocess_preprocesssteps_convert_element_type(
     ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
     const ov_element_type_e element_type) {
     if (!preprocess_input_process_steps) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_process_steps->object->convert_element_type(GET_OV_ELEMENT_TYPE(element_type));
@@ -1480,7 +1482,7 @@ ov_status_e ov_preprocess_preprocesssteps_convert_element_type(
 ov_status_e ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
                                                         const ov_color_format_e colorFormat) {
     if (!preprocess_input_process_steps) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_process_steps->object->convert_color(GET_OV_COLOR_FARMAT(colorFormat));
@@ -1493,7 +1495,7 @@ ov_status_e ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocess
 ov_status_e ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* preprocess,
                                                   ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         *preprocess_output_info = new ov_preprocess_outputinfo_t;
@@ -1508,7 +1510,7 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_p
                                                            const size_t tensor_index,
                                                            ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
@@ -1524,7 +1526,7 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_pr
                                                           const char* tensor_name,
                                                           ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !tensor_name || !preprocess_output_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
@@ -1544,7 +1546,7 @@ void ov_preprocess_outputinfo_free(ov_preprocess_outputinfo_t* preprocess_output
 ov_status_e ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preprocess_output_info,
                                             ov_preprocess_outputtensorinfo_t** preprocess_output_tensor_info) {
     if (!preprocess_output_info || !preprocess_output_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_outputtensorinfo_t> _preprocess_output_tensor_info(
@@ -1565,7 +1567,7 @@ void ov_preprocess_outputtensorinfo_free(ov_preprocess_outputtensorinfo_t* prepr
 ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo_t* preprocess_output_tensor_info,
                                                   const ov_element_type_e element_type) {
     if (!preprocess_output_tensor_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_output_tensor_info->object->set_element_type(GET_OV_ELEMENT_TYPE(element_type));
@@ -1578,7 +1580,7 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo
 ov_status_e ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_input_info,
                                           ov_preprocess_inputmodelinfo_t** preprocess_input_model_info) {
     if (!preprocess_input_info || !preprocess_input_model_info) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_preprocess_inputmodelinfo_t> _preprocess_input_model_info(
@@ -1599,7 +1601,7 @@ void ov_preprocess_inputmodelinfo_free(ov_preprocess_inputmodelinfo_t* preproces
 ov_status_e ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info,
                                                     ov_layout_t* layout) {
     if (!preprocess_input_model_info || !layout) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         preprocess_input_model_info->object->set_layout(layout->object);
@@ -1612,7 +1614,7 @@ ov_status_e ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo
 ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess,
                                                  ov_model_t** model) {
     if (!preprocess || !model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_model_t> _model(new ov_model_t);
@@ -1626,7 +1628,7 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
 
 ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model) {
     if (!compiled_model || !model) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1642,7 +1644,7 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
 
 ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes) {
     if (!compiled_model || !input_nodes) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1661,7 +1663,7 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, 
 
 ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes) {
     if (!compiled_model || !output_nodes) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1681,7 +1683,7 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
 ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
                                                    ov_infer_request_t** infer_request) {
     if (!compiled_model || !infer_request) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1697,7 +1699,7 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
 
 ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_property_t* property) {
     if (!compiled_model || !property) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1739,7 +1741,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
 
 ov_status_e ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path) {
     if (!compiled_model || !export_model_path) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::ofstream model_file(export_model_path, std::ios::out | std::ios::binary);
@@ -1762,7 +1764,7 @@ ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
                                         const char* tensor_name,
                                         const ov_tensor_t* tensor) {
     if (!infer_request || !tensor_name || !tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1777,7 +1779,7 @@ ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
                                               size_t idx,
                                               const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1792,7 +1794,7 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
                                         const char* tensor_name,
                                         ov_tensor_t** tensor) {
     if (!infer_request || !tensor_name || !tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1808,7 +1810,7 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
 
 ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1824,7 +1826,7 @@ ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_requ
 
 ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1837,7 +1839,7 @@ ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1850,7 +1852,7 @@ ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1863,7 +1865,7 @@ ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1876,7 +1878,7 @@ ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {
     if (!infer_request || !callback) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1893,7 +1895,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, con
 ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
                                                 ov_profiling_info_list_t* profiling_infos) {
     if (!infer_request || !profiling_infos) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
 
     try {
@@ -1937,7 +1939,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
 
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t** tensor) {
     if (!tensor || element_type_map.find(type) == element_type_map.end()) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
@@ -1956,7 +1958,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
                                            void* host_ptr,
                                            ov_tensor_t** tensor) {
     if (!tensor || !host_ptr || element_type_map.find(type) == element_type_map.end()) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
@@ -1972,7 +1974,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
 
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     if (!tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         ov::Shape tmp_shape;
@@ -1985,7 +1987,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
 
 ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     if (!tensor) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto tmp_shape = tensor->object->get_shape();
@@ -2001,7 +2003,7 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
 
 ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type) {
     if (!tensor || !type) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         auto tmp_type = tensor->object->get_element_type();
@@ -2013,7 +2015,7 @@ ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_typ
 
 ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size) {
     if (!tensor || !elements_size) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         *elements_size = tensor->object->get_size();
@@ -2024,7 +2026,7 @@ ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size)
 
 ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size) {
     if (!tensor || !byte_size) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         *byte_size = tensor->object->get_byte_size();
@@ -2035,7 +2037,7 @@ ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size
 
 ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data) {
     if (!tensor || !data) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     try {
         *data = tensor->object->data();
