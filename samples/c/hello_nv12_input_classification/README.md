@@ -1,27 +1,11 @@
-# Hello NV12 Input Classification C Sample {#openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README}
+# Hello NV12 Input Classification C Sample for OpenVINO 2.0 C-API
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
-
-Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
-
-| Feature    | API  | Description |
-|:---     |:--- |:---
-| Blob Operations| [ie_blob_make_memory_nv12] | Create a NV12 blob
-| Input in N12 color format |[ie_network_set_color_format]| Change the color format of the input data
-Basic Inference Engine API is covered by [Hello Classification C sample](../hello_classification/README.md).
-
-| Options  | Values |
-|:---                              |:---
-| Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
-| Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [C++](../../../samples/cpp/hello_nv12_input_classification/README.md) |
 
 ## How It Works
 
 Upon the start-up, the sample application reads command-line parameters, loads specified network and an
-image in the NV12 color format to an Inference Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the
+image in the NV12 color format to an Inference Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the
 application outputs data to the standard output stream.
 
 You can see the explicit description of
@@ -77,7 +61,7 @@ python <path_to_omz_tools>/converter.py --name alexnet
 3. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
 
 ```
-<path_to_sample>/hello_nv12_input_classification_c <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
+<path_to_sample>/hello_nv12_input_classification_ov_c <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
 ```
 
 ## Sample Output
@@ -87,30 +71,20 @@ The application outputs top-10 inference results.
 ```
 Top 10 results:
 
-Image ./cat.yuv
+Image <path_to_image>/cat.yuv
 
 classid probability
 ------- -----------
-435       0.091733
-876       0.081725
-999       0.069305
-587       0.043726
-666       0.038957
-419       0.032892
-285       0.030309
-700       0.029941
-696       0.021628
-855       0.020339
+876       0.125426
+435       0.120252
+285       0.068099
+282       0.056738
+281       0.032151
+36       0.027748
+94       0.027691
+999       0.026507
+335       0.021384
+186       0.017978
 
 This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
-
-## See Also
-
-- [Integrate the OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader)
-- [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-
-[ie_network_set_color_format]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga85f3251f1f7b08507c297e73baa58969
-[ie_blob_make_memory_nv12]:https://docs.openvino.ai/latest/ie_c_api/group__Blob.html#ga0a2d97b0d40a53c01ead771f82ae7f4a
