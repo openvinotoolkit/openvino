@@ -243,6 +243,12 @@ To enable performance hints for your application, use the following code:
 
 @endsphinxdirective
 
+#### Notes
+
+ - The `ov::hint::PerformanceMode::THROUGHPUT` mode and the `ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT` mode will trigger Auto-Batching (for example, for the GPU device) by default. You can disable it by setting `ov::hint::allow_auto_batching(false)`, or change the default timeout value to a large number, e.g. `ov::auto_batch_timeout(1000)`. See [Automatic Batching](./automatic_batching.md) for more details.
+
+- If no performance hint is set explicitly, AUTO will set THROUGHPUT for devices that have not set `ov::device::priorities`. For example, if you have both a CPU and a GPU in the system, this command `core.compile_model("AUTO", ov::device::properties("CPU", ov::enable_profiling(true)))` will set THROUGHPUT for the GPU only. No hint will be set for the CPU although it's the selected device.
+
 ### Configuring Model Priority
 
 The `ov::hint::model_priority` property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
