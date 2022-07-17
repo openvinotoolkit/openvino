@@ -192,10 +192,12 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Debian packages'
 
-  - script: ls -alR $(BUILD_DIR)/.*deb
+  - script: ls -alR .*deb
+    workingDirectory: $(BUILD_DIR)
     displayName: 'List Debian packages'
 
-  - script: sudo dpkg -i $(BUILD_DIR)/.*deb
+  - script: sudo dpkg -i .*deb
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
 
   - task: CMake@1
