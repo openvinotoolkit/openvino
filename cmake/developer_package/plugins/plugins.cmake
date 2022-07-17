@@ -79,7 +79,7 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "OpenVINO Runtime ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 

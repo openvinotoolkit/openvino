@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(GNUInstallDirs)
+
 #
 # ov_debian_cpack_set_dirs()
 #

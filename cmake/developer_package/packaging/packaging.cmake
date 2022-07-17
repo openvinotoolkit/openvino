@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(CMakeParseArguments)
 include(CPackComponent)
-include(GNUInstallDirs)
 
 #
 # ov_cpack_set_dirs()
@@ -101,7 +99,10 @@ ov_define_component_names()
 # Include Debian specific configuration file:
 # - overrides directories set by ov_debian_cpack_set_dirs()
 # - merges some components using ov_override_component_names()
-# - sets ov_debian_specific_settings()
+# - sets ov_debian_specific_settings() with DEB generator variables
+# - defines the following helper functions:
+#  - ov_add_lintian_suppression()
+#  - ov_add_latest_component()
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
 endif()
