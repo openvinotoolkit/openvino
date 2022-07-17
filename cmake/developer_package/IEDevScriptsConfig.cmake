@@ -193,7 +193,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
-set(CMAKE_SKIP_INSTALL_RPATH ON)
+# TODO: debian packages
+# set(CMAKE_SKIP_INSTALL_RPATH ON)
 
 # LTO
 
