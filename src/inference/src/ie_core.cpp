@@ -56,11 +56,6 @@ using namespace std::placeholders;
 
 namespace ov {
 
-namespace frontend {
-class FrontEndManager;
-std::shared_ptr<FrontEndManager> get_frontend_manager();
-}  // namespace frontend
-
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
