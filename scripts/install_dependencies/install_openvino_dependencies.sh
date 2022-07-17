@@ -55,7 +55,7 @@ fi
 #  Selftest
 
 if [ -n "$selftest" ] ; then
-    for image in ubuntu:18.04 ubuntu:20.04 redhat/ubi8 ; do
+    for image in ubuntu:18.04 ubuntu:20.04 ubuntu:21.10 ubuntu:22.04 redhat/ubi8 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -87,7 +87,7 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        rhel8|ubuntu18.04|ubuntu20.04|ubuntu21.10|ubuntu22.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -100,7 +100,7 @@ extra_repos=()
 if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
+    pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -118,10 +118,10 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libswscale4
     )
 
-elif [ "$os" == "ubuntu20.04" ] ; then
+elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
+    pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -133,16 +133,19 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-tools
         libavcodec58
         libavformat58
-        libavresample4
         libavutil56
         libgstreamer1.0-0
         libswscale5
     )
 
+    if [ "$os" == "ubuntu20.04" ] ; then
+        pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
+    fi
+
 elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
-    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
+    pkgs_python=(python3 python3-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config gflags-devel.i686 zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
@@ -193,13 +196,14 @@ fi
 
 iopt=
 
-if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
+if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] || \
+   [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && rm -f /etc/apt/apt.conf.d/docker-clean
 
-    apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
+    apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
 
 elif [ "$os" == "rhel8" ] ; then
 
