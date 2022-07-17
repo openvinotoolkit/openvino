@@ -581,12 +581,15 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_layout) {
     OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    ov_layout_t layout = {'N', 'C', 'H', 'W'};
+    ov_layout_t* layout = nullptr;
+    const char* input_layout_desc = "NCHW";
+    OV_ASSERT_OK(ov_layout_create(&layout, input_layout_desc));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
 
     ov_preprocess_inputtensorinfo_free(input_tensor_info);
     ov_preprocess_inputinfo_free(input_info);
     ov_preprocess_prepostprocessor_free(preprocess);
+    ov_layout_free(layout);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -903,8 +906,11 @@ TEST(ov_preprocess, ov_preprocess_inputmodelinfo_set_layout) {
     OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
     ASSERT_NE(nullptr, input_model);
 
-    ov_layout_t layout = {'N', 'C', 'H', 'W'};
+    ov_layout_t* layout = nullptr;
+    const char* layout_desc = "NCHW";
+    OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
     OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, layout));
+    ov_layout_free(layout);
 
     ov_preprocess_inputmodelinfo_free(input_model);
     ov_preprocess_inputinfo_free(input_info);
@@ -960,8 +966,12 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_shape_t shape = {4, {1, 416, 416, 3}};
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
-    ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
+
+    const char* layout_desc = "NHWC";
+    ov_layout_t* layout = nullptr;
+    OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
+    ov_layout_free(layout);
 
     ov_preprocess_preprocesssteps_t* input_process = nullptr;
     OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
@@ -971,8 +981,12 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_preprocess_inputmodelinfo_t* input_model = nullptr;
     OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
     ASSERT_NE(nullptr, input_model);
-    ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
+
+    const char* model_layout_desc = "NCHW";
+    ov_layout_t* model_layout = nullptr;
+    OV_ASSERT_OK(ov_layout_create(&model_layout, model_layout_desc));
     OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
+    ov_layout_free(model_layout);
 
     ov_preprocess_outputinfo_t* output_info = nullptr;
     OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
@@ -1308,8 +1322,12 @@ protected:
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
         OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));
-        ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
+
+        const char* layout_desc = "NHWC";
+        ov_layout_t* layout = nullptr;
+        OV_ASSERT_OK(ov_layout_create(&layout, layout_desc));
+        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
+        ov_layout_free(layout);
 
         input_process = nullptr;
         OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
@@ -1320,8 +1338,12 @@ protected:
         input_model = nullptr;
         OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
         ASSERT_NE(nullptr, input_model);
-        ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
+
+        ov_layout_t* model_layout = nullptr;
+        const char* model_layout_desc = "NCHW";
+        OV_ASSERT_OK(ov_layout_create(&model_layout, model_layout_desc));
         OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
+        ov_layout_free(model_layout);
 
         OV_ASSERT_OK(ov_preprocess_prepostprocessor_build(preprocess, &model));
         EXPECT_NE(nullptr, model);
@@ -1941,4 +1963,30 @@ TEST(ov_partial_shape, ov_shape_to_partial_shape) {
 
     EXPECT_STREQ(tmp, str);
     ov_partial_shape_free(partial_shape);
+}
+
+TEST(ov_layout, ov_layout_create_static_layout) {
+    const char* str = "[N,C,H,W]";
+    const char* desc = "NCHW";
+    ov_layout_t* layout = nullptr;
+
+    OV_ASSERT_OK(ov_layout_create(&layout, desc));
+    const char* res = ov_layout_to_string(layout);
+
+    EXPECT_STREQ(res, str);
+    ov_layout_free(layout);
+    ov_free(res);
+}
+
+TEST(ov_layout, ov_layout_create_dynamic_layout) {
+    const char* str = "[N,...,C]";
+    const char* desc = "N...C";
+    ov_layout_t* layout = nullptr;
+
+    OV_ASSERT_OK(ov_layout_create(&layout, desc));
+    const char* res = ov_layout_to_string(layout);
+
+    EXPECT_STREQ(res, str);
+    ov_layout_free(layout);
+    ov_free(res);
 }

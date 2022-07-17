@@ -128,6 +128,8 @@ int main(int argc, char** argv) {
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
     struct infer_result* results = NULL;
+    ov_layout_t* input_layout = NULL;
+    ov_layout_t* model_layout = NULL;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -176,14 +178,17 @@ int main(int argc, char** argv) {
 
     CHECK_STATUS(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     CHECK_STATUS(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
-    ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
+
+    const char* input_layout_desc = "NHWC";
+    CHECK_STATUS(ov_layout_create(&input_layout, input_layout_desc));
+    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, input_layout));
 
     CHECK_STATUS(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     CHECK_STATUS(ov_preprocess_preprocesssteps_resize(input_process, RESIZE_LINEAR));
-
     CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
-    ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
+
+    const char* model_layout_desc = "NCHW";
+    CHECK_STATUS(ov_layout_create(&model_layout, model_layout_desc));
     CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
 
     CHECK_STATUS(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
@@ -230,6 +235,10 @@ err:
         ov_infer_request_free(infer_request);
     if (compiled_model)
         ov_compiled_model_free(compiled_model);
+    if (input_layout)
+        ov_layout_free(input_layout);
+    if (model_layout)
+        ov_layout_free(model_layout);
     if (output_tensor_info)
         ov_preprocess_outputtensorinfo_free(output_tensor_info);
     if (output_info)

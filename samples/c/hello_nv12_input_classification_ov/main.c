@@ -197,6 +197,7 @@ int main(int argc, char** argv) {
     char* output_tensor_name = NULL;
     ov_output_node_list_t input_nodes = {.num = 0, .output_nodes = NULL};
     ov_output_node_list_t output_nodes = {.num = 0, .output_nodes = NULL};
+    ov_layout_t* model_layout = NULL;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version = {.description = NULL, .buildNumber = NULL};
@@ -260,7 +261,9 @@ int main(int argc, char** argv) {
 
     // 4) Set model data layout (Assuming model accepts images in NCHW layout)
     CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
-    ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
+
+    const char* model_layout_desc = "NCHW";
+    CHECK_STATUS(ov_layout_create(&model_layout, model_layout_desc));
     CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
 
     // 5) Apply preprocessing to an input with 'input_tensor_name' name of loaded model
@@ -334,6 +337,8 @@ err:
         ov_preprocess_inputmodelinfo_free(p_input_model);
     if (input_process)
         ov_preprocess_preprocesssteps_free(input_process);
+    if (model_layout)
+        ov_layout_free(model_layout);
     if (input_tensor_info)
         ov_preprocess_inputtensorinfo_free(input_tensor_info);
     if (input_info)

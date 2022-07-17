@@ -25,10 +25,6 @@ struct ov_core {
     std::shared_ptr<ov::Core> object;
 };
 
-struct ov_node {
-    std::shared_ptr<ov::Node> object;
-};
-
 struct ov_output_const_node {
     std::shared_ptr<ov::Output<const ov::Node>> object;
 };
@@ -79,6 +75,10 @@ struct ov_infer_request {
 
 struct ov_tensor {
     std::shared_ptr<ov::Tensor> object;
+};
+
+struct ov_layout {
+    ov::Layout object;
 };
 
 struct ov_rank {
@@ -405,7 +405,7 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
 
 ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** partial_shape) {
     if (!partial_shape || !shape) {
-        return ov_status_e::GENERAL_ERROR;
+        return ov_status_e::INVALID_PARAM;
     }
     if (shape->rank > MAX_DIMENSION) {
         return ov_status_e::INVALID_PARAM;
@@ -420,6 +420,34 @@ ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** pa
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+ov_status_e ov_layout_create(ov_layout_t** layout, const char* layout_desc) {
+    if (!layout || !layout_desc) {
+        return ov_status_e::INVALID_PARAM;
+    }
+
+    try {
+        *layout = new ov_layout_t;
+        (*layout)->object = ov::Layout(layout_desc);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+void ov_layout_free(ov_layout_t* layout) {
+    if (layout)
+        delete layout;
+}
+
+const char* ov_layout_to_string(ov_layout_t* layout) {
+    if (!layout) {
+        return str_to_char_array("Error: null layout!");
+    }
+
+    auto str = layout->object.to_string();
+    const char* res = str_to_char_array(str);
+    return res;
 }
 
 ov_status_e ov_property_create(ov_property_t** property) {
@@ -869,7 +897,9 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions) {
+ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
+                                                const char* device_name,
+                                                ov_core_version_list_t* versions) {
     if (!core || !device_name || !versions) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1012,7 +1042,9 @@ ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type) {
+ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
+                                              size_t idx,
+                                              ov_element_type_e* tensor_type) {
     if (!nodes || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1359,13 +1391,12 @@ ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo
 }
 
 ov_status_e ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                                     const ov_layout_t layout) {
+                                                     ov_layout_t* layout) {
     if (!preprocess_input_tensor_info || !layout) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        ov::Layout tmp_layout(std::string(layout, 4));
-        preprocess_input_tensor_info->object->set_layout(tmp_layout);
+        preprocess_input_tensor_info->object->set_layout(layout->object);
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1529,13 +1560,12 @@ void ov_preprocess_inputmodelinfo_free(ov_preprocess_inputmodelinfo_t* preproces
 }
 
 ov_status_e ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info,
-                                                    const ov_layout_t layout) {
+                                                    ov_layout_t* layout) {
     if (!preprocess_input_model_info || !layout) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        ov::Layout tmp_layout(std::string(layout, 4));
-        preprocess_input_model_info->object->set_layout(tmp_layout);
+        preprocess_input_model_info->object->set_layout(layout->object);
     }
     CATCH_OV_EXCEPTIONS
 

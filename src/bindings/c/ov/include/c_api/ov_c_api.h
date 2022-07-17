@@ -169,11 +169,6 @@ typedef struct {
 typedef struct ov_core ov_core_t;
 
 /**
- * @struct ov_node_t
- */
-typedef struct ov_node ov_node_t;
-
-/**
  * @struct ov_output_const_node_t
  */
 typedef struct ov_output_const_node ov_output_const_node_t;
@@ -291,7 +286,7 @@ typedef enum {
 /**
  * @struct ov_layout_t
  */
-typedef char ov_layout_t[MAX_DIMENSION];
+typedef struct ov_layout ov_layout_t;
 
 /**
  * @struct ov_shape_t
@@ -484,6 +479,25 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(ov_partial_shape_t* partia
 OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** partial_shape);
 
 /**
+ * @brief Create a layout object.
+ * @param ov_status_e a status code, return OK if successful
+ */
+OPENVINO_C_API(ov_status_e) ov_layout_create(ov_layout_t** layout, const char* layout_desc);
+
+/**
+ * @brief Free layout object.
+ * @param layout will be released.
+ */
+OPENVINO_C_API(void) ov_layout_free(ov_layout_t* layout);
+
+/**
+ * @brief Convert layout object to a readable string.
+ * @param layout will be converted.
+ * @return string that describes the layout content.
+ */
+OPENVINO_C_API(const char*) ov_layout_to_string(ov_layout_t* layout);
+
+/**
  * @brief Create a property object.
  * @param ov_status_e a status code, return OK if successful
  */
@@ -551,7 +565,7 @@ OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
- OPENVINO_C_API(ov_status_e)
+OPENVINO_C_API(ov_status_e)
 ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
 
 /**
@@ -737,7 +751,8 @@ OPENVINO_C_API(ov_status_e) ov_node_get_any_name(ov_output_const_node_t* node, c
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e)
+ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the tensor shape of ov_output_node.
@@ -866,7 +881,8 @@ OPENVINO_C_API(void) ov_free(const char* content);
  * @param preprocess A pointer to the ov_preprocess_prepostprocessor_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_create(const ov_model_t* model, ov_preprocess_prepostprocessor_t** preprocess);
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_create(const ov_model_t* model, ov_preprocess_prepostprocessor_t** preprocess);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_prepostprocessor_t.
@@ -882,7 +898,8 @@ OPENVINO_C_API(void) ov_preprocess_prepostprocessor_free(ov_preprocess_prepostpr
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* preprocess, ov_preprocess_inputinfo_t** preprocess_input_info);
+ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* preprocess,
+                                     ov_preprocess_inputinfo_t** preprocess_input_info);
 
 /**
  * @brief Get the input info of ov_preprocess_prepostprocessor_t instance by tensor name.
@@ -893,8 +910,8 @@ ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* pre
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
-                                     const char* tensor_name,
-                                     ov_preprocess_inputinfo_t** preprocess_input_info);
+                                             const char* tensor_name,
+                                             ov_preprocess_inputinfo_t** preprocess_input_info);
 
 /**
  * @brief Get the input info of ov_preprocess_prepostprocessor_t instance by tensor order.
@@ -905,8 +922,8 @@ ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_prepostprocesso
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
-                                      const size_t tensor_index,
-                                      ov_preprocess_inputinfo_t** preprocess_input_info);
+                                              const size_t tensor_index,
+                                              ov_preprocess_inputinfo_t** preprocess_input_info);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_inputinfo_t.
@@ -922,7 +939,7 @@ OPENVINO_C_API(void) ov_preprocess_inputinfo_free(ov_preprocess_inputinfo_t* pre
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* preprocess_input_info,
-                                    ov_preprocess_inputtensorinfo_t** preprocess_input_tensor_info);
+                               ov_preprocess_inputtensorinfo_t** preprocess_input_tensor_info);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_inputtensorinfo_t.
@@ -939,7 +956,7 @@ ov_preprocess_inputtensorinfo_free(ov_preprocess_inputtensorinfo_t* preprocess_i
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* preprocess_input_info,
-                                         ov_preprocess_preprocesssteps_t** preprocess_input_steps);
+                                   ov_preprocess_preprocesssteps_t** preprocess_input_steps);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_preprocesssteps_t.
@@ -956,7 +973,7 @@ ov_preprocess_preprocesssteps_free(ov_preprocess_preprocesssteps_t* preprocess_i
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
-                           const ov_preprocess_resizealgorithm_e resize_algorithm);
+                                     const ov_preprocess_resizealgorithm_e resize_algorithm);
 
 /**
  * @brief Set ov_preprocess_inputtensorinfo_t precesion.
@@ -965,7 +982,7 @@ ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t* preprocess
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputtensorinfo_set_element_type(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                                 const ov_element_type_e element_type);
+                                               const ov_element_type_e element_type);
 
 /**
  * @brief Set ov_preprocess_inputtensorinfo_t color format.
@@ -974,7 +991,7 @@ ov_preprocess_inputtensorinfo_set_element_type(ov_preprocess_inputtensorinfo_t* 
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputtensorinfo_set_color_format(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                                 const ov_color_format_e colorFormat);
+                                               const ov_color_format_e colorFormat);
 
 /**
  * @brief Set ov_preprocess_inputtensorinfo_t spatial_static_shape.
@@ -983,10 +1000,9 @@ ov_preprocess_inputtensorinfo_set_color_format(ov_preprocess_inputtensorinfo_t* 
  * @param input_width The width of input
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_inputtensorinfo_set_spatial_static_shape(
-    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-    const size_t input_height,
-    const size_t input_width);
+ov_preprocess_inputtensorinfo_set_spatial_static_shape(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+                                                       const size_t input_height,
+                                                       const size_t input_width);
 
 /**
  * @brief Convert ov_preprocess_preprocesssteps_t element type.
@@ -995,7 +1011,7 @@ ov_preprocess_inputtensorinfo_set_spatial_static_shape(
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocesssteps_convert_element_type(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
-                                         const ov_element_type_e element_type);
+                                                   const ov_element_type_e element_type);
 
 /**
  * @brief Convert ov_preprocess_preprocesssteps_t color.
@@ -1004,7 +1020,7 @@ ov_preprocess_preprocesssteps_convert_element_type(ov_preprocess_preprocesssteps
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
-                                  const ov_color_format_e colorFormat);
+                                            const ov_color_format_e colorFormat);
 
 /**
  * @brief Helper function to reuse element type and shape from user's created tensor.
@@ -1013,7 +1029,7 @@ ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocesssteps_t* pre
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                           const ov_tensor_t* tensor);
+                                       const ov_tensor_t* tensor);
 
 /**
  * @brief Set ov_preprocess_inputtensorinfo_t layout.
@@ -1022,7 +1038,7 @@ ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo_t* preproce
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
-                                           const ov_layout_t layout);
+                                         ov_layout_t* layout);
 
 /**
  * @brief Get the output info of ov_preprocess_outputinfo_t instance.
@@ -1031,7 +1047,8 @@ ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* prepro
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* preprocess, ov_preprocess_outputinfo_t** preprocess_output_info);
+ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* preprocess,
+                                      ov_preprocess_outputinfo_t** preprocess_output_info);
 
 /**
  * @brief Get the output info of ov_preprocess_outputinfo_t instance.
@@ -1042,8 +1059,8 @@ ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* pr
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
-                                       const size_t tensor_index,
-                                       ov_preprocess_outputinfo_t** preprocess_output_info);
+                                               const size_t tensor_index,
+                                               ov_preprocess_outputinfo_t** preprocess_output_info);
 
 /**
  * @brief Get the output info of ov_preprocess_outputinfo_t instance.
@@ -1054,8 +1071,8 @@ ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_prepostproces
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
-                                      const char* tensor_name,
-                                      ov_preprocess_outputinfo_t** preprocess_output_info);
+                                              const char* tensor_name,
+                                              ov_preprocess_outputinfo_t** preprocess_output_info);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_outputinfo_t.
@@ -1071,7 +1088,7 @@ OPENVINO_C_API(void) ov_preprocess_outputinfo_free(ov_preprocess_outputinfo_t* p
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preprocess_output_info,
-                                     ov_preprocess_outputtensorinfo_t** preprocess_output_tensor_info);
+                                ov_preprocess_outputtensorinfo_t** preprocess_output_tensor_info);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_outputtensorinfo_t.
@@ -1097,7 +1114,7 @@ ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo_t* preproce
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_input_info,
-                                   ov_preprocess_inputmodelinfo_t** preprocess_input_model_info);
+                              ov_preprocess_inputmodelinfo_t** preprocess_input_model_info);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_inputmodelinfo_t.
@@ -1112,7 +1129,7 @@ OPENVINO_C_API(void) ov_preprocess_inputmodelinfo_free(ov_preprocess_inputmodeli
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info,
-                                     const ov_layout_t layout);
+                                        ov_layout_t* layout);
 
 /**
  * @brief Adds pre/post-processing operations to function passed in constructor.
@@ -1120,7 +1137,8 @@ ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preproce
  * @param model A pointer to the ov_model_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model);
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model);
 
 /**
  * @brief Gets runtime model information from a device.
