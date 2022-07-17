@@ -288,7 +288,7 @@ jobs:
   - script: |
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\openvino_capi_test --gtest_output=xml:TEST-openvino_capi_test.xml
     displayName: 'OV CAPITests'
     continueOnError: false
 

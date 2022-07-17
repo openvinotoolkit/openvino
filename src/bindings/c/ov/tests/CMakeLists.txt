@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "OpenVinoCAPITests")
+set(TARGET_NAME "openvino_capi_test")
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
@@ -13,15 +13,14 @@ endif()
 
 add_executable(${TARGET_NAME} ov_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_ov_c ${OpenCV_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c2 ${OpenCV_LIBRARIES}
                                              commonTestUtils gtest_main)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
-        $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 
@@ -41,7 +40,7 @@ if(ENABLE_INTEL_GPU)
     add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
 endif()
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

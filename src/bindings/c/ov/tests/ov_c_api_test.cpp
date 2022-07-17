@@ -11,7 +11,6 @@
 #include <condition_variable>
 #include <fstream>
 #include <mutex>
-#include <opencv2/opencv.hpp>
 
 #include "openvino/openvino.hpp"
 #include "test_model_repo.hpp"
@@ -65,42 +64,6 @@ std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e:
                                                              {ov_element_type_e::U64, 64}};
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
-size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
-    FILE* fp = fopen(img_path, "rb+");
-    size_t read_size = 0;
-
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= size) {
-            fseek(fp, 0, SEEK_SET);
-            read_size = fread(img_data, 1, size, fp);
-        }
-        fclose(fp);
-    }
-    return read_size;
-}
-
-void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor) {
-    ov_shape_t shape = {0};
-    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
-    size_t channels = shape.dims[1];
-    size_t width = shape.dims[3];
-    size_t height = shape.dims[2];
-    void* tensor_data = NULL;
-    OV_EXPECT_OK(ov_tensor_data(tensor, &tensor_data));
-    uint8_t* tmp_data = (uint8_t*)(tensor_data);
-    cv::Mat resized_image;
-    cv::resize(img, resized_image, cv::Size(width, height));
-
-    for (size_t c = 0; c < channels; c++) {
-        for (size_t h = 0; h < height; h++) {
-            for (size_t w = 0; w < width; w++) {
-                tmp_data[c * width * height + h * width + w] = resized_image.at<cv::Vec3b>(h, w)[c];
-            }
-        }
-    }
-}
-
 size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
@@ -112,7 +75,7 @@ size_t find_device(ov_available_devices_t avai_devices, const char* device_name)
 
 TEST(ov_c_api_version, api_version) {
     ov_version_t version;
-    ov_get_version(&version);
+    ov_get_openvino_version(&version);
     auto ver = ov::get_openvino_version();
 
     EXPECT_STREQ(version.buildNumber, ver.buildNumber);
@@ -335,7 +298,7 @@ TEST_P(ov_core, ov_core_import_model) {
     OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 
-    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
     ov_compiled_model_t* compiled_model_imported = nullptr;
     OV_ASSERT_OK(ov_core_import_model(core,
                                       reinterpret_cast<const char*>(buffer.data()),
@@ -347,14 +310,14 @@ TEST_P(ov_core, ov_core_import_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_get_versions) {
+TEST_P(ov_core, ov_core_get_versions_by_device_name) {
     auto devece_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_core_version_list_t version_list;
-    OV_ASSERT_OK(ov_core_get_versions(core, devece_name.c_str(), &version_list));
+    OV_ASSERT_OK(ov_core_get_versions_by_device_name(core, devece_name.c_str(), &version_list));
     EXPECT_EQ(version_list.num_vers, 1);
 
     ov_core_versions_free(&version_list);
@@ -1255,11 +1218,11 @@ void get_tensor_info(ov_model_t* model,
     EXPECT_NE(nullptr, output_nodes.output_nodes);
     EXPECT_NE(0, output_nodes.num);
 
-    OV_EXPECT_OK(ov_node_get_tensor_name(&output_nodes, idx, name));
+    OV_EXPECT_OK(ov_node_get_any_name_by_index(&output_nodes, idx, name));
     EXPECT_NE(nullptr, *name);
 
-    OV_EXPECT_OK(ov_node_get_shape(&output_nodes, idx, shape));
-    OV_EXPECT_OK(ov_node_get_element_type(&output_nodes, idx, type));
+    OV_EXPECT_OK(ov_node_get_shape_by_index(&output_nodes, idx, shape));
+    OV_EXPECT_OK(ov_node_get_element_type_by_index(&output_nodes, idx, type));
 
     ov_output_node_list_free(&output_nodes);
 }
@@ -1724,7 +1687,7 @@ TEST(ov_model, ov_model_input_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_input_by_id) {
+TEST(ov_model, ov_model_input_by_index) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1734,7 +1697,7 @@ TEST(ov_model, ov_model_input_by_id) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_t* input_node = nullptr;
-    OV_ASSERT_OK(ov_model_input_by_id(model, 0, &input_node));
+    OV_ASSERT_OK(ov_model_input_by_index(model, 0, &input_node));
     ASSERT_NE(nullptr, input_node);
 
     ov_output_node_free(input_node);
@@ -1772,7 +1735,7 @@ TEST(ov_model, ov_model_reshape_by_name) {
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
 
     char* tensor_name = nullptr;
-    OV_ASSERT_OK(ov_node_get_tensor_name(&input_node_list1, 0, &tensor_name));
+    OV_ASSERT_OK(ov_node_get_any_name_by_index(&input_node_list1, 0, &tensor_name));
 
     ov_shape_t shape = {4, {1, 3, 896, 896}};
     ov_partial_shape_t* partial_shape = nullptr;

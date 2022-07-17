@@ -93,17 +93,17 @@ typedef struct {
     /**
      * @brief Name of a node.
      */
-    char* node_name;
+    const char* node_name;
 
     /**
      * @brief Execution type of a unit.
      */
-    char* exec_type;
+    const char* exec_type;
 
     /**
      * @brief Node type.
      */
-    char* node_type;
+    const char* node_type;
 } ov_profiling_info_t;
 
 /**
@@ -145,14 +145,14 @@ typedef enum {
  * @struct ov_version_t
  */
 typedef struct ov_version {
-    char* buildNumber;
-    char* description;
+    const char* buildNumber;
+    const char* description;
 } ov_version_t;
 
 typedef struct {
-    char* device_name;
-    char* buildNumber;
-    char* description;
+    const char* device_name;
+    const char* buildNumber;
+    const char* description;
 } ov_core_version_t;
 
 /**
@@ -512,7 +512,7 @@ OPENVINO_C_API(const char*) ov_get_error_info(ov_status_e status);
  * @param ov_version_t a pointer to the version
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_get_version(ov_version_t* version);
+OPENVINO_C_API(ov_status_e) ov_get_openvino_version(ov_version_t* version);
 
 /**
  * @brief Release the memory allocated by ov_version_t.
@@ -537,15 +537,21 @@ OPENVINO_C_API(ov_status_e) ov_core_create(const char* xml_config_file, ov_core_
 OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
 
 /**
- * @brief Reads the model from the .xml and .bin files of the IR.
+ * @brief Reads models from IR/ONNX/PDPD formats.
  * @param core A pointer to the ie_core_t instance.
- * @param model_path .xml file's path of the IR.
- * @param bin_path .bin file's path of the IR, if path is empty, will try to read bin file with the same name as xml and
- * if bin file with the same name was not found, will load IR without weights.
+ * @param model_path Path to a model.
+ * @param bin_path Path to a data file.
+ * For IR format (*.bin):
+ *  * if path is empty, will try to read a bin file with the same name as xml and
+ *  * if the bin file with the same name is not found, will load IR without weights.
+ * For ONNX format (*.onnx):
+ *  * the bin_path parameter is not used.
+ * For PDPD format (*.pdmodel)
+ *  * the bin_path parameter is not used.
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e)
+ OPENVINO_C_API(ov_status_e)
 ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
 
 /**
@@ -683,7 +689,7 @@ ov_core_import_model(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_versions(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions);
+ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions);
 
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
@@ -708,13 +714,21 @@ OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_
 OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes);
 
 /**
- * @brief Get the tensor name of ov_output_node.
+ * @brief Get the tensor name of ov_output_node list by index.
  * @param nodes A pointer to the ov_output_node_list_t.
  * @param idx Index of the input tensor
  * @param tensor_name A pointer to the tensor name.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_node_get_tensor_name(ov_output_node_list_t* nodes, size_t idx, char** tensor_name);
+OPENVINO_C_API(ov_status_e) ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name);
+
+/**
+ * @brief Get the tensor name of node.
+ * @param node A pointer to the ov_output_const_node_t.
+ * @param tensor_name A pointer to the tensor name.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name);
 
 /**
  * @brief Get the tensor shape of ov_output_node.
@@ -723,8 +737,16 @@ OPENVINO_C_API(ov_status_e) ov_node_get_tensor_name(ov_output_node_list_t* nodes
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_node_get_shape(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape);
 
+/**
+ * @brief Get the tensor shape of ov_output_node.
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the input tensor
+ * @param tensor_shape tensor shape.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type);
 /**
  * @brief Get the tensor type of ov_output_node.
  * @param nodes A pointer to the ov_output_node_list_t.
@@ -733,7 +755,7 @@ OPENVINO_C_API(ov_status_e) ov_node_get_shape(ov_output_node_list_t* nodes, size
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_get_element_type(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type);
+ov_node_get_element_type_by_index(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type);
 
 /**
  * @brief Get the outputs of ov_model_t.
@@ -753,7 +775,7 @@ ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_outp
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
+ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
 
 /**
  * @brief Returns true if any of the op's defined in the model contains partial shape.

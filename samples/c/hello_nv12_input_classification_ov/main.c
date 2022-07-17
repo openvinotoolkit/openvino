@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version = {.description = NULL, .buildNumber = NULL};
-    CHECK_STATUS(ov_get_version(&version));
+    CHECK_STATUS(ov_get_openvino_version(&version));
     printf("---- OpenVINO INFO----\n");
     printf("description : %s \n", version.description);
     printf("build number: %s \n", version.buildNumber);
@@ -231,8 +231,8 @@ int main(int argc, char** argv) {
         goto err;
     }
 
-    CHECK_STATUS(ov_node_get_tensor_name(&input_nodes, 0, &input_tensor_name));
-    CHECK_STATUS(ov_node_get_tensor_name(&output_nodes, 0, &output_tensor_name));
+    CHECK_STATUS(ov_node_get_any_name_by_index(&input_nodes, 0, &input_tensor_name));
+    CHECK_STATUS(ov_node_get_any_name_by_index(&output_nodes, 0, &output_tensor_name));
 
     // -------- Step 3. Configure preprocessing  --------
     CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));

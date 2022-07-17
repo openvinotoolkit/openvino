@@ -348,7 +348,7 @@ void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
 
 const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
     if (!partial_shape) {
-        return str_to_char_array("error");
+        return str_to_char_array("Error: null partial_shape!");
     }
 
     // dynamic rank
@@ -508,7 +508,7 @@ void ov_property_value_free(ov_property_value_t value) {
     }
 }
 
-ov_status_e ov_get_version(ov_version_t* version) {
+ov_status_e ov_get_openvino_version(ov_version_t* version) {
     if (!version) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -869,7 +869,7 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_get_versions(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions) {
+ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions) {
     if (!core || !device_name || !versions) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -950,7 +950,20 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_get_tensor_name(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
+ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name) {
+    if (!node || !tensor_name) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        *tensor_name = str_to_char_array(node->object->get_any_name());
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
     if (!nodes || !tensor_name || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -963,8 +976,26 @@ ov_status_e ov_node_get_tensor_name(ov_output_node_list_t* nodes, size_t idx, ch
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_get_shape(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape) {
-    if (!nodes || idx >= nodes->num) {
+ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape) {
+    if (!node || !tensor_shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto shape = node->object->get_shape();
+        if (shape.size() > MAX_DIMENSION) {
+            return ov_status_e::GENERAL_ERROR;
+        }
+        tensor_shape->rank = shape.size();
+        std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape) {
+    if (!nodes || idx >= nodes->num || !tensor_shape) {
         return ov_status_e::GENERAL_ERROR;
     }
 
@@ -981,13 +1012,27 @@ ov_status_e ov_node_get_shape(ov_output_node_list_t* nodes, size_t idx, ov_shape
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_get_element_type(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type) {
+ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes, size_t idx, ov_element_type_e* tensor_type) {
     if (!nodes || idx >= nodes->num) {
         return ov_status_e::GENERAL_ERROR;
     }
 
     try {
         auto type = (ov::element::Type_t)nodes->output_nodes[idx].object->get_element_type();
+        *tensor_type = (ov_element_type_e)type;
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type) {
+    if (!node || !tensor_type) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        auto type = (ov::element::Type_t)node->object->get_element_type();
         *tensor_type = (ov_element_type_e)type;
     }
     CATCH_OV_EXCEPTIONS
@@ -1010,7 +1055,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
+ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
         return ov_status_e::GENERAL_ERROR;
     }

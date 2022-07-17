@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-project(InferenceEngine_C_API)
+project(OPENVINO_C_API)
 
 add_subdirectory(src)
 

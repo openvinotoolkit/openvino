@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
-    CHECK_STATUS(ov_get_version(&version));
+    CHECK_STATUS(ov_get_openvino_version(&version));
     printf("---- OpenVINO INFO----\n");
     printf("Description : %s \n", version.description);
     printf("Build number: %s \n", version.buildNumber);
