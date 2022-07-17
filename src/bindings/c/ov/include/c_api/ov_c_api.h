@@ -745,14 +745,24 @@ OPENVINO_C_API(ov_status_e) ov_node_get_any_name_by_index(ov_output_node_list_t*
 OPENVINO_C_API(ov_status_e) ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name);
 
 /**
- * @brief Get the tensor shape of ov_output_node.
+ * @brief Get the shape of ov_output_node.
  * @param nodes A pointer to the ov_output_node_list_t.
  * @param idx Index of the input tensor
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape);
+ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* shape);
+
+/**
+ * @brief Get the partial shape of ov_output_node.
+ * @param nodes A pointer to the ov_output_node_list_t.
+ * @param idx Index of the input tensor
+ * @param tensor_shape tensor shape.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_partial_shape_t** partial_shape);
 
 /**
  * @brief Get the tensor shape of ov_output_node.

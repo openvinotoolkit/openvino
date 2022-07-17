@@ -1238,6 +1238,10 @@ void get_tensor_info(ov_model_t* model,
     OV_EXPECT_OK(ov_node_get_shape_by_index(&output_nodes, idx, shape));
     OV_EXPECT_OK(ov_node_get_element_type_by_index(&output_nodes, idx, type));
 
+    ov_partial_shape_t* p_shape = nullptr;
+    OV_EXPECT_OK(ov_node_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
+    ov_partial_shape_free(p_shape);
+
     ov_output_node_list_free(&output_nodes);
 }
 

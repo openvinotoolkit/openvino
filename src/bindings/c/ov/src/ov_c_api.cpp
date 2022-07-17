@@ -261,19 +261,18 @@ ov_status_e ov_rank_create(ov_rank_t** rank, int64_t min_dimension, int64_t max_
     }
 
     try {
-        *rank = new ov_rank_t;
-        if (!*rank) {
-            return ov_status_e::MALLOC_FAILED;
-        }
+        *rank = nullptr;
+        std::unique_ptr<ov_rank_t> _rank(new ov_rank_t);
         if (min_dimension != max_dimension) {
-            (*rank)->object = ov::Dimension(min_dimension, max_dimension);
+            _rank->object = ov::Dimension(min_dimension, max_dimension);
         } else {
             if (min_dimension > -1) {
-                (*rank)->object = ov::Dimension(min_dimension);
+                _rank->object = ov::Dimension(min_dimension);
             } else {
-                (*rank)->object = ov::Dimension();
+                _rank->object = ov::Dimension();
             }
         }
+        *rank = _rank.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1036,6 +1035,27 @@ ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx,
         }
         tensor_shape->rank = shape.size();
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
+                                               size_t idx,
+                                               ov_partial_shape_t** partial_shape) {
+    if (!nodes || idx >= nodes->num || !partial_shape) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+
+    try {
+        *partial_shape = new ov_partial_shape_t;
+        auto shape = nodes->output_nodes[idx].object->get_partial_shape();
+
+        (*partial_shape)->rank = shape.rank();
+        auto iter = shape.begin();
+        for (; iter != shape.end(); iter++)
+            (*partial_shape)->dims.emplace_back(*iter);
     }
     CATCH_OV_EXCEPTIONS
 
