@@ -59,13 +59,13 @@
 #define MAX_DIMENSION 8
 
 /**
- * @struct ov_call_back_t
+ * @struct ov_callback_t
  * @brief Completion callback definition about the function and args
  */
 typedef struct {
     void(OPENVINO_C_API_CALLBACK* callback_func)(void* args);
     void* args;
-} ov_call_back_t;
+} ov_callback_t;
 
 /**
  * @struct ov_ProfilingInfo_t
@@ -174,6 +174,11 @@ typedef struct ov_core ov_core_t;
 typedef struct ov_node ov_node_t;
 
 /**
+ * @struct ov_output_const_node_t
+ */
+typedef struct ov_output_const_node ov_output_const_node_t;
+
+/**
  * @struct ov_output_node_t
  */
 typedef struct ov_output_node ov_output_node_t;
@@ -182,7 +187,7 @@ typedef struct ov_output_node ov_output_node_t;
  * @struct ov_output_node_list_t
  */
 typedef struct {
-    ov_output_node_t* output_nodes;
+    ov_output_const_node_t* output_nodes;
     size_t num;
 } ov_output_node_list_t;
 
@@ -374,7 +379,7 @@ typedef enum {
                                      //  metric provides range for number of IRs per stream.
     RANGE_FOR_STREAMS,  //  Read-only property<unsigned int, unsigned int> to provide information about a range for
                         //  streams on platforms where streams are supported
-    FULL_DEVICE_NAME,           //  Read-only property<char *> to get a string value representing a full device name.
+    FULL_DEVICE_NAME,   //  Read-only property<char *> to get a string value representing a full device name.
     OPTIMIZATION_CAPABILITIES,  //  Read-only property<char *> to get a string list of capabilities options per device.
     CACHE_DIR,  //  Read-write property<char *> to set/get the directory which will be used to store any data cached by
                 //  plugins.
@@ -743,11 +748,11 @@ ov_node_get_element_type(ov_output_node_list_t* nodes, size_t idx, ov_element_ty
  * @brief Get the outputs of ov_model_t.
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
- * @param input_node A pointer to the ov_output_node_t.
+ * @param input_node A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** input_node);
+ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** input_node);
 
 /**
  * @brief Get the outputs of ov_model_t.
@@ -757,7 +762,7 @@ ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_outp
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_node_t** input_node);
+ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
 
 /**
  * @brief Returns true if any of the op's defined in the model contains partial shape.
@@ -766,13 +771,56 @@ ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_node
 OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
 
 /**
- * @brief Do reshape in model with partial shape.
+ * @brief Do reshape in model with partial shape for a specified name.
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
  * @param partialShape A PartialShape.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_reshape(const ov_model_t* model, const char* tensor_name, const ov_partial_shape_t* partial_shape);
+ov_model_reshape_by_name(const ov_model_t* model, const char* tensor_name, const ov_partial_shape_t* partial_shape);
+
+/**
+ * @brief Do reshape in model with a list of <name, partial shape>.
+ * @param model A pointer to the ov_model_t.
+ * @param tensor_names input tensor name (char *) list.
+ * @param partialShape A PartialShape list.
+ * @param cnt The item count in the list.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape_by_names(const ov_model_t* model,
+                          const char* tensor_names[],
+                          const ov_partial_shape_t* partial_shapes[],
+                          size_t cnt);
+
+/**
+ * @brief Do reshape in model with a list of <port id, partial shape>.
+ * @param model A pointer to the ov_model_t.
+ * @param ports The port list.
+ * @param partialShape A PartialShape list.
+ * @param cnt The item count in the list.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape_by_ports(const ov_model_t* model, size_t* ports, const ov_partial_shape_t** partial_shape, size_t cnt);
+
+/**
+ * @brief Do reshape in model for port 0.
+ * @param model A pointer to the ov_model_t.
+ * @param partialShape A PartialShape.
+ */
+OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model, const ov_partial_shape_t* partial_shape);
+
+/**
+ * @brief Do reshape in model with a list of <ov_output_node_t, partial shape>.
+ * @param model A pointer to the ov_model_t.
+ * @param output_nodes The ov_output_node_t list.
+ * @param partialShape A PartialShape list.
+ * @param cnt The item count in the list.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape_by_nodes(const ov_model_t* model,
+                          const ov_output_node_t* output_nodes[],
+                          const ov_partial_shape_t* partial_shapes[],
+                          size_t cnt);
 
 /**
  * @brief Gets the friendly name for a model.
@@ -788,10 +836,10 @@ OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, 
 OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t* output_nodes);
 
 /**
- * @brief free ov_output_node_t
- * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ * @brief free ov_output_const_node_t
+ * @param output_node The pointer to the instance of the ov_output_const_node_t to free.
  */
-OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t* output_node);
+OPENVINO_C_API(void) ov_output_node_free(ov_output_const_node_t* output_node);
 
 /**
  * @brief free char
@@ -1077,7 +1125,7 @@ ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, o
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes);
+ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes);
 
 /**
  * @brief Get all outputs of a compiled model.
@@ -1086,7 +1134,7 @@ ov_compiled_model_get_inputs(const ov_compiled_model_t* compiled_model, ov_outpu
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes);
+ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes);
 
 /**
  * @brief Creates an inference request object used to infer the compiled model.
@@ -1132,7 +1180,7 @@ ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_export(const ov_compiled_model_t* compiled_model, const char* export_model_path);
+ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path);
 /**
  * @brief Sets an input/output tensor to infer on.
  * @param infer_request A pointer to the ov_infer_request_t.
@@ -1204,7 +1252,7 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_wait(ov_infer_request_t* infer_requ
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_call_back_t* callback);
+ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback);
 
 /**
  * @brief Queries performance measures per layer to identify the most time consuming operation.
@@ -1290,7 +1338,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_byte_size(const ov_tensor_t* tensor, s
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_get_data(const ov_tensor_t* tensor, void** data);
+OPENVINO_C_API(ov_status_e) ov_tensor_data(const ov_tensor_t* tensor, void** data);
 
 /**
  * @brief Free ov_tensor_t.

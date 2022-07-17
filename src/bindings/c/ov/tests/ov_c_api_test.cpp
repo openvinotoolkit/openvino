@@ -87,7 +87,7 @@ void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor) {
     size_t width = shape.dims[3];
     size_t height = shape.dims[2];
     void* tensor_data = NULL;
-    OV_EXPECT_OK(ov_tensor_get_data(tensor, &tensor_data));
+    OV_EXPECT_OK(ov_tensor_data(tensor, &tensor_data));
     uint8_t* tmp_data = (uint8_t*)(tensor_data);
     cv::Mat resized_image;
     cv::resize(img, resized_image, cv::Size(width, height));
@@ -304,7 +304,7 @@ TEST(ov_core, ov_core_get_available_devices) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_compiled_model_export) {
+TEST_P(ov_core, ov_compiled_model_export_model) {
     auto devece_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
@@ -315,7 +315,7 @@ TEST_P(ov_core, ov_compiled_model_export) {
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
-    OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
+    OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
 
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
@@ -332,7 +332,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
-    OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
+    OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 
     std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
@@ -1102,7 +1102,7 @@ TEST_P(ov_compiled_model, get_inputs) {
     ov_output_node_list_t input_nodes;
     input_nodes.output_nodes = nullptr;
     input_nodes.num = 0;
-    OV_EXPECT_OK(ov_compiled_model_get_inputs(compiled_model, &input_nodes));
+    OV_EXPECT_OK(ov_compiled_model_inputs(compiled_model, &input_nodes));
     EXPECT_NE(nullptr, input_nodes.output_nodes);
     EXPECT_NE(0, input_nodes.num);
 
@@ -1129,8 +1129,8 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
     ov_output_node_list_t input_nodes;
     input_nodes.output_nodes = nullptr;
     input_nodes.num = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_inputs(nullptr, &input_nodes));
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_inputs(compiled_model, nullptr));
+    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(nullptr, &input_nodes));
+    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(compiled_model, nullptr));
 
     ov_output_node_list_free(&input_nodes);
     ov_compiled_model_free(compiled_model);
@@ -1155,7 +1155,7 @@ TEST_P(ov_compiled_model, get_outputs) {
     ov_output_node_list_t output_nodes;
     output_nodes.output_nodes = nullptr;
     output_nodes.num = 0;
-    OV_EXPECT_OK(ov_compiled_model_get_outputs(compiled_model, &output_nodes));
+    OV_EXPECT_OK(ov_compiled_model_outputs(compiled_model, &output_nodes));
     EXPECT_NE(nullptr, output_nodes.output_nodes);
     EXPECT_NE(0, output_nodes.num);
 
@@ -1182,8 +1182,8 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
     ov_output_node_list_t output_nodes;
     output_nodes.output_nodes = nullptr;
     output_nodes.num = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_outputs(nullptr, &output_nodes));
-    OV_EXPECT_NOT_OK(ov_compiled_model_get_outputs(compiled_model, nullptr));
+    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(nullptr, &output_nodes));
+    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(compiled_model, nullptr));
 
     ov_output_node_list_free(&output_nodes);
     ov_compiled_model_free(compiled_model);
@@ -1509,7 +1509,7 @@ void infer_request_callback(void* args) {
 TEST_P(ov_infer_request, infer_request_set_callback) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, 0, input_tensor));
 
-    ov_call_back_t callback;
+    ov_callback_t callback;
     callback.callback_func = infer_request_callback;
     callback.args = infer_request;
 
@@ -1654,7 +1654,7 @@ TEST(ov_tensor, ov_tensor_get_byte_size) {
     ov_tensor_free(tensor);
 }
 
-TEST(ov_tensor, ov_tensor_get_data) {
+TEST(ov_tensor, ov_tensor_data) {
     ov_element_type_e type = ov_element_type_e::U8;
     ov_shape_t shape = {4, {10, 20, 30, 40}};
     ov_tensor_t* tensor = nullptr;
@@ -1662,7 +1662,7 @@ TEST(ov_tensor, ov_tensor_get_data) {
     EXPECT_NE(nullptr, tensor);
 
     void* data = nullptr;
-    OV_EXPECT_OK(ov_tensor_get_data(tensor, &data));
+    OV_EXPECT_OK(ov_tensor_data(tensor, &data));
     EXPECT_NE(nullptr, data);
 
     ov_tensor_free(tensor);
@@ -1715,7 +1715,7 @@ TEST(ov_model, ov_model_input_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_node_t* input_node = nullptr;
+    ov_output_const_node_t* input_node = nullptr;
     OV_ASSERT_OK(ov_model_input_by_name(model, "data", &input_node));
     ASSERT_NE(nullptr, input_node);
 
@@ -1733,7 +1733,7 @@ TEST(ov_model, ov_model_input_by_id) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_node_t* input_node = nullptr;
+    ov_output_const_node_t* input_node = nullptr;
     OV_ASSERT_OK(ov_model_input_by_id(model, 0, &input_node));
     ASSERT_NE(nullptr, input_node);
 
@@ -1757,7 +1757,7 @@ TEST(ov_model, ov_model_is_dynamic) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_reshape) {
+TEST(ov_model, ov_model_reshape_by_name) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1778,7 +1778,7 @@ TEST(ov_model, ov_model_reshape) {
     ov_partial_shape_t* partial_shape = nullptr;
 
     OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
-    OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
+    OV_ASSERT_OK(ov_model_reshape_by_name(model, tensor_name, partial_shape));
 
     ov_output_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;

@@ -29,8 +29,12 @@ struct ov_node {
     std::shared_ptr<ov::Node> object;
 };
 
-struct ov_output_node {
+struct ov_output_const_node {
     std::shared_ptr<ov::Output<const ov::Node>> object;
+};
+
+struct ov_output_node {
+    std::shared_ptr<ov::Output<ov::Node>> object;
 };
 
 struct ov_model {
@@ -255,19 +259,23 @@ ov_status_e ov_rank_create(ov_rank_t** rank, int64_t min_dimension, int64_t max_
     if (!rank || min_dimension < -1 || max_dimension < -1) {
         return ov_status_e::INVALID_PARAM;
     }
-    *rank = new ov_rank_t;
-    if (!*rank) {
-        return ov_status_e::MALLOC_FAILED;
-    }
-    if (min_dimension != max_dimension) {
-        (*rank)->object = ov::Dimension(min_dimension, max_dimension);
-    } else {
-        if (min_dimension > -1) {
-            (*rank)->object = ov::Dimension(min_dimension);
+
+    try {
+        *rank = new ov_rank_t;
+        if (!*rank) {
+            return ov_status_e::MALLOC_FAILED;
+        }
+        if (min_dimension != max_dimension) {
+            (*rank)->object = ov::Dimension(min_dimension, max_dimension);
         } else {
-            (*rank)->object = ov::Dimension();
+            if (min_dimension > -1) {
+                (*rank)->object = ov::Dimension(min_dimension);
+            } else {
+                (*rank)->object = ov::Dimension();
+            }
         }
     }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
@@ -282,11 +290,14 @@ ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
         return ov_status_e::INVALID_PARAM;
     }
     *dimensions = nullptr;
-    dims = new ov_dimensions_t;
-    if (!dims) {
-        return ov_status_e::MALLOC_FAILED;
+    try {
+        dims = new ov_dimensions_t;
+        if (!dims) {
+            return ov_status_e::MALLOC_FAILED;
+        }
+        *dimensions = dims;
     }
-    *dimensions = dims;
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
@@ -362,6 +373,7 @@ const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
     }
     str += std::string("}");
     const char* res = str_to_char_array(str);
+
     return res;
 }
 
@@ -414,7 +426,10 @@ ov_status_e ov_property_create(ov_property_t** property) {
     if (!property) {
         return ov_status_e::GENERAL_ERROR;
     }
-    *property = new ov_property_t;
+    try {
+        *property = new ov_property_t;
+    }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
@@ -428,58 +443,61 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
         return ov_status_e::INVALID_PARAM;
     }
 
-    switch (key) {
-    case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
-        uint32_t v = *(static_cast<uint32_t*>(value));
-        property->object.emplace(ov::hint::num_requests(v));
-        break;
-    }
-    case ov_property_key_e::NUM_STREAMS: {
-        uint32_t v = *(static_cast<uint32_t*>(value));
-        property->object.emplace(ov::num_streams(v));
-        break;
-    }
-    case ov_property_key_e::PERFORMANCE_HINT: {
-        ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value));
-        if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
-            return ov_status_e::INVALID_PARAM;
+    try {
+        switch (key) {
+        case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
+            uint32_t v = *(static_cast<uint32_t*>(value));
+            property->object.emplace(ov::hint::num_requests(v));
+            break;
         }
-        auto v = performance_mode_map[m];
-        property->object.emplace(ov::hint::performance_mode(v));
-        break;
-    }
-    case ov_property_key_e::AFFINITY: {
-        ov_affinity_e v = *(static_cast<ov_affinity_e*>(value));
-        if (v < ov_affinity_e::NONE || v > ov_affinity_e::HYBRID_AWARE) {
-            return ov_status_e::INVALID_PARAM;
+        case ov_property_key_e::NUM_STREAMS: {
+            uint32_t v = *(static_cast<uint32_t*>(value));
+            property->object.emplace(ov::num_streams(v));
+            break;
         }
-        ov::Affinity affinity = static_cast<ov::Affinity>(v);
-        property->object.emplace(ov::affinity(affinity));
-        break;
-    }
-    case ov_property_key_e::INFERENCE_NUM_THREADS: {
-        int32_t v = *(static_cast<int32_t*>(value));
-        property->object.emplace(ov::inference_num_threads(v));
-        break;
-    }
-    case ov_property_key_e::INFERENCE_PRECISION_HINT: {
-        ov_element_type_e v = *(static_cast<ov_element_type_e*>(value));
-        if (v >= ov_element_type_e::MAX) {
-            return ov_status_e::INVALID_PARAM;
+        case ov_property_key_e::PERFORMANCE_HINT: {
+            ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value));
+            if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
+                return ov_status_e::INVALID_PARAM;
+            }
+            auto v = performance_mode_map[m];
+            property->object.emplace(ov::hint::performance_mode(v));
+            break;
         }
+        case ov_property_key_e::AFFINITY: {
+            ov_affinity_e v = *(static_cast<ov_affinity_e*>(value));
+            if (v < ov_affinity_e::NONE || v > ov_affinity_e::HYBRID_AWARE) {
+                return ov_status_e::INVALID_PARAM;
+            }
+            ov::Affinity affinity = static_cast<ov::Affinity>(v);
+            property->object.emplace(ov::affinity(affinity));
+            break;
+        }
+        case ov_property_key_e::INFERENCE_NUM_THREADS: {
+            int32_t v = *(static_cast<int32_t*>(value));
+            property->object.emplace(ov::inference_num_threads(v));
+            break;
+        }
+        case ov_property_key_e::INFERENCE_PRECISION_HINT: {
+            ov_element_type_e v = *(static_cast<ov_element_type_e*>(value));
+            if (v >= ov_element_type_e::MAX) {
+                return ov_status_e::INVALID_PARAM;
+            }
 
-        ov::element::Type type(static_cast<ov::element::Type_t>(v));
-        property->object.emplace(ov::hint::inference_precision(type));
-        break;
+            ov::element::Type type(static_cast<ov::element::Type_t>(v));
+            property->object.emplace(ov::hint::inference_precision(type));
+            break;
+        }
+        case ov_property_key_e::CACHE_DIR: {
+            char* dir = static_cast<char*>(value);
+            property->object.emplace(ov::cache_dir(std::string(dir)));
+            break;
+        }
+        default:
+            break;
+        }
     }
-    case ov_property_key_e::CACHE_DIR: {
-        char* dir = static_cast<char*>(value);
-        property->object.emplace(ov::cache_dir(std::string(dir)));
-        break;
-    }
-    default:
-        break;
-    }
+    CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
@@ -532,7 +550,8 @@ ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
 }
 
 void ov_core_free(ov_core_t* core) {
-    delete core;
+    if (core)
+        delete core;
 }
 
 ov_status_e ov_core_read_model(const ov_core_t* core,
@@ -572,7 +591,8 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 }
 
 void ov_model_free(ov_model_t* model) {
-    delete model;
+    if (model)
+        delete model;
 }
 
 ov_status_e ov_core_compile_model(const ov_core_t* core,
@@ -626,7 +646,8 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
 }
 
 void ov_compiled_model_free(ov_compiled_model_t* compiled_model) {
-    delete compiled_model;
+    if (compiled_model)
+        delete compiled_model;
 }
 
 ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property) {
@@ -824,7 +845,8 @@ void ov_available_devices_free(ov_available_devices_t* devices) {
             delete[] devices->devices[i];
         }
     }
-    delete[] devices->devices;
+    if (devices->devices)
+        delete[] devices->devices;
     devices->devices = nullptr;
     devices->num_devices = 0;
 }
@@ -880,11 +902,15 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
         return;
     }
     for (int i = 0; i < versions->num_vers; i++) {
-        delete[] versions->versions[i].device_name;
-        delete[] versions->versions[i].buildNumber;
-        delete[] versions->versions[i].description;
+        if (versions->versions[i].device_name)
+            delete[] versions->versions[i].device_name;
+        if (versions->versions[i].buildNumber)
+            delete[] versions->versions[i].buildNumber;
+        if (versions->versions[i].description)
+            delete[] versions->versions[i].description;
     }
-    delete[] versions->versions;
+    if (versions->versions)
+        delete[] versions->versions;
     versions->versions = nullptr;
 }
 
@@ -895,7 +921,7 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
         output_nodes->num = results.size();
-        auto tmp_output_nodes(new ov_output_node_t[output_nodes->num]);
+        auto tmp_output_nodes(new ov_output_const_node_t[output_nodes->num]);
 
         for (size_t i = 0; i < output_nodes->num; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
@@ -913,7 +939,7 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
         input_nodes->num = results.size();
-        auto tmp_output_nodes(new ov_output_node_t[input_nodes->num]);
+        auto tmp_output_nodes(new ov_output_const_node_t[input_nodes->num]);
 
         for (size_t i = 0; i < input_nodes->num; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
@@ -969,26 +995,28 @@ ov_status_e ov_node_get_element_type(ov_output_node_list_t* nodes, size_t idx, o
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** input_node) {
+ov_status_e ov_model_input_by_name(const ov_model_t* model,
+                                   const char* tensor_name,
+                                   ov_output_const_node_t** input_node) {
     if (!model || !tensor_name || !input_node) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
-        *input_node = new ov_output_node_t;
+        *input_node = new ov_output_const_node_t;
         (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_node_t** input_node) {
+ov_status_e ov_model_input_by_id(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
-        *input_node = new ov_output_node_t;
+        *input_node = new ov_output_const_node_t;
         (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
     }
     CATCH_OV_EXCEPTIONS
@@ -1013,9 +1041,9 @@ T str_to_value(const std::string& str) {
     return ret;
 }
 
-ov_status_e ov_model_reshape(const ov_model_t* model,
-                             const char* tensor_name,
-                             const ov_partial_shape_t* partial_shape) {
+ov_status_e ov_model_reshape_by_name(const ov_model_t* model,
+                                     const char* tensor_name,
+                                     const ov_partial_shape_t* partial_shape) {
     if (!model || !tensor_name || !partial_shape) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1027,6 +1055,83 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
             return ov_status_e::PARAMETER_MISMATCH;
         }
         model->object->reshape(in_shape);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_reshape_by_names(const ov_model_t* model,
+                                      const char* tensor_names[],
+                                      const ov_partial_shape_t* partial_shapes[],
+                                      size_t cnt) {
+    if (!model || !tensor_names || !partial_shapes || cnt < 1) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::map<std::string, ov::PartialShape> in_shapes;
+        for (auto i = 0; i < cnt; i++) {
+            auto name = tensor_names[i];
+            if (partial_shapes[i]->rank.is_static() &&
+                (partial_shapes[i]->rank.get_length() == partial_shapes[i]->dims.size())) {
+                in_shapes[name] = partial_shapes[i]->dims;
+            } else {
+                return ov_status_e::PARAMETER_MISMATCH;
+            }
+        }
+        model->object->reshape(in_shapes);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
+                                      size_t* ports,
+                                      const ov_partial_shape_t** partial_shape,
+                                      size_t cnt) {
+    if (!model || !ports || !partial_shape || cnt < 1) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::map<size_t, ov::PartialShape> in_shapes;
+        for (auto i = 0; i < cnt; i++) {
+            auto port_id = ports[i];
+            if (partial_shape[i]->rank.is_static() &&
+                (partial_shape[i]->rank.get_length() == partial_shape[i]->dims.size())) {
+                in_shapes[port_id] = partial_shape[i]->dims;
+            } else {
+                return ov_status_e::PARAMETER_MISMATCH;
+            }
+        }
+        model->object->reshape(in_shapes);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_reshape(const ov_model_t* model, const ov_partial_shape_t* partial_shape) {
+    size_t port = 0;
+    return ov_model_reshape_by_ports(model, &port, &partial_shape, 1);
+}
+
+ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
+                                      const ov_output_node_t* output_nodes[],
+                                      const ov_partial_shape_t* partial_shapes[],
+                                      size_t cnt) {
+    if (!model || !output_nodes || !partial_shapes || cnt < 1) {
+        return ov_status_e::GENERAL_ERROR;
+    }
+    try {
+        std::map<ov::Output<ov::Node>, ov::PartialShape> in_shapes;
+        for (auto i = 0; i < cnt; i++) {
+            auto node = *output_nodes[i]->object;
+            if (partial_shapes[i]->rank.is_static() &&
+                (partial_shapes[i]->rank.get_length() == partial_shapes[i]->dims.size())) {
+                in_shapes[node] = partial_shapes[i]->dims;
+            } else {
+                return ov_status_e::PARAMETER_MISMATCH;
+            }
+        }
+        model->object->reshape(in_shapes);
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1046,13 +1151,15 @@ ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char** friendly_
 
 void ov_output_node_list_free(ov_output_node_list_t* output_nodes) {
     if (output_nodes) {
-        delete[] output_nodes->output_nodes;
+        if (output_nodes->output_nodes)
+            delete[] output_nodes->output_nodes;
         output_nodes->output_nodes = nullptr;
     }
 }
 
-void ov_output_node_free(ov_output_node_t* output_node) {
-    delete output_node;
+void ov_output_node_free(ov_output_const_node_t* output_node) {
+    if (output_node)
+        delete output_node;
 }
 
 void ov_free(const char* content) {
@@ -1074,7 +1181,8 @@ ov_status_e ov_preprocess_create(const ov_model_t* model, ov_preprocess_t** prep
 }
 
 void ov_preprocess_free(ov_preprocess_t* preprocess) {
-    delete preprocess;
+    if (preprocess)
+        delete preprocess;
 }
 
 ov_status_e ov_preprocess_get_input_info(const ov_preprocess_t* preprocess,
@@ -1122,7 +1230,8 @@ ov_status_e ov_preprocess_get_input_info_by_index(const ov_preprocess_t* preproc
 }
 
 void ov_preprocess_input_info_free(ov_preprocess_input_info_t* preprocess_input_info) {
-    delete preprocess_input_info;
+    if (preprocess_input_info)
+        delete preprocess_input_info;
 }
 
 ov_status_e ov_preprocess_input_get_tensor_info(const ov_preprocess_input_info_t* preprocess_input_info,
@@ -1140,7 +1249,8 @@ ov_status_e ov_preprocess_input_get_tensor_info(const ov_preprocess_input_info_t
 }
 
 void ov_preprocess_input_tensor_info_free(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info) {
-    delete preprocess_input_tensor_info;
+    if (preprocess_input_tensor_info)
+        delete preprocess_input_tensor_info;
 }
 
 ov_status_e ov_preprocess_input_get_preprocess_steps(const ov_preprocess_input_info_t* preprocess_input_info,
@@ -1158,7 +1268,8 @@ ov_status_e ov_preprocess_input_get_preprocess_steps(const ov_preprocess_input_i
 }
 
 void ov_preprocess_input_process_steps_free(ov_preprocess_input_process_steps_t* preprocess_input_process_steps) {
-    delete preprocess_input_process_steps;
+    if (preprocess_input_process_steps)
+        delete preprocess_input_process_steps;
 }
 
 ov_status_e ov_preprocess_input_resize(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
@@ -1316,7 +1427,8 @@ ov_status_e ov_preprocess_get_output_info_by_name(const ov_preprocess_t* preproc
 }
 
 void ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_output_info) {
-    delete preprocess_output_info;
+    if (preprocess_output_info)
+        delete preprocess_output_info;
 }
 
 ov_status_e ov_preprocess_output_get_tensor_info(ov_preprocess_output_info_t* preprocess_output_info,
@@ -1334,7 +1446,8 @@ ov_status_e ov_preprocess_output_get_tensor_info(ov_preprocess_output_info_t* pr
 }
 
 void ov_preprocess_output_tensor_info_free(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info) {
-    delete preprocess_output_tensor_info;
+    if (preprocess_output_tensor_info)
+        delete preprocess_output_tensor_info;
 }
 
 ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info,
@@ -1365,7 +1478,8 @@ ov_status_e ov_preprocess_input_get_model_info(ov_preprocess_input_info_t* prepr
 }
 
 void ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess_input_model_info) {
-    delete preprocess_input_model_info;
+    if (preprocess_input_model_info)
+        delete preprocess_input_model_info;
 }
 
 ov_status_e ov_preprocess_input_model_set_layout(ov_preprocess_input_model_info_t* preprocess_input_model_info,
@@ -1410,8 +1524,7 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_get_inputs(const ov_compiled_model_t* compiled_model,
-                                         ov_output_node_list_t* input_nodes) {
+ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes) {
     if (!compiled_model || !input_nodes) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1420,7 +1533,7 @@ ov_status_e ov_compiled_model_get_inputs(const ov_compiled_model_t* compiled_mod
         auto inputs = compiled_model->object->inputs();
         int num = inputs.size();
         input_nodes->num = num;
-        input_nodes->output_nodes = new ov_output_node_t[num];
+        input_nodes->output_nodes = new ov_output_const_node_t[num];
         for (int i = 0; i < num; i++) {
             input_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
         }
@@ -1430,8 +1543,7 @@ ov_status_e ov_compiled_model_get_inputs(const ov_compiled_model_t* compiled_mod
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_get_outputs(const ov_compiled_model_t* compiled_model,
-                                          ov_output_node_list_t* output_nodes) {
+ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes) {
     if (!compiled_model || !output_nodes) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1440,7 +1552,7 @@ ov_status_e ov_compiled_model_get_outputs(const ov_compiled_model_t* compiled_mo
         auto outputs = compiled_model->object->outputs();
         int num = outputs.size();
         output_nodes->num = num;
-        output_nodes->output_nodes = new ov_output_node_t[num];
+        output_nodes->output_nodes = new ov_output_const_node_t[num];
         for (int i = 0; i < num; i++) {
             output_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
         }
@@ -1508,7 +1620,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_export(const ov_compiled_model_t* compiled_model, const char* export_model_path) {
+ov_status_e ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path) {
     if (!compiled_model || !export_model_path) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1525,7 +1637,8 @@ ov_status_e ov_compiled_model_export(const ov_compiled_model_t* compiled_model, 
 }
 
 void ov_infer_request_free(ov_infer_request_t* infer_request) {
-    delete infer_request;
+    if (infer_request)
+        delete infer_request;
 }
 
 ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
@@ -1642,7 +1755,7 @@ ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_call_back_t* callback) {
+ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {
     if (!infer_request || !callback) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1690,11 +1803,15 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
         return;
     }
     for (int i = 0; i < profiling_infos->num; i++) {
-        delete[] profiling_infos->profiling_infos[i].node_name;
-        delete[] profiling_infos->profiling_infos[i].exec_type;
-        delete[] profiling_infos->profiling_infos[i].node_type;
+        if (profiling_infos->profiling_infos[i].node_name)
+            delete[] profiling_infos->profiling_infos[i].node_name;
+        if (profiling_infos->profiling_infos[i].exec_type)
+            delete[] profiling_infos->profiling_infos[i].exec_type;
+        if (profiling_infos->profiling_infos[i].node_type)
+            delete[] profiling_infos->profiling_infos[i].node_type;
     }
-    delete[] profiling_infos->profiling_infos;
+    if (profiling_infos->profiling_infos)
+        delete[] profiling_infos->profiling_infos;
     profiling_infos->profiling_infos = nullptr;
     profiling_infos->num = 0;
 }
@@ -1795,7 +1912,7 @@ ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size
     return ov_status_e::OK;
 }
 
-ov_status_e ov_tensor_get_data(const ov_tensor_t* tensor, void** data) {
+ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data) {
     if (!tensor || !data) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1807,5 +1924,6 @@ ov_status_e ov_tensor_get_data(const ov_tensor_t* tensor, void** data) {
 }
 
 void ov_tensor_free(ov_tensor_t* tensor) {
-    delete tensor;
+    if (tensor)
+        delete tensor;
 }
