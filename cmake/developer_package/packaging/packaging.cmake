@@ -85,6 +85,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+    set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
     set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
