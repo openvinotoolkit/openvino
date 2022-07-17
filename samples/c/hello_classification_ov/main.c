@@ -151,13 +151,13 @@ int main(int argc, char** argv) {
     print_model_input_output_info(model);
 
     ov_output_node_list_t output_nodes;
-    CHECK_STATUS(ov_model_get_outputs(model, &output_nodes));
+    CHECK_STATUS(ov_model_outputs(model, &output_nodes));
     if (output_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
     ov_output_node_list_t input_nodes;
-    CHECK_STATUS(ov_model_get_inputs(model, &input_nodes));
+    CHECK_STATUS(ov_model_inputs(model, &input_nodes));
     if (input_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
@@ -193,8 +193,8 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
-    ov_property_t property;
-    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, &property));
+    ov_property_t* property = NULL;
+    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, property));
 
     // -------- Step 6. Create an infer request --------
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));

@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "c_api/ov_c_api.h"
+
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <opencv2/opencv.hpp>
-#include <condition_variable>
-#include <mutex>
-#include "test_model_repo.hpp"
-#include <fstream>
 
-#include "c_api/ov_c_api.h"
+#include <condition_variable>
+#include <fstream>
+#include <mutex>
+#include <opencv2/opencv.hpp>
+
 #include "openvino/openvino.hpp"
+#include "test_model_repo.hpp"
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
@@ -28,44 +30,43 @@ std::mutex m;
 bool ready = false;
 std::condition_variable condVar;
 #ifdef _WIN32
-    #ifdef __MINGW32__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
-    #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
-    #endif
+#    ifdef __MINGW32__
+std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
+#    else
+std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_win.xml");
+#    endif
 #elif defined __APPLE__
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
+std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
 #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
+std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
 #endif
 const char* plugins_xml = plugins_xml_std.c_str();
 
-#define OV_EXPECT_OK(...) EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
-#define OV_ASSERT_OK(...) ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
-#define OV_EXPECT_NOT_OK(...) EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
+#define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
+#define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
+#define OV_EXPECT_NOT_OK(...)       EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
 
-std::map<ov_element_type_e, size_t> element_type_size_map = {
-        {ov_element_type_e::BOOLEAN, 8},
-        {ov_element_type_e::BF16, 16},
-        {ov_element_type_e::F16, 16},
-        {ov_element_type_e::F32, 32},
-        {ov_element_type_e::F64, 64},
-        {ov_element_type_e::I4, 4},
-        {ov_element_type_e::I8, 8},
-        {ov_element_type_e::I16, 16},
-        {ov_element_type_e::I32, 32},
-        {ov_element_type_e::I64, 64},
-        {ov_element_type_e::U1, 1},
-        {ov_element_type_e::U4, 4},
-        {ov_element_type_e::U8, 8},
-        {ov_element_type_e::U16, 16},
-        {ov_element_type_e::U32, 32},
-        {ov_element_type_e::U64, 64}};
+std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e::BOOLEAN, 8},
+                                                             {ov_element_type_e::BF16, 16},
+                                                             {ov_element_type_e::F16, 16},
+                                                             {ov_element_type_e::F32, 32},
+                                                             {ov_element_type_e::F64, 64},
+                                                             {ov_element_type_e::I4, 4},
+                                                             {ov_element_type_e::I8, 8},
+                                                             {ov_element_type_e::I16, 16},
+                                                             {ov_element_type_e::I32, 32},
+                                                             {ov_element_type_e::I64, 64},
+                                                             {ov_element_type_e::U1, 1},
+                                                             {ov_element_type_e::U4, 4},
+                                                             {ov_element_type_e::U8, 8},
+                                                             {ov_element_type_e::U16, 16},
+                                                             {ov_element_type_e::U32, 32},
+                                                             {ov_element_type_e::U64, 64}};
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
-size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
-    FILE *fp = fopen(img_path, "rb+");
+size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
+    FILE* fp = fopen(img_path, "rb+");
     size_t read_size = 0;
 
     if (fp) {
@@ -79,8 +80,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
-void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
-{
+void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor) {
     ov_shape_t shape = {0};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
     size_t channels = shape.dims[1];
@@ -88,21 +88,20 @@ void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
     size_t height = shape.dims[2];
     void* tensor_data = NULL;
     OV_EXPECT_OK(ov_tensor_get_data(tensor, &tensor_data));
-    uint8_t *tmp_data = (uint8_t *)(tensor_data);
+    uint8_t* tmp_data = (uint8_t*)(tensor_data);
     cv::Mat resized_image;
     cv::resize(img, resized_image, cv::Size(width, height));
 
     for (size_t c = 0; c < channels; c++) {
-        for (size_t  h = 0; h < height; h++) {
+        for (size_t h = 0; h < height; h++) {
             for (size_t w = 0; w < width; w++) {
-                tmp_data[c * width * height + h * width + w] =
-                        resized_image.at<cv::Vec3b>(h, w)[c];
+                tmp_data[c * width * height + h * width + w] = resized_image.at<cv::Vec3b>(h, w)[c];
             }
         }
     }
 }
 
-size_t find_device(ov_available_devices_t avai_devices, const char *device_name) {
+size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
             return i;
@@ -120,10 +119,10 @@ TEST(ov_c_api_version, api_version) {
     ov_version_free(&version);
 }
 
-class ov_core :public::testing::TestWithParam<std::string>{};
+class ov_core : public ::testing::TestWithParam<std::string> {};
 INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
-class ov_compiled_model :public::testing::TestWithParam<std::string>{};
+class ov_compiled_model : public ::testing::TestWithParam<std::string> {};
 INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
@@ -166,7 +165,7 @@ TEST(ov_core, ov_core_read_model_no_bin) {
     ov_core_free(core);
 }
 
-static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
+static std::vector<uint8_t> content_from_file(const char* filename, bool is_binary) {
     std::vector<uint8_t> result;
     {
         std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
@@ -175,7 +174,7 @@ static std::vector<uint8_t> content_from_file(const char * filename, bool is_bin
             result.resize(is.tellg());
             if (result.size() > 0) {
                 is.seekg(0, std::ifstream::beg);
-                is.read(reinterpret_cast<char *>(&result[0]), result.size());
+                is.read(reinterpret_cast<char*>(&result[0]), result.size());
             }
         }
     }
@@ -190,13 +189,14 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     std::vector<uint8_t> weights_content(content_from_file(bin, true));
 
     ov_tensor_t* tensor = nullptr;
-    ov_shape_t shape = {2, {1, weights_content.size()}};
+    ov_shape_t shape = {2, {1, (int64_t)weights_content.size()}};
     OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     ASSERT_NE(nullptr, tensor);
 
     std::vector<uint8_t> xml_content(content_from_file(xml, false));
     ov_model_t* model = nullptr;
-    OV_ASSERT_OK(ov_core_read_model_from_memory(core, reinterpret_cast<const char *>(xml_content.data()), tensor, &model));
+    OV_ASSERT_OK(
+        ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
     ASSERT_NE(nullptr, model);
 
     ov_tensor_free(tensor);
@@ -215,8 +215,8 @@ TEST_P(ov_core, ov_core_compile_model) {
     ASSERT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_ASSERT_OK(ov_core_compile_model(core, model, devece_name.c_str(), &compiled_model, &property));
+    ov_property_t* property = nullptr;
+    OV_ASSERT_OK(ov_core_compile_model(core, model, devece_name.c_str(), &compiled_model, property));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -231,8 +231,8 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    ov_property_t* property = nullptr;
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, property));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -245,8 +245,14 @@ TEST_P(ov_core, ov_core_set_property) {
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_property_t property{ov_property_key_e::PERFORMANCE_HINT, ov_performance_mode_e::THROUGHPUT, nullptr};
-    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), &property));
+    ov_property_t* property = nullptr;
+    OV_ASSERT_OK(ov_property_create(&property));
+
+    ov_property_key_e key = ov_property_key_e::PERFORMANCE_HINT;
+    ov_performance_mode_e value = ov_performance_mode_e::THROUGHPUT;
+    OV_ASSERT_OK(ov_property_put(property, key, (void*)&value));
+    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+    ov_property_free(property);
     ov_core_free(core);
 }
 
@@ -256,8 +262,33 @@ TEST_P(ov_core, ov_core_get_property) {
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_property_value property_value;
-    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
+    ov_property_value_t property_value;
+    OV_ASSERT_OK(
+        ov_core_get_property(core, devece_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
+    ov_property_value_free(property_value);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_get_property) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_property_t* property = nullptr;
+    OV_ASSERT_OK(ov_property_create(&property));
+
+    ov_property_key_e key = ov_property_key_e::CACHE_DIR;
+    const char cache_dir[] = "./cache_dir";
+    OV_ASSERT_OK(ov_property_put(property, key, (ov_property_value_t)cache_dir));
+    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+
+    ov_property_value_t property_value;
+    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), key, &property_value));
+    EXPECT_STREQ(cache_dir, (char*)property_value);
+
+    ov_property_free(property);
+    ov_property_value_free(property_value);
     ov_core_free(core);
 }
 
@@ -280,8 +311,7 @@ TEST_P(ov_core, ov_compiled_model_export) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
@@ -298,8 +328,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, &property));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
@@ -308,7 +337,11 @@ TEST_P(ov_core, ov_core_import_model) {
 
     std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
     ov_compiled_model_t* compiled_model_imported = nullptr;
-    OV_ASSERT_OK(ov_core_import_model(core, reinterpret_cast<const char *>(buffer.data()), buffer.size(), devece_name.c_str(), &compiled_model_imported));
+    OV_ASSERT_OK(ov_core_import_model(core,
+                                      reinterpret_cast<const char*>(buffer.data()),
+                                      buffer.size(),
+                                      devece_name.c_str(),
+                                      &compiled_model_imported));
     ASSERT_NE(nullptr, compiled_model_imported);
     ov_compiled_model_free(compiled_model_imported);
     ov_core_free(core);
@@ -616,7 +649,8 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
     OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(
+        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
 
     ov_preprocess_input_tensor_info_free(input_tensor_info);
     ov_preprocess_input_info_free(input_info);
@@ -648,7 +682,8 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
 
     size_t input_height = 500;
     size_t input_width = 500;
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+    OV_ASSERT_OK(
+        ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
     ov_preprocess_input_tensor_info_free(input_tensor_info);
     ov_preprocess_input_info_free(input_info);
@@ -718,7 +753,8 @@ TEST(ov_preprocess, ov_preprocess_input_convert_color) {
     OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(
+        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
     OV_ASSERT_OK(ov_preprocess_input_convert_color(input_process, ov_color_format_e::BGR));
 
     ov_preprocess_input_tensor_info_free(input_tensor_info);
@@ -1003,20 +1039,19 @@ TEST(ov_preprocess, ov_preprocess_build_apply) {
 
 TEST_P(ov_compiled_model, get_runtime_model) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_model_t *runtime_model = nullptr;
+    ov_model_t* runtime_model = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_runtime_model(compiled_model, &runtime_model));
     EXPECT_NE(nullptr, runtime_model);
 
@@ -1028,20 +1063,19 @@ TEST_P(ov_compiled_model, get_runtime_model) {
 
 TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_model_t *runtime_model = nullptr;
+    ov_model_t* runtime_model = nullptr;
     OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(nullptr, &runtime_model));
     OV_EXPECT_NOT_OK(ov_compiled_model_get_runtime_model(compiled_model, nullptr));
 
@@ -1053,17 +1087,16 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
 
 TEST_P(ov_compiled_model, get_inputs) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t input_nodes;
@@ -1081,17 +1114,16 @@ TEST_P(ov_compiled_model, get_inputs) {
 
 TEST_P(ov_compiled_model, get_inputs_error_handling) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t input_nodes;
@@ -1108,17 +1140,16 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
 
 TEST_P(ov_compiled_model, get_outputs) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t output_nodes;
@@ -1136,17 +1167,16 @@ TEST_P(ov_compiled_model, get_outputs) {
 
 TEST_P(ov_compiled_model, get_outputs_error_handling) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_node_list_t output_nodes;
@@ -1163,20 +1193,19 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
 
 TEST_P(ov_compiled_model, create_infer_request) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_infer_request_t *infer_request = nullptr;
+    ov_infer_request_t* infer_request = nullptr;
     OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
     EXPECT_NE(nullptr, infer_request);
 
@@ -1188,20 +1217,19 @@ TEST_P(ov_compiled_model, create_infer_request) {
 
 TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     auto device_name = GetParam();
-    ov_core_t *core = nullptr;
+    ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ov_model_t *model = nullptr;
+    ov_model_t* model = nullptr;
     OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
     EXPECT_NE(nullptr, model);
 
-    ov_compiled_model_t *compiled_model = nullptr;
-    ov_property_t property = {};
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_infer_request_t *infer_request = nullptr;
+    ov_infer_request_t* infer_request = nullptr;
     OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(nullptr, &infer_request));
     OV_EXPECT_NOT_OK(ov_compiled_model_create_infer_request(compiled_model, nullptr));
 
@@ -1211,29 +1239,33 @@ TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     ov_core_free(core);
 }
 
-void get_tensor_info(ov_model_t *model, bool input, size_t idx,
-                char **name, ov_shape_t* shape, ov_element_type_e *type) {
+void get_tensor_info(ov_model_t* model,
+                     bool input,
+                     size_t idx,
+                     char** name,
+                     ov_shape_t* shape,
+                     ov_element_type_e* type) {
     ov_output_node_list_t output_nodes;
     output_nodes.num = 0;
     output_nodes.output_nodes = nullptr;
     if (input) {
-        OV_EXPECT_OK(ov_model_get_inputs(model, &output_nodes));
+        OV_EXPECT_OK(ov_model_inputs(model, &output_nodes));
     } else {
-        OV_EXPECT_OK(ov_model_get_outputs(model, &output_nodes));
+        OV_EXPECT_OK(ov_model_outputs(model, &output_nodes));
     }
     EXPECT_NE(nullptr, output_nodes.output_nodes);
     EXPECT_NE(0, output_nodes.num);
 
     OV_EXPECT_OK(ov_node_get_tensor_name(&output_nodes, idx, name));
     EXPECT_NE(nullptr, *name);
-    
-    OV_EXPECT_OK(ov_node_get_tensor_shape(&output_nodes, idx, shape));
-    OV_EXPECT_OK(ov_node_get_tensor_type(&output_nodes, idx, type));
+
+    OV_EXPECT_OK(ov_node_get_shape(&output_nodes, idx, shape));
+    OV_EXPECT_OK(ov_node_get_element_type(&output_nodes, idx, type));
 
     ov_output_node_list_free(&output_nodes);
 }
 
-class ov_infer_request :public::testing::TestWithParam<std::string>{
+class ov_infer_request : public ::testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
         auto device_name = GetParam();
@@ -1257,8 +1289,7 @@ protected:
         EXPECT_NE(nullptr, input_tensor);
 
         compiled_model = nullptr;
-        ov_property_t property = {};
-        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
         EXPECT_NE(nullptr, compiled_model);
 
         infer_request = nullptr;
@@ -1274,17 +1305,18 @@ protected:
         ov_model_free(model);
         ov_core_free(core);
     }
+
 public:
-    ov_core_t *core;
-    ov_model_t *model;
-    ov_compiled_model_t *compiled_model;
-    ov_infer_request_t *infer_request;
-    char *in_tensor_name;
-    ov_tensor_t *input_tensor;
-    ov_tensor_t *output_tensor;
+    ov_core_t* core;
+    ov_model_t* model;
+    ov_compiled_model_t* compiled_model;
+    ov_infer_request_t* infer_request;
+    char* in_tensor_name;
+    ov_tensor_t* input_tensor;
+    ov_tensor_t* output_tensor;
 };
 
-class ov_infer_request_ppp :public::testing::TestWithParam<std::string>{
+class ov_infer_request_ppp : public ::testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
         auto device_name = GetParam();
@@ -1332,8 +1364,7 @@ protected:
         EXPECT_NE(nullptr, model);
 
         compiled_model = nullptr;
-        ov_property_t property = {};
-        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, &property));
+        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, nullptr));
         EXPECT_NE(nullptr, compiled_model);
 
         infer_request = nullptr;
@@ -1353,16 +1384,17 @@ protected:
         ov_model_free(model);
         ov_core_free(core);
     }
+
 public:
-    ov_core_t *core;
-    ov_model_t *model;
-    ov_compiled_model_t *compiled_model;
-    ov_infer_request_t *infer_request;
-    ov_tensor_t *input_tensor;
-    ov_tensor_t *output_tensor;
-    ov_preprocess_t *preprocess;
-    ov_preprocess_input_info_t *input_info;
-    ov_preprocess_input_tensor_info_t *input_tensor_info;
+    ov_core_t* core;
+    ov_model_t* model;
+    ov_compiled_model_t* compiled_model;
+    ov_infer_request_t* infer_request;
+    ov_tensor_t* input_tensor;
+    ov_tensor_t* output_tensor;
+    ov_preprocess_t* preprocess;
+    ov_preprocess_input_info_t* input_info;
+    ov_preprocess_input_tensor_info_t* input_tensor_info;
     ov_preprocess_input_process_steps_t* input_process;
     ov_preprocess_input_model_info_t* input_model;
 };
@@ -1404,8 +1436,8 @@ TEST_P(ov_infer_request, infer) {
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
-    char *out_tensor_name = nullptr;
-    ov_shape_t tensor_shape = {0,{0}};
+    char* out_tensor_name = nullptr;
+    ov_shape_t tensor_shape = {0, {0}};
     ov_element_type_e tensor_type;
     get_tensor_info(model, false, 0, &out_tensor_name, &tensor_shape, &tensor_type);
 
@@ -1460,9 +1492,9 @@ TEST_P(ov_infer_request_ppp, infer_async_ppp) {
     }
 }
 
-void infer_request_callback(void *args) {
-    ov_infer_request_t *infer_request = (ov_infer_request_t *)args;
-    ov_tensor_t *out_tensor = nullptr;
+void infer_request_callback(void* args) {
+    ov_infer_request_t* infer_request = (ov_infer_request_t*)args;
+    ov_tensor_t* out_tensor = nullptr;
 
     OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &out_tensor));
     EXPECT_NE(nullptr, out_tensor);
@@ -1487,7 +1519,9 @@ TEST_P(ov_infer_request, infer_request_set_callback) {
 
     if (!HasFatalFailure()) {
         std::unique_lock<std::mutex> lock(m);
-        condVar.wait(lock, []{ return ready; });
+        condVar.wait(lock, [] {
+            return ready;
+        });
     }
 }
 
@@ -1521,9 +1555,9 @@ TEST(ov_tensor, ov_tensor_create) {
 TEST(ov_tensor, ov_tensor_create_from_host_ptr) {
     ov_element_type_e type = ov_element_type_e::U8;
     ov_shape_t shape = {4, {1, 3, 4, 4}};
-    uint8_t host_ptr[1][3][4][4]= {0};
+    uint8_t host_ptr[1][3][4][4] = {0};
     ov_tensor_t* tensor = nullptr;
-    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr,&tensor));
+    OV_EXPECT_OK(ov_tensor_create_from_host_ptr(type, shape, &host_ptr, &tensor));
     EXPECT_NE(nullptr, tensor);
     ov_tensor_free(tensor);
 }
@@ -1535,7 +1569,7 @@ TEST(ov_tensor, ov_tensor_get_shape) {
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    ov_shape_t shape_res = {0,{0}};
+    ov_shape_t shape_res = {0, {0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
     EXPECT_EQ(shape.rank, shape_res.rank);
     OV_EXPECT_ARREQ(shape.dims, shape_res.dims);
@@ -1552,7 +1586,7 @@ TEST(ov_tensor, ov_tensor_set_shape) {
 
     ov_shape_t shape_update = {4, {10, 20, 30, 40}};
     OV_EXPECT_OK(ov_tensor_set_shape(tensor, shape_update));
-    ov_shape_t shape_res = {0,{0}};
+    ov_shape_t shape_res = {0, {0}};
     OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape_res));
     EXPECT_EQ(shape_update.rank, shape_res.rank);
     OV_EXPECT_ARREQ(shape_update.dims, shape_res.dims);
@@ -1623,18 +1657,18 @@ TEST(ov_tensor, ov_tensor_get_byte_size) {
 TEST(ov_tensor, ov_tensor_get_data) {
     ov_element_type_e type = ov_element_type_e::U8;
     ov_shape_t shape = {4, {10, 20, 30, 40}};
-    ov_tensor_t *tensor = nullptr;
+    ov_tensor_t* tensor = nullptr;
     OV_EXPECT_OK(ov_tensor_create(type, shape, &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    void *data = nullptr;
+    void* data = nullptr;
     OV_EXPECT_OK(ov_tensor_get_data(tensor, &data));
     EXPECT_NE(nullptr, data);
 
     ov_tensor_free(tensor);
 }
 
-TEST(ov_model, ov_model_get_outputs) {
+TEST(ov_model, ov_model_outputs) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1645,7 +1679,7 @@ TEST(ov_model, ov_model_get_outputs) {
 
     ov_output_node_list_t output_node_list;
     output_node_list.output_nodes = nullptr;
-    OV_ASSERT_OK(ov_model_get_outputs(model, &output_node_list));
+    OV_ASSERT_OK(ov_model_outputs(model, &output_node_list));
     ASSERT_NE(nullptr, output_node_list.output_nodes);
 
     ov_output_node_list_free(&output_node_list);
@@ -1653,7 +1687,7 @@ TEST(ov_model, ov_model_get_outputs) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_get_inputs) {
+TEST(ov_model, ov_model_inputs) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1664,7 +1698,7 @@ TEST(ov_model, ov_model_get_inputs) {
 
     ov_output_node_list_t input_node_list;
     input_node_list.output_nodes = nullptr;
-    OV_ASSERT_OK(ov_model_get_inputs(model, &input_node_list));
+    OV_ASSERT_OK(ov_model_inputs(model, &input_node_list));
     ASSERT_NE(nullptr, input_node_list.output_nodes);
 
     ov_output_node_list_free(&input_node_list);
@@ -1672,7 +1706,7 @@ TEST(ov_model, ov_model_get_inputs) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_get_input_by_name) {
+TEST(ov_model, ov_model_input_by_name) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1682,7 +1716,7 @@ TEST(ov_model, ov_model_get_input_by_name) {
     ASSERT_NE(nullptr, model);
 
     ov_output_node_t* input_node = nullptr;
-    OV_ASSERT_OK(ov_model_get_input_by_name(model, "data", &input_node));
+    OV_ASSERT_OK(ov_model_input_by_name(model, "data", &input_node));
     ASSERT_NE(nullptr, input_node);
 
     ov_output_node_free(input_node);
@@ -1690,7 +1724,7 @@ TEST(ov_model, ov_model_get_input_by_name) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_get_input_by_id) {
+TEST(ov_model, ov_model_input_by_id) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1700,7 +1734,7 @@ TEST(ov_model, ov_model_get_input_by_id) {
     ASSERT_NE(nullptr, model);
 
     ov_output_node_t* input_node = nullptr;
-    OV_ASSERT_OK(ov_model_get_input_by_id(model, 0, &input_node));
+    OV_ASSERT_OK(ov_model_input_by_id(model, 0, &input_node));
     ASSERT_NE(nullptr, input_node);
 
     ov_output_node_free(input_node);
@@ -1734,21 +1768,21 @@ TEST(ov_model, ov_model_reshape) {
 
     ov_output_node_list_t input_node_list1;
     input_node_list1.output_nodes = nullptr;
-    OV_ASSERT_OK(ov_model_get_inputs(model, &input_node_list1));
+    OV_ASSERT_OK(ov_model_inputs(model, &input_node_list1));
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
 
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_get_tensor_name(&input_node_list1, 0, &tensor_name));
 
-    const char* str = "{1,3,896,896}";
-    ov_partial_shape_t* partial_shape;
+    ov_shape_t shape = {4, {1, 3, 896, 896}};
+    ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
+    OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
     OV_ASSERT_OK(ov_model_reshape(model, tensor_name, partial_shape));
 
     ov_output_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;
-    OV_ASSERT_OK(ov_model_get_inputs(model, &input_node_list2));
+    OV_ASSERT_OK(ov_model_inputs(model, &input_node_list2));
     ASSERT_NE(nullptr, input_node_list2.output_nodes);
 
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
@@ -1783,11 +1817,22 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse) {
     const char* str = "{1,20,300,40..100}";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 20, 20));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+
+    OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
 }
 
@@ -1795,11 +1840,22 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic) {
     const char* str = "{1,?,300,40..100}";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+
+    OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
 }
 
@@ -1807,57 +1863,73 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_mix) {
     const char* str = "{1,?,?,40..100}";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+
+    OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
-}
-
-TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_mix_2) {
-    const char* str = "{1,?,-1,40..100}";
-    ov_partial_shape_t* partial_shape = nullptr;
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
-
-    ov_partial_shape_t* partial_shape2 = nullptr;
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape2, tmp));
-    auto tmp2 = ov_partial_shape_parse(partial_shape);
-    EXPECT_STREQ(tmp, tmp2);
-
-    ov_free(tmp);
-    ov_free(tmp2);
-    ov_partial_shape_free(partial_shape);
-    ov_partial_shape_free(partial_shape2);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_rank) {
     const char* str = "?";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
-    auto tmp = ov_partial_shape_parse(partial_shape);
+    ov_rank_t* rank = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, -1, -1));
+
+    OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, nullptr));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
     EXPECT_STREQ(tmp, str);
 
     ov_free(tmp);
+    ov_rank_free(rank);
     ov_partial_shape_free(partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_init_and_parse_invalid) {
-    const char* str = "{1,2+3;4..5}";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_EXPECT_NOT_OK(ov_partial_shape_init(&partial_shape, str));
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 3, 3));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
 
+    OV_EXPECT_NOT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
+
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
 }
 
 TEST(ov_partial_shape, ov_partial_shape_to_shape) {
-    const char* str = "{10,20,30,40,50}";
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 5, 5));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 10, 10));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 20, 20));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 30, 30));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 40));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 50, 50));
+    OV_EXPECT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
 
     ov_shape_t shape;
     shape.rank = 0;
@@ -1869,31 +1941,41 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
     EXPECT_EQ(shape.dims[3], 40);
     EXPECT_EQ(shape.dims[4], 50);
 
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
 }
 
-TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_num) {
-    const char* str = "{-1,2,3,4,5}";
+TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid) {
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
+    ov_rank_t* rank = nullptr;
+    ov_dimensions_t* dims = nullptr;
+    OV_ASSERT_OK(ov_rank_create(&rank, 5, 5));
+    OV_ASSERT_OK(ov_dimensions_create(&dims));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 10, 10));
+    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 30, 30));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 40));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 50, 50));
 
     ov_shape_t shape;
     shape.rank = 0;
     OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
 
+    ov_rank_free(rank);
+    ov_dimensions_free(dims);
     ov_partial_shape_free(partial_shape);
 }
 
-TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid_sign) {
-    const char* str = "{1,2,3,4..5}";
+TEST(ov_partial_shape, ov_shape_to_partial_shape) {
+    const char* str = "{10,20,30,40,50}";
+    ov_shape_t shape = {.rank = 5, .dims = {10, 20, 30, 40, 50}};
     ov_partial_shape_t* partial_shape = nullptr;
 
-    OV_ASSERT_OK(ov_partial_shape_init(&partial_shape, str));
+    OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
+    auto tmp = ov_partial_shape_to_string(partial_shape);
 
-    ov_shape_t shape;
-    shape.rank = 0;
-    OV_EXPECT_NOT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
-
+    EXPECT_STREQ(tmp, str);
     ov_partial_shape_free(partial_shape);
 }

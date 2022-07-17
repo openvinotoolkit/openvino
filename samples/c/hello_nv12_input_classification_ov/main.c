@@ -219,13 +219,13 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    CHECK_STATUS(ov_model_get_outputs(model, &output_nodes));
+    CHECK_STATUS(ov_model_outputs(model, &output_nodes));
     if (output_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
 
-    CHECK_STATUS(ov_model_get_inputs(model, &input_nodes));
+    CHECK_STATUS(ov_model_inputs(model, &input_nodes));
     if (input_nodes.num != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
