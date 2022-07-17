@@ -192,11 +192,11 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Debian packages'
 
-  - script: ls -alR .*deb
+  - script: ls -alR $(BUILD_DIR)/.*deb
     workingDirectory: $(BUILD_DIR)
     displayName: 'List Debian packages'
 
-  - script: sudo dpkg -i .*deb
+  - script: sudo dpkg -i $(BUILD_DIR)/.*deb
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
 
