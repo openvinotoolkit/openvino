@@ -244,7 +244,8 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     }
 
 char* str_to_char_array(const std::string& str) {
-    char* char_array = new char[str.length() + 1];
+    std::unique_ptr<char> _char_array(new char[str.length() + 1]);
+    char* char_array = _char_array.release();
     std::copy_n(str.begin(), str.length() + 1, char_array);
     return char_array;
 }
@@ -261,7 +262,6 @@ ov_status_e ov_rank_create(ov_rank_t** rank, int64_t min_dimension, int64_t max_
     }
 
     try {
-        *rank = nullptr;
         std::unique_ptr<ov_rank_t> _rank(new ov_rank_t);
         if (min_dimension != max_dimension) {
             _rank->object = ov::Dimension(min_dimension, max_dimension);
@@ -284,17 +284,16 @@ void ov_rank_free(ov_rank_t* rank) {
 }
 
 ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
-    ov_dimensions_t* dims = nullptr;
     if (!dimensions) {
         return ov_status_e::INVALID_PARAM;
     }
     *dimensions = nullptr;
     try {
-        dims = new ov_dimensions_t;
+        std::unique_ptr<ov_dimensions_t> dims(new ov_dimensions_t);
         if (!dims) {
             return ov_status_e::MALLOC_FAILED;
         }
-        *dimensions = dims;
+        *dimensions = dims.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -314,29 +313,24 @@ void ov_dimensions_free(ov_dimensions_t* dimensions) {
 }
 
 ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_rank_t* rank, ov_dimensions_t* dims) {
-    ov_partial_shape_t* partial_shape = nullptr;
     if (!partial_shape_obj || !rank) {
         return ov_status_e::INVALID_PARAM;
     }
     *partial_shape_obj = nullptr;
     try {
-        partial_shape = new ov_partial_shape_t;
-        if (!partial_shape) {
-            return ov_status_e::NOT_ALLOCATED;
-        }
+        std::unique_ptr<ov_partial_shape_t> partial_shape(new ov_partial_shape_t);
         if (rank->object.is_dynamic()) {
             partial_shape->rank = rank->object;
         } else {
             if (rank->object.get_length() != dims->object.size()) {
-                *partial_shape_obj = partial_shape;
                 return ov_status_e::INVALID_PARAM;
             }
             partial_shape->rank = rank->object;
             partial_shape->dims = dims->object;
         }
+        *partial_shape_obj = partial_shape.release();
     }
     CATCH_OV_EXCEPTIONS
-    *partial_shape_obj = partial_shape;
     return ov_status_e::OK;
 }
 
@@ -427,8 +421,9 @@ ov_status_e ov_layout_create(ov_layout_t** layout, const char* layout_desc) {
     }
 
     try {
-        *layout = new ov_layout_t;
-        (*layout)->object = ov::Layout(layout_desc);
+        std::unique_ptr<ov_layout_t> _layout(new ov_layout_t);
+        _layout->object = ov::Layout(layout_desc);
+        *layout = _layout.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -454,7 +449,8 @@ ov_status_e ov_property_create(ov_property_t** property) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *property = new ov_property_t;
+        std::unique_ptr<ov_property_t> _property(new ov_property_t);
+        *property = _property.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -569,8 +565,9 @@ ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
     }
 
     try {
-        *core = new ov_core_t;
-        (*core)->object = std::make_shared<ov::Core>(xml_config_file);
+        std::unique_ptr<ov_core_t> _core(new ov_core_t);
+        _core->object = std::make_shared<ov::Core>(xml_config_file);
+        *core = _core.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -594,8 +591,9 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
         if (bin_path) {
             bin = bin_path;
         }
-        *model = new ov_model_t;
-        (*model)->object = core->object->read_model(model_path, bin);
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(model_path, bin);
+        *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -611,7 +609,9 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 
     try {
         *model = new ov_model_t;
-        (*model)->object = core->object->read_model(model_str, *(weights->object));
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(model_str, *(weights->object));
+        *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -640,8 +640,9 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
         } else {
             object = core->object->compile_model(model->object);
         }
-        *compiled_model = new ov_compiled_model_t;
-        (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -665,8 +666,9 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
         } else {
             object = core->object->compile_model(model_path);
         }
-        *compiled_model = new ov_compiled_model_t;
-        (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -853,11 +855,11 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
     try {
         auto available_devices = core->object->get_available_devices();
         devices->num_devices = available_devices.size();
-        auto tmp_devices(new char*[available_devices.size()]);
+        std::unique_ptr<char*[]> tmp_devices(new char*[available_devices.size()]);
         for (int i = 0; i < available_devices.size(); i++) {
             tmp_devices[i] = str_to_char_array(available_devices[i]);
         }
-        devices->devices = tmp_devices;
+        devices->devices = tmp_devices.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -888,9 +890,10 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
     }
     try {
         mem_istream model_stream(content, content_size);
-        *compiled_model = new ov_compiled_model_t;
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         auto object = core->object->import_model(model_stream, device_name);
-        (*compiled_model)->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1049,13 +1052,14 @@ ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
     }
 
     try {
-        *partial_shape = new ov_partial_shape_t;
+        std::unique_ptr<ov_partial_shape_t> _partial_shape(new ov_partial_shape_t);
         auto shape = nodes->output_nodes[idx].object->get_partial_shape();
 
-        (*partial_shape)->rank = shape.rank();
+        _partial_shape->rank = shape.rank();
         auto iter = shape.begin();
         for (; iter != shape.end(); iter++)
-            (*partial_shape)->dims.emplace_back(*iter);
+            _partial_shape->dims.emplace_back(*iter);
+        *partial_shape = _partial_shape.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1270,8 +1274,9 @@ ov_status_e ov_preprocess_prepostprocessor_create(const ov_model_t* model,
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess = new ov_preprocess_prepostprocessor_t;
-        (*preprocess)->object = std::make_shared<ov::preprocess::PrePostProcessor>(model->object);
+        std::unique_ptr<ov_preprocess_prepostprocessor_t> _preprocess(new ov_preprocess_prepostprocessor_t);
+        _preprocess->object = std::make_shared<ov::preprocess::PrePostProcessor>(model->object);
+        *preprocess = _preprocess.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1289,8 +1294,9 @@ ov_status_e ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostproc
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_inputinfo_t;
-        (*preprocess_input_info)->object = &(preprocess->object->input());
+        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        _preprocess_input_info->object = &(preprocess->object->input());
+        *preprocess_input_info = _preprocess_input_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1304,8 +1310,9 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_pre
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_inputinfo_t;
-        (*preprocess_input_info)->object = &(preprocess->object->input(tensor_name));
+        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        _preprocess_input_info->object = &(preprocess->object->input(tensor_name));
+        *preprocess_input_info = _preprocess_input_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1319,8 +1326,9 @@ ov_status_e ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_pr
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_inputinfo_t;
-        (*preprocess_input_info)->object = &(preprocess->object->input(tensor_index));
+        std::unique_ptr<ov_preprocess_inputinfo_t> _preprocess_input_info(new ov_preprocess_inputinfo_t);
+        _preprocess_input_info->object = &(preprocess->object->input(tensor_index));
+        *preprocess_input_info = _preprocess_input_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1338,8 +1346,10 @@ ov_status_e ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* prep
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_tensor_info = new ov_preprocess_inputtensorinfo_t;
-        (*preprocess_input_tensor_info)->object = &(preprocess_input_info->object->tensor());
+        std::unique_ptr<ov_preprocess_inputtensorinfo_t> _preprocess_input_tensor_info(
+            new ov_preprocess_inputtensorinfo_t);
+        _preprocess_input_tensor_info->object = &(preprocess_input_info->object->tensor());
+        *preprocess_input_tensor_info = _preprocess_input_tensor_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1357,8 +1367,9 @@ ov_status_e ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* 
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_steps = new ov_preprocess_preprocesssteps_t;
-        (*preprocess_input_steps)->object = &(preprocess_input_info->object->preprocess());
+        std::unique_ptr<ov_preprocess_preprocesssteps_t> _preprocess_input_steps(new ov_preprocess_preprocesssteps_t);
+        _preprocess_input_steps->object = &(preprocess_input_info->object->preprocess());
+        *preprocess_input_steps = _preprocess_input_steps.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1500,8 +1511,9 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_p
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_outputinfo_t;
-        (*preprocess_output_info)->object = &(preprocess->object->output(tensor_index));
+        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        _preprocess_output_info->object = &(preprocess->object->output(tensor_index));
+        *preprocess_output_info = _preprocess_output_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1515,8 +1527,9 @@ ov_status_e ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_pr
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_outputinfo_t;
-        (*preprocess_output_info)->object = &(preprocess->object->output(tensor_name));
+        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        _preprocess_output_info->object = &(preprocess->object->output(tensor_name));
+        *preprocess_output_info = _preprocess_output_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1534,8 +1547,10 @@ ov_status_e ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preproce
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_tensor_info = new ov_preprocess_outputtensorinfo_t;
-        (*preprocess_output_tensor_info)->object = &(preprocess_output_info->object->tensor());
+        std::unique_ptr<ov_preprocess_outputtensorinfo_t> _preprocess_output_tensor_info(
+            new ov_preprocess_outputtensorinfo_t);
+        _preprocess_output_tensor_info->object = &(preprocess_output_info->object->tensor());
+        *preprocess_output_tensor_info = _preprocess_output_tensor_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1566,8 +1581,10 @@ ov_status_e ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_model_info = new ov_preprocess_inputmodelinfo_t;
-        (*preprocess_input_model_info)->object = &(preprocess_input_info->object->model());
+        std::unique_ptr<ov_preprocess_inputmodelinfo_t> _preprocess_input_model_info(
+            new ov_preprocess_inputmodelinfo_t);
+        _preprocess_input_model_info->object = &(preprocess_input_info->object->model());
+        *preprocess_input_model_info = _preprocess_input_model_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1598,8 +1615,9 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *model = new ov_model_t;
-        (*model)->object = preprocess->object->build();
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = preprocess->object->build();
+        *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1612,9 +1630,10 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
     }
 
     try {
-        *model = new ov_model_t;
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
         auto runtime_model = compiled_model->object->get_runtime_model();
-        (*model)->object = std::const_pointer_cast<ov::Model>(std::move(runtime_model));
+        _model->object = std::const_pointer_cast<ov::Model>(std::move(runtime_model));
+        *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1666,9 +1685,10 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
     }
 
     try {
-        *infer_request = new ov_infer_request_t;
-        auto inferReq = compiled_model->object->create_infer_request();
-        (*infer_request)->object = std::make_shared<ov::InferRequest>(std::move(inferReq));
+        std::unique_ptr<ov_infer_request_t> _infer_request(new ov_infer_request_t);
+        auto infer_req = compiled_model->object->create_infer_request();
+        _infer_request->object = std::make_shared<ov::InferRequest>(std::move(infer_req));
+        *infer_request = _infer_request.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1776,9 +1796,10 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
     }
 
     try {
-        *tensor = new ov_tensor_t;
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
         ov::Tensor tensor_get = infer_request->object->get_tensor(tensor_name);
-        (*tensor)->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1791,9 +1812,10 @@ ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_requ
     }
 
     try {
-        *tensor = new ov_tensor_t;
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
         ov::Tensor tensor_get = infer_request->object->get_output_tensor(idx);
-        (*tensor)->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        _tensor->object = std::make_shared<ov::Tensor>(std::move(tensor_get));
+        *tensor = _tensor.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -1918,11 +1940,12 @@ ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shap
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *tensor = new ov_tensor_t;
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
-        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
+        _tensor->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape);
+        *tensor = _tensor.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -1936,11 +1959,12 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *tensor = new ov_tensor_t;
+        std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
         auto tmp_type = GET_OV_ELEMENT_TYPE(type);
         ov::Shape tmp_shape;
         std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
-        (*tensor)->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
+        _tensor->object = std::make_shared<ov::Tensor>(tmp_type, tmp_shape, host_ptr);
+        *tensor = _tensor.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
