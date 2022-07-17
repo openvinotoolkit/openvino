@@ -150,8 +150,31 @@ TEST(FrontEndManagerTest, testFEMDestroy_OVModelHolder_Clone) {
         ASSERT_EQ(model->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
         model_clone = ov::clone_model(*model);
     }
-    ASSERT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
-    ASSERT_EQ(model_clone->get_friendly_name(), "mock1_model");
+    EXPECT_EQ(model_clone->get_rt_info()["mock_test"].as<std::string>(), std::string(1024, 't'));
+    EXPECT_EQ(model_clone->get_friendly_name(), "mock1_model");
+    EXPECT_EQ(ov::layout::get_layout(model_clone->input(0)), "NCHW")
+        << ov::layout::get_layout(model_clone->input(0)).to_string();
+    ASSERT_FALSE(model_clone->input(0).get_names().empty());
+    EXPECT_EQ(*model_clone->input(0).get_names().begin(), "mock_input");
+    ASSERT_FALSE(model_clone->output(0).get_names().empty());
+    EXPECT_EQ(*model_clone->output(0).get_names().begin(), "mock_output");
+}
+
+TEST(FrontEndManagerTest, testFEMDestroy_NodeHolder) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    {
+        FrontEndManager fem;
+        auto fe = fem.load_by_framework("mock1");
+        auto input_model = fe->load("test");
+        auto model = fe->convert(input_model);
+        EXPECT_EQ(model->get_results()[0]->get_input_source_output(0).get_index(), 1);
+        nodes = model->get_ordered_ops();
+        EXPECT_EQ(nodes.size(), 9);
+    }
+    for (const auto& node : nodes) {
+        EXPECT_EQ(node->get_friendly_name().find("mock_"), 0)
+            << "Name shall start with 'mock_': " << node->get_friendly_name();
+    }
 }
 
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {
