@@ -41,31 +41,31 @@ struct ov_model {
     std::shared_ptr<ov::Model> object;
 };
 
-struct ov_preprocess {
+struct ov_preprocess_prepostprocessor {
     std::shared_ptr<ov::preprocess::PrePostProcessor> object;
 };
 
-struct ov_preprocess_input_info {
+struct ov_preprocess_inputinfo {
     ov::preprocess::InputInfo* object;
 };
 
-struct ov_preprocess_input_tensor_info {
+struct ov_preprocess_inputtensorinfo {
     ov::preprocess::InputTensorInfo* object;
 };
 
-struct ov_preprocess_output_info {
+struct ov_preprocess_outputinfo {
     ov::preprocess::OutputInfo* object;
 };
 
-struct ov_preprocess_output_tensor_info {
+struct ov_preprocess_outputtensorinfo {
     ov::preprocess::OutputTensorInfo* object;
 };
 
-struct ov_preprocess_input_model_info {
+struct ov_preprocess_inputmodelinfo {
     ov::preprocess::InputModelInfo* object;
 };
 
-struct ov_preprocess_input_process_steps {
+struct ov_preprocess_preprocesssteps {
     ov::preprocess::PreProcessSteps* object;
 };
 
@@ -169,10 +169,10 @@ std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map 
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
-std::map<ov_preprocess_resize_algorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
-    {ov_preprocess_resize_algorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
-    {ov_preprocess_resize_algorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
-    {ov_preprocess_resize_algorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
+std::map<ov_preprocess_resizealgorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
+    {ov_preprocess_resizealgorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
+    {ov_preprocess_resizealgorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
+    {ov_preprocess_resizealgorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
 
 std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
     {ov_color_format_e::UNDEFINE, ov::preprocess::ColorFormat::UNDEFINED},
@@ -1167,12 +1167,13 @@ void ov_free(const char* content) {
         delete content;
 }
 
-ov_status_e ov_preprocess_create(const ov_model_t* model, ov_preprocess_t** preprocess) {
+ov_status_e ov_preprocess_prepostprocessor_create(const ov_model_t* model,
+                                                  ov_preprocess_prepostprocessor_t** preprocess) {
     if (!model || !preprocess) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess = new ov_preprocess_t;
+        *preprocess = new ov_preprocess_prepostprocessor_t;
         (*preprocess)->object = std::make_shared<ov::preprocess::PrePostProcessor>(model->object);
     }
     CATCH_OV_EXCEPTIONS
@@ -1180,18 +1181,18 @@ ov_status_e ov_preprocess_create(const ov_model_t* model, ov_preprocess_t** prep
     return ov_status_e::OK;
 }
 
-void ov_preprocess_free(ov_preprocess_t* preprocess) {
+void ov_preprocess_prepostprocessor_free(ov_preprocess_prepostprocessor_t* preprocess) {
     if (preprocess)
         delete preprocess;
 }
 
-ov_status_e ov_preprocess_get_input_info(const ov_preprocess_t* preprocess,
-                                         ov_preprocess_input_info_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_input(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                 ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_input_info_t;
+        *preprocess_input_info = new ov_preprocess_inputinfo_t;
         (*preprocess_input_info)->object = &(preprocess->object->input());
     }
     CATCH_OV_EXCEPTIONS
@@ -1199,14 +1200,14 @@ ov_status_e ov_preprocess_get_input_info(const ov_preprocess_t* preprocess,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_get_input_info_by_name(const ov_preprocess_t* preprocess,
-                                                 const char* tensor_name,
-                                                 ov_preprocess_input_info_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_input_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                         const char* tensor_name,
+                                                         ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !tensor_name || !preprocess_input_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_input_info_t;
+        *preprocess_input_info = new ov_preprocess_inputinfo_t;
         (*preprocess_input_info)->object = &(preprocess->object->input(tensor_name));
     }
     CATCH_OV_EXCEPTIONS
@@ -1214,14 +1215,14 @@ ov_status_e ov_preprocess_get_input_info_by_name(const ov_preprocess_t* preproce
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_get_input_info_by_index(const ov_preprocess_t* preprocess,
-                                                  const size_t tensor_index,
-                                                  ov_preprocess_input_info_t** preprocess_input_info) {
+ov_status_e ov_preprocess_prepostprocessor_input_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                          const size_t tensor_index,
+                                                          ov_preprocess_inputinfo_t** preprocess_input_info) {
     if (!preprocess || !preprocess_input_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_info = new ov_preprocess_input_info_t;
+        *preprocess_input_info = new ov_preprocess_inputinfo_t;
         (*preprocess_input_info)->object = &(preprocess->object->input(tensor_index));
     }
     CATCH_OV_EXCEPTIONS
@@ -1229,18 +1230,18 @@ ov_status_e ov_preprocess_get_input_info_by_index(const ov_preprocess_t* preproc
     return ov_status_e::OK;
 }
 
-void ov_preprocess_input_info_free(ov_preprocess_input_info_t* preprocess_input_info) {
+void ov_preprocess_inputinfo_free(ov_preprocess_inputinfo_t* preprocess_input_info) {
     if (preprocess_input_info)
         delete preprocess_input_info;
 }
 
-ov_status_e ov_preprocess_input_get_tensor_info(const ov_preprocess_input_info_t* preprocess_input_info,
-                                                ov_preprocess_input_tensor_info_t** preprocess_input_tensor_info) {
+ov_status_e ov_preprocess_inputinfo_tensor(const ov_preprocess_inputinfo_t* preprocess_input_info,
+                                           ov_preprocess_inputtensorinfo_t** preprocess_input_tensor_info) {
     if (!preprocess_input_info || !preprocess_input_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_tensor_info = new ov_preprocess_input_tensor_info_t;
+        *preprocess_input_tensor_info = new ov_preprocess_inputtensorinfo_t;
         (*preprocess_input_tensor_info)->object = &(preprocess_input_info->object->tensor());
     }
     CATCH_OV_EXCEPTIONS
@@ -1248,18 +1249,18 @@ ov_status_e ov_preprocess_input_get_tensor_info(const ov_preprocess_input_info_t
     return ov_status_e::OK;
 }
 
-void ov_preprocess_input_tensor_info_free(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info) {
+void ov_preprocess_inputtensorinfo_free(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info) {
     if (preprocess_input_tensor_info)
         delete preprocess_input_tensor_info;
 }
 
-ov_status_e ov_preprocess_input_get_preprocess_steps(const ov_preprocess_input_info_t* preprocess_input_info,
-                                                     ov_preprocess_input_process_steps_t** preprocess_input_steps) {
+ov_status_e ov_preprocess_inputinfo_preprocess(const ov_preprocess_inputinfo_t* preprocess_input_info,
+                                               ov_preprocess_preprocesssteps_t** preprocess_input_steps) {
     if (!preprocess_input_info || !preprocess_input_steps) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_steps = new ov_preprocess_input_process_steps_t;
+        *preprocess_input_steps = new ov_preprocess_preprocesssteps_t;
         (*preprocess_input_steps)->object = &(preprocess_input_info->object->preprocess());
     }
     CATCH_OV_EXCEPTIONS
@@ -1267,13 +1268,13 @@ ov_status_e ov_preprocess_input_get_preprocess_steps(const ov_preprocess_input_i
     return ov_status_e::OK;
 }
 
-void ov_preprocess_input_process_steps_free(ov_preprocess_input_process_steps_t* preprocess_input_process_steps) {
+void ov_preprocess_preprocesssteps_free(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps) {
     if (preprocess_input_process_steps)
         delete preprocess_input_process_steps;
 }
 
-ov_status_e ov_preprocess_input_resize(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
-                                       const ov_preprocess_resize_algorithm_e resize_algorithm) {
+ov_status_e ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
+                                                 const ov_preprocess_resizealgorithm_e resize_algorithm) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1285,8 +1286,8 @@ ov_status_e ov_preprocess_input_resize(ov_preprocess_input_process_steps_t* prep
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_element_type(
-    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_inputtensorinfo_set_element_type(
+    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
     const ov_element_type_e element_type) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
@@ -1299,8 +1300,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_element_type(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_tensor(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                                       const ov_tensor_t* tensor) {
+ov_status_e ov_preprocess_inputtensorinfo_set_from(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+                                                   const ov_tensor_t* tensor) {
     if (!preprocess_input_tensor_info || !tensor) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1312,8 +1313,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_tensor(ov_preprocess_input_tenso
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                                       const ov_layout_t layout) {
+ov_status_e ov_preprocess_inputtensorinfo_set_layout(ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
+                                                     const ov_layout_t layout) {
     if (!preprocess_input_tensor_info || !layout) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1326,8 +1327,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tenso
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_color_format(
-    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_inputtensorinfo_set_color_format(
+    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
     const ov_color_format_e colorFormat) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
@@ -1340,8 +1341,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
-    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+ov_status_e ov_preprocess_inputtensorinfo_set_spatial_static_shape(
+    ov_preprocess_inputtensorinfo_t* preprocess_input_tensor_info,
     const size_t input_height,
     const size_t input_width) {
     if (!preprocess_input_tensor_info) {
@@ -1355,8 +1356,8 @@ ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_convert_element_type(
-    ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
+ov_status_e ov_preprocess_preprocesssteps_convert_element_type(
+    ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
     const ov_element_type_e element_type) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::GENERAL_ERROR;
@@ -1369,8 +1370,8 @@ ov_status_e ov_preprocess_input_convert_element_type(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_convert_color(ov_preprocess_input_process_steps_t* preprocess_input_process_steps,
-                                              const ov_color_format_e colorFormat) {
+ov_status_e ov_preprocess_preprocesssteps_convert_color(ov_preprocess_preprocesssteps_t* preprocess_input_process_steps,
+                                                        const ov_color_format_e colorFormat) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1382,13 +1383,13 @@ ov_status_e ov_preprocess_input_convert_color(ov_preprocess_input_process_steps_
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_get_output_info(const ov_preprocess_t* preprocess,
-                                          ov_preprocess_output_info_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                  ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_output_info_t;
+        *preprocess_output_info = new ov_preprocess_outputinfo_t;
         (*preprocess_output_info)->object = &(preprocess->object->output());
     }
     CATCH_OV_EXCEPTIONS
@@ -1396,14 +1397,14 @@ ov_status_e ov_preprocess_get_output_info(const ov_preprocess_t* preprocess,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_get_output_info_by_index(const ov_preprocess_t* preprocess,
-                                                   const size_t tensor_index,
-                                                   ov_preprocess_output_info_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_output_by_index(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                           const size_t tensor_index,
+                                                           ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !preprocess_output_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_output_info_t;
+        *preprocess_output_info = new ov_preprocess_outputinfo_t;
         (*preprocess_output_info)->object = &(preprocess->object->output(tensor_index));
     }
     CATCH_OV_EXCEPTIONS
@@ -1411,14 +1412,14 @@ ov_status_e ov_preprocess_get_output_info_by_index(const ov_preprocess_t* prepro
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_get_output_info_by_name(const ov_preprocess_t* preprocess,
-                                                  const char* tensor_name,
-                                                  ov_preprocess_output_info_t** preprocess_output_info) {
+ov_status_e ov_preprocess_prepostprocessor_output_by_name(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                          const char* tensor_name,
+                                                          ov_preprocess_outputinfo_t** preprocess_output_info) {
     if (!preprocess || !tensor_name || !preprocess_output_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_output_info_t;
+        *preprocess_output_info = new ov_preprocess_outputinfo_t;
         (*preprocess_output_info)->object = &(preprocess->object->output(tensor_name));
     }
     CATCH_OV_EXCEPTIONS
@@ -1426,18 +1427,18 @@ ov_status_e ov_preprocess_get_output_info_by_name(const ov_preprocess_t* preproc
     return ov_status_e::OK;
 }
 
-void ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_output_info) {
+void ov_preprocess_outputinfo_free(ov_preprocess_outputinfo_t* preprocess_output_info) {
     if (preprocess_output_info)
         delete preprocess_output_info;
 }
 
-ov_status_e ov_preprocess_output_get_tensor_info(ov_preprocess_output_info_t* preprocess_output_info,
-                                                 ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info) {
+ov_status_e ov_preprocess_outputinfo_tensor(ov_preprocess_outputinfo_t* preprocess_output_info,
+                                            ov_preprocess_outputtensorinfo_t** preprocess_output_tensor_info) {
     if (!preprocess_output_info || !preprocess_output_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_output_tensor_info = new ov_preprocess_output_tensor_info_t;
+        *preprocess_output_tensor_info = new ov_preprocess_outputtensorinfo_t;
         (*preprocess_output_tensor_info)->object = &(preprocess_output_info->object->tensor());
     }
     CATCH_OV_EXCEPTIONS
@@ -1445,12 +1446,12 @@ ov_status_e ov_preprocess_output_get_tensor_info(ov_preprocess_output_info_t* pr
     return ov_status_e::OK;
 }
 
-void ov_preprocess_output_tensor_info_free(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info) {
+void ov_preprocess_outputtensorinfo_free(ov_preprocess_outputtensorinfo_t* preprocess_output_tensor_info) {
     if (preprocess_output_tensor_info)
         delete preprocess_output_tensor_info;
 }
 
-ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info,
+ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_outputtensorinfo_t* preprocess_output_tensor_info,
                                                   const ov_element_type_e element_type) {
     if (!preprocess_output_tensor_info) {
         return ov_status_e::GENERAL_ERROR;
@@ -1463,13 +1464,13 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_in
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_get_model_info(ov_preprocess_input_info_t* preprocess_input_info,
-                                               ov_preprocess_input_model_info_t** preprocess_input_model_info) {
+ov_status_e ov_preprocess_inputinfo_model(ov_preprocess_inputinfo_t* preprocess_input_info,
+                                          ov_preprocess_inputmodelinfo_t** preprocess_input_model_info) {
     if (!preprocess_input_info || !preprocess_input_model_info) {
         return ov_status_e::GENERAL_ERROR;
     }
     try {
-        *preprocess_input_model_info = new ov_preprocess_input_model_info_t;
+        *preprocess_input_model_info = new ov_preprocess_inputmodelinfo_t;
         (*preprocess_input_model_info)->object = &(preprocess_input_info->object->model());
     }
     CATCH_OV_EXCEPTIONS
@@ -1477,13 +1478,13 @@ ov_status_e ov_preprocess_input_get_model_info(ov_preprocess_input_info_t* prepr
     return ov_status_e::OK;
 }
 
-void ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess_input_model_info) {
+void ov_preprocess_inputmodelinfo_free(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info) {
     if (preprocess_input_model_info)
         delete preprocess_input_model_info;
 }
 
-ov_status_e ov_preprocess_input_model_set_layout(ov_preprocess_input_model_info_t* preprocess_input_model_info,
-                                                 const ov_layout_t layout) {
+ov_status_e ov_preprocess_inputmodelinfo_set_layout(ov_preprocess_inputmodelinfo_t* preprocess_input_model_info,
+                                                    const ov_layout_t layout) {
     if (!preprocess_input_model_info || !layout) {
         return ov_status_e::GENERAL_ERROR;
     }
@@ -1496,7 +1497,8 @@ ov_status_e ov_preprocess_input_model_set_layout(ov_preprocess_input_model_info_
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_build(const ov_preprocess_t* preprocess, ov_model_t** model) {
+ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess,
+                                                 ov_model_t** model) {
     if (!preprocess || !model) {
         return ov_status_e::GENERAL_ERROR;
     }

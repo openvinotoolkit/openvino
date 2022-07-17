@@ -361,7 +361,7 @@ TEST_P(ov_core, ov_core_get_versions) {
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_create) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_create) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -370,16 +370,16 @@ TEST(ov_preprocess, ov_preprocess_create) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_free(preprocess);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_input_info) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_input) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -388,21 +388,21 @@ TEST(ov_preprocess, ov_preprocess_get_input_info) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info(preprocess, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input(preprocess, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_input_info_by_name) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_input_by_name) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -411,21 +411,21 @@ TEST(ov_preprocess, ov_preprocess_get_input_info_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_name(preprocess, "data", &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_name(preprocess, "data", &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_input_info_by_index) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_input_by_index) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -434,21 +434,21 @@ TEST(ov_preprocess, ov_preprocess_get_input_info_by_index) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_get_tensor_info) {
+TEST(ov_preprocess, ov_preprocess_inputinfo_tensor) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -457,26 +457,26 @@ TEST(ov_preprocess, ov_preprocess_input_get_tensor_info) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_get_preprocess_steps) {
+TEST(ov_preprocess, ov_preprocess_inputinfo_preprocess) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -485,26 +485,26 @@ TEST(ov_preprocess, ov_preprocess_input_get_preprocess_steps) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_process_steps_t* input_process = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ov_preprocess_preprocesssteps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     ASSERT_NE(nullptr, input_process);
 
-    ov_preprocess_input_process_steps_free(input_process);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_preprocesssteps_free(input_process);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_resize) {
+TEST(ov_preprocess, ov_preprocess_preprocesssteps_resize) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -513,28 +513,28 @@ TEST(ov_preprocess, ov_preprocess_input_resize) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_process_steps_t* input_process = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ov_preprocess_preprocesssteps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     ASSERT_NE(nullptr, input_process);
 
-    OV_ASSERT_OK(ov_preprocess_input_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
+    OV_ASSERT_OK(ov_preprocess_preprocesssteps_resize(input_process, ov_preprocess_resizealgorithm_e::RESIZE_LINEAR));
 
-    ov_preprocess_input_process_steps_free(input_process);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_preprocesssteps_free(input_process);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_element_type) {
+TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_element_type) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -543,28 +543,28 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_element_type) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::F32));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_element_type(input_tensor_info, ov_element_type_e::F32));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_tensor) {
+TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_from) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -573,31 +573,31 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_tensor) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape = {4, {1, 416, 416, 3}};
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
+TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_layout) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -606,29 +606,29 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
     ov_layout_t layout = {'N', 'C', 'H', 'W'};
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, layout));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, layout));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
+TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_color_format) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -637,29 +637,29 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
     OV_ASSERT_OK(
-        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
+        ov_preprocess_inputtensorinfo_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
+TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_spatial_static_shape) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -668,31 +668,30 @@ TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
     size_t input_height = 500;
     size_t input_width = 500;
-    OV_ASSERT_OK(
-        ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_convert_element_type) {
+TEST(ov_preprocess, ov_preprocess_preprocesssteps_convert_element_type) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -701,34 +700,34 @@ TEST(ov_preprocess, ov_preprocess_input_convert_element_type) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_process_steps_t* input_process = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ov_preprocess_preprocesssteps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     ASSERT_NE(nullptr, input_process);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::U8));
-    OV_ASSERT_OK(ov_preprocess_input_convert_element_type(input_process, ov_element_type_e::F32));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_element_type(input_tensor_info, ov_element_type_e::U8));
+    OV_ASSERT_OK(ov_preprocess_preprocesssteps_convert_element_type(input_process, ov_element_type_e::F32));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_process_steps_free(input_process);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_preprocesssteps_free(input_process);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_convert_color) {
+TEST(ov_preprocess, ov_preprocess_preprocesssteps_convert_color) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -737,35 +736,35 @@ TEST(ov_preprocess, ov_preprocess_input_convert_color) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_process_steps_t* input_process = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ov_preprocess_preprocesssteps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     ASSERT_NE(nullptr, input_process);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
 
     OV_ASSERT_OK(
-        ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
-    OV_ASSERT_OK(ov_preprocess_input_convert_color(input_process, ov_color_format_e::BGR));
+        ov_preprocess_inputtensorinfo_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
+    OV_ASSERT_OK(ov_preprocess_preprocesssteps_convert_color(input_process, ov_color_format_e::BGR));
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
-    ov_preprocess_input_process_steps_free(input_process);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
+    ov_preprocess_preprocesssteps_free(input_process);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_output_info) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_output) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -774,21 +773,21 @@ TEST(ov_preprocess, ov_preprocess_get_output_info) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info(preprocess, &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output(preprocess, &output_info));
     ASSERT_NE(nullptr, output_info);
 
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_output_info_by_index) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_output_by_index) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -797,21 +796,21 @@ TEST(ov_preprocess, ov_preprocess_get_output_info_by_index) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
     ASSERT_NE(nullptr, output_info);
 
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_get_output_info_by_name) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_output_by_name) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -820,21 +819,21 @@ TEST(ov_preprocess, ov_preprocess_get_output_info_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_name(preprocess, "fc_out", &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_name(preprocess, "fc_out", &output_info));
     ASSERT_NE(nullptr, output_info);
 
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_output_get_tensor_info) {
+TEST(ov_preprocess, ov_preprocess_outputinfo_tensor) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -843,21 +842,21 @@ TEST(ov_preprocess, ov_preprocess_output_get_tensor_info) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
     ASSERT_NE(nullptr, output_info);
 
-    ov_preprocess_output_tensor_info_t* output_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_output_get_tensor_info(output_info, &output_tensor_info));
+    ov_preprocess_outputtensorinfo_t* output_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_outputinfo_tensor(output_info, &output_tensor_info));
     ASSERT_NE(nullptr, output_tensor_info);
 
-    ov_preprocess_output_tensor_info_free(output_tensor_info);
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_outputtensorinfo_free(output_tensor_info);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -871,28 +870,28 @@ TEST(ov_preprocess, ov_preprocess_output_set_element_type) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
     ASSERT_NE(nullptr, output_info);
 
-    ov_preprocess_output_tensor_info_t* output_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_output_get_tensor_info(output_info, &output_tensor_info));
+    ov_preprocess_outputtensorinfo_t* output_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_outputinfo_tensor(output_info, &output_tensor_info));
     ASSERT_NE(nullptr, output_tensor_info);
 
     OV_ASSERT_OK(ov_preprocess_output_set_element_type(output_tensor_info, ov_element_type_e::F32));
 
-    ov_preprocess_output_tensor_info_free(output_tensor_info);
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_outputtensorinfo_free(output_tensor_info);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_get_model_info) {
+TEST(ov_preprocess, ov_preprocess_inputinfo_model) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -901,26 +900,26 @@ TEST(ov_preprocess, ov_preprocess_input_get_model_info) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_model_info_t* input_model = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_model_info(input_info, &input_model));
+    ov_preprocess_inputmodelinfo_t* input_model = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
     ASSERT_NE(nullptr, input_model);
 
-    ov_preprocess_input_model_info_free(input_model);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputmodelinfo_free(input_model);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_input_model_set_layout) {
+TEST(ov_preprocess, ov_preprocess_inputmodelinfo_set_layout) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -929,29 +928,29 @@ TEST(ov_preprocess, ov_preprocess_input_model_set_layout) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_model_info_t* input_model = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_model_info(input_info, &input_model));
+    ov_preprocess_inputmodelinfo_t* input_model = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
     ASSERT_NE(nullptr, input_model);
 
     ov_layout_t layout = {'N', 'C', 'H', 'W'};
-    OV_ASSERT_OK(ov_preprocess_input_model_set_layout(input_model, layout));
+    OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, layout));
 
-    ov_preprocess_input_model_info_free(input_model);
-    ov_preprocess_input_info_free(input_info);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_inputmodelinfo_free(input_model);
+    ov_preprocess_inputinfo_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_build) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_build) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -960,21 +959,21 @@ TEST(ov_preprocess, ov_preprocess_build) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
     ov_model_t* new_model = nullptr;
-    OV_ASSERT_OK(ov_preprocess_build(preprocess, &new_model));
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
     ASSERT_NE(nullptr, new_model);
 
     ov_model_free(new_model);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_build_apply) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -983,56 +982,56 @@ TEST(ov_preprocess, ov_preprocess_build_apply) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_preprocess_t* preprocess = nullptr;
-    OV_ASSERT_OK(ov_preprocess_create(model, &preprocess));
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     ASSERT_NE(nullptr, preprocess);
 
-    ov_preprocess_input_info_t* input_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    ov_preprocess_inputinfo_t* input_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
     ASSERT_NE(nullptr, input_info);
 
-    ov_preprocess_input_tensor_info_t* input_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
     ASSERT_NE(nullptr, input_tensor_info);
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape = {4, {1, 416, 416, 3}};
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
     ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-    OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, tensor_layout));
+    OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
 
-    ov_preprocess_input_process_steps_t* input_process = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+    ov_preprocess_preprocesssteps_t* input_process = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
     ASSERT_NE(nullptr, input_process);
-    OV_ASSERT_OK(ov_preprocess_input_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
+    OV_ASSERT_OK(ov_preprocess_preprocesssteps_resize(input_process, ov_preprocess_resizealgorithm_e::RESIZE_LINEAR));
 
-    ov_preprocess_input_model_info_t* input_model = nullptr;
-    OV_ASSERT_OK(ov_preprocess_input_get_model_info(input_info, &input_model));
+    ov_preprocess_inputmodelinfo_t* input_model = nullptr;
+    OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
     ASSERT_NE(nullptr, input_model);
     ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
-    OV_ASSERT_OK(ov_preprocess_input_model_set_layout(input_model, model_layout));
+    OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
 
-    ov_preprocess_output_info_t* output_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
+    ov_preprocess_outputinfo_t* output_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
     ASSERT_NE(nullptr, output_info);
-    ov_preprocess_output_tensor_info_t* output_tensor_info = nullptr;
-    OV_ASSERT_OK(ov_preprocess_output_get_tensor_info(output_info, &output_tensor_info));
+    ov_preprocess_outputtensorinfo_t* output_tensor_info = nullptr;
+    OV_ASSERT_OK(ov_preprocess_outputinfo_tensor(output_info, &output_tensor_info));
     ASSERT_NE(nullptr, output_tensor_info);
     OV_ASSERT_OK(ov_preprocess_output_set_element_type(output_tensor_info, ov_element_type_e::F32));
 
     ov_model_t* new_model = nullptr;
-    OV_ASSERT_OK(ov_preprocess_build(preprocess, &new_model));
+    OV_ASSERT_OK(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
     ASSERT_NE(nullptr, new_model);
 
-    ov_preprocess_input_tensor_info_free(input_tensor_info);
+    ov_preprocess_inputtensorinfo_free(input_tensor_info);
     ov_tensor_free(tensor);
-    ov_preprocess_input_process_steps_free(input_process);
-    ov_preprocess_input_model_info_free(input_model);
-    ov_preprocess_output_tensor_info_free(output_tensor_info);
-    ov_preprocess_output_info_free(output_info);
-    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_preprocesssteps_free(input_process);
+    ov_preprocess_inputmodelinfo_free(input_model);
+    ov_preprocess_outputtensorinfo_free(output_tensor_info);
+    ov_preprocess_outputinfo_free(output_info);
+    ov_preprocess_inputinfo_free(input_info);
     ov_model_free(new_model);
-    ov_preprocess_free(preprocess);
+    ov_preprocess_prepostprocessor_free(preprocess);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -1331,36 +1330,37 @@ protected:
         EXPECT_NE(nullptr, model);
 
         preprocess = nullptr;
-        OV_EXPECT_OK(ov_preprocess_create(model, &preprocess));
+        OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
         EXPECT_NE(nullptr, preprocess);
 
         input_info = nullptr;
-        OV_ASSERT_OK(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+        OV_ASSERT_OK(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
         EXPECT_NE(nullptr, input_info);
 
         input_tensor_info = nullptr;
-        OV_EXPECT_OK(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
+        OV_EXPECT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
         EXPECT_NE(nullptr, input_tensor_info);
 
         ov_shape_t shape = {4, {1, 224, 224, 3}};
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
-        OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, input_tensor));
+        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));
         ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-        OV_ASSERT_OK(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, tensor_layout));
+        OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
 
         input_process = nullptr;
-        OV_ASSERT_OK(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
+        OV_ASSERT_OK(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
         ASSERT_NE(nullptr, input_process);
-        OV_ASSERT_OK(ov_preprocess_input_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
+        OV_ASSERT_OK(
+            ov_preprocess_preprocesssteps_resize(input_process, ov_preprocess_resizealgorithm_e::RESIZE_LINEAR));
 
         input_model = nullptr;
-        OV_ASSERT_OK(ov_preprocess_input_get_model_info(input_info, &input_model));
+        OV_ASSERT_OK(ov_preprocess_inputinfo_model(input_info, &input_model));
         ASSERT_NE(nullptr, input_model);
         ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
-        OV_ASSERT_OK(ov_preprocess_input_model_set_layout(input_model, model_layout));
+        OV_ASSERT_OK(ov_preprocess_inputmodelinfo_set_layout(input_model, model_layout));
 
-        OV_ASSERT_OK(ov_preprocess_build(preprocess, &model));
+        OV_ASSERT_OK(ov_preprocess_prepostprocessor_build(preprocess, &model));
         EXPECT_NE(nullptr, model);
 
         compiled_model = nullptr;
@@ -1376,11 +1376,11 @@ protected:
         ov_tensor_free(input_tensor);
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
-        ov_preprocess_input_model_info_free(input_model);
-        ov_preprocess_input_process_steps_free(input_process);
-        ov_preprocess_input_tensor_info_free(input_tensor_info);
-        ov_preprocess_input_info_free(input_info);
-        ov_preprocess_free(preprocess);
+        ov_preprocess_inputmodelinfo_free(input_model);
+        ov_preprocess_preprocesssteps_free(input_process);
+        ov_preprocess_inputtensorinfo_free(input_tensor_info);
+        ov_preprocess_inputinfo_free(input_info);
+        ov_preprocess_prepostprocessor_free(preprocess);
         ov_model_free(model);
         ov_core_free(core);
     }
@@ -1392,11 +1392,11 @@ public:
     ov_infer_request_t* infer_request;
     ov_tensor_t* input_tensor;
     ov_tensor_t* output_tensor;
-    ov_preprocess_t* preprocess;
-    ov_preprocess_input_info_t* input_info;
-    ov_preprocess_input_tensor_info_t* input_tensor_info;
-    ov_preprocess_input_process_steps_t* input_process;
-    ov_preprocess_input_model_info_t* input_model;
+    ov_preprocess_prepostprocessor_t* preprocess;
+    ov_preprocess_inputinfo_t* input_info;
+    ov_preprocess_inputtensorinfo_t* input_tensor_info;
+    ov_preprocess_preprocesssteps_t* input_process;
+    ov_preprocess_inputmodelinfo_t* input_model;
 };
 
 INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request, ::testing::Values("CPU"));

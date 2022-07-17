@@ -116,14 +116,14 @@ int main(int argc, char** argv) {
     ov_core_t* core = NULL;
     ov_model_t* model = NULL;
     ov_tensor_t* tensor = NULL;
-    ov_preprocess_t* preprocess = NULL;
-    ov_preprocess_input_info_t* input_info = NULL;
+    ov_preprocess_prepostprocessor_t* preprocess = NULL;
+    ov_preprocess_inputinfo_t* input_info = NULL;
     ov_model_t* new_model = NULL;
-    ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
-    ov_preprocess_input_process_steps_t* input_process = NULL;
-    ov_preprocess_input_model_info_t* p_input_model = NULL;
-    ov_preprocess_output_info_t* output_info = NULL;
-    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
+    ov_preprocess_inputtensorinfo_t* input_tensor_info = NULL;
+    ov_preprocess_preprocesssteps_t* input_process = NULL;
+    ov_preprocess_inputmodelinfo_t* p_input_model = NULL;
+    ov_preprocess_outputinfo_t* output_info = NULL;
+    ov_preprocess_outputtensorinfo_t* output_tensor_info = NULL;
     ov_compiled_model_t* compiled_model = NULL;
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
@@ -171,26 +171,26 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
-    CHECK_STATUS(ov_preprocess_create(model, &preprocess));
-    CHECK_STATUS(ov_preprocess_get_input_info_by_index(preprocess, 0, &input_info));
+    CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    CHECK_STATUS(ov_preprocess_prepostprocessor_input_by_index(preprocess, 0, &input_info));
 
-    CHECK_STATUS(ov_preprocess_input_get_tensor_info(input_info, &input_tensor_info));
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_tensor(input_tensor_info, tensor));
+    CHECK_STATUS(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
+    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
     ov_layout_t tensor_layout = {'N', 'H', 'W', 'C'};
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, tensor_layout));
+    CHECK_STATUS(ov_preprocess_inputtensorinfo_set_layout(input_tensor_info, tensor_layout));
 
-    CHECK_STATUS(ov_preprocess_input_get_preprocess_steps(input_info, &input_process));
-    CHECK_STATUS(ov_preprocess_input_resize(input_process, RESIZE_LINEAR));
+    CHECK_STATUS(ov_preprocess_inputinfo_preprocess(input_info, &input_process));
+    CHECK_STATUS(ov_preprocess_preprocesssteps_resize(input_process, RESIZE_LINEAR));
 
-    CHECK_STATUS(ov_preprocess_input_get_model_info(input_info, &p_input_model));
+    CHECK_STATUS(ov_preprocess_inputinfo_model(input_info, &p_input_model));
     ov_layout_t model_layout = {'N', 'C', 'H', 'W'};
-    CHECK_STATUS(ov_preprocess_input_model_set_layout(p_input_model, model_layout));
+    CHECK_STATUS(ov_preprocess_inputmodelinfo_set_layout(p_input_model, model_layout));
 
-    CHECK_STATUS(ov_preprocess_get_output_info_by_index(preprocess, 0, &output_info));
-    CHECK_STATUS(ov_preprocess_output_get_tensor_info(output_info, &output_tensor_info));
+    CHECK_STATUS(ov_preprocess_prepostprocessor_output_by_index(preprocess, 0, &output_info));
+    CHECK_STATUS(ov_preprocess_outputinfo_tensor(output_info, &output_tensor_info));
     CHECK_STATUS(ov_preprocess_output_set_element_type(output_tensor_info, F32));
 
-    CHECK_STATUS(ov_preprocess_build(preprocess, &new_model));
+    CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
     ov_property_t* property = NULL;
@@ -231,19 +231,19 @@ err:
     if (compiled_model)
         ov_compiled_model_free(compiled_model);
     if (output_tensor_info)
-        ov_preprocess_output_tensor_info_free(output_tensor_info);
+        ov_preprocess_outputtensorinfo_free(output_tensor_info);
     if (output_info)
-        ov_preprocess_output_info_free(output_info);
+        ov_preprocess_outputinfo_free(output_info);
     if (p_input_model)
-        ov_preprocess_input_model_info_free(p_input_model);
+        ov_preprocess_inputmodelinfo_free(p_input_model);
     if (input_process)
-        ov_preprocess_input_process_steps_free(input_process);
+        ov_preprocess_preprocesssteps_free(input_process);
     if (input_tensor_info)
-        ov_preprocess_input_tensor_info_free(input_tensor_info);
+        ov_preprocess_inputtensorinfo_free(input_tensor_info);
     if (input_info)
-        ov_preprocess_input_info_free(input_info);
+        ov_preprocess_inputinfo_free(input_info);
     if (preprocess)
-        ov_preprocess_free(preprocess);
+        ov_preprocess_prepostprocessor_free(preprocess);
     if (new_model)
         ov_model_free(new_model);
     if (tensor)
