@@ -569,7 +569,7 @@ def test_ngraph_set_layout_by_string(layout, layout_str):
 @pytest.mark.parametrize(
     ("layout", "layout_str"),
     [(ov.Layout("NHCW"), "[N,H,C,W]"), (ov.Layout("NHWC"), "[N,H,W,C]")])
-def test_ngraph_set_layout_by_Layout(layout, layout_str):
+def test_ngraph_set_layout_by_layout_class(layout, layout_str):
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
