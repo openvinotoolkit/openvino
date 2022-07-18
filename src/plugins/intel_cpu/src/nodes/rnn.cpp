@@ -119,6 +119,8 @@ struct RNNKey {
     const std::vector<DnnlBlockedMemoryDescPtr> outDataDescs;
     const std::vector<dnnl::memory::desc> wDescs;
     dnnl::algorithm cellType;
+    dnnl::algorithm cellAct;
+    dnnl::rnn_direction direction;
 
     size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
@@ -142,13 +144,16 @@ size_t RNNKey::hash() const {
         seed = hash_combine(seed, get_md_hash(desc.data));
     }
     seed = hash_combine(seed, cellType);
+    seed = hash_combine(seed, cellAct);
+    seed = hash_combine(seed, direction);
     return seed;
 }
 
 bool RNNKey::operator==(const RNNKey& rhs) const {
     if (inDataDescs.size() != rhs.inDataDescs.size() || outDataDescs.size() != rhs.outDataDescs.size() || wDescs.size() != rhs.wDescs.size() ||
-            cellType != rhs.cellType)
+            cellType != rhs.cellType || cellAct != rhs.cellAct || direction != rhs.direction) {
         return false;
+    }
 
     for (size_t i = 0lu; i < inDataDescs.size(); i++) {
         if (inDataDescs[i] != rhs.inDataDescs[i] && (inDataDescs[i] == nullptr || rhs.inDataDescs[i] == nullptr ||
@@ -156,8 +161,8 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
             return false;
     }
     for (size_t i = 0lu; i < outDataDescs.size(); i++) {
-        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] ||
-                outDataDescs[i]->getDnnlDesc() == rhs.outDataDescs[i]->getDnnlDesc()))
+        if (outDataDescs[i] != rhs.outDataDescs[i] && (outDataDescs[i] == nullptr || rhs.outDataDescs[i] == nullptr ||
+                outDataDescs[i]->getDnnlDesc() != rhs.outDataDescs[i]->getDnnlDesc()))
             return false;
     }
     for (size_t i = 0lu; i < wDescs.size(); i++) {
@@ -826,7 +831,7 @@ void RNN::prepareParams() {
         wDescs[1] = dnnl::memory::desc(statesDims, dataType, wFormat);
     }
 
-    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type };
+    RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction };
 
     auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
         fillDescs();

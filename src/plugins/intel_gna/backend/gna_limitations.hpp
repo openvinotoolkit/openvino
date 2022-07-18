@@ -33,6 +33,11 @@ constexpr uint32_t maxPoolMaxWindowSize = 6;
 constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
+// TODO In the future there should be created class/struct representing all limitations for specific device versions.
+constexpr uint32_t kMaxLayersCountGNA1_0 = 1023;
+constexpr uint32_t kMaxLayersCountGNA2_0 = 4096;
+constexpr uint32_t kMaxLayersCountGNA3_X = 8192;
+
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
     return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;
 }
@@ -104,7 +109,13 @@ struct RectLimitByChannelsAndPrecision {
 class AbstractValidator {
 protected:
     static void ThrowIfNotEmpty(const std::string& prefix, const std::string& error);
+    static bool ValidationSuccesful(const bool throwOnError,
+                                    const std::string& error,
+                                    const std::string& operation,
+                                    const std::string& type);
+
 public:
+    virtual ~AbstractValidator() = default;
     virtual bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
         const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
@@ -114,30 +125,21 @@ public:
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW,
         bool exception = true) const = 0;
+
+    virtual bool IsPaddingSupported() const = 0;
+
     static std::unique_ptr<AbstractValidator> Create(const std::string&);
 };
 
 class Validator_30 : public AbstractValidator {
-    RangeLimit2D inputHWLimit{ { 16, 384, "input height"} , { 16, 240, "input width"} };
-    RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
+    static const RangeLimit2D kInputHWLimit;
+    static const RangeMultipleLimit kInputChannelsNumberLimit;
 
-    RangeMultipleLimit kernelNumberLimit{ {8, 1024, "number of kernels"}, 8 };
-    RectLimitByChannelsAndPrecision kernelLimit {
-        { { {96, {7, 7}},
-            {136, {7, 5}},
-            {168, {7, 4}},
-            {240, {7, 3}},
-            {384, {7, 2}} } },
-        { { {48, {7, 7}},
-            {64, {7, 5}},
-            {80, {7, 4}},
-            {120, {7, 3}},
-            {384, {7, 1}} } },
-    };
-    RectLimitByChannelsAndPrecision& strideLimit = kernelLimit;
-    RangeLimit2D dilationLimit{ {convDilationHeight, convDilationHeight, "dilation height" },
-        { convDilationWidth, convDilationWidth, "dilation width" } };
-    const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
+    static const RangeMultipleLimit kKernelNumberLimit;
+    static const RectLimitByChannelsAndPrecision kKernelLimit;
+    static const RangeLimit2D kDilationLimit;
+
+    static const VectorOrSquareLimit kPoolingWindowLimit;
 
 public:
     Validator_30() = default;
@@ -151,6 +153,37 @@ public:
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW,
         bool exception = true) const override;
+
+    bool IsPaddingSupported() const override;
+};
+
+class Validator_35 : public AbstractValidator {
+    static const RangeLimit2D kInputHWLimit;
+    static const RangeLimit kInputChannelsNumberLimit1B;
+    static const RangeLimit kInputChannelsNumberLimit2B;
+
+    static const RangeLimit kKernelNumberLimit;
+    static const RangeLimit2D kKerneHWlLimit;
+    static const RangeLimit2D kStrideHWLimit;
+    static const RangeLimit2D kDilationLimit;
+
+    static const RangeLimit2D kPoolingWindowHWLimit;
+    static const RangeLimit2D kPoolingStrideHWLimit;
+
+public:
+    Validator_35() = default;
+
+    bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+        OvGnaType inPrecision, bool exception = true) const override;
+
+    bool ValidatePooling2D(const std::string& name,
+        const uint32_t windowH, const uint32_t windowW,
+        const uint32_t strideH, const uint32_t strideW,
+        bool exception = true) const override;
+
+    bool IsPaddingSupported() const override;
 };
 } // namespace Cnn2D
 
