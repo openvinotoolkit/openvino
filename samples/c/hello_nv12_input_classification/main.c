@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "c_api/ov_c_api.h"
+#include "openvino.h"
 
 /**
  * @brief Struct to store infer results

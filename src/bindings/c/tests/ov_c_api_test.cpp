@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "c_api/ov_c_api.h"
+#include "openvino.h"
 
 #include <gtest/gtest.h>
 #include <stdio.h>

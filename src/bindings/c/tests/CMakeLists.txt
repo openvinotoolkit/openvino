@@ -55,7 +55,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
     commonTestUtils gtest_main)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include/openvino>)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
