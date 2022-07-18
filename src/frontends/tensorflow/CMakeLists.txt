@@ -27,7 +27,6 @@ install(FILES $<TARGET_FILE:openvino_tensorflow_frontend>
         RENAME ${output_name}
         EXCLUDE_FROM_ALL)
 
-
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
