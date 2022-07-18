@@ -14,6 +14,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
+// Test for CI
+
 namespace {
 
 template<typename T>
