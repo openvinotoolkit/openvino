@@ -6,9 +6,8 @@ set(TARGET_NAME "InferenceEngineCAPITests")
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
-if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is disabled")
-    return()
+if(OpenCV_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE BUILD_OPENCV_DEPENDENT_TESTS)
 endif()
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
