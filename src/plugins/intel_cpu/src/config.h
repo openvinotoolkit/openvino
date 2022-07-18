@@ -9,13 +9,10 @@
 #include "utils/debug_capabilities.h"
 
 #include <string>
-#include <set>
 #include <map>
 
 namespace ov {
 namespace intel_cpu {
-
-#define EXPERIMENTAL_KEY_BRGCONV "brgconv"
 
 struct Config {
     Config();
@@ -48,7 +45,6 @@ struct Config {
     bool enforceBF16 = true;
     bool manualEnforceBF16 = false;
 #endif
-    std::set<std::string> cpuExperimental;
 
     std::string cache_dir{};
 
