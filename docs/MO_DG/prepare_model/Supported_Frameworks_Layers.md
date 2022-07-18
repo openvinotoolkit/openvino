@@ -50,10 +50,10 @@ In this article, you can find lists of supported framework layers, divided by fr
 | Tile |  |
 
 
-## MXNet Supported Symbols
+## Apache MXNet Supported Symbols
 
 
-| Symbol Name in MXNet| Limitations|
+| Symbol Name in Apache MXNet| Limitations|
 | :----------| :----------|
 | _Plus |  |
 | _contrib_arange_like |  |

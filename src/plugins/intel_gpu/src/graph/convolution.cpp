@@ -11,12 +11,52 @@
 #include "json_object.h"
 #include <string>
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 namespace cldnn {
 primitive_type_id convolution::type_id() {
     static primitive_type_base<convolution> instance;
     return &instance;
+}
+
+static format get_recommended_format(layout input_layout, data_types output_type) {
+    if (data_type_traits::is_i8_u8(output_type)) {
+        switch (input_layout.format) {
+            case format::b_fs_yx_fsv16:         return format::b_fs_yx_fsv32;
+            case format::bs_fs_yx_bsv32_fsv16:  return format::bs_fs_yx_bsv32_fsv32;
+            case format::b_fs_zyx_fsv16:        return format::b_fs_zyx_fsv32;
+            case format::bs_fs_zyx_bsv32_fsv16: return format::bs_fs_zyx_bsv32_fsv32;
+            case format::b_fs_yx_fsv2:
+            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv32;
+            case format::b_fs_zyx_fsv2:
+            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv32;
+            case format::bs_fs_yx_bsv8_fsv2:
+            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv32 : format::b_fs_yx_fsv32;
+            case format::bs_fs_zyx_bsv8_fsv2:
+            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv32 : format::b_fs_zyx_fsv32;
+            default:
+                break;
+        }
+    } else if (data_type_traits::is_floating_point(output_type)) {
+        switch (input_layout.format) {
+            case format::b_fs_yx_fsv32:         return format::b_fs_yx_fsv16;
+            case format::bs_fs_yx_bsv32_fsv32:  return format::bs_fs_yx_bsv32_fsv16;
+            case format::b_fs_zyx_fsv32:        return format::b_fs_zyx_fsv16;
+            case format::bs_fs_zyx_bsv32_fsv32: return format::bs_fs_zyx_bsv32_fsv16;
+            case format::b_fs_yx_fsv2:
+            case format::b_fs_yx_fsv4:          return format::b_fs_yx_fsv16;
+            case format::b_fs_zyx_fsv2:
+            case format::b_fs_zyx_fsv4:         return format::b_fs_zyx_fsv16;
+            case format::bs_fs_yx_bsv8_fsv2:
+            case format::bs_fs_yx_bsv8_fsv4:    return input_layout.batch() > 16 ? format::bs_fs_yx_bsv32_fsv16 : format::b_fs_yx_fsv16;
+            case format::bs_fs_zyx_bsv8_fsv2:
+            case format::bs_fs_zyx_bsv8_fsv4:   return input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
+            default:
+                break;
+        }
+    }
+
+    return format::any;
 }
 
 layout convolution_inst::calc_output_layout(convolution_node const& node) {
@@ -173,40 +213,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // Adjust output format for mixed precision case in onednn
     auto out_fmt = input_layout.format;
-    bool is_2d = (input_layout.format.spatial_num() == 2);
-    bool is_3d = (input_layout.format.spatial_num() == 3);
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        if (data_type_traits::is_i8_u8(output_type)) {
-            if (is_2d) {
-                if (input_layout.format == format::b_fs_yx_fsv16)
-                    out_fmt = format::b_fs_yx_fsv32;
-                else if (input_layout.format == format::bs_fs_yx_bsv32_fsv16)
-                    out_fmt = format::bs_fs_yx_bsv32_fsv32;
-                else if (input_layout.format == format::b_fs_yx_fsv2)
-                    out_fmt = format::b_fs_yx_fsv32;
-            } else if (is_3d) {
-                if (input_layout.format == format::b_fs_zyx_fsv16)
-                    out_fmt = format::b_fs_zyx_fsv32;
-                else if (input_layout.format == format::bs_fs_zyx_bsv32_fsv16)
-                    out_fmt = format::bs_fs_zyx_bsv32_fsv32;
-            }
-        } else if (data_type_traits::is_floating_point(output_type)) {
-            if (is_2d) {
-                if (input_layout.format == format::b_fs_yx_fsv32)
-                    out_fmt = format::b_fs_yx_fsv16;
-                else if (input_layout.format == format::bs_fs_yx_bsv32_fsv32)
-                    out_fmt = format::bs_fs_yx_bsv32_fsv16;
-            } else if (is_3d) {
-                if (input_layout.format == format::b_fs_zyx_fsv32)
-                    out_fmt = format::b_fs_zyx_fsv16;
-                else if (input_layout.format == format::bs_fs_zyx_bsv32_fsv32)
-                    out_fmt = format::bs_fs_zyx_bsv32_fsv16;
-                else if (input_layout.format == format::b_fs_zyx_fsv2)
-                    out_fmt = format::b_fs_zyx_fsv16;
-                else if (input_layout.format == format::bs_fs_zyx_bsv8_fsv2)
-                    out_fmt = input_layout.batch() > 16 ? format::bs_fs_zyx_bsv32_fsv16 : format::b_fs_zyx_fsv16;
-            }
-        }
+        format recommended_fmt = get_recommended_format(input_layout, output_type);
+        if (recommended_fmt != format::any)
+            out_fmt = recommended_fmt;
     }
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in

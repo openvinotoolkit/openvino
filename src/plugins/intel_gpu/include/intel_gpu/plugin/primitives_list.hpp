@@ -209,6 +209,8 @@ REGISTER_FACTORY(v6, ExperimentalDetectronROIFeatureExtractor);
 REGISTER_FACTORY(v6, ExperimentalDetectronTopKROIs)
 REGISTER_FACTORY(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 REGISTER_FACTORY(v6, ExperimentalDetectronDetectionOutput);
+REGISTER_FACTORY(v6, Assign);
+REGISTER_FACTORY(v6, ReadValue);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, DFT);
@@ -230,6 +232,9 @@ REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
+
+// ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, SoftSign)
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

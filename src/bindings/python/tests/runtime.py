@@ -40,9 +40,7 @@ class Runtime(object):
         self.backend_name = backend_name
         log.debug(f"Creating Inference Engine for {backend_name}")
         self.backend = Core()
-        assert backend_name in self.backend.available_devices, (
-            'The requested device "' + backend_name + '" is not supported!'
-        )
+        assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the inference engine configuration."""
@@ -110,28 +108,24 @@ class Computation(object):
         # Input validation
         if len(input_values) < len(self.parameters):
             raise UserInputError(
-                "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values),
+                "Expected %s params, received not enough %s values.",
+                len(self.parameters),
+                len(input_values),
             )
 
         param_names = [param.friendly_name for param in self.parameters]
         input_shapes = [get_shape(input_value) for input_value in input_values]
-
         if self.network_cache.get(str(input_shapes)) is None:
             function = self.function
-            if self.function.is_dynamic():
-                function = function.clone()
-                function.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
             self.network_cache[str(input_shapes)] = function
         else:
             function = self.network_cache[str(input_shapes)]
 
-        executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
-
+        compiled_model = self.runtime.backend.compile_model(function, self.runtime.backend_name)
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         if is_bfloat16:
             input_values = self.convert_to_tensors(input_values)
-
-        request = executable_network.create_infer_request()
+        request = compiled_model.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))
         """Note: other methods to get result_buffers from request
            First call infer with no return value:

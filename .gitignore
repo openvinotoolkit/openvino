@@ -1,5 +1,7 @@
 # build/artifact dirs
 _*
+[Bb]uild*/
+
 # but ensure we don't skip __init__.py and __main__.py
 !__init__.py
 !__main__.py
@@ -9,12 +11,10 @@ _*
 # developer tools
 *.idea
 .vscode
-cmake-build-*
 .DS_Store
 **/tags
 compile_commands.json
 bin/
-build/
 .local_vimrc
 .gdb_history
 .vimspector.json
@@ -34,14 +34,13 @@ docs/IE_PLUGIN_DG/html/
 *.pydevproject
 *.settings
 */gen/
-__pycache__
 *.swp
 /config.xml
 
 # Python-specific
-*.env3
+*.?env*
 *.pyc
-
+__pycache__
 # Tests-specific
 *.coverage
 *htmlcov

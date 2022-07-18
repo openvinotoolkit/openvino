@@ -120,7 +120,6 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
-xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
@@ -131,3 +130,6 @@ xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph c
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
+
+xfail_issue_86909 = xfail_test(reason="ssd_resnet34 - AssertionError: zoo models results mismatch")
+xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
