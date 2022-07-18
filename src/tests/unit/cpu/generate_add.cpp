@@ -30,6 +30,8 @@
 #include <transformations/utils/utils.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include "common_test_utils/ngraph_test_utils.hpp"
+
 
 using namespace testing;
 
@@ -437,7 +439,7 @@ TEST(SnippetsTests, SerializeSubgraph) {
         auto ininput1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<ov::op::v1::Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body);
+        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, ov::clone_model(*subgraph_body.get()));
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -445,9 +447,11 @@ TEST(SnippetsTests, SerializeSubgraph) {
     std::stringstream stream;
     compiled_model.export_model(stream);
     ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
-    auto referenceInputs = gen_inputs(ov::Shape({2, 2}), 2);
-    auto compiled_model_runtime = std::const_pointer_cast<ov::Model>(compiled_model.get_runtime_model());
-    auto imported_compiled_model_runtime = std::const_pointer_cast<ov::Model>(imported_compiled_model.get_runtime_model());
-    bool isCorrect = compare(imported_compiled_model_runtime, compiled_model_runtime, referenceInputs);
-    ASSERT_TRUE(isCorrect) << "Snippet serialization failed.";
+    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
+    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    const auto fc = FunctionsComparator::with_default()
+                                .enable(FunctionsComparator::CONST_VALUES)
+                                .enable(FunctionsComparator::ATTRIBUTES);
+    const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
+    ASSERT_TRUE(results.valid) << results.message;
 }
