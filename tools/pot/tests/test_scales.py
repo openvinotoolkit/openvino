@@ -1,7 +1,6 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from collections import defaultdict
 import json
 import os
 
@@ -129,7 +128,6 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
                                               clipping_value=clipping_value))
     local_path = os.path.join(tmp_path, '{}.json'.format(stats_path.split("_")[-2]))
     dump_intermediate_scales(local_path, nodes)
-    #dump_intermediate_scales(stats_path, nodes)
 
     assert len(ref_nodes) == len(nodes)
     processed_nodes = []
@@ -146,29 +144,6 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
                 ref_name, abs(node_min - ref_min), abs(node_max - ref_max)))
 
     assert len(processed_nodes) == len(ref_nodes)
-    return
-    from collections import defaultdict
-    processed_nodes = defaultdict(list)
-    eps = 1e-6
-    for ref_name in ref_nodes:
-        for orig_name in nodes:
-
-            ref_min, ref_max = ref_nodes[ref_name]
-            node_min, node_max = nodes[orig_name]
-
-            error = max(abs(node_min - ref_min), abs(node_max - ref_max))
-            
-            if error <= eps:
-                processed_nodes[orig_name].append(
-                    (error, ref_name))
-
-    assert len(processed_nodes) == len(ref_nodes)
-    new_local_path = os.path.splitext(stats_path)[0] + '_updated.json'
-    new_scales = {}
-    for name, val in processed_nodes.items():
-        new_scales[name] = ref_nodes[val[0][1]]
-
-    open(new_local_path, 'w').write(json.dumps(new_scales, cls=NumpyEncoder))
 
 
 def test_weights_scales(tmp_path, models):
@@ -199,51 +174,6 @@ def test_weights_scales(tmp_path, models):
             print(shape)
 
         assert assert_flag
-
-    #eps = 1e-6
-    #weights_map = defaultdict(list)
-    #for fq_name in weights:
-    #    for fq_name_ref in ref_weights:
-    #        item_min, item_max = weights[fq_name]['low_level'], weights[fq_name]['high_level']
-    #        if not item_min.shape:
-    #            continue
-    #        shape = item_min.shape[0]
-
-    #        ref_min, ref_max = list(map(np.array, [ref_weights[fq_name_ref]['low_level'], ref_weights[fq_name_ref]['high_level']]))
-    #        if ref_min.shape != item_min.shape:
-    #            continue
-    #        error = max(abs(ref_min - item_min).max(), abs(ref_max - item_max).max()) 
-    #        if error < eps:
-    #            if weights_map[fq_name] and weights_map[fq_name][1] < error:
-    #                continue
-    #            weights_map[fq_name] = (fq_name_ref, error)
-    #    
-    #orig_ = set(ref_weights.keys())
-    #mapped_ = set(y for x in weights_map.values() for y in x)
-    #diff = orig_ - mapped_
-    #assert not diff
-    #for name in weights_map:
-    #    if not weights_map[name]:
-    #        assert False, f'{name} elem is not mapped' 
-
-    #weights_map = {name: ref_weights[weights_map[name][0]] for name in weights_map} 
-    #open(path_to_weights, 'w').writelines(json.dumps(weights_map))
-    #weights_updated = dict() 
-    #for name, val in weights.items():
-    #    weights_updated[name] = dict() 
-    #    for key in ['low_level', 'high_level']:
-    #        weights_updated[name][key] = list(val[key].)
-    #open(path_to_weights, 'w').writelines(json.dumps(weights, cls=NumpyEncoder))
-            #assert_flag = False
-
-            #if np.array_equal(ref_min, item_min) and \
-            #        np.array_equal(ref_max, item_max):
-            #    assert_flag = True
-
-            #if not assert_flag:
-            #    print(shape)
-
-            #assert assert_flag
 
 
 def load_refs(path_to_refs):
@@ -367,37 +297,6 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
                 min_levels, max_levels, refs_min_levels, refs_max_levels):
             assert abs(min_level - ref_min) < eps
             assert abs(max_level - ref_max) < eps
-    return
-    open(refs_path, 'w').writelines(json.dumps(model_values, cls=NumpyEncoder))
-    #json.dump(model_values, ref_file)
-    return
-    json.dump(model_values, local_file)
-
-    eps = 1e-3
-    levels_map = defaultdict(list)
-    seen_elems = set()
-    for ref_name in refs:
-        need_assert = True
-        for item_name in model_values:
-            if item_name in seen_elems:
-                continue
-            if len(refs[ref_name]['min']) != len(model_values[item_name]['min']):
-                continue
-            refs_min_levels = _make_list(refs[ref_name]['min'])
-            refs_max_levels = _make_list(refs[ref_name]['max'])
-            min_levels = model_values[item_name]['min']
-            max_levels = model_values[item_name]['max']
-
-            if all([abs(min_level - ref_min) < eps for min_level, ref_min in zip(min_levels, refs_min_levels)])\
-                and all([abs(max_level - ref_max) < eps for max_level, ref_max in zip(max_levels, refs_max_levels)]):
-                levels_map[item_name].append(ref_name)
-                seen_elems.add(item_name)
-                need_assert = False
-                break
-        if need_assert:
-            raise RuntimeError(f'No correspondance for node {ref_name}')
-
-    assert len(levels_map) == len(refs)
 
 
 def _get_pytorch_accuracy_checker_config(path_to_dataset):
@@ -466,5 +365,4 @@ def _get_tf_accuracy_checker_config(path_to_dataset):
 def dump_intermediate_scales(local_path, data):
     data = json.dumps(deepcopy(data), cls=NumpyEncoder)
     local_file = open(local_path, 'w')
-    local_file.writelines(data)
-    #json.dump(data, local_file)
+    json.dump(data, local_file)
