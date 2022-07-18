@@ -159,7 +159,15 @@ struct ov_dimensions {
 
 /**
  * @struct ov_partial_shape
- * @brief Support static rank and dynamic rank.
+ * @brief It represents a shape that may be partially or totally dynamic.
+ * A PartialShape may have:
+ * Dynamic rank. (Informal notation: `?`)
+ * Static rank, but dynamic dimensions on some or all axes.
+ *     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
+ * Static rank, and static dimensions on all axes.
+ *     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
+ *
+ * An interface to make user can initialize ov_partial_shape_t
  */
 struct ov_partial_shape {
     ov::Dimension rank;
