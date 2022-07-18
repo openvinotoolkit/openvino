@@ -109,7 +109,7 @@ void visualize_example(const std::shared_ptr<ov::Model>& m) {
 
 void model_inputs() {
 ov::Core core;
-std::shared_ptr<ov::Model> model = core.read_model("model.xml");;
+std::shared_ptr<ov::Model> model = core.read_model("model.xml");
 //! [all_inputs_ouputs]
 /* Take information about all topology inputs */
 auto inputs = model->inputs();
