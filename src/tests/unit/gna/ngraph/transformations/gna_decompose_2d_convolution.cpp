@@ -48,9 +48,10 @@ typedef std::tuple<
 
 struct GraphData {
     std::shared_ptr<ngraph::Node> input_node;
-    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_conv;
+    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_filters;
     std::shared_ptr<ngraph::opset7::Convolution> conv;
     std::shared_ptr<ngraph::opset7::Add> bias;
+    std::shared_ptr<ngraph::opset7::FakeQuantize> fq_conv;
     std::shared_ptr<ngraph::opset7::FakeQuantize>fq_bias;
     std::shared_ptr<ngraph::opset7::MaxPool> max_pool;
     std::shared_ptr<ngraph::op::util::UnaryElementwiseArithmetic> af;
@@ -148,6 +149,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     std::shared_ptr<ngraph::Node> fq_bias = nullptr, fq_af = nullptr;
     std::shared_ptr<ngraph::opset7::MaxPool> max_pool = nullptr;
     std::shared_ptr<ngraph::Node> activation = nullptr;
+    std::shared_ptr<ngraph::Node> fq_conv = nullptr;
     std::shared_ptr<ngraph::Node> last_op = std::make_shared<ngraph::opset7::Transpose>(conv, transpose_out_order);
 
     switch (model) {
@@ -216,14 +218,22 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     break;
 
     case modelType::TranspConvTransp:
+    {
+        if (fq) {
+            auto conv_ptr = conv->shared_from_this();
+            fq_conv = createFQ(conv_ptr);
+            last_op = std::make_shared<ngraph::opset7::Transpose>(fq_conv, transpose_out_order);
+        }
+    }
     default:
-        break;
+    break;
     }
 
     if (graph_data) {
-        graph_data->fq_conv = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_filters) : nullptr;
+        graph_data->fq_filters = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_filters) : nullptr;
         graph_data->conv = conv;
         graph_data->bias = bias;
+        graph_data->fq_conv = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_conv) : nullptr;
         graph_data->fq_bias = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_bias) : nullptr;
         graph_data->af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(activation);
         graph_data->fq_af = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_af) : nullptr;
@@ -417,8 +427,8 @@ std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& graph_d
     // we also need to take filter height and potential dilation into account when modifying the filters
 
     // Take account of fake quantize when getting filter values
-    auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_conv == nullptr ?
-        graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_conv->input_value(0).get_node_shared_ptr());
+    auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_filters == nullptr ?
+        graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_filters->input_value(0).get_node_shared_ptr());
     bool vertical_permute = (conv_params.filter_height > 1);
     bool horizontal_permute = (conv_params.filter_dilation_width > 1);
     std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
@@ -485,8 +495,14 @@ static void InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq
     std::shared_ptr<ngraph::Node> lastNode) {
     if (fqLayer != nullptr) {
         lastNode = fqLayer->clone_with_new_inputs({lastNode,
-            fqLayer->input_value(1), fqLayer->input_value(2),
-            fqLayer->input_value(3), fqLayer->input_value(4)});
+             ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1},
+                 std::dynamic_pointer_cast<ngraph::opset7::Constant>(fqLayer->input_value(1).get_node_shared_ptr())->cast_vector<float>()),
+             ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1},
+                 std::dynamic_pointer_cast<ngraph::opset7::Constant>(fqLayer->input_value(2).get_node_shared_ptr())->cast_vector<float>()),
+             ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1},
+                 std::dynamic_pointer_cast<ngraph::opset7::Constant>(fqLayer->input_value(3).get_node_shared_ptr())->cast_vector<float>()),
+             ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1},
+                 std::dynamic_pointer_cast<ngraph::opset7::Constant>(fqLayer->input_value(4).get_node_shared_ptr())->cast_vector<float>())});
     }
 }
 
@@ -497,17 +513,18 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
 
         // Fake quantize
-        InsertFQLayer(graph_data.fq_conv, filters);
+        InsertFQLayer(graph_data.fq_filters, filters);
 
-        // 1D Convolution
+        // 1D Convolution & fake quantize
         auto conv = std::make_shared<ngraph::opset7::Convolution>(nchw_input, filters,
             ngraph::Strides{1, conv_params.filter_stride_width}, ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0},
             ngraph::Strides{1, 1}, ngraph::op::PadType::VALID);
         std::string conv_name = graph_data.conv->get_friendly_name() + "_H_" + std::to_string(h_index) + "_CH_" + std::to_string(0);
         conv->set_friendly_name(conv_name);
-
-        // Bias
         std::shared_ptr<ngraph::Node> last_conv_block_op = conv;
+        InsertFQLayer(graph_data.fq_conv, last_conv_block_op);
+
+        // Bias & fake quantize
         if (graph_data.bias_const && conv_index == 0) {
             last_conv_block_op = std::make_shared<ngraph::opset7::Add>(conv, graph_data.bias_const);
             InsertFQLayer(graph_data.fq_bias, last_conv_block_op);

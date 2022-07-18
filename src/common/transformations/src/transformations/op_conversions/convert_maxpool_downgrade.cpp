@@ -48,7 +48,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         NGRAPH_SUPPRESS_DEPRECATED_START
         maxpool_v1_node->output(0).get_tensor().set_name(out_name);
         NGRAPH_SUPPRESS_DEPRECATED_END
-
+        MATCHER_SCOPE_ENABLE(ConvertMaxPool8ToMaxPool1);
         return true;
     };
 

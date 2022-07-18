@@ -48,6 +48,7 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ConvolutionBackpropDataTransformation);
         return transform(*context, m);
     };
 

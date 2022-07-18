@@ -35,7 +35,6 @@ void pre_replace_deconv::run(program& p) {
             auto& deconv_node = node->as<deconvolution>();
             auto& weights_node = deconv_node.weights();
             auto deconv_prim = deconv_node.typed_desc();
-            auto filter_size = weights_node.get_output_layout().size;
             auto filter_layout = weights_node.get_output_layout().convert_to_weights_layout(deconv_prim->grouped_weights_shape);
             auto weights_nodes_id = deconv_prim->weights;
             auto biases_nodes_id = deconv_prim->bias;
@@ -168,9 +167,9 @@ void pre_replace_deconv::run(program& p) {
                 update_processing_order = true;
             // current optimization only available for specific deconvolution parameters
             } else if (deconv_node.is_output() == false &&
-               deconv_node.get_output_layout().size.feature[0] == 1 &&
+               deconv_node.get_output_layout().feature() == 1 &&
                deconv_prim->stride[deconv_prim->stride.size() - 1] == 2 && deconv_prim->stride[deconv_prim->stride.size() - 2] == 2 &&
-               filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
+               filter_layout.spatial(0) == 9 && filter_layout.spatial(1) == 9 &&
                deconv_prim->pad[deconv_prim->pad.size() - 1] == 4 && deconv_prim->pad[deconv_prim->pad.size() - 2]  == 4 &&
                weights_nodes_id.size() == 1 && biases_nodes_id.size() == 1 &&
                input_node.get_output_layout().format == format::bfyx) {
@@ -213,7 +212,7 @@ void pre_replace_deconv::run(program& p) {
                 // reshape weights
                 int pixel_shuffle_size = scale_factor * scale_factor;
                 int kernel_size = 5;
-                tensor target_weights_size = { pixel_shuffle_size, filter_size.feature[0], kernel_size, kernel_size };
+                tensor target_weights_size = { pixel_shuffle_size, filter_layout.feature(), kernel_size, kernel_size };
                 auto target_weights_layout = layout{ weights_layout.data_type, weights_layout.format, target_weights_size };
 
                 const primitive_id weight_replace_node_id = weight_node_id + "_conv_rpl";
@@ -235,9 +234,9 @@ void pre_replace_deconv::run(program& p) {
                      std::vector<std::vector<std::vector<float> > > subpixel_weights(pixel_shuffle_size);
 
                      program_helpers::reshape_deconvolution_weights(weights_vec_float,
-                         static_cast<int>(filter_size.feature[0]),
-                         static_cast<int>(filter_size.spatial[0]),
-                         static_cast<int>(filter_size.spatial[1]),
+                         static_cast<int>(filter_layout.feature()),
+                         static_cast<int>(filter_layout.spatial(0)),
+                         static_cast<int>(filter_layout.spatial(1)),
                          scale_factor,
                          subpixel_weights);
 

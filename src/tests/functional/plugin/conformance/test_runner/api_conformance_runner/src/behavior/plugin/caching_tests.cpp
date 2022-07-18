@@ -4,10 +4,10 @@
 
 #include "behavior/plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
+using namespace ov::test::conformance;
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
 
@@ -30,11 +30,11 @@ static const std::vector<std::size_t> batchSizesTemplate = {
         1, 2
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, LoadNetworkCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(ie_plugin, LoadNetworkCacheTestBase,
                          ::testing::Combine(
                                  ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                  ::testing::ValuesIn(precisionsTemplate),
                                  ::testing::ValuesIn(batchSizesTemplate),
-                                 ::testing::Values(ov::test::conformance::targetDevice)),
+                                 ::testing::ValuesIn(return_all_possible_device_combination())),
                          LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

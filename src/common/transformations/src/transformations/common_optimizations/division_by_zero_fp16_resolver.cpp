@@ -71,6 +71,7 @@ ov::pass::DivisionByZeroFP16Resolver::DivisionByZeroFP16Resolver() {
                                                                normalized_fp16_min);
         copy_runtime_info(eps_const, new_constant);
         replace_node(eps_const, new_constant);
+        MATCHER_SCOPE_ENABLE(DivisionByZeroFP16Resolver);
         return true;
     };
 

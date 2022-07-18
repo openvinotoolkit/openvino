@@ -16,7 +16,6 @@
 #include "intel_gpu/primitives/permute.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 /*
@@ -157,12 +156,38 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         auto lastLayerName = layerName;
         if (reshape_fc) {
-            auto outputShape = tensor_from_dims(op->get_output_shape(0));
             auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape, op->get_friendly_name());
+
+            // add reorder
+            auto outDims = op->get_output_shape(0);
+            auto outTensor = tensor_from_dims(outDims);
+
+            if (outDims.size() > 4) {
+                cldnn::format outputFormat = cldnn::format::bfyx;
+                switch (outDims.size()) {
+                case 5: outputFormat = cldnn::format::bfzyx; break;
+                case 6: outputFormat = cldnn::format::bfwzyx; break;
+                default: break;
+                }
+
+                cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
+                cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
+                p.AddPrimitive(cldnn::reorder(reorderId,
+                                            layerName,
+                                            outputLayout,
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract,
+                                            op->get_friendly_name()));
+                p.InitProfileInfo(reorderId, "Reorder", false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, layerName);
+                p.AddInnerPrimitiveToProfiler(reorderId, layerName, op);
+                lastLayerName = reorderId;
+            }
+
+            // add reshape
+            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor, op->get_friendly_name());
 
             p.AddPrimitive(outReshapePrim);
-            p.AddInnerPrimitiveToProfiler(outReshapeName, layerName, op);
+            p.AddInnerPrimitiveToProfiler(outReshapeName, lastLayerName, op);
 
             lastLayerName = outReshapeName;
         }
@@ -286,5 +311,4 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 REGISTER_FACTORY_IMPL(v0, MatMul);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

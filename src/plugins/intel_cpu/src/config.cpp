@@ -148,6 +148,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
+        } else if (PluginConfigParams::KEY_DENORMALS_OPTIMIZATION == key) {
+            if (val == PluginConfigParams::YES) {
+                denormalsOptMode = DenormalsOptMode::DO_On;
+            } else if (val == PluginConfigParams::NO) {
+                denormalsOptMode = DenormalsOptMode::DO_Off;
+            } else {
+                denormalsOptMode = DenormalsOptMode::DO_Keep;
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DENORMALS_OPTIMIZATION
+                << ". Expected only YES/NO";
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -254,6 +264,11 @@ void Config::readDebugCapsProperties() {
 
     if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
         blobDumpFilters[BY_NAME] = envVarValue;
+
+    if (envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
+        collectPerfCounters = true;
+        summaryPerf = envVarValue;
+    }
 
     // always enable perf counters for verbose mode
     if (!verbose.empty())

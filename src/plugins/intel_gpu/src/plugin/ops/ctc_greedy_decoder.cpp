@@ -16,7 +16,6 @@
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
@@ -134,5 +133,4 @@ REGISTER_FACTORY_IMPL(v0, CTCGreedyDecoder);
 REGISTER_FACTORY_IMPL(v6, CTCGreedyDecoderSeqLen);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -39,7 +39,7 @@ protected:
 public:
     static primitive_impl* create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout();
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.size;
 
         const auto& split = primitive->split();
@@ -96,7 +96,7 @@ public:
         const auto& input_layout = arg.input().get_output_layout();
         const auto& kernel_size = primitive->kernel_size;
 
-        const auto& stride = primitive->stride;
+        auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
@@ -132,7 +132,6 @@ public:
         uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
         uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
-
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         conv_params.kernelSize = { (uint32_t)kernel_size.spatial[0],

@@ -116,10 +116,10 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
-        auto output_batch = prim.size.batch[0];
-        auto output_feature = prim.size.feature[0];
-        auto output_x = prim.size.spatial[0];
-        auto output_y = prim.size.spatial[1];
+        auto output_batch = prim.batch();
+        auto output_feature = prim.feature();
+        auto output_x = prim.spatial(0);
+        auto output_y = prim.spatial(1);
 
         // Input offsets, starting from which we will compare the output
         auto input_batch_offset = split_offsets[splitNum].batch[0];

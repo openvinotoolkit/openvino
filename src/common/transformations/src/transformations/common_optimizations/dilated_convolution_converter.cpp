@@ -89,7 +89,7 @@ ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
             },
             new_conv);
         replace_node(batch_to_space, new_conv);
-
+        MATCHER_SCOPE_ENABLE(DilatedConvolutionConverter);
         return true;
     };
 

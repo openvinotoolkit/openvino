@@ -100,6 +100,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
         ngraph::copy_runtime_info(interpolationV0, interpolateV4);
         ngraph::replace_node(interpolationV0, interpolateV4);
+        MATCHER_SCOPE_ENABLE(ConvertInterpolate1ToInterpolate4);
         return true;
     };
 

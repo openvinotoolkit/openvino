@@ -26,6 +26,7 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ShuffleChannelsTransformation);
         return transform(*context, m);
     };
 

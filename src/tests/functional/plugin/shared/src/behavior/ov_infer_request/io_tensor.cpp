@@ -179,6 +179,48 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
+    const ov::Shape shape1 = {1, 1, 32, 32};
+    const ov::Shape shape2 = {1, 1, 40, 40};
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[function->inputs().back().get_any_name()] = shape1;
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+    // Get input_tensor
+    ov::runtime::Tensor tensor;
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    // Set shape
+    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
+    ASSERT_ANY_THROW(req.infer());
+}
+
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
+    const ov::Shape shape1 = {1, 1, 32, 32};
+    const ov::Shape shape2 = {1, 20};
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[function->inputs().back().get_any_name()] = shape1;
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+    // Get output_tensor
+    ov::runtime::Tensor tensor;
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()););
+    // Set shape
+    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
+    ASSERT_ANY_THROW(req.infer());
+}
+
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
     std::string targetDevice;

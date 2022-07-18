@@ -11,6 +11,7 @@
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 namespace {
+
 const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
         ov::element::i16,
@@ -24,35 +25,11 @@ const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::f32,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVExecGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::ValuesIn(return_all_possible_device_combination()),
                                  ::testing::ValuesIn(empty_ov_config)),
                          OVExecGraphImportExportTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVExecGraphImportExportTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
-                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_MULTI))),
-                         OVExecGraphImportExportTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-         OVExecGraphImportExportTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(ovExecGraphInfoElemTypes),
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_AUTO))),
-        OVExecGraphImportExportTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-         OVExecGraphImportExportTest,
-        ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
-                           ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                           ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_HETERO))),
-        OVExecGraphImportExportTest::getTestCaseName);
-
 }  // namespace

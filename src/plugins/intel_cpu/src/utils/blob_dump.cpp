@@ -230,7 +230,7 @@ BlobDumper BlobDumper::read(const std::string &file_path) {
 
 void BlobDumper::dump(const std::string &dump_path) const {
     std::ofstream dump_file;
-    dump_file.open(dump_path);
+    dump_file.open(dump_path, std::ios::binary);
     if (!dump_file.is_open())
         IE_THROW() << "Dumper cannot create dump file " << dump_path;
 

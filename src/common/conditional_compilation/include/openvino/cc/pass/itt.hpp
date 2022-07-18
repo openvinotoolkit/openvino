@@ -20,6 +20,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define RUN_ON_FUNCTION_SCOPE(region) OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_function))
 #    define MATCHER_SCOPE(region)         const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_MODEL_SCOPE(region)    OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_model))
+#    define MATCHER_SCOPE_ENABLE(region)  OV_SCOPE(ov_pass, region)
 
 #elif defined(SELECTIVE_BUILD)
 
@@ -35,9 +36,11 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define RUN_ON_MODEL_SCOPE(region) MATCHER_SCOPE_(ov_pass, OV_PP_CAT(region, _run_on_model))
 
+#    define MATCHER_SCOPE_ENABLE(region)
 #else
 
 #    define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_FUNCTION_SCOPE(region)
 #    define RUN_ON_MODEL_SCOPE(region)
+#    define MATCHER_SCOPE_ENABLE(region)
 #endif

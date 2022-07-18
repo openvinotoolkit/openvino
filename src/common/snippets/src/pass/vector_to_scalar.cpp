@@ -24,6 +24,7 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
             load->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, load);
             ngraph::replace_node(root, load);
+            MATCHER_SCOPE_ENABLE(ReplaceLoadsWithScalarLoads);
             return true;
         });
 }
@@ -41,6 +42,7 @@ ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarSt
             store->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, store);
             ngraph::replace_node(root, store);
+            MATCHER_SCOPE_ENABLE(ReplaceStoresWithScalarStores);
             return true;
         });
 }

@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "Python.h"
-#include "openvino/runtime/properties.hpp"
 
 namespace Common {
 namespace utils {
@@ -24,117 +23,67 @@ py::object from_ov_any(const ov::Any& any) {
     }
     // Check for std::string
     else if (any.is<std::string>()) {
-        return py::cast<py::object>(PyUnicode_FromString(any.as<std::string>().c_str()));
+        return py::cast(any.as<std::string>().c_str());
     }
     // Check for int
     else if (any.is<int>()) {
-        return py::cast<py::object>(PyLong_FromLong(any.as<int>()));
+        return py::cast(any.as<int>());
     } else if (any.is<int64_t>()) {
-        return py::cast<py::object>(PyLong_FromLong(any.as<int64_t>()));
+        return py::cast(any.as<int64_t>());
     }
     // Check for unsigned int
     else if (any.is<unsigned int>()) {
-        return py::cast<py::object>(PyLong_FromLong(any.as<unsigned int>()));
+        return py::cast(any.as<unsigned int>());
     }
     // Check for float
     else if (any.is<float>()) {
-        return py::cast<py::object>(PyFloat_FromDouble(any.as<float>()));
+        return py::cast(any.as<float>());
     } else if (any.is<double>()) {
-        return py::cast<py::object>(PyFloat_FromDouble(any.as<double>()));
+        return py::cast(any.as<double>());
     }
     // Check for bool
     else if (any.is<bool>()) {
-        return py::cast<py::object>(any.as<bool>() ? Py_True : Py_False);
+        return py::cast(any.as<bool>());
     }
     // Check for std::vector<std::string>
     else if (any.is<std::vector<std::string>>()) {
-        auto val = any.as<std::vector<std::string>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyObject* str_val = PyUnicode_FromString(it.c_str());
-            PyList_Append(list, str_val);
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<std::string>>());
     }
     // Check for std::vector<int>
     else if (any.is<std::vector<int>>()) {
-        auto val = any.as<std::vector<int>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<int>>());
     }
     // Check for std::vector<int64_t>
     else if (any.is<std::vector<int64_t>>()) {
-        auto val = any.as<std::vector<int64_t>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<int64_t>>());
     }
     // Check for std::vector<unsigned int>
     else if (any.is<std::vector<unsigned int>>()) {
-        auto val = any.as<std::vector<unsigned int>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<unsigned int>>());
     }
     // Check for std::vector<float>
     else if (any.is<std::vector<float>>()) {
-        auto val = any.as<std::vector<float>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyFloat_FromDouble((double)it));
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<float>>());
     }
     // Check for std::vector<double>
     else if (any.is<std::vector<double>>()) {
-        auto val = any.as<std::vector<double>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyFloat_FromDouble(it));
-        }
-        return py::cast<py::object>(list);
+        return py::cast(any.as<std::vector<double>>());
     }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
-        auto val = any.as<std::tuple<unsigned int, unsigned int>>();
-        PyObject* tuple = PyTuple_New(2);
-        PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-        PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-        return py::cast<py::object>(tuple);
+        return py::cast(any.as<std::tuple<unsigned int, unsigned int>>());
     }
     // Check for std::tuple<unsigned int, unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
-        auto val = any.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
-        PyObject* tuple = PyTuple_New(3);
-        PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-        PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-        PyTuple_SetItem(tuple, 2, PyLong_FromUnsignedLong((unsigned long)std::get<2>(val)));
-        return py::cast<py::object>(tuple);
+        return py::cast(any.as<std::tuple<unsigned int, unsigned int, unsigned int>>());
     }
     // Check for std::map<std::string, std::string>
     else if (any.is<std::map<std::string, std::string>>()) {
-        auto val = any.as<std::map<std::string, std::string>>();
-        PyObject* dict = PyDict_New();
-        for (const auto& it : val) {
-            PyDict_SetItemString(dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
-        }
-        return py::cast<py::object>(dict);
+        return py::cast(any.as<std::map<std::string, std::string>>());
     }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
-        auto val = any.as<std::map<std::string, int>>();
-        PyObject* dict = PyDict_New();
-        for (const auto& it : val) {
-            PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
-        }
-        return py::cast<py::object>(dict);
+        return py::cast(any.as<std::map<std::string, int>>());
     }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
@@ -146,10 +95,32 @@ py::object from_ov_any(const ov::Any& any) {
             PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
         }
         return py::cast<py::object>(dict);
+    } else if (any.is<ov::element::Type>()) {
+        return py::cast(any.as<ov::element::Type>());
+    } else if (any.is<ov::hint::Priority>()) {
+        return py::cast(any.as<ov::hint::Priority>());
+    } else if (any.is<ov::hint::PerformanceMode>()) {
+        return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::log::Level>()) {
+        return py::cast(any.as<ov::log::Level>());
+    } else if (any.is<ov::device::Type>()) {
+        return py::cast(any.as<ov::device::Type>());
+    } else if (any.is<ov::streams::Num>()) {
+        return py::cast(any.as<ov::streams::Num>());
+    } else if (any.is<ov::Affinity>()) {
+        return py::cast(any.as<ov::Affinity>());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
     }
+}
+
+std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
+    std::map<std::string, ov::Any> properties_to_cpp;
+    for (const auto& property : properties) {
+        properties_to_cpp[property.first] = py_object_to_any(property.second);
+    }
+    return properties_to_cpp;
 }
 };  // namespace utils
 };  // namespace Common

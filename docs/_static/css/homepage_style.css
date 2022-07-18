@@ -1,5 +1,5 @@
 /* overrides */
-.switcher-set {display: none;}
+.switcher-set, .prev-next-bottom {display: none;}
 
 #openvino-documentation > h1 {
 	display: none;
@@ -8,6 +8,7 @@
 img {
 	cursor: default;
 }
+
 
 /* === SEPARATOR HEADERS ================================================= */
 .HP_separator-header { 
@@ -40,7 +41,7 @@ img {
 }
 
 /* === HEADER BANNER ===================================================== */
-#HP_head_banner {
+/*#HP_head_banner {
 	width: 100%;
 	height: auto;
 	background: left / cover no-repeat url("../images/head_banner.jpg");
@@ -107,16 +108,69 @@ float: right;
 #HP_head_banner ~ div ~ p {
 	text-align: left;
 }
+*/
+/* === OV workflow chart ===================================================== */	
+
+#HP_flow-container {
+	margin: 0 auto;
+	width: 650px;
+}
+
+#HP_flow-a, #HP_flow-b, #HP_flow-c, .HP_flow-arrow {
+	float: left;
+	margin: 0;
+}
+
+#HP_flow-a div {
+	background-image: url("../images/OV_flow_model.svg");
+}    
+#HP_flow-b div {
+	background: url("../images/OV_flow_optimization.svg");
+} 
+#HP_flow-c div {
+	background: url("../images/OV_flow_deployment.svg");	
+} 
+
+
+#HP_flow-a div, #HP_flow-b div, #HP_flow-c div {
+	width: 170px;
+	height: 330px;
+	background-repeat: no-repeat;
+	background-size: 340px auto;
+	background-position: 0 0;
+}
+
+	
+
+#HP_flow-a:hover div, #HP_flow-b:hover div, #HP_flow-c:hover div {
+	background-position: -170px 0;
+}
+
+.HP_flow-arrow {
+	width: 60px;
+	height: 330px;
+	background: no-repeat url("../images/OV_flow_arrow.svg");	
+	background-position: center 55px;
+	background-size: 28px;
+}
+
+
+
+
 
 .HP_img_chart {
 	display: block;
 	margin: 40px auto 60px auto;
 	width:80%;
+	cursor: default !important;
 }
 img.HP_img_chart ~ p {
 	margin-top: -40px;
 	font-size: 0.7em;
 }
+
+
+
 
 
 /* === INFORMATION BOXES ================================================= */
@@ -201,6 +255,14 @@ img.HP_img_chart ~ p {
 		margin-left: 2%;
 		margin-right: 0;
 	}	
+	
+	#HP_flow-container {
+		width: 580px;
+	}
+	.HP_flow-arrow {
+		width: 20px;
+		background-position: -10px 55px;
+	}
 }
 
 

@@ -169,6 +169,8 @@ void add_required_reorders::run(program& p) {
             std::vector<cldnn::format> preffered_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
+                if (format::is_weights_format(node->get_output_layout().format))
+                    continue;
                 max_in_dims = std::max(cldnn::format::dimension(node->get_output_layout().format), max_in_dims);
             }
             // This list of preffered layouts has been selected arbitrary due to developers' experience

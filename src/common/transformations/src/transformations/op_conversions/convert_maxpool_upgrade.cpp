@@ -45,7 +45,7 @@ ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
         maxpool_v1_node->output(0).replace(maxpool_v8_node->output(0));
         ngraph::copy_runtime_info(maxpool_v1_node, maxpool_v8_node);
         maxpool_v1_node->clear_control_dependencies();
-
+        MATCHER_SCOPE_ENABLE(ConvertMaxPool1ToMaxPool8);
         return true;
     };
 

@@ -17,14 +17,20 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
     void execute(dnnl::stream strm) override;
     bool created() const override;
+
+    void prepareParams() override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     float bias = 1.0f;
+    int N = 1;
+    int C = 1;
+    int H = 1;
+    int W = 1;
 
     std::string errorPrefix;
 };

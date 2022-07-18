@@ -618,14 +618,13 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
 
         // Get the output tensor
         cldnn::layout output_layout = output->get_layout();
-        cldnn::tensor output_tensor = output_layout.size;
 
         // Compare the output tensor configuration against the reference value
         // Output tensor is configured in bfyx format
-        ASSERT_EQ(batch_size, output_tensor.batch[0]);
-        ASSERT_EQ(sequence_len, output_tensor.feature[0]);
-        ASSERT_EQ(direction, output_tensor.spatial[1]);
-        ASSERT_EQ(hidden_size, output_tensor.spatial[0]);
+        ASSERT_EQ(batch_size, output_layout.batch());
+        ASSERT_EQ(sequence_len, output_layout.feature());
+        ASSERT_EQ(direction, output_layout.spatial(1));
+        ASSERT_EQ(hidden_size, output_layout.spatial(0));
 
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
         int32_t i = 0;
@@ -746,7 +745,7 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
 	for (auto itr = outputs.begin(); itr != outputs.end(); itr++)
 	{
-        auto output_tensor = itr->second.get_memory()->get_layout().size;
+        auto output_layout = itr->second.get_memory()->get_layout();
         primitive_id primitive_name = itr->first;
 
 		cldnn::memory::ptr output_memory = itr->second.get_memory();
@@ -782,10 +781,10 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
         // Compare the output tensor configuration against the reference value
         // Output tensor is configured in bfyx format
-        ASSERT_EQ(ref_batch_size, output_tensor.batch[0]);
-        ASSERT_EQ(ref_seq_len, output_tensor.feature[0]);		// Sequence length should match
-		ASSERT_EQ(ref_directions, output_tensor.spatial[1]);	// directions should match
-        ASSERT_EQ(ref_hidden_size, output_tensor.spatial[0]);	// input size should match
+        ASSERT_EQ(ref_batch_size, output_layout.batch());
+        ASSERT_EQ(ref_seq_len, output_layout.feature());		// Sequence length should match
+		ASSERT_EQ(ref_directions, output_layout.spatial(1));	// directions should match
+        ASSERT_EQ(ref_hidden_size, output_layout.spatial(0));	// input size should match
 
         cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
@@ -912,7 +911,7 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
 
     for (auto itr = outputs.begin(); itr != outputs.end(); itr++)
     {
-        auto output_tensor = itr->second.get_memory()->get_layout().size;
+        auto output_layout = itr->second.get_memory()->get_layout();
         primitive_id primitive_name = itr->first;
 
         cldnn::memory::ptr output_memory = itr->second.get_memory();
@@ -948,10 +947,10 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
 
         // Compare the output tensor configuration against the reference value
         // Output tensor is configured in bfyx format
-        ASSERT_EQ(ref_batch_size, output_tensor.batch[0]);
-        ASSERT_EQ(ref_seq_len, output_tensor.feature[0]);       // Sequence length should match
-        ASSERT_EQ(ref_directions, output_tensor.spatial[1]);    // directions should match
-        ASSERT_EQ(ref_hidden_size, output_tensor.spatial[0]);   // input size should match
+        ASSERT_EQ(ref_batch_size, output_layout.batch());
+        ASSERT_EQ(ref_seq_len, output_layout.feature());       // Sequence length should match
+        ASSERT_EQ(ref_directions, output_layout.spatial(1));    // directions should match
+        ASSERT_EQ(ref_hidden_size, output_layout.spatial(0));   // input size should match
 
         cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
@@ -1233,14 +1232,13 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 
 		// Get the output tensor
 		cldnn::layout output_layout = output->get_layout();
-		cldnn::tensor output_tensor = output_layout.size;
 
 		// Compare the output tensor configuration against the reference value
 		// Output tensor is configured in bfyx format
-		ASSERT_EQ(batch_size, output_tensor.batch[0]);
-		ASSERT_EQ(sequence_len, output_tensor.feature[0]);
-		ASSERT_EQ(direction, output_tensor.spatial[1]);
-		ASSERT_EQ(hidden_size, output_tensor.spatial[0]);
+		ASSERT_EQ(batch_size, output_layout.batch());
+		ASSERT_EQ(sequence_len, output_layout.feature());
+		ASSERT_EQ(direction, output_layout.spatial(1));
+		ASSERT_EQ(hidden_size, output_layout.spatial(0));
 
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 		int32_t i = 0;
@@ -1571,7 +1569,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
     auto outputs = network.execute();
     for (auto itr = outputs.begin(); itr != outputs.end(); itr++)
     {
-        auto output_tensor = itr->second.get_memory()->get_layout().size;
+        auto output_layout = itr->second.get_memory()->get_layout();
         primitive_id primitive_name = itr->first;
 
         // Split the primitive id to get the chain id
@@ -1617,10 +1615,10 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
 
         // Compare the output tensor configuration against the reference value
         // Output tensor is configured in bfyx format
-        ASSERT_EQ(ref_batch_size, output_tensor.batch[0]);
-        ASSERT_EQ(ref_seq_len, output_tensor.feature[0]);		// Sequence length should match
-        ASSERT_EQ(ref_directions, output_tensor.spatial[1]);	// directions should match
-        ASSERT_EQ(ref_hidden_size, output_tensor.spatial[0]);	// input size should match
+        ASSERT_EQ(ref_batch_size, output_layout.batch());
+        ASSERT_EQ(ref_seq_len, output_layout.feature());		// Sequence length should match
+        ASSERT_EQ(ref_directions, output_layout.spatial(1));	// directions should match
+        ASSERT_EQ(ref_hidden_size, output_layout.spatial(0));	// input size should match
 
         cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 

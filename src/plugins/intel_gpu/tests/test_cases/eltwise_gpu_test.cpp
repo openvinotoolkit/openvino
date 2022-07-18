@@ -116,11 +116,11 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
 
     VVVVF<T> output_cpu = eltwise_reference<T>(input1_rnd, input2_rnd, mode, relu, slope, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
-    tensor output_tensor = output_layout.get_buffer_size();
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    auto output_tensor = output_layout.get_padded_dims();
+    int x_size = output_tensor[3];
+    int y_size = output_tensor[2];
+    int f_size = output_tensor[1];
+    int b_size = output_tensor[0];
     EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
     EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
@@ -3031,11 +3031,12 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
 
     VVVVF<int8_t> output_cpu = eltwise_bool_reference<T>(input1_rnd, input2_rnd, mode, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     EXPECT_EQ(output_layout.format.value, test_input_fmt.value);
-    tensor output_tensor = output_layout.get_buffer_size();
-    int y_size = output_tensor.spatial[1];
-    int x_size = output_tensor.spatial[0];
-    int f_size = output_tensor.feature[0];
-    int b_size = output_tensor.batch[0];
+    auto output_tensor = output_layout.get_padded_dims();
+    int x_size = output_tensor[3];
+    int y_size = output_tensor[2];
+    int f_size = output_tensor[1];
+    int b_size = output_tensor[0];
+
     EXPECT_EQ(y_size, (int)output_cpu[0][0].size());
     EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
@@ -3330,11 +3331,11 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
 {
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -3376,10 +3377,10 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = input_ref->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> input_ptr{input_ref, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
@@ -3917,11 +3918,11 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -3963,10 +3964,10 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         mem_lock<T> ref_ptr{out_ref, get_test_stream()};
         mem_lock<T> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {

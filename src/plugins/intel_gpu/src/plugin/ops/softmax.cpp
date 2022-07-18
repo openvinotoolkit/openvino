@@ -12,13 +12,11 @@
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
     switch (axis) {
-    // FIXME: it seems that axis=0 should correspond to normalize_b;
-    case 0: return cldnn::softmax::normalize_all;
+    case 0: return cldnn::softmax::normalize_b;
     case 1: return cldnn::softmax::normalize_f;
     case 2:
         if (rank > 4)
@@ -76,5 +74,4 @@ REGISTER_FACTORY_IMPL(v1, Softmax);
 REGISTER_FACTORY_IMPL(v5, LogSoftmax);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

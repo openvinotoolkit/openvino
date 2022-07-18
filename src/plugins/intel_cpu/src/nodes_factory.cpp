@@ -76,6 +76,7 @@
 #include "nodes/depth_to_space.h"
 #include "nodes/input.h"
 #include "nodes/experimental_detectron_generate_proposals_single_image.h"
+#include "nodes/generate_proposals.h"
 #include "nodes/embedding_bag_packed_sum.h"
 #include "nodes/reduce.h"
 #include "nodes/if.h"
@@ -85,6 +86,7 @@
 #include "nodes/subgraph.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
+#include "nodes/eye.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -132,6 +134,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Select, Type::Select);
     INTEL_CPU_NODE(ShapeOf, Type::ShapeOf);
     INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
+    INTEL_CPU_NODE(GenerateProposals, Type::GenerateProposals);
     INTEL_CPU_NODE(ReverseSequence, Type::ReverseSequence);
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
@@ -182,6 +185,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
+    INTEL_CPU_NODE(Eye, Type::Eye);
 }
 
 #undef INTEL_CPU_NODE

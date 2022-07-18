@@ -11,14 +11,16 @@ namespace ngraph { namespace vpu { namespace op {
 DynamicShapeResolver::DynamicShapeResolver(
         const Output<Node>& tensorWithData,
         const Output<Node>& tensorWithDims,
-        const DynamicShapeResolverMode& mode)
+        const DynamicShapeResolverMode& mode,
+        const ngraph::PartialShape& output_partial_shape)
     : Op(OutputVector{tensorWithData, tensorWithDims}), m_mode(mode) {
+    m_output_partial_shape = output_partial_shape.rank() == 0 ? ngraph::PartialShape::dynamic(tensorWithData.get_partial_shape().rank()) : output_partial_shape;
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> DynamicShapeResolver::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<DynamicShapeResolver>(new_args.at(0), new_args.at(1), m_mode);
+    return std::make_shared<DynamicShapeResolver>(new_args.at(0), new_args.at(1), m_mode, m_output_partial_shape);
 }
 
 void DynamicShapeResolver::validate_and_infer_types() {
@@ -46,9 +48,7 @@ void DynamicShapeResolver::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).rank() == dimsShape.front(),
                 "(", get_friendly_name(), ") data and shape ranks must be equal, provided: ",
                 get_input_partial_shape(0).rank(), " vs ", dimsShape.front());
-
-        set_output_type(0, dataElementType,
-                        ngraph::PartialShape::dynamic(get_input_partial_shape(0).rank()));
+        set_output_type(0, dataElementType, m_output_partial_shape);
     } else {
         NGRAPH_UNREACHABLE(this, "Unknown DynamicShapeResolverMode value, expected one of: INFER_UPPER_BOUND_SHAPE, INFER_DYNAMIC_SHAPE");
     }

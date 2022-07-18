@@ -114,6 +114,9 @@ public:
     /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
 
+    /// \brief Reference to frontend maanager
+    std::shared_ptr<void> m_femgr;
+
     /// Model outputs
     std::vector<ov::Output<ov::Node>> outputs();
     ov::Output<ov::Node> output();

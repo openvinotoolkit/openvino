@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -29,8 +30,6 @@ skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type 
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
-xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
@@ -99,7 +98,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 
 
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
-xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
 xfail_issue_49207 = xfail_test(reason="Model references undeclared parameters")
 xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
@@ -122,19 +120,16 @@ xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R,
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
-xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
 
-xfail_issue_81974 = xfail_test(reason="RuntimeError: OpenVINO does not support the following ONNX "
-                                      "operations: GridSample, Optional, SequenceConstruct, "
-                                      "OptionalHasElement, SequenceInsert")
-
 xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
-xfail_issue_82040 = xfail_test(reason="RoiAlign, AssertionError: result mismatch")
+
+xfail_issue_86909 = xfail_test(reason="ssd_resnet34 - AssertionError: zoo models results mismatch")
+xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -39,11 +40,11 @@ def test_node_factory_wrapper_add():
 def test_node_factory_topk():
     dtype = np.int32
     data = ov.parameter([2, 10], dtype=dtype, name="A")
-    k = ov.constant(3, dtype=dtype, name="B")
+    const = ov.constant(3, dtype=dtype, name="B")
     factory = NodeFactory("opset1")
-    arguments = NodeFactory._arguments_as_outputs([data, k])
+    arguments = NodeFactory._arguments_as_outputs([data, const])
     node = factory.create(
-        "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"}
+        "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"},
     )
     attributes = node.get_attributes()
 
@@ -65,9 +66,9 @@ def test_node_factory_empty_topk():
 def test_node_factory_empty_topk_with_args_and_attrs():
     dtype = np.int32
     data = ov.parameter([2, 10], dtype=dtype, name="A")
-    k = ov.constant(3, dtype=dtype, name="B")
+    const = ov.constant(3, dtype=dtype, name="B")
     factory = NodeFactory("opset1")
-    arguments = NodeFactory._arguments_as_outputs([data, k])
+    arguments = NodeFactory._arguments_as_outputs([data, const])
     node = factory.create("TopK", None, None)
     node.set_arguments(arguments)
     node.set_attribute("axis", 1)
@@ -85,7 +86,7 @@ def test_node_factory_validate_missing_arguments():
 
     try:
         factory.create(
-            "TopK", None, {"axis": 1, "mode": "max", "sort": "value"}
+            "TopK", None, {"axis": 1, "mode": "max", "sort": "value"},
         )
     except UserInputError:
         pass

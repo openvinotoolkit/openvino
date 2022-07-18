@@ -23,10 +23,10 @@ layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node) {
 
     cldnn::layout layoutTemp = cldnn::layout(input_layout.data_type,
                                              input_layout.format,
-                                             tensor(input_layout.size.batch[0],
-                                                    input_layout.size.feature[0] * stride * stride,
-                                                    input_layout.size.spatial[0] / stride,
-                                                    input_layout.size.spatial[1] / stride));
+                                             tensor(input_layout.batch(),
+                                                    input_layout.feature() * stride * stride,
+                                                    input_layout.spatial(0) / stride,
+                                                    input_layout.spatial(1) / stride));
     return layoutTemp;
 }
 

@@ -74,6 +74,11 @@ target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
 add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+    target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+endif()
+
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
@@ -84,7 +89,11 @@ ov_install_static_lib(fluid openvino_common)
 # Gflags
 #
 
-find_package(gflags QUIET COMPONENTS nothreads_shared)
+if(NOT APPLE)
+    # on Apple only dynamic libraries are available
+    find_package(gflags QUIET COMPONENTS nothreads_static)
+endif()
+
 if(gflags_FOUND)
     set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
@@ -175,7 +184,7 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     # These libraries are dependencies for openvino-samples-2022.1 package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a debian package. Install libflags-dev")
+        message(FATAL_ERROR "gflags must be used as a debian package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)
         message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
@@ -191,7 +200,7 @@ else()
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION "samples/cpp/thirdparty"
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)

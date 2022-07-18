@@ -18,6 +18,7 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
     MATCHER_SCOPE(RemoveMultiSubGraphOpDanglingParams);
     auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(RemoveMultiSubGraphOpDanglingParams);
         auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
             return false;
