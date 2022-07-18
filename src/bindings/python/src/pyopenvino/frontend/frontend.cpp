@@ -22,15 +22,16 @@ void regclass_frontend_FrontEnd(py::module m) {
 
     fem.def(
         "load",
-        [](FrontEnd& self, const std::string& s) {
-            return self.load(s);
+        [](FrontEnd& self, const py::object& path) {
+            const std::string path_str = path.str();
+            return self.load(path_str);
         },
         py::arg("path"),
         R"(
                 Loads an input model by specified model file path.
 
                 :param path: Main model file path.
-                :type path: str
+                :type path: Union[str, pathlib.Path]
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
              )");

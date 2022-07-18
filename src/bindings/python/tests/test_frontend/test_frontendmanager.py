@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
+from pathlib import Path
 
 from openvino.runtime import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
@@ -63,7 +64,25 @@ def test_load():
     model = fe.load("abc.bin")
     assert model is not None
     stat = get_fe_stat()
-    assert "abc.bin" in stat.load_paths
+    assert "abc.bi@mock_needed
+
+
+@mock_needed
+def test_load_str():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
+
+
+@mock_needed
+def test_load_pathlib():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
 
 
 @mock_needed

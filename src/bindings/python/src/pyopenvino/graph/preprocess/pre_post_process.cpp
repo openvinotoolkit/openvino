@@ -421,7 +421,12 @@ static void regclass_graph_InputModelInfo(py::module m) {
         [](ov::preprocess::InputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input model
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regenum_graph_ColorFormat(py::module m) {
