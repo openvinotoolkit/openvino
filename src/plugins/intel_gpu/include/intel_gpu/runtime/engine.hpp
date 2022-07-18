@@ -122,6 +122,9 @@ public:
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
 
+    /// Returns the size of the larger of the GPU memory and CPU memory.
+    uint64_t get_max_memory_size() const;
+
     /// Create stream object for current engine
     virtual stream_ptr create_stream() const = 0;
 
