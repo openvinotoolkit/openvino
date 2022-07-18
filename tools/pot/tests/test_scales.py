@@ -181,6 +181,7 @@ def test_weights_scales(tmp_path, models):
     local_path = os.path.join(tmp_path, '{}.json'.format('mv2_weights'))
     dump_intermediate_scales(local_path, weights)
 
+    eps = 1e-3
     for fq_name in weights:
         item_min, item_max = weights[fq_name]['low_level'], weights[fq_name]['high_level']
         if not item_min.shape:
@@ -190,8 +191,8 @@ def test_weights_scales(tmp_path, models):
         ref_min, ref_max = ref_weights[fq_name]['low_level'], ref_weights[fq_name]['high_level']
         assert_flag = False
 
-        if np.array_equal(ref_min, item_min) and \
-                np.array_equal(ref_max, item_max):
+        if np.allclose(ref_min, item_min, atol=eps) and \
+                np.allclose(ref_max, item_max, atol=eps):
             assert_flag = True
 
         if not assert_flag:
