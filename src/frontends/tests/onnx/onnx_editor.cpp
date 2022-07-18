@@ -1139,7 +1139,8 @@ NGRAPH_TEST(onnx_editor, editor_api_inputs_with_the_same_name) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_3.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_3.onnx")};
     const std::string output_name{"2891"};
 
     std::vector<InputEdge> output_consumers = editor.find_output_consumers(output_name);
