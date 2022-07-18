@@ -346,12 +346,12 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
 // trip_count = 10
 // execution_condition = true
 // body_condition is not a Constant
-// inputs have partially known shape
+// inputs have dyanamic shape
 // concat output has dynamic dimension on axis position, another outputs are static
 TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dynamic_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
-    auto Y = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
+    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+    auto Y = make_shared<opset5::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
     auto M = make_shared<opset5::Parameter>(element::f32, Shape{1});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
@@ -397,8 +397,8 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     // Output 0 is last Zo
     auto out0 = loop->get_iter_value(body_condition, -1);
     auto out1 = loop->get_iter_value(Zo, -1);
-    // axis=1 so sliced output on this dimension will be dynamic
-    auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
+    // axis=0 so sliced output on this dimension will be dynamic
+    auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 0);
 
     // check output descriptors
     for (auto& desc : loop->get_output_descriptions()) {
@@ -415,8 +415,8 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
     Shape out0_shape{1};
-    PartialShape out1_shape{1, 2, 3, Dimension::dynamic()};
-    PartialShape out2_shape{1, Dimension::dynamic(), 3, Dimension::dynamic()};
+    PartialShape out1_shape{Dimension::dynamic()};
+    PartialShape out2_shape{Dimension::dynamic()};
 
     auto results = ResultVector{result0, result1, result2};
     auto f = make_shared<Function>(results, ParameterVector{X, Y, M});
