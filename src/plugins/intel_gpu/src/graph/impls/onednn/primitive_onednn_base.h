@@ -10,6 +10,7 @@
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -25,6 +26,8 @@
 
 namespace cldnn {
 namespace onednn {
+
+static std::mutex cacheAccessMutex;
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
@@ -44,10 +47,63 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _outer(arg),
           _desc(desc),
           _attrs(attrs),
-          _pd(pd),
-          _prim(pd) { }
+          _pd(pd) {
+            build_primitive();
+        }
 
     bool is_cpu() const override { return false; }
+
+private:
+    std::string get_cache_directory() const {
+        auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
+        if (path.empty()) {
+            return {};
+        }
+
+        if (path.back() != '/' && path.back() != '\\') {
+            path += "/";
+        }
+        return path;
+    }
+
+    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
+        auto path = get_cache_directory();
+        if (path.empty()) {
+            return {};
+        }
+
+        std::string key_str(key.begin(), key.end());
+        size_t hash = std::hash<std::string>()(key_str);
+        return path + std::to_string(hash) + ".onednn.cl_cache";
+    }
+
+    void build_primitive() {
+        auto cache_outpath = get_cache_directory();
+        if (cache_outpath.empty()) {
+            _prim = PrimType(_pd);
+        } else {
+            std::vector<uint8_t> key = _pd.get_cache_blob_id();
+            assert(!key.empty());
+
+            std::vector<uint8_t> cache;
+            {
+                std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+            }
+
+            if (cache.empty()) {
+                _prim = PrimType(_pd);
+                cache = _prim.get_cache_blob();
+
+                {
+                    std::lock_guard<std::mutex> lock(cacheAccessMutex);
+                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                }
+            } else {
+                _prim = PrimType(_pd, cache);
+            }
+        }
+    }
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
