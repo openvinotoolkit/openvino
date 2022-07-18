@@ -8,57 +8,12 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
 
 #include <cmath>
 #include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
-
-static void test_abs_basic_bfwzyx(const char* kernel_name){
-    auto& engine = get_test_engine();
-
-    std::vector<int> shape = {2, 3, 7, 6, 5, 4};
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
-    auto input_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
-    set_values(input, input_raw);
-    
-    auto elt_dat = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
-    auto elt_dat_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
-    set_values(elt_dat, elt_dat_raw);
-
-    topology topo(input_layout("input", input->get_layout()),
-                  activation("act", "input", activation_func::abs),
-                  data("elt_dat", elt_dat),
-                  eltwise("elt", {"act", "elt_dat"}, eltwise_mode::prod));
-    build_options bo;
-    implementation_desc act_impl = { format::bfwzyx, kernel_name };
-    bo.set_option(build_option::force_implementations({{"act",act_impl}}));
-    network net(engine, topo, bo);
-    net.set_input_data("input", input);
-    auto res = net.execute();
-    EXPECT_EQ(res.size(), size_t(1));
-    EXPECT_EQ(res.begin()->first, "elt");
-
-    auto output_memory = res.at("elt").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-
-    int w_size = output_layout.spatial(3);
-    int z_size = output_layout.spatial(2);
-    int y_size = output_layout.spatial(1);
-    int x_size = output_layout.spatial(0);
-    int f_size = output_layout.feature();
-    int b_size = output_layout.batch();
-    auto bfwzyx = std::vector<int>{b_size, f_size, w_size, z_size, y_size, x_size};
-    EXPECT_EQ(output_layout.format, format::bfwzyx);
-    EXPECT_EQ(bfwzyx, shape);
-    for (size_t i = 0; i < input_raw.size(); ++i)
-        EXPECT_FLOAT_EQ(abs(input_raw[i])*elt_dat_raw[i], output_ptr[i]);
-}
-TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_opt) {test_abs_basic_bfwzyx("activation_ref");}
-TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_ref) {test_abs_basic_bfwzyx("activation_opt");}
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:

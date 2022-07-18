@@ -294,10 +294,10 @@ void InsertDiagonalLayerPass::run() {
             if (!eltwise) {
                 continue;
             }
-            // in case of eltwise sum in 16-bit input precision one of input would be 4 bytes one - 2
-            // in case of eltwise mul in 16-bit input precision one of input would be 2 bytes one - 2
-            // in case of eltwise sum in low (8-bit) input precision both inputs are 1 byte
-            // in case of eltwise mul in low (8-bit) input precision both inputs are 1 byte
+            // in case of eltwise sum in 16-bit input precision, one of inputs is 4 bytes, the other is 2 bytes
+            // in case of eltwise mul in 16-bit input precision, both inputs are 2 bytes
+            // in case of eltwise sum in low (8-bit) input precision, both inputs are 1 byte
+            // in case of eltwise mul in low (8-bit) input precision, both inputs are 1 byte
             // for e sum if we have 4-4 inputs we will handle that by inserting identity activation
             // for e sum if we have 4-2 - OK
             // for e sum if we have 2-2 inputs we need to insert diagonal -- handling here

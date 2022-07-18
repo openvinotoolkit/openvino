@@ -239,5 +239,18 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
            FileTraits<C>::library_ext();
 }
 
+/**
+ * @brief load binary data from file
+ * @param path - binary file path to load
+ * @return binary vector
+ */
+std::vector<uint8_t> load_binary(const std::string& path);
+
+/**
+ * @brief save binary data to file
+ * @param path - binary file path to store
+ */
+void save_binary(const std::string& path, std::vector<uint8_t> binary);
+
 }  // namespace util
 }  // namespace ov
