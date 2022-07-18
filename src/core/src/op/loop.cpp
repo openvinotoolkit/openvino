@@ -197,47 +197,66 @@ void op::v5::Loop::validate_and_infer_types() {
     m_bodies[0]->validate_nodes_and_infer_types();
 
     if (!back_edges.empty()) {
+        // The number of iterations can be big or unknown. If it is too big we spend a lot of time in this shape
+        // inference. Hardcode a max thresh to avoid wasting too much time.
+        int i, max_num_of_iterations = 10;
         bool need_reinvalidate = false;
-        for (const auto& output_description : m_output_descriptions[0]) {
-            auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
+        for (i = 0; i < max_num_of_iterations; i++) {
+            need_reinvalidate = false;
+            for (const auto& output_description : m_output_descriptions[0]) {
+                auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
-            if (auto body_output_description =
-                    ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
-                const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
-                if (body_value_shape.rank().is_static()) {
-                    // handle the case: when sub-model's output shape does not compatible input shape in a back-edge,
-                    // such as
-                    //          Parameter(out:-1, 1)->|
-                    //                                |->Concat(out:-1, 2)->Result(out:-1, 2)
-                    //          Parameter(out:-1, 1)->|   (axis==1)
-                    // when iteration number is unknown or sub-model output shape may be vary, the Result shape should
-                    // infer as (-1, -1), then set changed one to input and propagate to others.
-                    if (back_edges.count(output_description->m_body_value_index)) {
-                        auto input_param =
-                            m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
-                        const auto& input_param_ps = input_param->get_partial_shape();
-                        if (input_param_ps.rank().is_static()) {
-                            const auto body_rank_len = body_value_shape.rank().get_length();
-                            const auto input_rank_len = input_param_ps.rank().get_length();
-                            if (body_rank_len == input_rank_len && !input_param_ps.compatible(body_value_shape)) {
-                                ov::PartialShape new_ps(body_value_shape);
-                                for (auto i = 0; i < body_value_shape.size(); i++) {
-                                    if (!body_value_shape[i].compatible(input_param_ps[i])) {
-                                        new_ps[i] = Dimension::dynamic();
+                if (auto body_output_description =
+                        ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                    const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+                    if (body_value_shape.rank().is_static()) {
+                        // handle the case: when sub-model's output shape does not compatible input shape in a
+                        // back-edge, such as
+                        //          Parameter(out:-1, 1)->|
+                        //                                |->Concat(out:-1, 2)->Result(out:-1, 2)
+                        //          Parameter(out:-1, 1)->|   (axis==1)
+                        // when iteration number is unknown or sub-model output shape may be vary, the Result shape
+                        // should infer as (-1, -1), then set changed one to input and propagate to others.
+                        if (back_edges.count(output_description->m_body_value_index)) {
+                            auto input_param =
+                                m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
+                            const auto& input_param_ps = input_param->get_partial_shape();
+                            if (input_param_ps.rank().is_static()) {
+                                const auto body_rank_len = body_value_shape.rank().get_length();
+                                const auto input_rank_len = input_param_ps.rank().get_length();
+                                if (body_rank_len == input_rank_len) {
+                                    if (!input_param_ps.compatible(body_value_shape)) {
+                                        ov::PartialShape new_ps(body_value_shape);
+                                        for (auto i = 0; i < body_value_shape.size(); i++) {
+                                            if (!body_value_shape[i].compatible(input_param_ps[i])) {
+                                                new_ps[i] = Dimension::dynamic();
+                                            }
+                                        }
+                                        // reset sub model input shape
+                                        input_param->set_partial_shape(new_ps);
+                                        need_reinvalidate = true;
                                     }
+                                } else {
+                                    // rank changed, use new shape do the shape infer
+                                    input_param->set_partial_shape(body_value_shape);
+                                    need_reinvalidate = true;
                                 }
-                                // reset sub model input shape
-                                input_param->set_partial_shape(new_ps);
-                                need_reinvalidate = true;
                             }
                         }
                     }
                 }
             }
+            // only input shape changed we will re-compute output shape
+            if (need_reinvalidate) {
+                m_bodies[0]->validate_nodes_and_infer_types();
+            } else {
+                break;
+            }
         }
-        // only input shape changed we will re-compute output shape
-        if (need_reinvalidate) {
-            m_bodies[0]->validate_nodes_and_infer_types();
+        if (i == max_num_of_iterations && need_reinvalidate) {
+            NODE_VALIDATION_CHECK(this,
+                                  false,
+                                  "Shape infer number reaches the max try number but the shape is still computed.");
         }
     }
 
