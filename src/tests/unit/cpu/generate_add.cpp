@@ -12,6 +12,8 @@
 #include <map>
 #include <array>
 
+#include "openvino/runtime/core.hpp"
+
 #include <snippets/generator.hpp>
 
 #include <ngraph/function.hpp>
@@ -424,4 +426,28 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
     }
 
     ASSERT_TRUE(isCorrect) << "snippet and native implementation differs";
+}
+
+TEST(SnippetsTests, SerializeSubgraph) {
+    auto model = ([] () -> std::shared_ptr<ov::Model> {
+        auto shape = ov::Shape({2, 2});
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto ininput0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto ininput1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto add = std::make_shared<ov::op::v1::Add>(ininput0, ininput1);
+        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
+        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body);
+        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
+    })();
+    ov::Core core;
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    std::stringstream stream;
+    compiled_model.export_model(stream);
+    ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
+    auto referenceInputs = gen_inputs(ov::Shape({2, 2}), 2);
+    auto compiled_model_runtime = std::const_pointer_cast<ov::Model>(compiled_model.get_runtime_model());
+    auto imported_compiled_model_runtime = std::const_pointer_cast<ov::Model>(imported_compiled_model.get_runtime_model());
+    bool isCorrect = compare(imported_compiled_model_runtime, compiled_model_runtime, referenceInputs);
+    ASSERT_TRUE(isCorrect) << "Snippet serialization failed.";
 }
