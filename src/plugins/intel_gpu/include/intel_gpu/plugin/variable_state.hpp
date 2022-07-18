@@ -8,7 +8,6 @@
 #include <functional>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 class VariableState : public InferenceEngine::IVariableStateInternal {
@@ -45,6 +44,5 @@ private:
     std::shared_ptr<cldnn::engine> engine_;
 };
 
-} // namespace intel_gpu
-} // namespace runtime
-} // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

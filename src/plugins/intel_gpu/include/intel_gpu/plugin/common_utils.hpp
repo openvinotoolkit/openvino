@@ -11,7 +11,6 @@
 #include "ngraph/type/element_type.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
@@ -206,5 +205,4 @@ inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

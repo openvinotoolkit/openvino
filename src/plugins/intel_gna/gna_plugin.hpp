@@ -52,8 +52,6 @@ protected:
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
 
-    static int GetDeviceVersionFromString(const std::string deviceString);
-
     std::shared_ptr<GNADeviceHelper> gnadevice;
 
     std::shared_ptr<request::WorkerPool> requestWorkerPool_;

@@ -13,7 +13,6 @@
 #include <threading/ie_istreams_executor.hpp>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 struct buf_info {
@@ -111,5 +110,4 @@ private:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
