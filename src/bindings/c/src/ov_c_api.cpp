@@ -550,7 +550,7 @@ void ov_property_free(ov_property_t* property) {
 }
 
 ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t value) {
-    if (!property || !value || key >= ov_property_key_e::MAX_KEY_VALUE) {
+    if (!property || !value) {
         return ov_status_e::INVALID_PARAM;
     }
 
@@ -591,7 +591,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
         }
         case ov_property_key_e::INFERENCE_PRECISION_HINT: {
             ov_element_type_e v = *(static_cast<ov_element_type_e*>(value));
-            if (v >= ov_element_type_e::MAX) {
+            if (v > ov_element_type_e::U64) {
                 return ov_status_e::INVALID_PARAM;
             }
 

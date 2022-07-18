@@ -221,7 +221,6 @@ typedef enum {
     U16,            //!< u16 element type
     U32,            //!< u32 element type
     U64,            //!< u64 element type
-    MAX,
 } ov_element_type_e;
 
 /**
@@ -304,7 +303,6 @@ typedef enum {
                                     //!<  additional information on how many inference requests the application will be
                                     //!<  keeping in flight usually this value comes from the actual use-case  (e.g.
                                     //!<  number of video-cameras, or other sources of inputs)
-    MAX_KEY_VALUE,
 } ov_property_key_e;
 
 /**
