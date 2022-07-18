@@ -136,9 +136,9 @@ macro(ie_cpack)
 
     # TODO: replace with openvino
     if(WIN32)
-        set(CPACK_PACKAGE_NAME inferene-engine_${CMAKE_BUILD_TYPE})
+        set(CPACK_PACKAGE_NAME inference-engine_${CMAKE_BUILD_TYPE})
     else()
-        set(CPACK_PACKAGE_NAME inferene-engine)
+        set(CPACK_PACKAGE_NAME inference-engine)
     endif()
 
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
