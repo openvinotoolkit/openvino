@@ -64,7 +64,7 @@ def test_load():
     model = fe.load("abc.bin")
     assert model is not None
     stat = get_fe_stat()
-    assert "abc.bi@mock_needed
+    assert "abc.bin" in stat.load_paths
 
 
 @mock_needed
