@@ -5,11 +5,14 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <opencv2/opencv.hpp>
 #include <condition_variable>
 #include <mutex>
 #include "test_model_repo.hpp"
 #include <fstream>
+
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
+#include <opencv2/opencv.hpp>
+#endif
 
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
@@ -79,6 +82,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
 {
     ov_shape_t shape = {0};
@@ -101,6 +105,7 @@ void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
         }
     }
 }
+#endif
 
 size_t find_device(ov_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
@@ -291,6 +296,7 @@ TEST_P(ov_core, ov_compiled_model_export) {
     ov_core_free(core);
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 TEST_P(ov_core, ov_core_import_model) {
     auto devece_name = GetParam();
     ov_core_t* core = nullptr;
@@ -313,6 +319,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ov_compiled_model_free(compiled_model_imported);
     ov_core_free(core);
 }
+#endif
 
 TEST_P(ov_core, ov_core_get_versions) {
     auto devece_name = GetParam();
