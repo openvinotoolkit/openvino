@@ -21,85 +21,161 @@
 
 #include "openvino/openvino.hpp"
 
+/**
+ * @struct ov_core
+ * @brief This struct represents OpenVINO Core entity.
+ */
 struct ov_core {
     std::shared_ptr<ov::Core> object;
 };
 
+/**
+ * @struct ov_output_const_node
+ * @brief This is an interface of ov::Output<const ov::Node>
+ */
 struct ov_output_const_node {
     std::shared_ptr<ov::Output<const ov::Node>> object;
 };
 
+/**
+ * @struct ov_output_node
+ * @brief This is an interface of ov::Output<ov::Node>
+ */
 struct ov_output_node {
     std::shared_ptr<ov::Output<ov::Node>> object;
 };
 
+/**
+ * @struct ov_model
+ * @brief This is an interface of ov::Model
+ */
 struct ov_model {
     std::shared_ptr<ov::Model> object;
 };
 
+/**
+ * @struct ov_preprocess_prepostprocessor
+ * @brief This is an interface of ov::preprocess::PrePostProcessor
+ */
 struct ov_preprocess_prepostprocessor {
     std::shared_ptr<ov::preprocess::PrePostProcessor> object;
 };
 
+/**
+ * @struct ov_preprocess_inputinfo
+ * @brief This is an interface of ov::preprocess::InputInfo
+ */
 struct ov_preprocess_inputinfo {
     ov::preprocess::InputInfo* object;
 };
 
+/**
+ * @struct ov_preprocess_inputtensorinfo
+ * @brief This is an interface of ov::preprocess::InputTensorInfo
+ */
 struct ov_preprocess_inputtensorinfo {
     ov::preprocess::InputTensorInfo* object;
 };
 
+/**
+ * @struct ov_preprocess_outputinfo
+ * @brief This is an interface of ov::preprocess::OutputInfo
+ */
 struct ov_preprocess_outputinfo {
     ov::preprocess::OutputInfo* object;
 };
 
+/**
+ * @struct ov_preprocess_outputtensorinfo
+ * @brief This is an interface of ov::preprocess::OutputTensorInfo
+ */
 struct ov_preprocess_outputtensorinfo {
     ov::preprocess::OutputTensorInfo* object;
 };
 
+/**
+ * @struct ov_preprocess_inputmodelinfo
+ * @brief This is an interface of ov::preprocess::InputModelInfo
+ */
 struct ov_preprocess_inputmodelinfo {
     ov::preprocess::InputModelInfo* object;
 };
 
+/**
+ * @struct ov_preprocess_preprocesssteps
+ * @brief This is an interface of ov::preprocess::PreProcessSteps
+ */
 struct ov_preprocess_preprocesssteps {
     ov::preprocess::PreProcessSteps* object;
 };
 
+/**
+ * @struct ov_compiled_model
+ * @brief This is an interface of ov::CompiledModel
+ */
 struct ov_compiled_model {
     std::shared_ptr<ov::CompiledModel> object;
 };
 
+/**
+ * @struct ov_infer_request
+ * @brief This is an interface of ov::InferRequest
+ */
 struct ov_infer_request {
     std::shared_ptr<ov::InferRequest> object;
 };
 
+/**
+ * @struct ov_tensor
+ * @brief This is an interface of ov_tensor
+ */
 struct ov_tensor {
     std::shared_ptr<ov::Tensor> object;
 };
 
+/**
+ * @struct ov_layout
+ * @brief This is an interface of ov::Layout
+ */
 struct ov_layout {
     ov::Layout object;
 };
 
+/**
+ * @struct ov_rank
+ * @brief This is an interface of ov::Dimension
+ */
 struct ov_rank {
     ov::Dimension object;
 };
 
+/**
+ * @struct ov_dimensions
+ * @brief This is an interface of std::vector<ov::Dimension>
+ */
 struct ov_dimensions {
     std::vector<ov::Dimension> object;
 };
 
+/**
+ * @struct ov_partial_shape
+ * @brief Support static rank and dynamic rank.
+ */
 struct ov_partial_shape {
-    ov::Dimension rank;               // Support static rank and dynamic rank
-    std::vector<ov::Dimension> dims;  // Dimemsion vector
+    ov::Dimension rank;
+    std::vector<ov::Dimension> dims;
 };
 
+/**
+ * @struct ov_property
+ * @brief This is an interface of property
+ */
 struct ov_property {
     ov::AnyMap object;
 };
 
 /**
- * @variable global value for error info
+ * @variable global value for error info.
  */
 char const* error_infos[] = {
     "no error",
@@ -165,18 +241,18 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
           std::istream(static_cast<std::streambuf*>(this)) {}
 };
 
-std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
+const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
     {ov_performance_mode_e::UNDEFINED_MODE, ov::hint::PerformanceMode::UNDEFINED},
     {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
-std::map<ov_preprocess_resizealgorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
+const std::map<ov_preprocess_resizealgorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
     {ov_preprocess_resizealgorithm_e::RESIZE_CUBIC, ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC},
     {ov_preprocess_resizealgorithm_e::RESIZE_LINEAR, ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR},
     {ov_preprocess_resizealgorithm_e::RESIZE_NEAREST, ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST}};
 
-std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
+const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
     {ov_color_format_e::UNDEFINE, ov::preprocess::ColorFormat::UNDEFINED},
     {ov_color_format_e::NV12_SINGLE_PLANE, ov::preprocess::ColorFormat::NV12_SINGLE_PLANE},
     {ov_color_format_e::NV12_TWO_PLANES, ov::preprocess::ColorFormat::NV12_TWO_PLANES},
@@ -187,7 +263,7 @@ std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map = {
     {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
     {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
-std::map<ov_element_type_e, ov::element::Type> element_type_map = {
+const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::UNDEFINED, ov::element::undefined},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
     {ov_element_type_e::BOOLEAN, ov::element::boolean},
@@ -216,11 +292,12 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     return ov_element_type_e::UNDEFINED;
 }
 
-#define GET_OV_ELEMENT_TYPE(a)   element_type_map[a]
+#define GET_OV_ELEMENT_TYPE(a)   element_type_map.at(a)
 #define GET_CAPI_ELEMENT_TYPE(a) find_ov_element_type_e(a)
 
-#define GET_OV_COLOR_FARMAT(a) \
-    (color_format_map.find(a) == color_format_map.end() ? ov::preprocess::ColorFormat::UNDEFINED : color_format_map[a])
+#define GET_OV_COLOR_FARMAT(a)                                                                   \
+    (color_format_map.find(a) == color_format_map.end() ? ov::preprocess::ColorFormat::UNDEFINED \
+                                                        : color_format_map.at(a))
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
@@ -407,11 +484,12 @@ ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** pa
     }
 
     try {
-        *partial_shape = new ov_partial_shape_t;
-        (*partial_shape)->rank = ov::Dimension(shape->rank);
+        std::unique_ptr<ov_partial_shape_t> _partial_shape(new ov_partial_shape_t);
+        _partial_shape->rank = ov::Dimension(shape->rank);
         for (int i = 0; i < shape->rank; i++) {
-            (*partial_shape)->dims.emplace_back(shape->dims[i]);
+            _partial_shape->dims.emplace_back(shape->dims[i]);
         }
+        *partial_shape = _partial_shape.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -485,7 +563,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
             if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
                 return ov_status_e::INVALID_PARAM;
             }
-            auto v = performance_mode_map[m];
+            auto v = performance_mode_map.at(m);
             property->object.emplace(ov::hint::performance_mode(v));
             break;
         }
@@ -1389,7 +1467,7 @@ ov_status_e ov_preprocess_preprocesssteps_resize(ov_preprocess_preprocesssteps_t
         return ov_status_e::INVALID_PARAM;
     }
     try {
-        preprocess_input_process_steps->object->resize(resize_algorithm_map[resize_algorithm]);
+        preprocess_input_process_steps->object->resize(resize_algorithm_map.at(resize_algorithm));
     }
     CATCH_OV_EXCEPTIONS
 
