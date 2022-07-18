@@ -13,7 +13,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.reshape import Reshape
 
 
-class GatherNDNormalize(MiddleReplacementPattern):
+class GatherNDDecomposition(MiddleReplacementPattern):
     """
     Hot fix for new speech-to-text model enabling while GatherND is not implemented in IE.
     We can replace GatherND to Reshape + Gather in case when GatherND indices have just one
@@ -47,7 +47,7 @@ class GatherNDNormalize(MiddleReplacementPattern):
         n_dims = indices.shape[-1]
         non_zero = None
         for i in range(n_dims):
-            if not all(np.take(indices, indices=[i], axis=-1) == 0):
+            if not np.all(np.take(indices, indices=[i], axis=-1) == 0):
                 if non_zero is None:
                     non_zero = i
                 else:
@@ -69,7 +69,8 @@ class GatherNDNormalize(MiddleReplacementPattern):
         # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
+            log.warning(
+                'Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
         # 1. Add Reshape and connect
@@ -78,8 +79,9 @@ class GatherNDNormalize(MiddleReplacementPattern):
                                                    {'name': gather_name + '/Reshape_for_GatherND/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
 
-        # 2. Change indices from Nd to 1d:
-        new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])
+        # 2. Eliminate last dim (n_dims values) from indices shape:
+        new_indices = np.reshape(
+            np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1])
 
         rename_node(gather, gather_name + '/to_delete')
 

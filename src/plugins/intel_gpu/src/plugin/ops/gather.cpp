@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 template <typename T>
@@ -81,5 +80,4 @@ static void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gat
 REGISTER_FACTORY_IMPL(v8, Gather);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
