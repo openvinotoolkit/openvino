@@ -93,9 +93,9 @@ def test_build_quantization_graph_with_ignored_params(
         }
 
     if model_name == 'resnet_example':
-        ignored_params['scope'] = ['Conv_11/WithoutBiases', 'Conv_29/WithoutBiases']
+        ignored_params['scope'] = ['Convolution_283', 'Convolution_724']
     elif model_name == 'googlenet_example':
-        node_name = 'Conv_10/WithoutBiases'
+        node_name = 'Convolution_289'
         ignored_params['scope'] = [node_name]
     elif model_name == 'mtcnn':
         ignored_params = {
@@ -159,19 +159,19 @@ def test_build_quantization_graph_with_ignored_agnostic_params(
 
 
 TEST_MODELS_REMOVAL = [
-    ('mobilenetv2_ssd_example', 'pytorch', ['Conv_12/WithoutBiases',
-                                            'Conv_26/WithoutBiases',
-                                            'Conv_41/WithoutBiases']),
-    ('squeezenet1_1_example', 'pytorch', ['Conv_5/WithoutBiases',
-                                          'Conv_47/WithoutBiases']),
-    ('mobilenetv2_example', 'pytorch', ['Conv_10/WithoutBiases',
-                                        'Conv_18/WithoutBiases',
-                                        'Conv_60/WithoutBiases']),
-    ('googlenet_example', 'pytorch', ['Conv_5/WithoutBiases',
-                                      'Conv_10/WithoutBiases',
-                                      'Conv_19/WithoutBiases',
-                                      'Conv_87/WithoutBiases',
-                                      'Conv_93/WithoutBiases']),
+    ('mobilenetv2_ssd_example', 'pytorch', ['Convolution_448',
+                                            'GroupConvolution_840',
+                                            'Convolution_1160']),
+    ('squeezenet1_1_example', 'pytorch', ['Convolution_150',
+                                          'Convolution_991']),
+    ('mobilenetv2_example', 'pytorch', ['Convolution_521',
+                                        'GroupConvolution_863',
+                                        'Convolution_2450']),
+    ('googlenet_example', 'pytorch', ['Convolution_190',
+                                      'Convolution_289',
+                                      'Convolution_486',
+                                      'Convolution_1917',
+                                      'Convolution_2017']),
     ('multiple_out_ports_net', 'tf', ['add_indices'])
 ]
 
@@ -234,8 +234,7 @@ TEST_MODELS_WITHOUT_FQ_MOVING = [
     ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS_WITHOUT_FQ_MOVING])
 def test_multibranch_propagation_without_fq_moving(tmp_path, models, model_name, model_framework):
     ignored_params = {
-        # Ignoring quantization for the first 4 convolution in the model
-        "scope": ['8/WithoutBiases', '9/WithoutBiases', '10/WithoutBiases', '11/WithoutBiases']
+        "scope": ['Convolution_104', 'Convolution_152', 'Convolution_8', 'Convolution_56']
     }
 
     model = models.get(model_name, model_framework, tmp_path)
