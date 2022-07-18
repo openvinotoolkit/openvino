@@ -264,6 +264,8 @@ public:
      */
     virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
 
+    bool IsNewAPI() const noexcept;
+
     /**
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
@@ -350,6 +352,7 @@ protected:
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
     std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
+    bool _isNewAPI;                                     //!< A flag which shows used API
 };
 
 /**
