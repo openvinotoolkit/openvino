@@ -16,6 +16,7 @@
 
 #include <ie_common.h>
 
+#include "gna2_model_export_helper.hpp"
 #include "memory/gna_mem_requests.hpp"
 
 #include "gna2-common-api.h"
@@ -47,7 +48,6 @@ class GNADeviceHelper : public GNAPluginNS::GNADevice {
     std::string executionTarget;
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
-    Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
     uint32_t maxLayersCount_ = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
@@ -74,8 +74,7 @@ public:
                              std::string compileTargetIn = "",
                              bool swExactModeIn = false,
                              bool isPerformanceMeasuring = false,
-                             bool deviceEmbedded = false,
-                             int deviceVersionParsed = 0);
+                             bool deviceEmbedded = false);
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
     GNADeviceHelper& operator= (const GNADeviceHelper&) = delete;
@@ -121,12 +120,10 @@ public:
 
     DumpResult dumpXnn(const uint32_t modelId);
 
-    void dumpXnnForDeviceVersion(const uint32_t modelId,
-        std::ostream & outStream,
-        Gna2DeviceVersion targetDeviceVersion);
-    void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        uint32_t input_size, uint32_t output_size,
-        float inSF, float outSF);
+    void dumpTLVForDeviceVersion(const uint32_t modelId,
+                                 std::ostream& outStream,
+                                 const std::vector<GnaEndpoint>& inputsContainer,
+                                 const std::vector<GnaEndpoint>& outputsContainer);
 
     void free(void * ptr);
 
@@ -134,7 +131,6 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string getEffectiveGnaCompileTarget() const;
     std::string GetCompileTarget() const;
 
     const GnaAllocations& getAllAllocations() const {
@@ -181,7 +177,6 @@ private:
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
     static Gna2DeviceVersion parseTarget(const std::string& target);
-    Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
