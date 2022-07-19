@@ -1815,7 +1815,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     const auto noOfInputsDivisor = gnaFlags->input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     const uint32_t orginalInputSize =
-        InferenceEngine::details::product(++begin(inputs->getDims()), end(inputs->getDims()));
+        InferenceEngine::details::product(std::next(inputs->getDims().begin()), inputs->getDims().end());
     const uint32_t orginalOutputSize =
         InferenceEngine::details::product(++begin(outputs->getDims()), end(outputs->getDims()));
     if (orginalInputSize != orginalOutputSize) {
