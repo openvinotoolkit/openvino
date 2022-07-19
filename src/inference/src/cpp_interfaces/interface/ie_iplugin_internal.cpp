@@ -77,7 +77,7 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
-IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(false) {}
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
