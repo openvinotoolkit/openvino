@@ -14,7 +14,7 @@
 *To be added...*
 
 ### Running OpenVINO:tm: Python API tests
-*For simplicity all of these commands require to navigate to main Python API folder first:*
+*For simplicity, all of these commands require to navigate to the main Python API folder first:*
 ```shell
 cd .../openvino/src/bindings/python/
 ```
@@ -29,7 +29,7 @@ Test framework *pytest* allows to filter tests with `-k` flag.
 pytest tests/test_inference_engine/test_core.py -k "test_available_devices"
 ```
 
-Alternatively full name and path to the test case could be passed.
+Alternatively, the full name and path to the test case could be passed.
 ```shell
 pytest tests/test_inference_engine/test_core.py::test_available_devices
 ```
@@ -50,9 +50,9 @@ tox
 Follow and complete `openvino/src/bindings/python/docs/code_examples.md`.
 
 ##### Adding new test-case in the correct place
-Let's add new test for OpenVINO:tm: Python API.
+Let's add a new test for OpenVINO:tm: Python API.
 
-First test should confirm that new pybind11-based class `MyTensor` is behaving correctly. Navigate to tests folder and create new file that describes tests within it. It should be along the lines of:
+First, the test should confirm that the new pybind11-based class of `MyTensor` is behaving correctly. Navigate to tests folder and create a new file that describes tests within it. It should be along the lines of:
 
     tests/test_inference_engine/test_mytensor.py
 
@@ -104,10 +104,10 @@ tests/test_inference_engine/test_mytensor.py::test_mytensor_creation[source0] PA
 tests/test_inference_engine/test_mytensor.py::test_mytensor_creation[source1] PASSED                                                                                                                                    [100%]
 ```
 
-Notice that test name is shared between cases. In real-life pull request, all of the functionalities should be tested to ensure the quality of solution. Always focus on general usage and edge-case scenarios. Remember, on the other hand, excessive testing is also not advised as it may result in duplicate test cases and taking a toll on validation pipelines. Good "rule-of-thumb"s while adding tests to the project:
+Notice that the test name is shared between cases. In a real-life pull request, all of the functionalities should be tested to ensure the quality of the solution. Always focus on general usage and edge-case scenarios. On the other hand, remember that excessive testing is not advised as it may result in duplicate test cases and impact validation pipelines. A good "rule-of-thumb" list of practices while adding tests to the project is:
 * Don't test built-in capabilities of a given language.
 * Common functions can be tested together.
-* Create test cases with few standard scenarios and cover all known edge-cases.  
+* Create test cases with a few standard scenarios and cover all known edge-cases.  
 * Hardcode desired results...
 * ... or create reference values during runtime. Always use a good, thrust-worthy library for that!
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
