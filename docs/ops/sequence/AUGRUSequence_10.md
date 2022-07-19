@@ -7,11 +7,40 @@
 **Short description**: *AUGRUSequence* operation represents a series of AUGRU cells (GRU with attentional update gate).
 
 **Detailed description**: The difference between *AUGRUSequence* and [GRUSequence](./GRUSequence_5.md) is the additional attention score input `A`, which is a multiplier for the update gate.
-The formula was described in the [paper arXiv:1809.03672](https://arxiv.org/abs/1809.03672).
+The AUGRU formula is based on the [paper arXiv:1809.03672](https://arxiv.org/abs/1809.03672).
 
 The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence.
 
-The most of the attributes are in sync with the specification <a href="https://github.com/onnx/onnx/blob/master/docs/Operators.md#gru">ONNX GRU</a> operator.
+All of the attributes are in sync with the specification of [GRUSequence](./GRUSequence_5.md).
+
+
+```
+AUGRU formula:
+  *  - matrix multiplication
+ (.) - Hadamard product (element-wise)
+
+ f, g - activation functions
+ z - update gate, r - reset gate, h - hidden gate
+ a - attention score
+
+  rt = f(Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr)
+  zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
+  ht = g(Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh)  # default, when 'linear_before_reset' is set False
+  ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh)  # when 'linear_before_reset' is set True
+
+  ####### TO BE DECIDED #######
+  # Version I
+  zt' = at (.) zt  # multiplication by attention score
+
+  # Version II
+  zt' = 1 - (at (.) zt)  # multiplication by attention score
+
+  # Version III
+  zt' = (1 - at) (.) zt)  # multiplication by attention score
+  #############################
+
+  Ht = (1 - zt') (.) ht + zt' (.) Ht-1
+```
 
 
 **Attributes**
@@ -25,10 +54,10 @@ The most of the attributes are in sync with the specification <a href="https://g
 
 * *activations*
 
-  * **Description**: *activations* specifies activation functions for gates, there are two gates, so two activation functions should be specified as a value for this attributes
+  * **Description**: activation functions for gates
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh*
+  * **Default value**: *sigmoid* for f, *tanh* for g
   * **Required**: *no*
 
 * *activations_alpha, activations_beta*
@@ -56,7 +85,7 @@ The most of the attributes are in sync with the specification <a href="https://g
 
 * *linear_before_reset*
 
-  * **Description**: *linear_before_reset* flag denotes, if the output of hidden gate is multiplied by the reset gate before or after linear transformation. It behaves according to the *ONNX GRU* described in the [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU).
+  * **Description**: *linear_before_reset* flag denotes, if the output of hidden gate is multiplied by the reset gate before or after linear transformation.
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: False
@@ -76,7 +105,7 @@ The most of the attributes are in sync with the specification <a href="https://g
 
 * **6**: `B` - 2D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[num_directions, 4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[num_directions, 3 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
-* **7**: `A` - 2D tensor of type *T* `[batch_size, seq_length, 1]`, the attention score. **Required.**
+* **7**: `A` - 3D tensor of type *T* `[batch_size, seq_length, 1]`, the attention score. **Required.**
 
 **Outputs**
 
@@ -94,48 +123,47 @@ The most of the attributes are in sync with the specification <a href="https://g
 <layer ... type="AUGRUSequence" ...>
     <data hidden_size="128"/>
     <input>
-        <port id="0">
+        <port id="0"> <!-- `X` input data -->
             <dim>1</dim>
             <dim>4</dim>
             <dim>16</dim>
         </port>
-        <port id="1">
+        <port id="1"> <!-- `initial_hidden_state` input -->
             <dim>1</dim>
             <dim>1</dim>
             <dim>128</dim>
         </port>
-        <port id="2">
+        <port id="2"> <!-- `sequence_lengths` input -->
             <dim>1</dim>
         </port>
-         <port id="3">
+         <port id="3"> <!-- `W` weights input -->
             <dim>1</dim>
             <dim>384</dim>
             <dim>16</dim>
         </port>
-         <port id="4">
+         <port id="4"> <!-- `R` recurrence weights input -->
             <dim>1</dim>
             <dim>384</dim>
             <dim>128</dim>
         </port>
-         <port id="5">
+         <port id="5"> <!-- `B` bias input -->
             <dim>1</dim>
             <dim>384</dim>
         </port>
-        <port id="6">
-            <dim>1</dim>
+        <port id="6"> <!-- `A` attention score input -->
             <dim>1</dim>
             <dim>4</dim>
             <dim>1</dim>
         </port>
     </input>
     <output>
-        <port id="7">
+        <port id="7"> <!-- `Y` output -->
             <dim>1</dim>
             <dim>1</dim>
             <dim>4</dim>
             <dim>128</dim>
         </port>
-        <port id="8">
+        <port id="8"> <!-- `Ho` output -->
             <dim>1</dim>
             <dim>1</dim>
             <dim>128</dim>
