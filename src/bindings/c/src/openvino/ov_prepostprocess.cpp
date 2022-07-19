@@ -3,6 +3,7 @@
 //
 
 #include "ov_prepostprocess.h"
+
 #include "common.h"
 
 const std::map<ov_preprocess_resizealgorithm_e, ov::preprocess::ResizeAlgorithm> resize_algorithm_map = {
@@ -24,7 +25,6 @@ const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map 
 #define GET_OV_COLOR_FARMAT(a)                                                                   \
     (color_format_map.find(a) == color_format_map.end() ? ov::preprocess::ColorFormat::UNDEFINED \
                                                         : color_format_map.at(a))
-
 
 ov_status_e ov_preprocess_prepostprocessor_create(const ov_model_t* model,
                                                   ov_preprocess_prepostprocessor_t** preprocess) {

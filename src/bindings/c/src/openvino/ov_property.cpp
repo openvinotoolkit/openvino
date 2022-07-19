@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_property.h"
+
 #include "common.h"
 
 const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mode_map = {
@@ -9,7 +10,6 @@ const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mod
     {ov_performance_mode_e::THROUGHPUT, ov::hint::PerformanceMode::THROUGHPUT},
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
-
 
 ov_status_e ov_property_create(ov_property_t** property) {
     if (!property) {

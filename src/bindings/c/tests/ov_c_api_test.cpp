@@ -1959,7 +1959,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid) {
 
 TEST(ov_partial_shape, ov_shape_to_partial_shape) {
     const char* str = "{10,20,30,40,50}";
-    ov_shape_t shape = {.rank = 5, .dims = {10, 20, 30, 40, 50}};
+    ov_shape_t shape = {5, {10, 20, 30, 40, 50}};
     ov_partial_shape_t* partial_shape = nullptr;
 
     OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
