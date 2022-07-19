@@ -261,7 +261,7 @@ def test_infer_new_request_tensor_numpy_copy(device):
     tensor = Tensor(img)
     compiled_model = core.compile_model(model, device)
     res_tensor = compiled_model.infer_new_request({"data": tensor})
-    res_img = compiled_model.infer_new_request({"data": tensor})
+    res_img = compiled_model.infer_new_request({"data": img})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
@@ -274,7 +274,7 @@ def test_infer_tensor_numpy_shared_memory(device):
     tensor = Tensor(img, shared_memory=True)
     compiled_model = core.compile_model(model, device)
     res_tensor = compiled_model.infer_new_request({"data": tensor})
-    res_img = compiled_model.infer_new_request({"data": tensor})
+    res_img = compiled_model.infer_new_request({"data": img})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 

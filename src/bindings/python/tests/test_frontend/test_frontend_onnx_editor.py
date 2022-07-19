@@ -1021,14 +1021,13 @@ def test_add_output_place_is_input():
     model = fe.load("input_model.onnx")
     assert model
 
+    orig_model = fe.convert(model)
+
     place = model.get_place_by_tensor_name(tensor_name="in1")
     model.add_output(place)
     result_model = fe.convert(model)
-
-    orig_model = fe.load("input_model.onnx")
-    orig_func = fe.convert(orig_model)
-
-    res = compare_functions(orig_func, result_model)
+   
+    res = compare_functions(orig_model, result_model)
     assert res
 
 
