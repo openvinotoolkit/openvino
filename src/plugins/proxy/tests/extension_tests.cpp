@@ -15,7 +15,7 @@ std::unordered_set<std::string> get_unsupported_ops(const ov::Core& core,
     for (const auto& op : model->get_ops()) {
         names.insert(op->get_friendly_name());
     }
-    for (const auto op : supported_ops) {
+    for (const auto& op : supported_ops) {
         EXPECT_EQ(op.second, dev_name);
         names.erase(op.first);
     }

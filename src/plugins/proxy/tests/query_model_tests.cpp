@@ -15,7 +15,7 @@ TEST_F(ProxyTests, query_model_on_abc) {
     for (const auto& op : model->get_ops()) {
         names.insert(op->get_friendly_name());
     }
-    for (const auto op : supported_ops) {
+    for (const auto& op : supported_ops) {
         EXPECT_EQ(op.second, dev_name);
         names.erase(op.first);
     }
@@ -31,7 +31,7 @@ TEST_F(ProxyTests, query_model_on_bde) {
     for (const auto& op : model->get_ops()) {
         names.insert(op->get_friendly_name());
     }
-    for (const auto op : supported_ops) {
+    for (const auto& op : supported_ops) {
         EXPECT_EQ(op.second, dev_name);
         names.erase(op.first);
     }
@@ -48,7 +48,7 @@ TEST_F(ProxyTests, query_model_on_mixed) {
     for (const auto& op : model->get_ops()) {
         names.insert(op->get_friendly_name());
     }
-    for (const auto op : supported_ops) {
+    for (const auto& op : supported_ops) {
         EXPECT_EQ(op.second, dev_name);
         names.erase(op.first);
     }
