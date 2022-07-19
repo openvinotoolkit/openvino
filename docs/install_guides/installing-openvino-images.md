@@ -4,9 +4,6 @@ You may install Intel® Distribution of OpenVINO™ toolkit from images and repo
 
 * [Docker](installing-openvino-docker-linux.md)
 * [Docker with DL Workbench](@ref workbench_docs_Workbench_DG_Run_Locally)
-* [APT](installing-openvino-apt.md)
-* [YUM](installing-openvino-yum.md)
-* [Anaconda Cloud](installing-openvino-conda.md)
 * [Yocto](installing-openvino-yocto.md)
 * [PyPI](installing-openvino-pip.md)
 
