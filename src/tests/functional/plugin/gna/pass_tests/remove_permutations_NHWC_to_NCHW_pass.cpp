@@ -608,6 +608,31 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removeSha
     };
 
     const std::vector<std::vector<size_t>> inputShapes {
+        {1, 1, 168, 1},
+        {1, 1, 168, 2},
+        {1, 1, 168, 4},
+        {1, 1, 32, 1},
+        {1, 1, 32, 2},
+        {1, 1, 32, 8},
+        {1, 1, 32, 9},
+        {1, 168, 1, 1},
+        {1, 168, 1, 2},
+        {1, 168, 1, 4},
+        {1, 32, 1, 1},
+        {1, 32, 1, 2},
+        {1, 32, 1, 8},
+        {1, 32, 1, 9},
+        {1, 16, 8, 1},
+        {1, 168, 1},
+        {1, 168, 2},
+        {1, 168, 4},
+        {1, 32, 1},
+        {1, 32, 2},
+        {1, 32, 8},
+        {1, 32, 9}
+    };
+
+    const std::vector<std::vector<size_t>> inputShapesSplit {
         {1, 1, 160, 1},
         {1, 1, 160, 2},
         {1, 1, 168, 4},
@@ -683,7 +708,7 @@ class RemoveSharedPermutationTest : public testing::WithParamInterface<removeSha
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
-            ::testing::ValuesIn(inputShapes),
+            ::testing::ValuesIn(inputShapesSplit),
             ::testing::ValuesIn(splitsNum)),
         RemoveSharedPermutationTest::getTestCaseName);
 
