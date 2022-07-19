@@ -357,11 +357,11 @@ void RDFTExecutor::dft_on_axis(enum dft_type type,
     }
 
     bool use_fft = can_use_fft(signal_size);
-    bool parallelize_outer_axes = use_fft;
 
     size_t total_work_size = std::accumulate(iteration_range.begin(),
                                              iteration_range.end(),
                                              1, std::multiplies<size_t>()) / iteration_range[axis];
+    bool parallelize_outer_axes = total_work_size > signal_size;
 
     if (parallelize_outer_axes) {
         parallel_for(total_work_size, [&] (size_t i) {
