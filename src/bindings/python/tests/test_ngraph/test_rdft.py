@@ -11,8 +11,8 @@ np.random.seed(0)
 
 def test_rdft_1d():
     runtime = get_runtime()
-    n = 50
-    shape = [n]
+    input_size = 50
+    shape = [input_size]
     data = np.random.uniform(0, 1, shape).astype(np.float32)
     param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
     input_axes = ov.constant(np.array([0], dtype=np.int64))
@@ -63,7 +63,7 @@ def test_rdft_2d_signal_size():
     signal_size = [30, 40]
     axes_node = ov.constant(np.array(axes, dtype=np.int64))
     signal_size_node = ov.constant(np.array(signal_size, dtype=np.int64))
-    node = ov.rdft(param, axes_node, signal_size)
+    node = ov.rdft(param, axes_node, signal_size_node)
     computation = runtime.computation(node, param)
     actual = computation(data)
     np_results = np.fft.rfftn(data, s=signal_size, axes=axes)
