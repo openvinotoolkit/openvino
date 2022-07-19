@@ -6,12 +6,12 @@ set(TARGET_NAME "OpenVinoCAPITests")
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
-if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} is disabled")
-    return()
-endif()
 
 add_executable(${TARGET_NAME} ov_c_api_test.cpp test_model_repo.hpp)
+
+if(OpenCV_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE BUILD_OPENCV_DEPENDENT_TESTS)
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_ov_c ${OpenCV_LIBRARIES}
                                              commonTestUtils gtest_main)

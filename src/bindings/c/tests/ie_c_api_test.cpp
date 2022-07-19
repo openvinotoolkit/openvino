@@ -5,13 +5,16 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <opencv2/opencv.hpp>
 #include <condition_variable>
 #include <mutex>
 #include <c_api/ie_c_api.h>
 #include <inference_engine.hpp>
 #include "test_model_repo.hpp"
 #include <fstream>
+
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
+#include <opencv2/opencv.hpp>
+#endif
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
@@ -58,6 +61,7 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     return read_size;
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
 {
     dimensions_t dimenison;
@@ -80,6 +84,7 @@ void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
         }
     }
 }
+#endif
 
 size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
@@ -350,6 +355,7 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     ie_core_free(&core);
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -373,6 +379,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_core_t *core = nullptr;
@@ -1165,6 +1172,7 @@ TEST(ie_infer_request_set_blob, setBlob) {
     ie_core_free(&core);
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 TEST(ie_infer_request_infer, infer) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1320,6 +1328,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_infer_request_set_batch, setBatch) {
     ie_core_t *core = nullptr;
@@ -1630,6 +1639,7 @@ TEST(ie_blob_get_cbuffer, getBuffer) {
     ie_blob_deallocate(&blob);
 }
 
+#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 TEST(ie_infer_set_completion_callback, setCallback) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1676,6 +1686,7 @@ TEST(ie_infer_set_completion_callback, setCallback) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_blob_make_memory_nv12, makeNV12Blob) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
