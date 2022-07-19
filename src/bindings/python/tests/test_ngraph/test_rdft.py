@@ -116,10 +116,41 @@ def test_rdft_4d():
     np.testing.assert_allclose(expected_results, actual[0], atol=0.0007)
 
 
+def test_rdft_4d_signal_size():
+    runtime = get_runtime()
+    shape = [1, 192, 36, 64]
+    signal_size = [36, 64]
+    data = np.random.uniform(0, 1, shape).astype(np.float32)
+    param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
+    axes = [-2, -1]
+    input_axes = ov.constant(np.array(axes, dtype=np.int64))
+    signal_size_node = ov.constant(np.array(signal_size, dtype=np.int64))
+    node = ov.rdft(param, input_axes, signal_size_node)
+    computation = runtime.computation(node, param)
+    actual = computation(data)
+    np_results = np.fft.rfftn(data, signal_size, axes=axes)
+    expected_results = np.stack((np_results.real, np_results.imag), axis=-1)
+    np.testing.assert_allclose(expected_results, actual[0], atol=0.0007)
+
+
 def test_irdft_4d():
     runtime = get_runtime()
     shape = [1, 192, 36, 33, 2]
-    signal_size = [33, 64]
+    data = np.random.uniform(0, 1, shape).astype(np.float32)
+    param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
+    axes = [-2, -1]
+    input_axes = ov.constant(np.array(axes, dtype=np.int64))
+    node = ov.irdft(param, input_axes)
+    computation = runtime.computation(node, param)
+    actual = computation(data)
+    expected_results = np.fft.irfftn(data[:, :, :, :, 0] + 1j * data[:, :, :, :, 1], axes=axes)
+    np.testing.assert_allclose(expected_results, actual[0], atol=0.0001)
+
+
+def test_irdft_4d_signal_size():
+    runtime = get_runtime()
+    shape = [1, 192, 36, 33, 2]
+    signal_size = [36, 64]
     data = np.random.uniform(0, 1, shape).astype(np.float32)
     param = ov.parameter(Shape(shape), name="input", dtype=np.float32)
     axes = [-2, -1]

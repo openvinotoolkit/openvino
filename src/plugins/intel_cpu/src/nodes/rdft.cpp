@@ -196,8 +196,11 @@ static void adjust_signal_sizes(VectorDims& input_shape,
         auto axis = axes[i];
         size_t input_size = input_shape[axis];
         size_t signal_size = signal_sizes[i];
-        if (signal_size < input_size)
+        if (signal_size <= input_size) {
             input_shape[axis] = signal_size;
+        } else if (!is_inverse) {
+            IE_THROW() << "Signal size greater than input size is not supported yet";
+        }
     }
     if (is_inverse) {
         input_shape[axes.back()] = signal_sizes.back() / 2 + 1;
