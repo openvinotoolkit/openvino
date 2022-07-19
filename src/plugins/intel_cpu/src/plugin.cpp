@@ -819,7 +819,7 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
 }
 
 bool Engine::isLegacyAPI() const {
-    return IsNewAPI();
+    return !IsNewAPI();
 }
 
 Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
