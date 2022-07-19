@@ -1913,8 +1913,8 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t w_dim_in = GetDataDimSize(inputs, DataDimName::W);
     uint32_t h_dim_in = GetDataDimSize(inputs, DataDimName::H);
     uint32_t c_dim_in = GetDataDimSize(inputs, DataDimName::C);
-    uint32_t b_dim_in = GetDataDimSize(inputs, DataDimName::N);
-    num_columns = b_dim_in;
+    uint32_t n_dim_in = GetDataDimSize(inputs, DataDimName::N);
+    num_columns = n_dim_in;
     num_rows = w_dim_in * h_dim_in * c_dim_in;
 
     if (dnn->new_num_conv_columns) {
