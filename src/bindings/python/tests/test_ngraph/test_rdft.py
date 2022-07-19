@@ -7,7 +7,9 @@ from openvino.runtime import Shape
 import numpy as np
 from tests.runtime import get_runtime
 
+
 np.random.seed(0)
+
 
 def test_rdft_1d():
     runtime = get_runtime()
