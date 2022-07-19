@@ -1138,6 +1138,20 @@ NGRAPH_TEST(onnx_editor, editor_api_inputs_with_the_same_name) {
     EXPECT_EQ(output_consumers[1].m_port_idx, 1);
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_name) {
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_3.onnx")};
+    const std::string output_name{"2891"};
+
+    std::vector<InputEdge> output_consumers = editor.find_output_consumers(output_name);
+    EXPECT_EQ(output_consumers[0].m_node_idx, 3);
+    EXPECT_EQ(output_consumers[0].m_port_idx, 0);
+    EXPECT_EQ(output_consumers[0].m_new_input_name, output_name);
+    EXPECT_EQ(output_consumers[1].m_node_idx, 4);
+    EXPECT_EQ(output_consumers[1].m_port_idx, 0);
+    EXPECT_EQ(output_consumers[1].m_new_input_name, output_name);
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
     ONNXModelEditor editor{
         ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
