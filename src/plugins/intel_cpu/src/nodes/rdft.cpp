@@ -1415,27 +1415,25 @@ struct RDFTJitExecutor : public RDFTExecutor {
                     block_size = new_block_size;
                     num_blocks = nthr;
                 }
-                jit_dft_args args {
-                    .input = input_ptr,
-                    .twiddles = twiddles_ptr,
-                    .output = output_ptr,
-                    .input_size = input_size,
-                    .signal_size = signal_size,
-                    .output_start = i * block_size,
-                    .output_end = std::min(output_size - i * block_size, block_size),
-                };
+                jit_dft_args args{};
+                args.input = input_ptr,
+                args.twiddles = twiddles_ptr,
+                args.output = output_ptr,
+                args.input_size = input_size,
+                args.signal_size = signal_size,
+                args.output_start = i * block_size,
+                args.output_end = std::min(output_size - i * block_size, block_size),
                 (*kernel)(&args);
             });
         } else {
-             jit_dft_args args {
-                .input = input_ptr,
-                .twiddles = twiddles_ptr,
-                .output = output_ptr,
-                .input_size = input_size,
-                .signal_size = signal_size,
-                .output_start = 0,
-                .output_end = output_size,
-            };
+            jit_dft_args args{};
+            args.input = input_ptr,
+            args.twiddles = twiddles_ptr,
+            args.output = output_ptr,
+            args.input_size = input_size,
+            args.signal_size = signal_size,
+            args.output_start = 0,
+            args.output_end = output_size,
             (*kernel)(&args);
         }
     }
@@ -1467,16 +1465,15 @@ struct RDFTJitExecutor : public RDFTExecutor {
             size_t block = offset / block_size;
             size_t input_offset = block * block_size * 2 + offset % block_size;
             size_t output_offset = offset;
-            struct jit_fft_args params{
-                .input = input_ptr + input_offset,
-                .twiddles = twiddles_ptr,
-                .output = output_ptr + output_offset,
-                .signal_size = signal_size,
-                .block = block,
-                .block_size = block_size,
-                .subblock_start = i * work_divide_factor / 2,
-                .subblock_end = (i + 1) * work_divide_factor / 2,
-            };
+            struct jit_fft_args params{};
+            params.input = input_ptr + input_offset,
+            params.twiddles = twiddles_ptr,
+            params.output = output_ptr + output_offset,
+            params.signal_size = signal_size,
+            params.block = block,
+            params.block_size = block_size,
+            params.subblock_start = i * work_divide_factor / 2,
+            params.subblock_end = (i + 1) * work_divide_factor / 2,
             (*fft_kernel)(&params);
         };
 
@@ -1498,16 +1495,15 @@ struct RDFTJitExecutor : public RDFTExecutor {
             size_t offset = i * work_divide_factor;
             size_t input_offset = offset;
             size_t output_offset = offset;
-            struct jit_fft_args params{
-                .input = input_ptr + input_offset * 2,
-                .twiddles = twiddles_ptr + i * (simd_size / block_size) * 2 * 2,
-                .output = output_ptr + output_offset,
-                .indices = indices_ptr,
-                .signal_size = signal_size,
-                .block_size = block_size,
-                .subblock_start = i * work_divide_factor / 2,
-                .subblock_end = (i + 1) * work_divide_factor / 2,
-            };
+            struct jit_fft_args params{};
+            params.input = input_ptr + input_offset * 2,
+            params.twiddles = twiddles_ptr + i * (simd_size / block_size) * 2 * 2,
+            params.output = output_ptr + output_offset,
+            params.indices = indices_ptr,
+            params.signal_size = signal_size,
+            params.block_size = block_size,
+            params.subblock_start = i * work_divide_factor / 2,
+            params.subblock_end = (i + 1) * work_divide_factor / 2,
             (*fft_kernel)(&params);
         };
 
