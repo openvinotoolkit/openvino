@@ -1,16 +1,14 @@
 # Examples of OpenVINO:tm: Python API code
-<!-- Do we keep it as is? -->
 
 #### Prerequisites
-<!-- Do we keep it here? -->
 *To be added...*
 
 ##### Enviroment
-<!-- Link to enviroment setup -->
+<!-- TODO: Link to enviroment setup -->
 *To be added...*
 
 ##### Building
-<!-- Link to building instructions -->
+<!-- TODO: Link to building instructions -->
 *To be added...*
 
 ### Different ways of extending OpenVINO:tm: Python API
@@ -94,7 +92,7 @@ from openvino.helpers.custom_module import top1_index
 ```
 **Do not forget to include a license on the top of each file!** For demonstration purposes, it has been skipped in the snippets above.
 
-To see changes taking effect, rebuild the project (CMake's install step should be good enough <!-- Add link to BUILDING.md section -->) and run your solution:
+To see changes taking effect, rebuild the project (CMake's install step should be good enough <!-- TODO: Add link to BUILDING.md section -->) and run your solution:
 ```python
 import openvino.helpers as ov_helpers
 
@@ -103,7 +101,7 @@ ov_helpers.top1_index([0.7, 2.99, 3.0, -1.0])
 ```
 
 Following this method, developers can add new modules and adjust existing ones, including structure, naming, and imported functions.
-<!-- !!!!!!!!Mention about adding it to setup.py as well!!!!!!!! -->
+<!-- TODO: Mention about adding it to setup.py as well -->
 
 <!-- Pure pybind11 solution describes C++ based approach -->
 

@@ -1,16 +1,14 @@
 # How to test OpenVINO:tm: Python API?
-<!-- Do we keep it as is? -->
 
 #### Prerequisites
-<!-- Do we keep it here? -->
 *To be added...*
 
 ##### Enviroment
-<!-- Link to enviroment setup -->
+<!-- TODO: Link to enviroment setup -->
 *To be added...*
 
 ##### Building
-<!-- Link to building instructions -->
+<!-- TODO: Link to building instructions -->
 *To be added...*
 
 ### Running OpenVINO:tm: Python API tests
@@ -38,7 +36,7 @@ To print test names and increase verbosity, use `-v` flag.
 ```shell
 pytest tests/test_inference_engine/test_core.py -v
 ```
-*Tip: look at pytest's documentation for more useful tricks: <!-- Link to it -->*
+*Tip: look at pytest's documentation for more useful tricks: https://docs.pytest.org/en/latest/*
 
 To run full test suite one can utilize `tox` command:
 ```shell

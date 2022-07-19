@@ -1,20 +1,17 @@
 # Contributing to OpenVINO:tm: Python API
-<!-- Do we keep it as is? -->
 
 #### Prerequisites
-<!-- Do we keep it here? -->
 *To be added...*
 
 ##### Enviroment
-<!-- Link to enviroment setup -->
+<!-- TODO: Link to enviroment setup -->
 *To be added...*
 
 ##### Building
-<!-- Link to building instructions -->
+<!-- TODO: Link to building instructions -->
 *To be added...*
 
 ## Contribution guidelines and best practices
-<!-- Do we keep it as is? -->
 
 #### How to contribute to Python API?
 It is nothing special... :) First, make sure that all prerequisites are met and focus on writing the code itself. A good starting point is to have some knowledge of the Python language. C++ is also a vital language for OpenVINO:tm:, so it is not a surprise that it is used in this part of the project as well.
