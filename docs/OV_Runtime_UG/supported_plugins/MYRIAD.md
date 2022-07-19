@@ -6,7 +6,7 @@ The OpenVINO Runtime MYRIAD plugin has been developed for inference of neural ne
 
 ## Configuring the MYRIAD Plugin
 
-To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the proper section in the :ref:`NCS2 Setup Guide <ncs guide>`.
+To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the proper section in the [NCS2 Setup Guide](configurations-for-ncs2.md).
 
  > **NOTE**: The HDDL and MYRIAD plugins may cause conflicts when used at the same time.
 > To ensure proper operation in such a case, the number of booted devices needs to be limited in the 'hddl_autoboot.config' file.
