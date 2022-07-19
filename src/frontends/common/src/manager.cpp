@@ -242,15 +242,3 @@ template <>
 FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
 }
-namespace ov {
-namespace frontend {
-
-FrontEndManager::Ptr get_frontend_manager() {
-    static std::shared_ptr<FrontEndManager> manager = nullptr;
-    if (!manager)
-        manager = std::make_shared<FrontEndManager>();
-    return manager;
-}
-
-}  // namespace frontend
-}  // namespace ov
