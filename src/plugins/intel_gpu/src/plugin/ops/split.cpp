@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
@@ -74,5 +73,4 @@ REGISTER_FACTORY_IMPL(v1, Split);
 REGISTER_FACTORY_IMPL(v1, VariadicSplit);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

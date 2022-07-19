@@ -1019,7 +1019,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
             return true;
         }
 
-        // check if all inputs have the same quant value
+        // verify if all "Input"-type inputs have the same quant value
         auto inputLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto info = LayerInfo(inputLayer);
             return info.isInput();
@@ -1172,7 +1172,8 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
                 auto prevLayer = CNNNetPrevLayerSkipCertain(restartedLayer, 0, skipNonFunctional);
                 auto prevLayer2 = prevLayer != nullptr ? CNNNetPrevLayerSkipCertain(prevLayer, 0, skipNonFunctional) : nullptr;
 
-                if (fakeQuantize && prevLayer != nullptr && LayerInfo(prevLayer).isWeightableIdentity() &&
+                if (fakeQuantize && prevLayer != nullptr &&
+                    (LayerInfo(prevLayer).isConcatAlignFilter() || LayerInfo(prevLayer).isSyntheticScaleShift()) &&
                     (prevLayer2 == nullptr || LayerInfo(prevLayer2).has8BOr16BOutput())) {
                     auto weightsScales = generateScaleFactors(MIN_SEARCH_WEIGHTS_VAL, MAX_SEARCH_WEIGHTS_VAL,
                         MAX_SEARCH_WEIGHTS_VAL - MIN_SEARCH_WEIGHTS_VAL);

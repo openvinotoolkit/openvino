@@ -17,6 +17,7 @@
 #include "matchers/pool_matcher.hpp"
 #include "matchers/fill_with_data.hpp"
 #include "matchers/weights_matcher.hpp"
+#include "gna2_model_helper.hpp"
 #include <gmock/gmock.h>
 #include <debug.h>
 
