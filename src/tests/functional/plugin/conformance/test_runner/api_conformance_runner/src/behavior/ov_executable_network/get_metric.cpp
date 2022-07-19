@@ -18,7 +18,7 @@ using namespace InferenceEngine::PluginConfigParams;
 
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_compiled_model, OVClassImportExportTestP,
+        ov_compiled_model, OVClassExecutableNetworkImportExportTestP,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //

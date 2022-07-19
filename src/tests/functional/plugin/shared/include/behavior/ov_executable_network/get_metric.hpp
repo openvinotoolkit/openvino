@@ -32,7 +32,7 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 };
 
-using OVClassImportExportTestP = OVCompiledModelClassBaseTestP;
+using OVClassExecutableNetworkImportExportTestP = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_NETWORK_NAME = OVCompiledModelClassBaseTestP;
@@ -94,7 +94,7 @@ using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeter
 // ImportExportNetwork
 //
 
-TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
+TEST_P(OVClassExecutableNetworkImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ov::Core ie = createCoreWithTemplate();
     std::stringstream strm;
     ov::CompiledModel executableNetwork;
