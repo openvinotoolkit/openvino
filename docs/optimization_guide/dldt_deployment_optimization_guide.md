@@ -11,7 +11,6 @@
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced
    openvino_docs_deployment_optimization_guide_internals
-   openvino_docs_deployment_optimization_guide_denormals
 
 @endsphinxdirective
 
