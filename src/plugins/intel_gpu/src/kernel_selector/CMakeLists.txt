@@ -94,7 +94,7 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/core/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/core/cache/cache.json
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
+        DESTINATION ${OV_CPACK_PLUGINSDIR}
         COMPONENT gpu)
 
 ov_install_static_lib(${TARGET_NAME} gpu)

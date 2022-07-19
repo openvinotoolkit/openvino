@@ -191,22 +191,22 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
         USE_SOURCE_PERMISSIONS)

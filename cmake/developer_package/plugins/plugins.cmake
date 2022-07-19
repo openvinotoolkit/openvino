@@ -79,7 +79,7 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "OpenVINO Runtime ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
@@ -139,7 +139,7 @@ function(ie_add_plugin)
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})

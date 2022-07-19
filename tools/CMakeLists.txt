@@ -17,11 +17,11 @@ endif()
 
 # install deployment_manager
 
-ie_cpack_add_component(deployment_manager REQUIRED)
+ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} REQUIRED)
 
 install(DIRECTORY deployment_manager
-        DESTINATION tools
-        COMPONENT deployment_manager
+        DESTINATION ${OV_CPACK_TOOLSDIR}
+        COMPONENT ${OV_CPACK_COMP_DEPLOYMENT_MANAGER}
         USE_SOURCE_PERMISSIONS)
 
 # outbound requirements.txt files for openvino-dev package
@@ -33,7 +33,7 @@ endif()
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
-ie_cpack_add_component(openvino_dev_req_files)
+ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES})
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
     if(EXTRAS STREQUAL "_")
@@ -46,12 +46,16 @@ foreach(EXTRAS IN LISTS EXTRAS_LIST)
     configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
-            DESTINATION tools
-            COMPONENT openvino_dev_req_files
+            DESTINATION ${OV_CPACK_DEVREQDIR}
+            COMPONENT ${OV_CPACK_COMP_DEV_REQ_FILES}
             EXCLUDE_FROM_ALL)
 endforeach()
 
+# MO
+
 add_subdirectory(mo)
+
+# POT
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt.in"
                "${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt" @ONLY)

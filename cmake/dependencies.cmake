@@ -4,7 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-# TODO: fix it
+# TODO: fix it, outside of source dir MO cannot find TBB dependency
 set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
@@ -86,7 +86,7 @@ if(THREADING STREQUAL "OMP")
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
-            DESTINATION "runtime/3rdparty/omp/lib"
+            DESTINATION ${OV_CPACK_RUNTIMEDIR}
             COMPONENT omp)
 endif()
 

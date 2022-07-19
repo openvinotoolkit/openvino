@@ -8,8 +8,8 @@ add_subdirectory(c)
 # used by tests_deprecated
 if(TARGET format_reader)
     install(TARGETS format_reader
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
@@ -20,19 +20,19 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reade
 
 # install C++ samples
 
-ie_cpack_add_component(cpp_samples DEPENDS core_dev)
+ie_cpack_add_component(${OV_CPACK_COMP_CPP_SAMPLES} DEPENDS ${OV_CPACK_COMP_CORE_DEV})
 
 if(UNIX)
     install(DIRECTORY cpp/
-            DESTINATION samples/cpp
-            COMPONENT cpp_samples
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY cpp/
-            DESTINATION samples/cpp
-            COMPONENT cpp_samples
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
@@ -40,33 +40,33 @@ endif()
 
 # install C samples
 
-ie_cpack_add_component(c_samples DEPENDS core_c)
+ie_cpack_add_component(${OV_CPACK_COMP_C_SAMPLES} DEPENDS ${OV_CPACK_COMP_CORE_C})
 
 if(UNIX)
     install(PROGRAMS cpp/build_samples.sh
-            DESTINATION samples/c
-            COMPONENT c_samples)
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/c
+            COMPONENT ${OV_CPACK_COMP_C_SAMPLES})
 elseif(WIN32)
     install(PROGRAMS cpp/build_samples_msvc.bat
-            DESTINATION samples/c
-            COMPONENT c_samples)
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/c
+            COMPONENT ${OV_CPACK_COMP_C_SAMPLES})
 endif()
 
 install(DIRECTORY c
-        DESTINATION samples
-        COMPONENT c_samples
+        DESTINATION ${OV_CPACK_SAMPLESDIR}
+        COMPONENT ${OV_CPACK_COMP_C_SAMPLES}
         PATTERN c/CMakeLists.txt EXCLUDE
         PATTERN c/.clang-format EXCLUDE)
 
 install(FILES cpp/CMakeLists.txt
-        DESTINATION samples/c
-        COMPONENT c_samples)
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/c
+        COMPONENT ${OV_CPACK_COMP_C_SAMPLES})
 
 # install Python samples
 
-ie_cpack_add_component(python_samples)
+ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES})
 
 install(DIRECTORY python/
-        DESTINATION samples/python
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/python
         USE_SOURCE_PERMISSIONS
-        COMPONENT python_samples)
+        COMPONENT ${OV_CPACK_COMP_PYTHON_SAMPLES})

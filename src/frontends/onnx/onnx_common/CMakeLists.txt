@@ -36,4 +36,4 @@ endif()
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
