@@ -8,16 +8,11 @@
 #include <node.h>
 #include <string>
 #include <map>
+#include "kernels/rdft_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-enum dft_type {
-    real_to_complex,
-    complex_to_complex,
-    complex_to_real,
-};
 
 struct RDFTExecutor {
     public:
