@@ -264,6 +264,10 @@ public:
      */
     virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
 
+    /**
+     * @brief Provides an information about used API
+     * @return true if new API is used
+     */
     bool IsNewAPI() const noexcept;
 
     /**
