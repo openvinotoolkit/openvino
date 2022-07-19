@@ -93,6 +93,9 @@ brew install libusb
 ```
 
 You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
+
+## What’s Next?
+
 Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
 
 Developing in Python:
