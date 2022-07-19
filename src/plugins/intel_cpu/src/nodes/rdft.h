@@ -16,57 +16,57 @@ namespace node {
 
 struct RDFTExecutor {
     public:
-        RDFTExecutor(bool inverse) : is_inverse(inverse) {}
+        RDFTExecutor(bool inverse) : isInverse(inverse) {}
         void execute(float* src, float* dst, size_t rank,
                      const std::vector<int>& axes,
-                     std::vector<int> signal_sizes,
-                     VectorDims input_shape, const VectorDims& output_shape,
-                     const VectorDims& input_strides, const VectorDims& output_strides);
+                     std::vector<int> signalSizes,
+                     VectorDims inputShape, const VectorDims& outputShape,
+                     const VectorDims& inputStrides, const VectorDims& outputStrides);
 
     protected:
         std::vector<std::vector<float>> twiddles;
-        bool is_inverse;
+        bool isInverse;
 
     private:
-        virtual bool can_use_fft(size_t dim) = 0;
-        virtual void dft(float* input_ptr, float* twiddles_ptr, float* output_ptr,
-                         size_t input_size, size_t num_samples, size_t output_size,
+        virtual bool canUseFft(size_t dim) = 0;
+        virtual void dft(float* inputPtr, float* twiddlesPtr, float* outputPtr,
+                         size_t inputSize, size_t signalSize, size_t outputSize,
                          enum dft_type type, bool parallelize) = 0;
-        virtual void fft(float* input, float* twiddles_ptr, float* output,
-                         size_t input_size, size_t num_samples, size_t output_size,
+        virtual void fft(float* input, float* twiddlesPtr, float* output,
+                         size_t inputSize, size_t signalSize, size_t outputSize,
                          enum dft_type type, bool parallelize) = 0;
-        void dft_common(float* input_ptr, float* twiddles_ptr, float* output_ptr,
-                        size_t input_size, size_t num_samples, size_t output_size,
-                        enum dft_type type, bool use_fft, bool parallelize);
-        void dft_on_axis(enum dft_type type,
-                         float* input_ptr, float* output_ptr,
-                         float* twiddles_ptr, int axis,
-                         size_t num_samples,
-                         const VectorDims& input_shape,
-                         const VectorDims& input_strides,
-                         const VectorDims& output_shape,
-                         const VectorDims& output_strides,
+        void dftCommon(float* inputPtr, float* twiddlesPtr, float* outputPtr,
+                        size_t inputSize, size_t signalSize, size_t outputSize,
+                        enum dft_type type, bool useFft, bool parallelize);
+        void dftOnAxis(enum dft_type type,
+                         float* inputPtr, float* outputPtr,
+                         float* twiddlesPtr, int axis,
+                         size_t signalSize,
+                         const VectorDims& inputShape,
+                         const VectorDims& inputStrides,
+                         const VectorDims& outputShape,
+                         const VectorDims& outputStrides,
                          const std::vector<size_t>& iteration_range);
-        void rdft_nd(float* input_ptr, float* output_ptr,
+        void rdftNd(float* inputPtr, float* outputPtr,
                      const std::vector<int>& axes,
-                     const std::vector<int>& signal_sizes,
-                     const VectorDims& input_shape,
-                     const VectorDims& input_strides,
-                     const VectorDims& output_shape,
-                     const VectorDims& output_strides);
-        void irdft_nd(float* input_ptr, float* output_ptr,
+                     const std::vector<int>& signalSizes,
+                     const VectorDims& inputShape,
+                     const VectorDims& inputStrides,
+                     const VectorDims& outputShape,
+                     const VectorDims& outputStrides);
+        void irdftNd(float* inputPtr, float* outputPtr,
                       const std::vector<int>& axes,
-                      const std::vector<int>& signal_sizes,
-                      const VectorDims& input_shape,
-                      const VectorDims& input_strides,
-                      const VectorDims& output_shape,
-                      const VectorDims& output_strides);
-        virtual std::vector<float> generate_twiddles_dft(size_t input_size, size_t output_size, enum dft_type type) = 0;
-        std::vector<float> generate_twiddles_fft(size_t N);
-        std::vector<float> generate_twiddles_common(size_t input_size, size_t output_size,
-                                                    enum dft_type type, bool use_fft);
-        void generate_twiddles(const std::vector<int>& signal_sizes,
-                               const std::vector<size_t>& output_shape,
+                      const std::vector<int>& signalSizes,
+                      const VectorDims& inputShape,
+                      const VectorDims& inputStrides,
+                      const VectorDims& outputShape,
+                      const VectorDims& outputStrides);
+        virtual std::vector<float> generateTwiddlesDft(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
+        std::vector<float> generateTwiddlesFft(size_t N);
+        std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize,
+                                                  enum dft_type type, bool useFft);
+        void generateTwiddles(const std::vector<int>& signalSizes,
+                               const std::vector<size_t>& outputShape,
                                const std::vector<int>& axes);
 };
 
@@ -85,7 +85,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::string error_msg_prefix;
+    std::string errorMsgPrefix;
 
     bool inverse;
 
