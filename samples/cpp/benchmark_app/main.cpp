@@ -102,7 +102,10 @@ static void next_step(const std::string additional_info = "") {
     step_id++;
 
     OPENVINO_ASSERT(step_names.count(step_id) != 0,
-        "Step ID ", step_id, " is out of total steps number ", step_names.size());
+                    "Step ID ",
+                    step_id,
+                    " is out of total steps number ",
+                    step_names.size());
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -729,9 +732,10 @@ int main(int argc, char* argv[]) {
                 try {
                     nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
-                    OPENVINO_ASSERT(false, "Every device used with the benchmark_app should "
-                                           "support ", ov::optimal_number_of_infer_requests.name(),
-                                           " Failed to query the metric for the ", device_name, " with error:", ex.what());
+                    throw ov::Exception("Every device used with the benchmark_app should support " +
+                                        std::string(ov::optimal_number_of_infer_requests.name()) +
+                                        " Failed to query the metric for the " + device_name +
+                                        " with error:" + ex.what());
                 }
             }
         }

@@ -162,8 +162,12 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         OPENVINO_ASSERT(binaryFile.good(), "Can not read ", files[inputIndex]);
         auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
         OPENVINO_ASSERT(fileSize == inputSize,
-            "File ", files[inputIndex], " contains ", fileSize,
-            " bytes, but the network expects ", inputSize);
+                        "File ",
+                        files[inputIndex],
+                        " contains ",
+                        fileSize,
+                        " bytes, but the network expects ",
+                        inputSize);
 
         if (inputInfo.layout != "CN") {
             binaryFile.read(&data[b * inputSize], inputSize);
