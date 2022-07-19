@@ -33,7 +33,7 @@ size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
     // Set config for primary device
     ov::AnyMap property;
-    for (const auto it : config) {
+    for (const auto& it : config) {
         // Skip proxy properties
         if (ov::device::id.name() == it.first)
             continue;
@@ -166,7 +166,7 @@ std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin:
 
     std::vector<std::pair<std::string, std::vector<std::string>>> end_result(result.size());
     size_t i(0);  // Should we use full name?
-    for (const auto it : result) {
+    for (const auto& it : result) {
         end_result[i] = {it.first, it.second};
         i++;
     }
