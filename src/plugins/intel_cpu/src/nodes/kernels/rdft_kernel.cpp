@@ -20,7 +20,6 @@ void jit_dft_kernel_f32<isa>::generate() {
 
     this->preamble();
 
-    const int type_size = sizeof(float);
     int input_type_size = 0;
     int output_type_size = 0;
 
@@ -138,8 +137,8 @@ void jit_dft_kernel_f32<isa>::generate() {
                 uni_vbroadcastsd(input, ptr[input_ptr]);
                 uni_vpermilps(input_perm, input, 0b10110001); // swap real with imag
                 uni_vpxor(input_perm, input_perm, vmm_neg_mask); // negate imag part (or real part if is_inverse == true)
-                load_and_broadcast_every_other_elem(cos, twiddles_ptr, tmp, type_size);
-                load_and_broadcast_every_other_elem(sin, twiddles_ptr + vlen / 2, tmp, type_size);
+                load_and_broadcast_every_other_elem(cos, twiddles_ptr, tmp);
+                load_and_broadcast_every_other_elem(sin, twiddles_ptr + vlen / 2, tmp);
                 uni_vfmadd231ps(result, input, cos);
                 uni_vfmadd231ps(result, input_perm, sin);
 
@@ -192,8 +191,8 @@ void jit_dft_kernel_f32<isa>::generate() {
                     uni_vbroadcastsd(input, ptr[input_ptr]);
                     uni_vpermilps(input_perm, input, 0b10110001); // swap real with imag
                     uni_vpxor(input_perm, input_perm, vmm_neg_mask); // negate imag part
-                    load_and_broadcast_every_other_elem(cos, twiddles_ptr, tmp, type_size);
-                    load_and_broadcast_every_other_elem(sin, twiddles_ptr + vlen / 2, tmp, type_size);
+                    load_and_broadcast_every_other_elem(cos, twiddles_ptr, tmp);
+                    load_and_broadcast_every_other_elem(sin, twiddles_ptr + vlen / 2, tmp);
                     uni_vfmadd231ps(result, input, cos);
                     uni_vfmadd231ps(result, input_perm, sin);
                     add(twiddles_ptr, vlen);
@@ -215,7 +214,7 @@ void jit_dft_kernel_f32<isa>::generate() {
         sub(output_end, simd_size);
     };
 
-    auto nonsimd_loop = [this, type_size,
+    auto nonsimd_loop = [this,
                          input_type_size,
                          output_type_size,
                          &xmm_signal_size,
@@ -417,26 +416,26 @@ void jit_dft_kernel_f32<isa>::uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Op
 }
 
 template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
+void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp) {
     for (int i = 0; i < 4; i++) {
-        movups(tmp, ptr[reg_exp + type_size * i * 2]);
+        movq(tmp, ptr[reg_exp + type_size * i * 2]);
         shufps(tmp, tmp, 0b01010000);
         vinsertf32x4(x, x, tmp, i);
     }
 }
 
 template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
+void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp) {
     for (int i = 0; i < 2; i++) {
-        movups(tmp, ptr[reg_exp + type_size * i * 2]);
+        movq(tmp, ptr[reg_exp + type_size * i * 2]);
         shufps(tmp, tmp, 0b01010000);
         vinsertf128(x, x, tmp, i);
     }
 }
 
 template <cpu_isa_t isa>
-void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size) {
-    movups(x, ptr[reg_exp]);
+void jit_dft_kernel_f32<isa>::load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp) {
+    movq(x, ptr[reg_exp]);
     shufps(x, x, 0b01010000);
 }
 
@@ -470,7 +469,6 @@ void jit_fft_kernel_f32<isa>::generate() {
     Vmm sin = Vmm(reg_idx++);
     Vmm neg_mask = Vmm(reg_idx++);
     Xmm xmm_neg_mask = Xmm(neg_mask.getIdx());
-    Xmm tmp = Xmm(reg_idx++);
     Vmm even_indices = Vmm(reg_idx++);
     Vmm odd_indices = Vmm(reg_idx++);
     Vmm twiddles_indices = Vmm(reg_idx++);
@@ -561,7 +559,7 @@ void jit_fft_kernel_f32<isa>::generate() {
 
     jmp(exit, T_NEAR);
 
-    auto gather = [this, &gather_mask] (const Vmm& dst, const Xbyak::Reg64& base, const Vmm& indices, int offset = 0) {
+    auto gather = [this, type_size, &gather_mask] (const Vmm& dst, const Xbyak::Reg64& base, const Vmm& indices, int offset = 0) {
         if (isa == cpu_isa_t::avx2) {
             vpcmpeqd(gather_mask, gather_mask, gather_mask);
             vgatherdps(dst, ptr[base + indices * type_size + offset], gather_mask);

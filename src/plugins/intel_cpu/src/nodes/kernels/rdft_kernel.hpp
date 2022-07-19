@@ -76,9 +76,11 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void uni_vpermilps(const Xbyak::Xmm& x, const Xbyak::Operand& op, int8_t control);
         void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control);
 
-        void load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size);
-        void load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size);
-        void load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp, int type_size);
+        void load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
+        void load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
+        void load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
+
+        int type_size = sizeof(float);
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;

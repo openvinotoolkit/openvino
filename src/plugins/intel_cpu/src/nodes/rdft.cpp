@@ -1016,7 +1016,8 @@ struct RDFTKey {
 };
 
 void RDFT::prepareParams() {
-    RDFTKey key = { .isInverse = inverse };
+    RDFTKey key{};
+    key.isInverse = inverse;
 
     auto buildExecutor = [&] (const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
