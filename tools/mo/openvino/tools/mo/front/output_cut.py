@@ -27,7 +27,7 @@ class OutputCut(FrontReplacementPattern):
         for node in graph.get_op_nodes(needs_removal=True):
             fw_info = None
             in_node = None
-            out_nodes_ids = None
+            out_nodes_ids = {}
             for in_port_idx in node.in_edges():
                 node_idx = node.in_edge(in_port_idx)['in']
                 if node_idx in node.in_nodes():
