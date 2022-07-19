@@ -24,3 +24,8 @@ from openvino.pyopenvino.preprocess import PreProcessSteps
 from openvino.pyopenvino.preprocess import PostProcessSteps
 from openvino.pyopenvino.preprocess import ColorFormat
 from openvino.pyopenvino.preprocess import ResizeAlgorithm
+
+# version
+from openvino.pyopenvino import get_version
+
+__version__ = get_version() 

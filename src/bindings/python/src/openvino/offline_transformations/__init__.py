@@ -17,3 +17,8 @@ from openvino.pyopenvino.offline_transformations import generate_mapping_file
 from openvino.pyopenvino.offline_transformations import apply_make_stateful_transformation
 from openvino.pyopenvino.offline_transformations import compress_model_transformation
 from openvino.pyopenvino.offline_transformations import compress_quantize_weights_transformation
+
+# version
+from openvino.pyopenvino import get_version
+
+__version__ = get_version() 

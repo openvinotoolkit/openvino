@@ -5,6 +5,10 @@
 import os
 import sys
 
+# version
+from openvino.pyopenvino import get_version
+
+__version__ = get_version() 
 
 def add_openvino_libs_to_path() -> None:
     """Adds OpenVINO libraries to the PATH environment variable on Windows."""
