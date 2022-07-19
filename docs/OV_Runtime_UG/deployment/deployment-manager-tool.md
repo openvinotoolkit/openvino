@@ -1,20 +1,20 @@
 # Deployment Manager {#openvino_docs_install_guides_deployment_manager_tool}
 
-The Deployment Manager is a Python* command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux*, Windows* and macOS* release packages and is available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
+The Deployment Manager is a Python command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux*, Windows* and macOS* release packages and is available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
 
 ## Prerequisites
 
 * Intel® Distribution of OpenVINO™ toolkit
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
-   * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux.md):
+   * **For Linux**, see the following sections in the [installation instructions for Linux](../../install_guides/installing-openvino-linux-header.md):
      * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md) section
      * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
      * Steps for [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md)
      * Steps for [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
-   * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows.md):
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../../install_guides/installing-openvino-windows-header.md):
      * Steps for [Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md)
      * Steps for the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md)
-   * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos.md):
+   * **For macOS**, see the following section in the [installation instructions for macOS](../../install_guides/installing-openvino-macos-header.md):
      * Steps for [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
 
 > **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.
