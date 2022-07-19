@@ -551,6 +551,7 @@ def test_ngraph_preprocess_dump():
     assert "Implicit pre-processing steps (1):" in p_str
     assert "convert layout " + ov.Layout("NCHW").to_string() in p_str
 
+
 @pytest.mark.parametrize(
     ("layout", "layout_str"),
     [("NHCW", "[N,H,C,W]"), ("NHWC", "[N,H,W,C]")])
