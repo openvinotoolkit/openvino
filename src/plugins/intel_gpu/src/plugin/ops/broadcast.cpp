@@ -13,7 +13,6 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::AxisSet axis_mapping) {
@@ -122,5 +121,4 @@ REGISTER_FACTORY_IMPL(v1, Broadcast);
 REGISTER_FACTORY_IMPL(v3, Broadcast);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -2,11 +2,11 @@
 
 Input data for inference can be different from the training dataset and requires additional preprocessing before inference.
 To accelerate the whole pipeline including preprocessing and inference, Model Optimizer provides special parameters such as `--mean_values`,
-`--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates IR with additionally
+
+`--scale_values`, `--reverse_input_channels`, and `--layout`. Based on these parameters, Model Optimizer generates OpenVINO IR with additionally
 inserted sub-graphs to perform the defined preprocessing. This preprocessing block can perform mean-scale normalization of input data,
 reverting data along channel dimension, and changing the data layout. 
 See the following sections for details on the parameters, or the [Overview of Preprocessing API](../../OV_Runtime_UG/preprocessing_overview.md) for the same functionality in OpenVINO Runtime.
-for more information.
 
 ## Specifying Layout
 
@@ -58,10 +58,12 @@ for example, `[0, 1]` or `[-1, 1]`. Sometimes, the mean values (mean images) are
 
 There are two cases of how the input data preprocessing is implemented.
  * The input preprocessing operations are a part of a model. 
-    In this case, the application does not perform a separate preprocessing step: everything is embedded into the model itself. Model Optimizer will generate the IR with required preprocessing operations, and no `mean` and `scale` parameters are required.
+
+  In this case, the application does not perform a separate preprocessing step: everything is embedded into the model itself. Model Optimizer will generate the OpenVINO IR format with required preprocessing operations, and no `mean` and `scale` parameters are required.
  * The input preprocessing operations are not a part of a model and the preprocessing is performed within the application which feeds the model with input data.
 
-   In this case, information about mean/scale values should be provided to the Model Optimizer to embed it to the generated IR.
+  In this case, information about mean/scale values should be provided to Model Optimizer to embed it to the generated OpenVINO IR format.
+
 Model Optimizer provides command-line parameters to specify the values: `--mean_values`, `--scale_values`, `--scale`.
 Using these parameters, Model Optimizer embeds the corresponding preprocessing block for mean-value normalization of the input data
 and optimizes this block so that the preprocessing takes negligible time for inference.
@@ -75,7 +77,8 @@ mo --input_model unet.pdmodel --mean_values [123,117,104] --scale 255
 ## Reversing Input Channels <a name="when_to_reverse_input_channels"></a>
 Sometimes, input images for your application can be of the RGB (or BGR) format and the model is trained on images of the BGR (or RGB) format,
 which is in the opposite order of color channels. In this case, it is important to preprocess the input images by reverting the color channels before inference.
-To embed this preprocessing step into IR, Model Optimizer provides the `--reverse_input_channels` command-line parameter to shuffle the color channels.
+
+To embed this preprocessing step into OpenVINO IR, Model Optimizer provides the `--reverse_input_channels` command-line parameter to shuffle the color channels.
 
 The `--reverse_input_channels` parameter can be used to preprocess the model input in the following cases:
  * Only one dimension in the input shape has a size equal to 3.
@@ -84,7 +87,7 @@ The `--reverse_input_channels` parameter can be used to preprocess the model inp
 Using the `--reverse_input_channels` parameter, Model Optimizer embeds the corresponding preprocessing block for reverting
 the input data along channel dimension and optimizes this block so that the preprocessing takes only negligible time for inference.
 
-For example, the following command launches the Model Optimizer for the TensorFlow AlexNet model and embeds the `reverse_input_channel` preprocessing block into IR:
+For example, the following command launches Model Optimizer for the TensorFlow AlexNet model and embeds the `reverse_input_channel` preprocessing block into OpenVINO IR:
 
 ```sh
 mo --input_model alexnet.pb --reverse_input_channels
