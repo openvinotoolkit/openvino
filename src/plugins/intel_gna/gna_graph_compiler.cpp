@@ -1817,7 +1817,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     const uint32_t orginalInputSize =
         InferenceEngine::details::product(std::next(inputs->getDims().begin()), inputs->getDims().end());
     const uint32_t orginalOutputSize =
-        InferenceEngine::details::product(++begin(outputs->getDims()), end(outputs->getDims()));
+       InferenceEngine::details::product(std::next(outputs->getDims().begin()), outputs->getDims().end());
     if (orginalInputSize != orginalOutputSize) {
         THROW_GNA_LAYER_EXCEPTION(filterLayer) << "Number in inputs (" << orginalInputSize <<
             ") should be equal to number of outputs (" << orginalOutputSize << ")!";
