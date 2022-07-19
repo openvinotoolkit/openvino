@@ -30,7 +30,8 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
         activation_func::floor,
         activation_func::clamp };
 
-    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::i32) {
+    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
+        input_node_layout.data_type == data_types::i32) {
         if (std::find(activations_int8.begin(), activations_int8.end(), func) == activations_int8.end())
             CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type.");
     }

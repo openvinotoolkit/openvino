@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
@@ -57,5 +56,4 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronROIFeatureExtractor);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
