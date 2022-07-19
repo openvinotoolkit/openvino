@@ -73,8 +73,8 @@ def test_core_class():
 def test_compile_model(device):
     core = Core()
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(model, device)
-    assert isinstance(exec_net, CompiledModel)
+    compiled_model = core.compile_model(model, device)
+    assert isinstance(compiled_model, CompiledModel)
 
 
 def test_compile_model_without_device():
@@ -86,43 +86,43 @@ def test_compile_model_without_device():
 
 def test_read_model_from_ir():
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(func, Model)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(model, Model)
 
-    func = core.read_model(model=test_net_xml)
-    assert isinstance(func, Model)
+    model = core.read_model(model=test_net_xml)
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_tensor():
     core = Core()
     model = open(test_net_xml).read()
     tensor = tensor_from_file(test_net_bin)
-    func = core.read_model(model=model, weights=tensor)
-    assert isinstance(func, Model)
+    model = core.read_model(model=model, weights=tensor)
+    assert isinstance(model, Model)
 
 
 def test_read_model_as_path():
     core = Core()
-    func = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
-    assert isinstance(func, Model)
+    model = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
+    assert isinstance(model, Model)
 
-    func = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
-    assert isinstance(func, Model)
+    model = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
+    assert isinstance(model, Model)
 
-    func = core.read_model(model=Path(test_net_xml))
-    assert isinstance(func, Model)
+    model = core.read_model(model=Path(test_net_xml))
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_onnx():
     core = Core()
-    func = core.read_model(model=test_net_onnx)
-    assert isinstance(func, Model)
+    model = core.read_model(model=test_net_onnx)
+    assert isinstance(model, Model)
 
 
 def test_read_model_from_onnx_as_path():
     core = Core()
-    func = core.read_model(model=Path(test_net_onnx))
-    assert isinstance(func, Model)
+    model = core.read_model(model=Path(test_net_onnx))
+    assert isinstance(model, Model)
 
 
 def test_read_net_from_buffer():
@@ -131,8 +131,8 @@ def test_read_net_from_buffer():
         weights = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=weights)
-    assert isinstance(func, Model)
+    model = core.read_model(model=xml, weights=weights)
+    assert isinstance(model, Model)
 
 
 def test_net_from_buffer_valid():
@@ -141,11 +141,11 @@ def test_net_from_buffer_valid():
         weights = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=weights)
-    ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert func.get_parameters() == ref_func.get_parameters()
-    assert func.get_results() == ref_func.get_results()
-    assert func.get_ordered_ops() == ref_func.get_ordered_ops()
+    model = core.read_model(model=xml, weights=weights)
+    ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert model.get_parameters() == ref_model.get_parameters()
+    assert model.get_results() == ref_model.get_results()
+    assert model.get_ordered_ops() == ref_model.get_ordered_ops()
 
 
 def test_get_version(device):
@@ -238,14 +238,14 @@ def test_get_property_str():
 
 def test_query_model(device):
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    query_res = core.query_model(model=func, device_name=device)
-    ops_func = func.get_ordered_ops()
-    ops_func_names = [op.friendly_name for op in ops_func]
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    query_model = core.query_model(model=model, device_name=device)
+    ops_model = model.get_ordered_ops()
+    ops_func_names = [op.friendly_name for op in ops_model]
     assert [
-        key for key in query_res.keys() if key not in ops_func_names
+        key for key in query_model.keys() if key not in ops_func_names
     ] == [], "Not all network layers present in query_model results"
-    assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
+    assert next(iter(set(query_model.values()))) == device, "Wrong device for some layers"
 
 
 @pytest.mark.dynamic_library()
@@ -253,8 +253,8 @@ def test_query_model(device):
 def test_register_plugin():
     core = Core()
     core.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, "BLA")
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, "BLA")
     assert isinstance(exec_net, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
@@ -269,8 +269,8 @@ def test_register_plugins():
     elif platform == "win32":
         core.register_plugins(plugins_win_xml)
 
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = core.compile_model(func, "CUSTOM")
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = core.compile_model(model, "CUSTOM")
     assert isinstance(exec_net, CompiledModel), (
         "Cannot load the network to "
         "the registered plugin with name 'CUSTOM' "
@@ -282,9 +282,9 @@ def test_register_plugins():
 def test_unregister_plugin(device):
     core = Core()
     core.unload_plugin(device)
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
-        core.load_network(func, device)
+        core.load_network(model, device)
     assert (
         f"Device with '{device}' name is not registered in the InferenceEngine"
         in str(e.value)
@@ -387,10 +387,10 @@ def test_read_model_from_buffer_no_weights(device):
 
 def test_infer_new_request_return_type(device):
     core = Core()
-    func = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = core.read_model(model=test_net_xml, weights=test_net_bin)
     img = generate_image()
-    exec_net = core.compile_model(func, device)
-    res = exec_net.infer_new_request({"data": img})
+    compiled_model = core.compile_model(model, device)
+    res = compiled_model.infer_new_request({"data": img})
     arr = res[list(res)[0]][0]
 
     assert isinstance(arr, np.ndarray)
