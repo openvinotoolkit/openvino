@@ -58,6 +58,12 @@ ov_install_static_lib(ov_core_dev core)
 
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+if(ENABLE_SYSTEM_PUGIXML)
+    # system pugixml has /usr/include as include directories
+    # we cannot use them as system ones, leads to compilation errors
+    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+endif()
+
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 ie_faster_build(ngraph_obj
