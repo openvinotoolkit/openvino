@@ -30,7 +30,5 @@ endif()
 
 # install
 
-if(InferenceEngineDeveloperPackage_FOUND)
-    ie_cpack(template)
-endif()
+ie_cpack(template)
 # [cmake:main]

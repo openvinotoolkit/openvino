@@ -27,6 +27,7 @@
 using Loop = ngraph::op::v5::Loop;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
@@ -226,4 +227,5 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 REGISTER_FACTORY_IMPL(v5, Loop);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

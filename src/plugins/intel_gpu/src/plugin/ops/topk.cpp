@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static cldnn::arg_max_min::axis_name GetAxis(int32_t axis, size_t in_rank) {
@@ -132,4 +133,5 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
 REGISTER_FACTORY_IMPL(v1, TopK);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

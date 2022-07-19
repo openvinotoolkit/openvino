@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/gather_nd.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
@@ -64,4 +65,5 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
 REGISTER_FACTORY_IMPL(v8, GatherND);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

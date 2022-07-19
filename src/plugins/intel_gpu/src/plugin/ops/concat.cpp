@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/concatenation.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& op) {
@@ -33,4 +34,5 @@ static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Con
 REGISTER_FACTORY_IMPL(v0, Concat);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

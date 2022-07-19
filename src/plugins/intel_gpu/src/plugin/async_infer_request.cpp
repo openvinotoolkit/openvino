@@ -7,6 +7,7 @@
 #include <memory>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
@@ -57,4 +58,5 @@ AsyncInferRequest::~AsyncInferRequest() {
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

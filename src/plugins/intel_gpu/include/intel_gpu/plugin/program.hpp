@@ -10,7 +10,6 @@
 #include <string>
 #include <cstdint>
 #include <mutex>
-#include <set>
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
@@ -42,6 +41,7 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
 }
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 std::string layer_type_lower(const ngraph::Node* op);
@@ -150,12 +150,6 @@ public:
 
     std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
 
-    using variables_state_info_map = std::map<std::string, std::set<cldnn::layout>>;
-
-    void AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout);
-
-    const variables_state_info_map& GetVariablesStatesInfo() const { return m_variablesStateInfo; }
-
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
@@ -165,7 +159,6 @@ private:
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
-    variables_state_info_map m_variablesStateInfo;
 
     bool queryMode;
 
@@ -193,4 +186,5 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, 
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

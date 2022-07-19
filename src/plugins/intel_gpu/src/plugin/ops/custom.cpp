@@ -13,6 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 template<typename T>
@@ -257,4 +258,5 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

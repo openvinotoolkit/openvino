@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/shape_of.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateShapeOfOpCommon(Program& p, const std::shared_ptr<ngraph::Node>& op) {
@@ -39,4 +40,5 @@ REGISTER_FACTORY_IMPL(v0, ShapeOf);
 REGISTER_FACTORY_IMPL(v3, ShapeOf);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

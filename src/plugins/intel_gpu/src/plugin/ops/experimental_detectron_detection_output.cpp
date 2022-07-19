@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronDetectionOutputOp(
@@ -96,4 +97,5 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronDetectionOutput);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

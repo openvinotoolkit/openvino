@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/quantize.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
@@ -42,4 +43,5 @@ static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v0, FakeQuantize);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

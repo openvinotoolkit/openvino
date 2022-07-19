@@ -22,10 +22,11 @@ ov_frontend_get_file_name(openvino_tensorflow_frontend output_name)
 
 # install with original name for tests component
 install(FILES $<TARGET_FILE:openvino_tensorflow_frontend>
-        DESTINATION ${OV_CPACK_RUNTIMEDIR}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT tests
         RENAME ${output_name}
         EXCLUDE_FROM_ALL)
+
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)

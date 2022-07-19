@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/roi_pooling.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
@@ -128,4 +129,5 @@ REGISTER_FACTORY_IMPL(v0, PSROIPooling);
 REGISTER_FACTORY_IMPL(v0, ROIPooling);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReverseSequence>& op) {
@@ -33,4 +34,5 @@ static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op
 REGISTER_FACTORY_IMPL(v0, ReverseSequence);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

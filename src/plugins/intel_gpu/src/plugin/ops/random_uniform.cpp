@@ -9,6 +9,7 @@
 
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -33,5 +34,6 @@ void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::Ran
 
 REGISTER_FACTORY_IMPL(v8, RandomUniform);
 
-}  // namespace intel_gpu
-}  // namespace ov
+} // namespace intel_gpu
+} // namespace runtime
+} // namespace ov

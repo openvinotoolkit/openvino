@@ -12,8 +12,9 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{2, 50, 50},
-    InputShapeParams {9, 10, 10}  // GPU implementation is tested on this shape only
+    InputShapeParams{3, 100, 5},
+    InputShapeParams{1, 10, 50},
+    InputShapeParams{2, 50, 50}
 };
 
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
@@ -24,11 +25,8 @@ const std::vector<op::v5::NonMaxSuppression::BoxEncodingType> encodType = {op::v
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 
-const std::vector<Precision> inputPrecisions = {Precision::FP32, Precision::FP16};
-
-
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::ValuesIn(inputPrecisions),
+                                          ::testing::Combine(::testing::Values(Precision::FP32),
                                                              ::testing::Values(Precision::I32),
                                                              ::testing::Values(Precision::FP32)),
                                           ::testing::ValuesIn(maxOutBoxPerClass),
@@ -41,4 +39,4 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Nms9LayerTest, Nms9LayerTest, nmsParams, Nms9LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerTest, NmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);

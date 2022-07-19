@@ -60,9 +60,10 @@ struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_
         free(results);
         return NULL;
     }
-
     float* float_data = (float*)(data);
-    for (size_t i = 0; i < *result_size; ++i) {
+
+    size_t i;
+    for (i = 0; i < *result_size; ++i) {
         results[i].class_id = i;
         results[i].probability = float_data[i];
     }
@@ -81,7 +82,8 @@ void print_infer_result(struct infer_result* results, size_t result_size, const 
     printf("\nImage %s\n", img_path);
     printf("\nclassid probability\n");
     printf("------- -----------\n");
-    for (size_t i = 0; i < result_size; ++i) {
+    size_t i;
+    for (i = 0; i < result_size; ++i) {
         printf("%zu       %f\n", results[i].class_id, results[i].probability);
     }
 }
@@ -102,29 +104,10 @@ void print_model_input_output_info(ov_model_t* model) {
  */
 
 bool is_supported_image_size(const char* size_str, size_t* width, size_t* height) {
-    const char* _size = size_str;
+    char* p_end = NULL;
     size_t _width = 0, _height = 0;
-    while (_size && *_size != 'x' && *_size != '\0') {
-        if ((*_size <= '9') && (*_size >= '0')) {
-            _width = (_width * 10) + (*_size - '0');
-            _size++;
-        } else {
-            goto err;
-        }
-    }
-
-    if (_size)
-        _size++;
-
-    while (_size && *_size != '\0') {
-        if ((*_size <= '9') && (*_size >= '0')) {
-            _height = (_height * 10) + (*_size - '0');
-            _size++;
-        } else {
-            goto err;
-        }
-    }
-
+    _width = strtoul(size_str, &p_end, 10);
+    _height = strtoul(p_end + 1, NULL, 10);
     if (_width > 0 && _height > 0) {
         if (_width % 2 == 0 && _height % 2 == 0) {
             *width = _width;
@@ -135,13 +118,11 @@ bool is_supported_image_size(const char* size_str, size_t* width, size_t* height
             return false;
         }
     } else {
-        goto err;
+        printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
+               "actual: %s\n",
+               size_str);
+        return false;
     }
-err:
-    printf("Incorrect format of image size parameter, expected WIDTHxHEIGHT, "
-           "actual: %s\n",
-           size_str);
-    return false;
 }
 
 size_t read_image_from_file(const char* img_path, unsigned char* img_data, size_t size) {
@@ -170,7 +151,7 @@ int main(int argc, char** argv) {
     // -------- Check input parameters --------
     if (argc != 5) {
         printf("Usage : ./hello_classification_ov_c <path_to_model> <path_to_image> "
-               "<WIDTHxHEIGHT> <device_name>\n");
+               "<device_name>\n");
         return EXIT_FAILURE;
     }
 
@@ -189,17 +170,19 @@ int main(int argc, char** argv) {
     ov_preprocess_input_tensor_info_t* input_tensor_info = NULL;
     ov_preprocess_input_process_steps_t* input_process = NULL;
     ov_preprocess_input_model_info_t* p_input_model = NULL;
+    ov_preprocess_output_info_t* output_info = NULL;
+    ov_preprocess_output_tensor_info_t* output_tensor_info = NULL;
     ov_compiled_model_t* compiled_model = NULL;
     ov_infer_request_t* infer_request = NULL;
     ov_tensor_t* output_tensor = NULL;
     struct infer_result* results = NULL;
-    char* input_tensor_name = NULL;
-    char* output_tensor_name = NULL;
-    ov_output_node_list_t input_nodes = {.num = 0, .output_nodes = NULL};
-    ov_output_node_list_t output_nodes = {.num = 0, .output_nodes = NULL};
+    char* input_tensor_name;
+    char* output_tensor_name;
+    ov_output_node_list_t input_nodes;
+    ov_output_node_list_t output_nodes;
 
     // -------- Get OpenVINO runtime version --------
-    ov_version_t version = {.description = NULL, .buildNumber = NULL};
+    ov_version_t version;
     CHECK_STATUS(ov_get_version(&version));
     printf("---- OpenVINO INFO----\n");
     printf("description : %s \n", version.description);
@@ -268,19 +251,16 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_build(preprocess, &new_model));
 
     // -------- Step 4. Loading a model to the device --------
-    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, NULL));
+    ov_property_t property;
+    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, &compiled_model, &property));
 
     // -------- Step 5. Create an infer request --------
     CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
 
     // -------- Step 6. Prepare input data  --------
     img_size = input_width * (input_height * 3 / 2);
-    if (!img_size) {
-        fprintf(stderr, "[ERROR] Invalid Image size, line %d\n", __LINE__);
-        goto err;
-    }
     img_data = (unsigned char*)calloc(img_size, sizeof(unsigned char));
-    if (!img_data) {
+    if (NULL == img_data) {
         fprintf(stderr, "[ERROR] calloc returned NULL, line %d\n", __LINE__);
         goto err;
     }
@@ -290,7 +270,7 @@ int main(int argc, char** argv) {
     }
     ov_element_type_e input_type = U8;
     size_t batch = 1;
-    ov_shape_t input_shape = {.rank = 4, .dims = {batch, input_height * 3 / 2, input_width, 1}};
+    ov_shape_t input_shape = {4, {batch, input_height * 3 / 2, input_width, 1}};
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img_data, &tensor));
 
     // -------- Step 6. Set input tensor  --------
@@ -304,7 +284,7 @@ int main(int argc, char** argv) {
     // -------- Step 8. Process output --------
     CHECK_STATUS(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
     // Print classification results
-    size_t results_num = 0;
+    size_t results_num;
     results = tensor_to_infer_result(output_tensor, &results_num);
     if (!results) {
         goto err;
@@ -321,8 +301,6 @@ int main(int argc, char** argv) {
 err:
     free(results);
     free(img_data);
-    ov_free(input_tensor_name);
-    ov_free(output_tensor_name);
     ov_output_node_list_free(&output_nodes);
     ov_output_node_list_free(&input_nodes);
     if (output_tensor)
@@ -331,6 +309,10 @@ err:
         ov_infer_request_free(infer_request);
     if (compiled_model)
         ov_compiled_model_free(compiled_model);
+    if (output_tensor_info)
+        ov_preprocess_output_tensor_info_free(output_tensor_info);
+    if (output_info)
+        ov_preprocess_output_info_free(output_info);
     if (p_input_model)
         ov_preprocess_input_model_info_free(p_input_model);
     if (input_process)

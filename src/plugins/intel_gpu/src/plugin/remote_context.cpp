@@ -13,6 +13,7 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 RemoteAllocator RemoteBlobImpl::m_allocator;
 
@@ -379,4 +380,5 @@ std::string ExecutionContextImpl::getDeviceName() const noexcept {
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

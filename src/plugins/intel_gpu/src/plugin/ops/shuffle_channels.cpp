@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShuffleChannels>& op) {
@@ -47,4 +48,5 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
 REGISTER_FACTORY_IMPL(v0, ShuffleChannels);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

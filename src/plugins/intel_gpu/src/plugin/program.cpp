@@ -14,6 +14,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
@@ -487,14 +488,6 @@ void Program::InitProfileInfo(const std::string& layerName,
     perfEntry.parentPrimitive = parentId;
 }
 
-void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = m_variablesStateInfo.find(variable_id);
-    if (it != m_variablesStateInfo.end())
-        it->second.insert(layout);
-    else
-        m_variablesStateInfo.insert({variable_id, { layout }});
-}
-
 // TODO: Does it make sense to add such method to ngraph core?
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     std::set<std::shared_ptr<ngraph::Node>> nodes_processed = {};
@@ -518,4 +511,5 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

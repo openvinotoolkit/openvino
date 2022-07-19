@@ -28,7 +28,6 @@ public:
 protected:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override;
     void SetUp() override;
-    void Infer() override;
 private:
     void CreateTIFunc();
     void CreateCommonFunc();

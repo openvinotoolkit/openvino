@@ -8,6 +8,7 @@
 #include <memory>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -41,4 +42,5 @@ void CreateROIAlignOp(Program& p, const std::shared_ptr<ngraph::op::v3::ROIAlign
 REGISTER_FACTORY_IMPL(v3, ROIAlign);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

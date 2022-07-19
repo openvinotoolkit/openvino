@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/detection_output.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str) {
@@ -86,4 +87,5 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

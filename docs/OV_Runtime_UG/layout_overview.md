@@ -1,23 +1,24 @@
-# Layout API Overview {#openvino_docs_OV_UG_Layout_Overview}
+# Layout API overview {#openvino_docs_OV_UG_Layout_Overview}
+
+## Introduction
+
+In few words, with layout `NCHW` it is easier to understand what model's shape `{8, 3, 224, 224}` means. Without layout it is just a 4-dimensional tensor.
 
 
+Concept of layout helps you (and your application) to understand what does each particular dimension of input/output tensor mean. For example, if your input has shape `{1, 3, 720, 1280}` and layout "NCHW" - it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720` and `W(width) = 1280`. Without layout information `{1, 3, 720, 1280}` doesn't give any idea to your application what these number mean and how to resize input image to fit model's expectations.
 
 
-The concept of layout helps you (and your application) to understand what each particular dimension of input/output tensor means. For example, if your input has the `{1, 3, 720, 1280}` shape and the `NCHW` layout, it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720`, and `W(width) = 1280`. Without the layout information, the `{1, 3, 720, 1280}` tuple does not give any idea to your application on what these numbers mean and how to resize the input image to fit the expectations of the model.
+Reasons when you may want to care about input/output layout:
+ - Perform model modification:
+    - Apply [preprocessing](./preprocessing_overview.md) steps, like subtract means, divide by scales, resize image, convert RGB<->BGR
+    - Set/get batch for a model
+ - Same operations, used during model conversion phase, see [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)
+ - Improve readability of a model's input and output
 
-With the `NCHW` layout, it is easier to understand what the `{8, 3, 224, 224}` model shape means. Without the layout, it is just a 4-dimensional tensor.
+## Layout syntax
 
-Below is a list of cases where input/output layout is important:
- - Performing model modification:
-    - Applying the [preprocessing](./preprocessing_overview.md) steps, such as subtracting means, dividing by scales, resizing an image, and converting `RGB`<->`BGR`.
-    - Setting/getting a batch for a model.
- - Doing the same operations as used during the model conversion phase. For more information, refer to the [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
- - Improving the readability of a model input and output.
-
-## Syntax of Layout
-
-### Short Syntax
-The easiest way is to fully specify each dimension with one alphabet letter.
+### Short
+The easiest way is to fully specify each dimension with one alphabetical letter
 
 @sphinxtabset
 
@@ -35,10 +36,10 @@ The easiest way is to fully specify each dimension with one alphabet letter.
 
 @endsphinxtabset
 
-This assigns `N` to the first dimension, `C` to the second, `H` to the third, and `W` to the fourth.
+This assigns 'N' to first dimension, 'C' to second, 'H' to 3rd and 'W' to 4th
 
-### Advanced Syntax
-The advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
+### Advanced
+Advanced syntax allows assigning a word to a dimension. To do this, wrap layout with square brackets `[]` and specify each name separated by comma `,`
 
 @sphinxtabset
 
@@ -57,8 +58,8 @@ The advanced syntax allows assigning a word to a dimension. To do this, wrap a l
 @endsphinxtabset
 
 
-### Partially Defined Layout
-If a certain dimension is not important, its name can be set to `?`.
+### Partially defined layout
+If some dimension is not important, it's name can be set to `?`
 
 @sphinxtabset
 
@@ -77,8 +78,8 @@ If a certain dimension is not important, its name can be set to `?`.
 @endsphinxtabset
 
 
-### Dynamic Layout
-If several dimensions are not important, an ellipsis `...` can be used to specify those dimensions.
+### Dynamic layout
+If number of dimensions is not important, ellipsis `...` can be used to specify variadic number of dimensions.
 
 @sphinxtabset
 
@@ -96,16 +97,16 @@ If several dimensions are not important, an ellipsis `...` can be used to specif
 
 @endsphinxtabset
 
-### Predefined Names
+### Predefined names
 
-A layout has some pre-defined dimension names, widely used in computer vision:
-- `N`/`Batch` - batch size
-- `C`/`Channels` - channels
-- `D`/`Depth` - depth
-- `H`/`Height` - height
-- `W`/`Width` - width
+Layout has pre-defined some widely used in computer vision dimension names:
+- N/Batch - batch size
+- C/Channels - channels dimension
+- D/Depth - depth
+- H/Height - height
+- W/Width - width
 
-These names are used in [PreProcessing API](./preprocessing_overview.md). There is a set of helper functions to get appropriate dimension index from a layout.
+These names are used in [PreProcessing API](./preprocessing_overview.md) and there is a set of helper functions to get appropriate dimension index from layout
 
 @sphinxtabset
 
@@ -125,11 +126,11 @@ These names are used in [PreProcessing API](./preprocessing_overview.md). There 
 
 ### Equality
 
-Layout names are case-insensitive, which means that `Layout("NCHW")` = `Layout("nChW") = `Layout("[N,c,H,w]")`.
+Layout names are case-insensitive, which means that ```Layout("NCHW") == Layout("nChW") == Layout("[N,c,H,w]")```
 
-### Dump Layout
+### Dump layout
 
-A layout can be converted to a string in the advanced syntax format. It can be useful for debugging and serialization purposes.
+Layout can be converted to string in advanced syntax format. Can be useful for debugging and serialization purposes
 
 @sphinxtabset
 
@@ -149,4 +150,4 @@ A layout can be converted to a string in the advanced syntax format. It can be u
 
 ## See also
 
-* API Reference: <code>ov::Layout</code> C++ class 
+* <code>ov::Layout</code> C++ class documentation

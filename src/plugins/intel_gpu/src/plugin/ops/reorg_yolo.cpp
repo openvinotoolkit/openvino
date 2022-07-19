@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/reorg_yolo.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYolo>& op) {
@@ -31,4 +32,5 @@ static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 REGISTER_FACTORY_IMPL(v0, ReorgYolo);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

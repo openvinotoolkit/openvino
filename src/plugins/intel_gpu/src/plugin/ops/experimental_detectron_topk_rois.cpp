@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/arg_max_min.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -44,5 +45,6 @@ void CreateExperimentalDetectronTopKROIsOp(Program &p,
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronTopKROIs);
 
-}  // namespace intel_gpu
-}  // namespace ov
+} // namespace intel_gpu
+} // namespace runtime
+} // namespace ov

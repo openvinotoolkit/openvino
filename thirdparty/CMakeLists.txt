@@ -74,11 +74,6 @@ target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
 add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
-
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
-    target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
-endif()
-
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
@@ -191,22 +186,22 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            DESTINATION "samples/cpp/thirdparty"
+            COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        DESTINATION "samples/cpp/thirdparty"
+        COMPONENT cpp_samples
         USE_SOURCE_PERMISSIONS)

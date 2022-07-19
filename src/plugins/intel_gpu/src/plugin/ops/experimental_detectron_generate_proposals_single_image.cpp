@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
@@ -61,4 +62,5 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

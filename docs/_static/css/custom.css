@@ -10,12 +10,6 @@ main img {
     margin-bottom: 0;
 }
 
-/* code reference text formatting override */
-code {
-    color: black !important;
-    font-weight: bold;
-}
-
 /* Performance Benchmark Graphs */
 
 .chart {

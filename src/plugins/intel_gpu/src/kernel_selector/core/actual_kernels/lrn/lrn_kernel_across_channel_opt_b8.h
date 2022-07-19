@@ -22,7 +22,7 @@ private:
     DispatchData SetDefault(const lrn_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
+                 FusedOpType::SCALE,
                  FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params, const optional_params& options) const override;

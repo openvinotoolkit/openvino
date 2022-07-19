@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/tensor.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
@@ -84,4 +85,5 @@ protected:
 };
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

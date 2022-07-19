@@ -17,6 +17,7 @@
 using namespace InferenceEngine;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
@@ -337,4 +338,5 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 REGISTER_FACTORY_IMPL(v0, Parameter);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

@@ -30,6 +30,7 @@
 #include <atomic>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 class RemoteAllocator;
 
@@ -263,9 +264,6 @@ public:
             InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
             _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
             _usm_host_blob->allocate();
-            if (!getBlobImpl(_usm_host_blob.get())->is_allocated()) {
-                return nullptr;
-            }
             return _usm_host_blob->get();
         } catch (...) {
             return nullptr;
@@ -585,4 +583,5 @@ inline ExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

@@ -22,7 +22,7 @@ protected:
     DispatchData SetDefault(const lrn_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
+                 FusedOpType::SCALE,
                  FusedOpType::ACTIVATION };
     }
     JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
