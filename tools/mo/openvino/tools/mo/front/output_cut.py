@@ -36,10 +36,10 @@ class OutputCut(FrontReplacementPattern):
                     if fw_info_value:
                         fw_info = fw_info_value
                         break
-
-            for out_idx in in_node.out_nodes():
-                out_node = in_node.out_node(out_idx)
-                out_nodes_ids[out_idx] = out_node.id
+            if fw_info is not None and in_node is not None:            
+                for out_idx in in_node.out_nodes():
+                    out_node = in_node.out_node(out_idx)
+                    out_nodes_ids[out_idx] = out_node.id
             
             graph.erase_node(node)
 
