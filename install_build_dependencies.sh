@@ -40,45 +40,49 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            libboost-regex-dev \
             $x86_64_specific_packages \
             libgtk2.0-dev \
-            pkg-config \
-            libgflags-dev \
-            zlib1g-dev \
             unzip \
-            automake \
-            libtool \
-            autoconf \
             shellcheck \
             patchelf \
-            libenchant1c2a \
+            `# openvino` \
+            libtbb-dev \
+            libpugixml-dev \
+            `# python` \
             python3-pip \
             python3-enchant \
             python3-setuptools \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
+            `# samples` \
+            pkg-config \
+            libgflags-dev \
+            zlib1g-dev \
+            `# hddl` \
+            libudev1 \
+            libusb-1.0-0 \
+            `# myriad` \
             libusb-1.0-0-dev \
-            libtbb-dev \
-            libtinfo5 \
-            libopenblas-dev
-    if apt-cache search --names-only '^libjson-c2'| grep -q libjson-c2; then
-        sudo -E apt-get install -y libjson-c2
-    else
-        sudo -E apt-get install -y libjson-c3
+            `# cl_compiler` \
+            libtinfo5
+    # hddl
+    if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
+        # ubuntu 18.04
+        sudo -E apt-get install -y \
+            libjson-c3 \
+            libboost-filesystem1.65.1 \
+            libboost-program-options1.65.1 \
+            libboost-system1.65.1
+    elif apt-cache search --names-only '^libjson-c4'| grep -q libjson-c4; then
+        # ubuntu 20.04
+        sudo -E apt-get install -y \
+            libjson-c4 \
+            libboost-filesystem1.71.0 \
+            libboost-program-options1.71.0
     fi
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
+    # for python3-enchant
+    if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
+        sudo -E apt-get install -y libenchant1c2a
     fi
+    # samples
     if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
         sudo -E apt-get install -y nlohmann-json3-dev
     else
@@ -154,42 +158,21 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            curl \
             wget \
             libssl-dev \
             ca-certificates \
             git \
-            libboost-regex-dev \
-            libgtk2.0-dev \
             pkg-config \
             libgflags-dev \
             zlib1g-dev \
             nlohmann-json-dev \
             unzip \
-            automake \
-            libtool \
-            autoconf \
-            libcairo2-dev \
-            libpango1.0-dev \
-            libglib2.0-dev \
-            libgtk2.0-dev \
-            libswscale-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libgstreamer1.0-0 \
-            gstreamer1.0-plugins-base \
-            libusb-1.0-0-dev \
-            libopenblas-dev
-    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
-        sudo -E apt-get install -y libpng12-dev
-    else
-        sudo -E apt-get install -y libpng-dev
-    fi
+            libusb-1.0-0-dev
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
 
-# cmake 3.13 or higher is required to build OpenVINO
+# cmake 3.17 or higher is required to build OpenVINO
 current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.17
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
