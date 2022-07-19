@@ -165,6 +165,7 @@ The full information about system requirements depends on platform and is availa
 - [Linux](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html)
 - [Windows](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_windows_header.html)
 - [macOS](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_macos_header.html)
+- [Raspbian](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_raspbian.html)
 
 ## How to build
 
