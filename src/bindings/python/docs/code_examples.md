@@ -337,8 +337,14 @@ Notice how an alias is created for the `MyTensor` class. Do not worry, it will m
 ```python
 # Inherit from pybind implementation everything is preserved
 class MyTensor(MyTensorBase):
+    """MyTensor created as part of tutorial, it overrides pure-pybind class."""
     # Function name must be aligned with pybind one!
     def say_hello(self, arg=None):
+        """Say hello to the world!
+
+        :param arg: Argument of the function.
+        :type arg: Union[str, int], optional
+        """
         # If None invoke pybind implementation
         if arg is None:
             super().say_hello()
