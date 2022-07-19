@@ -770,7 +770,8 @@ public:
 
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0 ||
-                                 pluginRegistry.at(parsed._deviceName).pluginCreateFunc == ov::proxy::create_plugin;
+                                 (pluginRegistry.find(parsed._deviceName) != pluginRegistry.end() &&
+                                  pluginRegistry.at(parsed._deviceName).pluginCreateFunc == ov::proxy::create_plugin);
         if (forceDisableCache) {
             // remove this config key from parsed as plugins can throw unsupported exception
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
@@ -1079,6 +1080,21 @@ public:
         if (deviceName == ov::DEFAULT_DEVICE_NAME)
             deviceName = "AUTO";
         stripDeviceName(deviceName, "-");
+        std::map<std::string, PluginDescriptor>::const_iterator it;
+        {
+            // Global lock to find plugin.
+            // Always use global mutex if iterate over plugins or pluginRegistry
+            std::lock_guard<std::mutex> g_lock(get_mutex());
+
+            // Plugin is not created, check that plugin is registered
+            it = pluginRegistry.find(deviceName);
+            if (it == pluginRegistry.end()) {
+                if (pluginName == ov::DEFAULT_DEVICE_NAME)
+                    IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
+                else
+                    IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            }
+        }
         std::lock_guard<std::mutex> lock(get_mutex(deviceName));
 
         PluginDescriptor desc;
@@ -1089,15 +1105,6 @@ public:
             auto it_plugin = plugins.find(deviceName);
             if (it_plugin != plugins.end())
                 return it_plugin->second;
-
-            // Plugin is not created, check that plugin is registered
-            auto it = pluginRegistry.find(deviceName);
-            if (it == pluginRegistry.end()) {
-                if (pluginName == ov::DEFAULT_DEVICE_NAME)
-                    IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
-                else
-                    IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
-            }
 
             desc = it->second;
         }
