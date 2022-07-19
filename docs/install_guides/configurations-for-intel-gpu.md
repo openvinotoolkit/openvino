@@ -38,7 +38,11 @@ If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow th
 
 3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
-You've completed all required configuration steps to perform inference on processor graphics. Now you are ready to try out the toolkit:
+You are done updating your device driver and are ready to use your GPU.
+
+## What’s Next?
+
+You can try out the toolkit with:
 
 Developing in Python:
    * [Start with TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
@@ -79,7 +83,7 @@ You are done updating your device driver and are ready to use your GPU.
 
 ## What’s Next?
 
-You can tryout the toolkit with:
+You can try out the toolkit with:
 
 Developing in Python:
    * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)

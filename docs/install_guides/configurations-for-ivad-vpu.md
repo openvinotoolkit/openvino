@@ -65,6 +65,8 @@ You are done installing your device driver and are ready to use your Intel® Vis
 
 For advanced configuration steps for your IEI Mustang-V100-MX8 accelerator, see [Configurations for IEI Mustang-V100-MX8-R10 card](configurations-for-iei-card.md).
 
+## What’s Next?
+
 After configuration is done, you are ready to try out the toolkit.
 
 Developing in Python:
