@@ -11,6 +11,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "pyopenvino/graph/model.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -23,8 +24,8 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "load",
         [](FrontEnd& self, const py::object& path) {
-            const std::string path_str = path.str();
-            return self.load(path_str);
+            std::string model_path = Common::utils::convert_path_to_string(path);
+            return self.load(model_path);
         },
         py::arg("path"),
         R"(

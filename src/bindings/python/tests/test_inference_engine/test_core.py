@@ -47,10 +47,28 @@ def test_compact_api_xml():
     assert np.argmax(results[list(results)[0]]) == 9
 
 
+def test_compact_api_xml_posix_path():
+    img = generate_image()
+
+    model = compile_model(Path(test_net_xml))
+    assert isinstance(model, CompiledModel)
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results[list(results)[0]]) == 9
+
+
 def test_compact_api_onnx():
     img = generate_image()
 
     model = compile_model(test_net_onnx)
+    assert isinstance(model, CompiledModel)
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results[list(results)[0]]) == 9
+
+
+def test_compact_api_onnx_posix_path():
+    img = generate_image()
+
+    model = compile_model(Path(test_net_onnx))
     assert isinstance(model, CompiledModel)
     results = model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 9
