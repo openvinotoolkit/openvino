@@ -34,11 +34,15 @@ const std::vector<ov::AnyMap> auto_multi_properties = {
 
 const std::vector<ov::AnyMap> multi_properties = {
         {ov::device::priorities("CPU", "GPU")},
+        {ov::device::priorities("CPU(1)", "GPU")},
+        {ov::device::priorities("CPU(1)", "GPU(2)")}
 };
 
 const std::vector<ov::AnyMap> auto_properties = {
         {ov::device::priorities("CPU", "GPU")},
         {ov::device::priorities("-CPU", "GPU")},
+        {ov::device::priorities("CPU(1)", "GPU")},
+        {ov::device::priorities("CPU(1)", "GPU(2)")},
         {ov::device::priorities("CPU", "-GPU")}
 };
 

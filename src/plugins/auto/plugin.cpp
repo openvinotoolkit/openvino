@@ -811,6 +811,10 @@ std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(std
             return false;
         }
         realDevName = DeviceIDParser(realDevName).getDeviceName();
+        std::string::size_type realEndPos = 0;
+        if ((realEndPos = realDevName.find('(')) != std::string::npos) {
+            realDevName = realDevName.substr(0, realEndPos);
+        }
         if (_availableDevices.end() ==
             std::find_if(_availableDevices.begin(), _availableDevices.end(), [&realDevName] (const std::string& device) {
                 return device.find(realDevName) != std::string::npos;
