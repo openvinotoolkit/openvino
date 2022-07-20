@@ -79,6 +79,7 @@
 #include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
+#include "op/layer_normalization.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/log.hpp"
@@ -356,6 +357,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_normalization);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("Log", 1, log);
