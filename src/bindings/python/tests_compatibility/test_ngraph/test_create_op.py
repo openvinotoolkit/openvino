@@ -2251,8 +2251,8 @@ def test_interpolate_opset4(dtype):
     axes = [2, 3]
     mode = "cubic"
 
-    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], 'scales'),
-                                                   ([1, 3, 256, 256], 'sizes')]:
+    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], "scales"),
+                                                   ([1, 3, 256, 256], "sizes")]:
 
         node = ng_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
                                       axes=axes,

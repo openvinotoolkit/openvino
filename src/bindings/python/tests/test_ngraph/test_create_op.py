@@ -2182,12 +2182,12 @@ def test_interpolate_opset4(dtype):
     image_shape = [1, 3, 1024, 1024]
     image_node = ov.parameter(image_shape, dtype, name="Image")
     output_shape = [256, 256]
-    scales = np.array([1/16, 1/16], dtype=np.float32)
+    scales = np.array([1 / 16, 1 / 16], dtype=np.float32)
     axes = [2, 3]
     mode = "cubic"
 
-    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], 'scales'),
-                                                   ([1, 3, 256, 256], 'sizes')]:
+    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], "scales"),
+                                                   ([1, 3, 256, 256], "sizes")]:
 
         node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
                                       axes=axes, mode=mode,
