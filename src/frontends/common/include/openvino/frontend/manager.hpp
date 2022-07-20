@@ -70,6 +70,8 @@ public:
     void register_front_end(const std::string& name, FrontEndFactory creator);
 
 private:
+    /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
+    static std::map<std::string, std::shared_ptr<void>> m_shared_objects_map;
     class Impl;
 
     FrontEnd::Ptr load_by_model_impl(const std::vector<ov::Any>& variants);
