@@ -31,13 +31,19 @@ protected:
 
         auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
+        cldnn::data_types weights_data_type;
+        if (instance.get_network().is_internal()) {
+           weights_data_type = instance.node.weights().get_output_layout().data_type;
+        } else {
+           weights_data_type = instance.weights_memory(0)->get_layout().data_type;
+        }
 
         // Integer signed/unsigned is ok for convoluiton
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    weights_data_type,
                                                     "");
 
         return res;
