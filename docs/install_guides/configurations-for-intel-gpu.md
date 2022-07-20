@@ -67,7 +67,7 @@ To check if you have this driver installed:
 
 ## What’s Next?
 
-You are done updating your device driver and are ready to use your GPU. You can try out the toolkit with:
+You can try out the toolkit with:
 
 Developing in Python:
    * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
