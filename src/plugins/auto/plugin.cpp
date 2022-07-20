@@ -77,18 +77,8 @@ namespace {
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
-std::vector<std::string> MultiDeviceInferencePlugin::_availableDevices{"CPU",
-                                                                       "GPU",
-                                                                       "GNA",
-                                                                       "TEMPLATE",
-                                                                       "MYRIAD",
-                                                                       "HDDL",
-                                                                       "VPUX",
-                                                                       "MULTI",
-                                                                       "HETERO",
-                                                                       "AUTO",
-                                                                       "CUDA",
-                                                                       "HPU_GOYA"};
+std::set<std::string> MultiDeviceInferencePlugin::_availableDevices =
+    {"CPU", "GPU", "GNA", "TEMPLATE", "MYRIAD", "HDDL", "VPUX", "MULTI", "HETERO", "AUTO", "CUDA", "HPU_GOYA"};
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
@@ -815,10 +805,7 @@ std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(con
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);
         }
-        if (_availableDevices.end() ==
-            std::find_if(_availableDevices.begin(), _availableDevices.end(), [&realDevName] (const std::string& device) {
-                return device.find(realDevName) != std::string::npos;
-            })) {
+        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
             return false;
         }
         return true;
@@ -921,10 +908,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
             if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT) {
                 context->_performanceHint = kvp.second;
             }
-        } else if (_availableDevices.end() !=
-            std::find_if(_availableDevices.begin(), _availableDevices.end(), [&kvp] (const std::string& device) {
-                return device.find(kvp.first) != std::string::npos;
-            })) {
+        } else if (_availableDevices.end() != std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
             // keep secondary prperties for HW or virtual device
             continue;
         } else if (supported_configKeys.end() ==
