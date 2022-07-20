@@ -319,8 +319,8 @@ def test_add_extension():
     assert isinstance(model, Model)
 
 
-def test_read_model_from_buffer_no_weights(device):
-    model = bytes(
+def test_read_model_from_buffer_no_weights():
+    bytes_model = bytes(
         b"""<net name="add_model" version="10">
     <layers>
     <layer id="0" name="x" type="Parameter" version="opset1">
@@ -381,8 +381,8 @@ def test_read_model_from_buffer_no_weights(device):
     </edges>
 </net>""")
     core = Core()
-    func = core.read_model(model=model)
-    assert isinstance(func, Model)
+    model = core.read_model(model=bytes_model)
+    assert isinstance(model, Model)
 
 
 def test_infer_new_request_return_type(device):
