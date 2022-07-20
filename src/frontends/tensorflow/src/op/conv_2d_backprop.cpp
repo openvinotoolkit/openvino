@@ -16,7 +16,6 @@ namespace op {
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     auto ng_filter = node.get_input(1), ng_out_backprop = node.get_input(2);
 
-
     // retrieve attributes for Conv2DBackpropInput
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");

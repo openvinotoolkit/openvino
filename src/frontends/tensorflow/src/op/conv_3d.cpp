@@ -17,7 +17,6 @@ namespace op {
 OutputVector translate_conv_3d_op(const NodeContext& node) {
     auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
-
     // retrieve attributes for Conv3D
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
