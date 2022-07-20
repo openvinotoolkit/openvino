@@ -103,8 +103,6 @@ Use either of the following ways to install OpenVINO Development Tools:
 
 ### Recommended: Install Using the Requirements Files
 
-**For OpenVINO releases prior to 2022.2:**
-
 1. After you have installed OpenVINO Runtime from an installer, APT or YUM repository, you can find a set of requirements files in the `<INSTALLDIR>\tools\` directory. Select the most suitable ones to use.
 2. Install the same version of OpenVINO Development Tools by using the requirements files. 
    To install mandatory requirements only, use the following command:
