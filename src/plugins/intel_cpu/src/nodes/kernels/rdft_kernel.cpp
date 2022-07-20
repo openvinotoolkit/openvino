@@ -572,6 +572,12 @@ void jit_fft_kernel_f32<isa>::generate() {
 
     L(handle_small_block_size);
 
+    xor_(rdx, rdx);
+    mov(rax,  simd_size);
+    div(block_size);
+    shl(rax, 1);
+    lea(twiddles_offset, ptr[rax * complex_type_size<float>()]);
+
     mov(input_ptr, ptr[param1 + GET_OFF_FFT(input)]);
     mov(output_ptr, ptr[param1 + GET_OFF_FFT(output)]);
     mov(indices_ptr, ptr[param1 + GET_OFF_FFT(indices)]);
@@ -579,12 +585,6 @@ void jit_fft_kernel_f32<isa>::generate() {
     mov(signal_size, ptr[param1 + GET_OFF_FFT(signal_size)]);
     mov(block, ptr[param1 + GET_OFF_FFT(block)]);
     mov(subblock_start, ptr[param1 + GET_OFF_FFT(subblock_start)]);
-
-    xor_(rdx, rdx);
-    mov(rax,  simd_size);
-    div(block_size);
-    shl(rax, 1);
-    lea(twiddles_offset, ptr[rax * complex_type_size<float>()]);
 
     uni_vmovdqu(even_indices, ptr[indices_ptr]);
     add(indices_ptr, vlen);

@@ -84,12 +84,12 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;
-        Xbyak::Reg64 input_size = rcx;
-        Xbyak::Reg64 output_ptr = r8;
-        Xbyak::Reg64 twiddles_ptr = r9;
-        Xbyak::Reg64 signal_size = r10;
-        Xbyak::Reg64 output_start = r11;
-        Xbyak::Reg64 output_end = r12;
+        Xbyak::Reg64 input_size = r8;
+        Xbyak::Reg64 output_ptr = r9;
+        Xbyak::Reg64 twiddles_ptr = r10;
+        Xbyak::Reg64 signal_size = r11;
+        Xbyak::Reg64 output_start = r12;
+        Xbyak::Reg64 output_end = r13;
 };
 
 struct jit_fft_args {
@@ -141,16 +141,16 @@ struct jit_fft_kernel_f32 : public jit_fft_kernel, public jit_generator {
         void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control);
 
         Xbyak::Reg64 input_ptr = rbx;
-        Xbyak::Reg64 input_base_ptr = rcx;
-        Xbyak::Reg64 output_ptr = rsi;
-        Xbyak::Reg64 block_size_mask = rdx;
-        Xbyak::Reg64 twiddles_ptr = r8;
-        Xbyak::Reg64 indices_ptr = r9;
-        Xbyak::Reg64 block_size = r10;
-        Xbyak::Reg64 signal_size = r11;
-        Xbyak::Reg64 block = r12;
-        Xbyak::Reg64 subblock_start = r13;
-        Xbyak::Reg64 twiddles_offset = r14;
+        Xbyak::Reg64 input_base_ptr = rsi;
+        Xbyak::Reg64 output_ptr = rdx;
+        Xbyak::Reg64 block_size_mask = r8;
+        Xbyak::Reg64 twiddles_ptr = r9;
+        Xbyak::Reg64 indices_ptr = r10;
+        Xbyak::Reg64 block_size = r11;
+        Xbyak::Reg64 signal_size = r12;
+        Xbyak::Reg64 block = r13;
+        Xbyak::Reg64 subblock_start = r14;
+        Xbyak::Reg64 twiddles_offset = r15;
 };
 
 }   // namespace intel_cpu

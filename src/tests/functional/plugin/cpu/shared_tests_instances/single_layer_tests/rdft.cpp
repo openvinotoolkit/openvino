@@ -18,8 +18,6 @@ static const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::FP32,
 };
 
-/*
-1D case doesn't work yet on reference implementation
 const std::vector<std::vector<size_t>> shapesForward1d = {
     {10},
     {64},
@@ -31,7 +29,8 @@ const std::vector<std::vector<int64_t>> signalSizes1d = {
     {}, {10},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_1d, RDFTLayerTest,
+//1D case doesn't work yet on reference implementation
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_RDFT_1d, RDFTLayerTest,
                          ::testing::Combine(
                             ::testing::ValuesIn(shapesForward1d),
                             ::testing::ValuesIn(inputPrecision),
@@ -46,7 +45,7 @@ const std::vector<std::vector<size_t>> shapesInverse1d = {
     {100, 2},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_1d, RDFTLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IRDFT_1d, RDFTLayerTest,
                          ::testing::Combine(
                             ::testing::ValuesIn(shapesInverse1d),
                             ::testing::ValuesIn(inputPrecision),
@@ -54,12 +53,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_1d, RDFTLayerTest,
                             ::testing::ValuesIn(signalSizes1d),
                             ::testing::Values(ngraph::helpers::DFTOpType::INVERSE),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
-*/
 
 const std::vector<std::vector<size_t>> shapesForward2d = {
     {10, 15},
     {64, 32},
-    {100, 32},
+    {100, 16},
 };
 
 const std::vector<std::vector<int64_t>> axes2d = {
