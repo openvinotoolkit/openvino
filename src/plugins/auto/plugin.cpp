@@ -799,7 +799,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 
     return allDevices;
 }
-std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(std::string priorities, const char separator) {
+std::vector<std::string > MultiDeviceInferencePlugin::ParsePrioritiesDevices(const std::string& priorities, const char separator) {
     std::vector<std::string> devices;
     std::string::size_type pos = 0;
     std::string::size_type endpos = 0;
