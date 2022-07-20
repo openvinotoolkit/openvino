@@ -169,9 +169,9 @@ void regclass_Core(py::module m) {
     cls.def(
         "compile_model",
         [](ov::Core& self,
-            const py::object& model_path,
-            const std::string& device_name,
-            const std::map<std::string, py::object>& properties) {
+           const py::object& model_path,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
