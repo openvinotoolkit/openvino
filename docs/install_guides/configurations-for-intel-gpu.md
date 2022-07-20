@@ -38,6 +38,7 @@ If you have installed OpenVINO Runtime via the installer, APT, or YUM, follow th
 
 3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
+You've completed all required configuration steps to perform inference on processor graphics.
 @sphinxdirective
 
 .. _gpu guide windows:
