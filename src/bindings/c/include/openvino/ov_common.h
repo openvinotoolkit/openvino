@@ -55,6 +55,7 @@ typedef void* ov_property_value_t;
 
 typedef struct ov_tensor ov_tensor_t;
 typedef struct ov_rank ov_rank_t;
+typedef struct ov_dimension ov_dimension_t;
 typedef struct ov_dimensions ov_dimensions_t;
 typedef struct ov_layout ov_layout_t;
 typedef struct ov_partial_shape ov_partial_shape_t;

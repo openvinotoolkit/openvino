@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ov_infer_request.h"
+#include "openvino/ov_infer_request.h"
 
 #include "common.h"
 

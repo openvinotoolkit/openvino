@@ -1,11 +1,10 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "ov_core.h"
+#include "openvino/ov_core.h"
 
 #include "common.h"
-#include "ov_property.h"
+#include "openvino/ov_property.h"
 
 /**
  * @variable global value for error info.

@@ -163,6 +163,14 @@ struct ov_rank {
 };
 
 /**
+ * @struct ov_dimension
+ * @brief This is an interface of ov::Dimension
+ */
+struct ov_dimension {
+    ov::Dimension object;
+};
+
+/**
  * @struct ov_dimensions
  * @brief This is an interface of std::vector<ov::Dimension>
  */
