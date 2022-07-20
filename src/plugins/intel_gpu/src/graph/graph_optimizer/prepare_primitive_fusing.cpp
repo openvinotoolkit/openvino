@@ -624,7 +624,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
                 (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
-                node.input().get_output_layout().feature() > 16)))
+                node.input().get_output_layout().feature() > 16) ||
+                (node.get_output_layout().count() > 256)))
                 return false;
 
             if (keep_dims)
@@ -975,8 +976,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
-                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
-                                      (parents[i]->is_type<activation>());
+                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
