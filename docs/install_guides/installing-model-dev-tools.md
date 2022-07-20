@@ -96,7 +96,7 @@ You will see the help message for Model Optimizer if installation finished succe
 
 Note the following things:
 
-* To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through a docker ([Linux](installing-openvino-docker-linux.md), [Windows](installing-openvino-docker-windows.md)). 
+* To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through archive files. See [Linux installation](installing-openvino-linux-header.md), [Windows installation](installing-openvino-windows-header.md), and [macOS installation](installing-openvino-windows-header.md) for more details. 
 * Ensure that the version of OpenVINO Development Tools you are installing matches that of OpenVINO Runtime. 
 
 Use either of the following ways to install OpenVINO Development Tools:
