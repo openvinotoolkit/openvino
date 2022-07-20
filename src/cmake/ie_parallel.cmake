@@ -4,6 +4,7 @@
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+
         if(NOT ENABLE_SYSTEM_TBB)
             set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_SYSTEM_PATH)
@@ -104,11 +105,19 @@ function(set_ie_threading_interface_for TARGET_NAME)
                         if(NOT "${include_directory}" MATCHES "^/usr.*$")
                             target_include_directories(${TARGET_NAME} SYSTEM BEFORE
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        else()
+                            set(_system_library ON)
                         endif()
                     endforeach()
                 endif()
             endif()
         endforeach()
+
+        if(_system_library)
+            # if we deal with system library (e.i. having /usr/include as header paths)
+            # we cannot use SYSTEM key word for such library
+            set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+        endif()
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
