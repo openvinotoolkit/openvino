@@ -8,6 +8,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -123,6 +124,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
     ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
+    CommonTestUtils::removeFile(fileName);
 }
 
 using IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClassGetMetricP;

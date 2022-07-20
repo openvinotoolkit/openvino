@@ -55,6 +55,9 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         }
     }
     std::string real_device = target_device.substr(0, target_device.find(':'));
+    if (deviceName.empty()) {
+        deviceName = real_device == target_device ? target_device : target_device.substr(target_device.find(':') + 1);
+    }
     if (apiStats.find(entity) == apiStats.end()) {
         apiStats.insert({entity, {{real_device, PassRate()}}});
     }

@@ -63,7 +63,7 @@ public:
 };
 
 typedef std::tuple<
-        std::string,            // Device name
+        std::string, // Device name
         ov::AnyMap   // Config
 > InferRequestParams;
 
