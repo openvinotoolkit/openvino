@@ -1405,7 +1405,8 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
                 preferred_type = impl_types::cpu;
 
             if (node.id() == forced_impl_type.substr(0, found_type)) {
-                std::cout << "  >>> " << forced_impl_type.substr(0, found_type) << " : " << forced_impl_type.substr(found_type + 1) << std::endl;
+                GPU_DEBUG_COUT << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                    << forced_impl_type.substr(found_type + 1) << std::endl;
                 return preferred_type;
             }
         }
@@ -1438,13 +1439,25 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         else
             preferred_impl = impl_types::cpu;
     } else if (node.is_type<non_max_suppression>()) {
-        auto& nms_node = node.as<non_max_suppression>();
-        auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
-        const size_t kBatchNum = scoresTensor.Batch().v;
-        const size_t kClassNum = scoresTensor.Feature().v;
-        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
-        const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-        preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+        const std::set<format> blocked_formats = {
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+        };
+        if (blocked_formats.find(node.get_dependency(0).get_output_layout().format) != blocked_formats.end()) {
+            preferred_impl = impl_types::ocl;
+        } else {
+            auto& nms_node = node.as<non_max_suppression>();
+            auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
+            const size_t kBatchNum = scoresTensor.Batch().v;
+            const size_t kClassNum = scoresTensor.Feature().v;
+            const size_t kNStreams =
+                static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+            const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+            preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+        }
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;

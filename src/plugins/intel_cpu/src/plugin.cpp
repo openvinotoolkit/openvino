@@ -85,6 +85,7 @@
 #include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
+#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -120,6 +121,7 @@
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
+#include "utils/denormals.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -482,6 +484,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->disable<ngraph::pass::SliceToStridedSlice>();
     pass_config->disable<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     pass_config->disable<ngraph::pass::ConvertROIAlign9To3>();
+    pass_config->disable<ngraph::pass::SoftSignDecomposition>();
 
     pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
@@ -792,6 +795,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
+    }
+
+    // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
+    static Xbyak::util::Cpu cpu;
+    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
+        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+            flush_to_zero(true);
+            denormals_as_zero(true);
+        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+            flush_to_zero(false);
+            denormals_as_zero(false);
+        }
     }
 
     return std::make_shared<ExecNetwork>(clonedNetwork, conf, extensionManager, shared_from_this());

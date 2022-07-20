@@ -44,7 +44,6 @@
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
@@ -263,6 +262,10 @@ static void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gelu>
     CreateUnaryEltwiseOp(p, op, activationFunc, {});
 }
 
+static void CreateSoftSignOp(Program& p, const std::shared_ptr<ngraph::op::v9::SoftSign>& op) {
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::softsign, {});
+}
+
 static void CreateGeluOp(Program &p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
     CreateUnaryEltwiseOp(p, op,  cldnn::activation_func::gelu, {});
 }
@@ -322,7 +325,7 @@ REGISTER_FACTORY_IMPL(v7, Gelu);
 REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
+REGISTER_FACTORY_IMPL(v9, SoftSign);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

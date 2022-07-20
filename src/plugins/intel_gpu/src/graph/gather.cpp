@@ -53,6 +53,10 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         }
     }
     auto output_type = input_layout.data_type;
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
+
     return layout{output_type,
                   output_format,
                   tensor(format::get_default_format(dims_converted.size()), dims_converted)};
