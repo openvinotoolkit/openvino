@@ -193,7 +193,7 @@ protected:
             const auto& kShape = targetInputStaticShapes[1];
 
             const size_t startFrom = 1;
-            const size_t range = targetInputStaticShapes[0][axis] - 1;
+            const size_t range = targetInputStaticShapes[0][axis];
             const size_t seed = inferRequestNum++;
             const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
 
@@ -318,6 +318,44 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLaye
             ::testing::Values(ElementType::undefined),
             ::testing::ValuesIn(inputShapesDynamic_bubble_BLK_on_channel_horiz)),
         ::testing::Values(CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {})),
+        ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+std::vector<ov::test::InputShape> inputShapes_top1 = {
+    {{}, {{1, 1, 2, 1}}},
+};
+
+std::vector<ov::test::InputShape> inputShapesDynamic_top1 = {
+    {{1, 1, 2, {1, 2}}, {{1, 1, 2, 1}, {1, 1, 2, 2}}}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_Top1, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(1),
+            ::testing::Values(3),
+            ::testing::Values(ngraph::opset4::TopK::Mode::MAX),
+            ::testing::Values(ngraph::opset4::TopK::SortType::SORT_INDICES),
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapes_top1)),
+        ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
+        ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Top1_dynamic, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(1),
+            ::testing::Values(3),
+            ::testing::Values(ngraph::opset4::TopK::Mode::MAX),
+            ::testing::Values(ngraph::opset4::TopK::SortType::SORT_INDICES),
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapesDynamic_top1)),
+        ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
         ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
