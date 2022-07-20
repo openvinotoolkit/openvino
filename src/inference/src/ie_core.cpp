@@ -1128,7 +1128,7 @@ public:
             {
                 plugin.set_name(deviceName);
 
-                // Set Inference Engine class reference to plugins
+                // Set Core class reference to plugins
                 std::weak_ptr<ie::ICore> mutableCore = std::const_pointer_cast<ie::ICore>(shared_from_this());
                 plugin.set_core(mutableCore);
             }

@@ -45,12 +45,15 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
 InferenceEngine::QueryNetworkResult ov::proxy::Plugin::QueryNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::map<std::string, std::string>& config) const {
+    size_t num_devices = get_hidden_devices().size();
     // Recall for HW device
     auto dev_id = get_device_from_config(config);
     auto res = GetCore()->QueryNetwork(network, get_fallback_device(dev_id), config);
     // Replace hidden device name
     for (auto&& it : res.supportedLayersMap) {
-        it.second = GetName() + "." + std::to_string(dev_id);
+        it.second = GetName();
+        if (num_devices > 1)
+            it.second += "." + std::to_string(dev_id);
     }
     return res;
 }
