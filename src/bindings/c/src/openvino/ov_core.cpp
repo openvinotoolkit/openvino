@@ -213,7 +213,9 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             }
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = tmp_s.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::AVAILABLE_DEVICES: {
@@ -224,7 +226,9 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             }
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = tmp_s.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::OPTIMAL_NUMBER_OF_INFER_REQUESTS: {
@@ -232,7 +236,9 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
                 core->object->get_property(device_name, ov::optimal_number_of_infer_requests);
             uint32_t* temp = new uint32_t;
             *temp = optimal_number_of_infer_requests;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         case ov_property_key_e::RANGE_FOR_ASYNC_INFER_REQUESTS: {
@@ -241,7 +247,9 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             temp[0] = std::get<0>(range);
             temp[1] = std::get<1>(range);
             temp[2] = std::get<2>(range);
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 3;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         case ov_property_key_e::RANGE_FOR_STREAMS: {
@@ -249,14 +257,18 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             uint32_t* temp = new uint32_t[2];
             temp[0] = std::get<0>(range);
             temp[1] = std::get<1>(range);
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 2;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         case ov_property_key_e::FULL_DEVICE_NAME: {
             auto name = core->object->get_property(device_name, ov::device::full_name);
             char* tmp = new char[name.length() + 1];
             std::copy_n(name.begin(), name.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = name.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::OPTIMIZATION_CAPABILITIES: {
@@ -267,77 +279,99 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             }
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = tmp_s.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::CACHE_DIR: {
             auto dir = core->object->get_property(device_name, ov::cache_dir);
             char* tmp = new char[dir.length() + 1];
             std::copy_n(dir.begin(), dir.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = dir.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::NUM_STREAMS: {
             auto num = core->object->get_property(device_name, ov::num_streams);
             int32_t* temp = new int32_t;
             *temp = num.num;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::INT32;
             break;
         }
         case ov_property_key_e::AFFINITY: {
             auto affinity = core->object->get_property(device_name, ov::affinity);
             ov_affinity_e* temp = new ov_affinity_e;
             *temp = static_cast<ov_affinity_e>(affinity);
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::ENUM;
             break;
         }
         case ov_property_key_e::INFERENCE_NUM_THREADS: {
             auto num = core->object->get_property(device_name, ov::inference_num_threads);
             int32_t* temp = new int32_t;
             *temp = num;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::INT32;
             break;
         }
         case ov_property_key_e::PERFORMANCE_HINT: {
             auto perf_mode = core->object->get_property(device_name, ov::hint::performance_mode);
             ov_performance_mode_e* temp = new ov_performance_mode_e;
             *temp = static_cast<ov_performance_mode_e>(perf_mode);
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::ENUM;
             break;
         }
         case ov_property_key_e::NETWORK_NAME: {
             auto name = core->object->get_property(device_name, ov::model_name);
             char* tmp = new char[name.length() + 1];
             std::copy_n(name.begin(), name.length() + 1, tmp);
-            *value = static_cast<ov_property_value_t>(tmp);
+            value->ptr = static_cast<void*>(tmp);
+            value->cnt = name.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         case ov_property_key_e::INFERENCE_PRECISION_HINT: {
             auto infer_precision = core->object->get_property(device_name, ov::hint::inference_precision);
             ov_element_type_e* temp = new ov_element_type_e;
             *temp = static_cast<ov_element_type_e>(ov::element::Type_t(infer_precision));
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::ENUM;
             break;
         }
         case ov_property_key_e::OPTIMAL_BATCH_SIZE: {
             auto batch_size = core->object->get_property(device_name, ov::optimal_batch_size);
             uint32_t* temp = new uint32_t;
             *temp = batch_size;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         case ov_property_key_e::MAX_BATCH_SIZE: {
             auto batch_size = core->object->get_property(device_name, ov::max_batch_size);
             uint32_t* temp = new uint32_t;
             *temp = batch_size;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
             auto num_requests = core->object->get_property(device_name, ov::hint::num_requests);
             uint32_t* temp = new uint32_t;
             *temp = num_requests;
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = 1;
+            value->type = ov_property_value_type_e::UINT32;
             break;
         }
         default:

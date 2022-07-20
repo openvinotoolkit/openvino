@@ -106,7 +106,9 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
             }
             char* temp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.c_str(), tmp_s.length() + 1, temp);
-            *value = static_cast<ov_property_value_t>(temp);
+            value->ptr = static_cast<void*>(temp);
+            value->cnt = tmp_s.length() + 1;
+            value->type = ov_property_value_type_e::CHAR;
             break;
         }
         default:

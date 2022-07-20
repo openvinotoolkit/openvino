@@ -28,7 +28,7 @@ void ov_property_free(ov_property_t* property) {
         delete property;
 }
 
-ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t value) {
+ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value) {
     if (!property || !value) {
         return ov_status_e::INVALID_PARAM;
     }
@@ -36,17 +36,17 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
     try {
         switch (key) {
         case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
-            uint32_t v = *(static_cast<uint32_t*>(value));
+            uint32_t v = *(static_cast<uint32_t*>(value->ptr));
             property->object.emplace(ov::hint::num_requests(v));
             break;
         }
         case ov_property_key_e::NUM_STREAMS: {
-            uint32_t v = *(static_cast<uint32_t*>(value));
+            uint32_t v = *(static_cast<uint32_t*>(value->ptr));
             property->object.emplace(ov::num_streams(v));
             break;
         }
         case ov_property_key_e::PERFORMANCE_HINT: {
-            ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value));
+            ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value->ptr));
             if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
                 return ov_status_e::INVALID_PARAM;
             }
@@ -55,7 +55,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
             break;
         }
         case ov_property_key_e::AFFINITY: {
-            ov_affinity_e v = *(static_cast<ov_affinity_e*>(value));
+            ov_affinity_e v = *(static_cast<ov_affinity_e*>(value->ptr));
             if (v < ov_affinity_e::NONE || v > ov_affinity_e::HYBRID_AWARE) {
                 return ov_status_e::INVALID_PARAM;
             }
@@ -64,12 +64,12 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
             break;
         }
         case ov_property_key_e::INFERENCE_NUM_THREADS: {
-            int32_t v = *(static_cast<int32_t*>(value));
+            int32_t v = *(static_cast<int32_t*>(value->ptr));
             property->object.emplace(ov::inference_num_threads(v));
             break;
         }
         case ov_property_key_e::INFERENCE_PRECISION_HINT: {
-            ov_element_type_e v = *(static_cast<ov_element_type_e*>(value));
+            ov_element_type_e v = *(static_cast<ov_element_type_e*>(value->ptr));
             if (v > ov_element_type_e::U64) {
                 return ov_status_e::INVALID_PARAM;
             }
@@ -79,11 +79,12 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
             break;
         }
         case ov_property_key_e::CACHE_DIR: {
-            char* dir = static_cast<char*>(value);
+            char* dir = static_cast<char*>(value->ptr);
             property->object.emplace(ov::cache_dir(std::string(dir)));
             break;
         }
         default:
+            return ov_status_e::OUT_OF_BOUNDS;
             break;
         }
     }
@@ -91,9 +92,13 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
     return ov_status_e::OK;
 }
 
-void ov_property_value_free(ov_property_value_t value) {
+void ov_property_value_clean(ov_property_value_t* value) {
     if (value) {
-        char* temp = static_cast<char*>(value);
-        delete temp;
+        if (value->ptr) {
+            char* temp = static_cast<char*>(value->ptr);
+            delete temp;
+        }
+        value->ptr = nullptr;
+        value->cnt = 0;
     }
 }

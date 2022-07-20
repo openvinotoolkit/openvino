@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/openvino.h"
-
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +9,7 @@
 #include <fstream>
 #include <mutex>
 
+#include "openvino/openvino.h"
 #include "openvino/openvino.hpp"
 #include "test_model_repo.hpp"
 
@@ -211,8 +210,13 @@ TEST_P(ov_core, ov_core_set_property) {
     OV_ASSERT_OK(ov_property_create(&property));
 
     ov_property_key_e key = ov_property_key_e::PERFORMANCE_HINT;
-    ov_performance_mode_e value = ov_performance_mode_e::THROUGHPUT;
-    OV_ASSERT_OK(ov_property_put(property, key, (void*)&value));
+    ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
+    ov_property_value_t value;
+    value.ptr = (void*)&mode;
+    value.cnt = 1;
+    value.type = ov_property_value_type_e::ENUM;
+    OV_ASSERT_OK(ov_property_put(property, key, &value));
+
     OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
     ov_property_free(property);
     ov_core_free(core);
@@ -227,11 +231,11 @@ TEST_P(ov_core, ov_core_get_property) {
     ov_property_value_t property_value;
     OV_ASSERT_OK(
         ov_core_get_property(core, devece_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
-    ov_property_value_free(property_value);
+    ov_property_value_clean(&property_value);
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_get_property) {
+TEST_P(ov_core, ov_core_set_get_property_str) {
     auto devece_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
@@ -242,15 +246,47 @@ TEST_P(ov_core, ov_core_set_get_property) {
 
     ov_property_key_e key = ov_property_key_e::CACHE_DIR;
     const char cache_dir[] = "./cache_dir";
-    OV_ASSERT_OK(ov_property_put(property, key, (ov_property_value_t)cache_dir));
+    ov_property_value_t value;
+    value.ptr = (void*)cache_dir;
+    value.cnt = sizeof(cache_dir);
+    value.type = ov_property_value_type_e::CHAR;
+    OV_ASSERT_OK(ov_property_put(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
 
     ov_property_value_t property_value;
     OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), key, &property_value));
-    EXPECT_STREQ(cache_dir, (char*)property_value);
+    EXPECT_STREQ(cache_dir, (char*)property_value.ptr);
 
     ov_property_free(property);
-    ov_property_value_free(property_value);
+    ov_property_value_clean(&property_value);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core, ov_core_set_get_property_int) {
+    auto devece_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ov_property_t* property = nullptr;
+    OV_ASSERT_OK(ov_property_create(&property));
+
+    ov_property_key_e key = ov_property_key_e::INFERENCE_NUM_THREADS;
+    int32_t num = 8;
+    ov_property_value_t value;
+    value.ptr = (void*)&num;
+    value.cnt = 1;
+    value.type = ov_property_value_type_e::INT32;
+    OV_ASSERT_OK(ov_property_put(property, key, &value));
+    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+
+    ov_property_value_t property_value;
+    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), key, &property_value));
+    int32_t res = *(int32_t*)property_value.ptr;
+    EXPECT_EQ(num, res);
+
+    ov_property_free(property);
+    ov_property_value_clean(&property_value);
     ov_core_free(core);
 }
 

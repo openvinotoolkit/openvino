@@ -51,7 +51,6 @@ typedef struct ov_compiled_model ov_compiled_model_t;
 typedef struct ov_infer_request ov_infer_request_t;
 
 typedef struct ov_property ov_property_t;
-typedef void* ov_property_value_t;
 
 typedef struct ov_tensor ov_tensor_t;
 typedef struct ov_rank ov_rank_t;
@@ -91,7 +90,7 @@ typedef struct {
  * @brief This enum contains codes for all possible return values of the interface functions
  */
 typedef enum {
-    OK = 0,
+    OK = 0U,
     GENERAL_ERROR = 1,
     NOT_IMPLEMENTED = 2,
     NETWORK_NOT_LOADED = 3,
@@ -121,24 +120,24 @@ typedef enum { RESIZE_LINEAR, RESIZE_CUBIC, RESIZE_NEAREST } ov_preprocess_resiz
  * @brief This enum contains codes for element type.
  */
 typedef enum {
-    UNDEFINED = 0,  //!< Undefined element type
-    DYNAMIC,        //!< Dynamic element type
-    BOOLEAN,        //!< boolean element type
-    BF16,           //!< bf16 element type
-    F16,            //!< f16 element type
-    F32,            //!< f32 element type
-    F64,            //!< f64 element type
-    I4,             //!< i4 element type
-    I8,             //!< i8 element type
-    I16,            //!< i16 element type
-    I32,            //!< i32 element type
-    I64,            //!< i64 element type
-    U1,             //!< binary element type
-    U4,             //!< u4 element type
-    U8,             //!< u8 element type
-    U16,            //!< u16 element type
-    U32,            //!< u32 element type
-    U64,            //!< u64 element type
+    UNDEFINED = 0U,  //!< Undefined element type
+    DYNAMIC,         //!< Dynamic element type
+    BOOLEAN,         //!< boolean element type
+    BF16,            //!< bf16 element type
+    F16,             //!< f16 element type
+    F32,             //!< f32 element type
+    F64,             //!< f64 element type
+    I4,              //!< i4 element type
+    I8,              //!< i8 element type
+    I16,             //!< i16 element type
+    I32,             //!< i32 element type
+    I64,             //!< i64 element type
+    U1,              //!< binary element type
+    U4,              //!< u4 element type
+    U8,              //!< u8 element type
+    U16,             //!< u16 element type
+    U32,             //!< u32 element type
+    U64,             //!< u64 element type
 } ov_element_type_e;
 
 /**
@@ -146,7 +145,7 @@ typedef enum {
  * @brief This enum contains enumerations for color format.
  */
 typedef enum {
-    UNDEFINE = 0,       //!< Undefine color format
+    UNDEFINE = 0U,      //!< Undefine color format
     NV12_SINGLE_PLANE,  // Image in NV12 format as single tensor
     NV12_TWO_PLANES,    // Image in NV12 format represented as separate tensors for Y and UV planes.
     I420_SINGLE_PLANE,  // Image in I420 (YUV) format as single tensor

@@ -43,8 +43,8 @@ typedef enum {
  * @brief Represent all available property key.
  */
 typedef enum {
-    SUPPORTED_PROPERTIES = 0,  //!<  Read-only property<char *> to get a string list of supported read-only properties.
-    AVAILABLE_DEVICES,         //!<  Read-only property<char *> to get a list of available device IDs
+    SUPPORTED_PROPERTIES = 0U,  //!<  Read-only property<char *> to get a string list of supported read-only properties.
+    AVAILABLE_DEVICES,          //!<  Read-only property<char *> to get a list of available device IDs
     OPTIMAL_NUMBER_OF_INFER_REQUESTS,  //!<  Read-only property<uint32_t> to get an unsigned integer value of optimaln
                                        //!<  umber of compiled model infer requests.
     RANGE_FOR_ASYNC_INFER_REQUESTS,    //!<  Read-only property<unsigned int, unsigned int, unsigned int> to provide a
@@ -79,13 +79,27 @@ typedef enum {
 } ov_property_key_e;
 
 /**
- * @struct ov_property_data_t
- * @brief Represent a pair of <key, value> data.
+ * @enum ov_property_value_type_e
+ * @brief Enum to define property value type.
+ */
+typedef enum {
+    BOOL = 0U,  //!< boolean data
+    CHAR,       //!< char data
+    ENUM,       //!< enum data
+    INT32,      //!< int32 data
+    UINT32,     //!< uint32 data
+    FLOAT,      //!< float data
+} ov_property_value_type_e;
+
+/**
+ * @struct ov_property_value_t
+ * @brief Represent a property value
  */
 typedef struct {
-    ov_property_key_e key;
-    ov_property_value_t value;
-} ov_property_data_t;
+    void* ptr;
+    size_t cnt;
+    ov_property_value_type_e type;
+} ov_property_value_t;
 
 // Property
 /**
@@ -110,17 +124,24 @@ OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
 OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
 
 /**
- * @brief Free property data.
+ * @brief Create a property value object.
  * @ingroup Property
- * @param property data will be released.
+ * @param ov_status_e a status code, return OK if successful
  */
-OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t value);
+OPENVINO_C_API(ov_status_e) ov_property_value_create(ov_property_value_t** value);
+
+/**
+ * @brief Clean property data.
+ * @ingroup Property
+ * @param property data will be clean.
+ */
+OPENVINO_C_API(void) ov_property_value_clean(ov_property_value_t* value);
 
 /**
  * @brief Put <key, value> into property object.
  * @ingroup Property
  * @param property will be add new <key, value>.
  */
-OPENVINO_C_API(ov_status_e) ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t value);
+OPENVINO_C_API(ov_status_e) ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value);
 
 /** @} */  // end of Property
