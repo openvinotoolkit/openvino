@@ -208,6 +208,8 @@ void op::v5::Loop::validate_and_infer_types() {
 
                 if (auto body_output_description =
                         ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                    if (!back_edges.count(output_description->m_body_value_index))
+                        continue;
                     const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
                     auto input_param =
                         m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
@@ -220,35 +222,41 @@ void op::v5::Loop::validate_and_infer_types() {
                         //          Parameter(out:-1, 1)->|   (axis==1)
                         // when iteration number is unknown or sub-model output shape may be vary, the Result shape
                         // should infer as (-1, -1), then set changed one to input and propagate to others.
-                        if (back_edges.count(output_description->m_body_value_index)) {
-                            if (input_param_ps.rank().is_static()) {
-                                const auto body_rank_len = body_value_shape.rank().get_length();
-                                const auto input_rank_len = input_param_ps.rank().get_length();
-                                ov::PartialShape new_ps;
-                                const auto new_ps_rank_len = std::max(body_rank_len, input_rank_len);
-                                new_ps.resize(new_ps_rank_len);
-                                bool shape_changed = false;
-                                for (auto j = new_ps_rank_len - 1; j >= 0; j--) {
-                                    const auto body_idx_from_right = body_rank_len - 1 - (new_ps_rank_len - 1 - j);
-                                    const auto input_idx_from_right = input_rank_len - 1 - (new_ps_rank_len - 1 - j);
-                                    if (body_idx_from_right >= 0 && input_idx_from_right >= 0) {
-                                        if (!body_value_shape[body_idx_from_right].compatible(
-                                                input_param_ps[input_idx_from_right])) {
-                                            new_ps[j] = Dimension::dynamic();
-                                            shape_changed = true;
-                                        }
-                                    } else if (body_idx_from_right >= 0) {
-                                        new_ps[j] = body_value_shape[body_idx_from_right];
+                        if (input_param_ps.rank().is_static()) {
+                            const auto body_rank_len = body_value_shape.rank().get_length();
+                            const auto input_rank_len = input_param_ps.rank().get_length();
+                            ov::PartialShape new_ps;
+                            const auto new_ps_rank_len = std::max(body_rank_len, input_rank_len);
+                            new_ps.resize(new_ps_rank_len);
+                            bool shape_changed = false;
+                            for (auto j = new_ps_rank_len - 1; j >= 0; j--) {
+                                const auto body_idx_from_right = body_rank_len - 1 - (new_ps_rank_len - 1 - j);
+                                const auto input_idx_from_right = input_rank_len - 1 - (new_ps_rank_len - 1 - j);
+                                if (body_idx_from_right >= 0 && input_idx_from_right >= 0) {
+                                    if (!body_value_shape[body_idx_from_right].compatible(
+                                            input_param_ps[input_idx_from_right])) {
+                                        new_ps[j] = Dimension::dynamic();
+                                        shape_changed = true;
                                     } else {
-                                        new_ps[j] = input_param_ps[input_idx_from_right];
+                                        const auto min =
+                                            std::min(body_value_shape[body_idx_from_right].get_min_length(),
+                                                     input_param_ps[input_idx_from_right].get_min_length());
+                                        const auto max =
+                                            std::max(body_value_shape[body_idx_from_right].get_max_length(),
+                                                     input_param_ps[input_idx_from_right].get_max_length());
+                                        new_ps[j] = Dimension(min, max);
                                     }
+                                } else if (body_idx_from_right >= 0) {
+                                    new_ps[j] = body_value_shape[body_idx_from_right];
+                                } else {
+                                    new_ps[j] = input_param_ps[input_idx_from_right];
                                 }
+                            }
 
-                                // reset sub model input shape
-                                if (shape_changed) {
-                                    need_reinvalidate = true;
-                                    input_param->set_partial_shape(new_ps);
-                                }
+                            // reset sub model input shape
+                            if (shape_changed) {
+                                need_reinvalidate = true;
+                                input_param->set_partial_shape(new_ps);
                             }
                         }
                     } else {
