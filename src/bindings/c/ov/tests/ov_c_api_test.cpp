@@ -10,22 +10,14 @@
 #include "test_model_repo.hpp"
 #include <fstream>
 
-#ifdef BUILD_OPENCV_DEPENDENT_TESTS
-#include <opencv2/opencv.hpp>
-#endif
-
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
-            bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
-            input_image_std = TestDataHelpers::generate_image_path("224x224", "dog.bmp"),
-            input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
+            bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin");
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
-const char* input_image = input_image_std.c_str();
-const char* input_image_nv12 = input_image_nv12_std.c_str();
 
 std::mutex m;
 bool ready = false;
@@ -81,31 +73,6 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     }
     return read_size;
 }
-
-#ifdef BUILD_OPENCV_DEPENDENT_TESTS
-void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
-{
-    ov_shape_t shape = {0};
-    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
-    size_t channels = shape.dims[1];
-    size_t width = shape.dims[3];
-    size_t height = shape.dims[2];
-    void* tensor_data = NULL;
-    OV_EXPECT_OK(ov_tensor_get_data(tensor, &tensor_data));
-    uint8_t *tmp_data = (uint8_t *)(tensor_data);
-    cv::Mat resized_image;
-    cv::resize(img, resized_image, cv::Size(width, height));
-
-    for (size_t c = 0; c < channels; c++) {
-        for (size_t  h = 0; h < height; h++) {
-            for (size_t w = 0; w < width; w++) {
-                tmp_data[c * width * height + h * width + w] =
-                        resized_image.at<cv::Vec3b>(h, w)[c];
-            }
-        }
-    }
-}
-#endif
 
 size_t find_device(ov_available_devices_t avai_devices, const char *device_name) {
     for (size_t i = 0; i < avai_devices.num_devices; ++i) {
@@ -296,7 +263,6 @@ TEST_P(ov_core, ov_compiled_model_export) {
     ov_core_free(core);
 }
 
-#ifdef BUILD_OPENCV_DEPENDENT_TESTS
 TEST_P(ov_core, ov_core_import_model) {
     auto devece_name = GetParam();
     ov_core_t* core = nullptr;
@@ -312,14 +278,13 @@ TEST_P(ov_core, ov_core_import_model) {
     OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 
-    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
     ov_compiled_model_t* compiled_model_imported = nullptr;
     OV_ASSERT_OK(ov_core_import_model(core, reinterpret_cast<const char *>(buffer.data()), buffer.size(), devece_name.c_str(), &compiled_model_imported));
     ASSERT_NE(nullptr, compiled_model_imported);
     ov_compiled_model_free(compiled_model_imported);
     ov_core_free(core);
 }
-#endif
 
 TEST_P(ov_core, ov_core_get_versions) {
     auto devece_name = GetParam();
