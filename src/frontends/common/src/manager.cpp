@@ -47,6 +47,7 @@ public:
                     auto fe_obj = std::make_shared<FrontEnd>();
                     fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
                     fe_obj->m_actual = plugin_it->get_creator().m_creator();
+                    m_shared_objects_map.emplace(framework, fe_obj->m_shared_object);
                     return fe_obj;
                 }
             }
@@ -58,6 +59,7 @@ public:
                 auto fe_obj = std::make_shared<FrontEnd>();
                 fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
                 fe_obj->m_actual = plugin.get_creator().m_creator();
+                m_shared_objects_map.emplace(framework, fe_obj->m_shared_object);
                 return fe_obj;
             }
         }
@@ -95,6 +97,7 @@ public:
                 auto fe_obj = std::make_shared<FrontEnd>();
                 fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
                 fe_obj->m_actual = fe;
+                m_shared_objects_map.emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
                 return fe_obj;
             }
         }
@@ -187,6 +190,7 @@ private:
                 auto fe_obj = std::make_shared<FrontEnd>();
                 fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
                 fe_obj->m_actual = fe;
+                m_shared_objects_map.emplace(plugin_it->get_creator().m_name, fe_obj->m_shared_object);
                 return fe_obj;
             }
         }
@@ -214,6 +218,8 @@ private:
         }
     }
 };
+
+std::map<std::string, std::shared_ptr<void>> FrontEndManager::m_shared_objects_map{};
 
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 
