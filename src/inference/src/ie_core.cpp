@@ -55,11 +55,6 @@ using namespace std::placeholders;
 
 namespace ov {
 
-namespace frontend {
-class FrontEndManager;
-std::shared_ptr<FrontEndManager> get_frontend_manager();
-}  // namespace frontend
-
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
@@ -284,7 +279,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     };
 
-    std::shared_ptr<void> frontEndManagerPtr;
     ExecutorManager::Ptr executorManagerPtr;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
@@ -453,7 +447,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         executorManagerPtr = executorManager();
-        frontEndManagerPtr = ov::frontend::get_frontend_manager();
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");

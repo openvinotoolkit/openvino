@@ -22,8 +22,6 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
-    using Ptr = std::shared_ptr<FrontEndManager>;
-
     /// \brief Default constructor. Searches and loads of available frontends
     FrontEndManager();
 
@@ -81,7 +79,6 @@ private:
 
 template <>
 FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
-FRONTEND_API FrontEndManager::Ptr get_frontend_manager();
 
 // --------- Plugin exporting information --------------
 
