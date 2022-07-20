@@ -94,20 +94,27 @@ macro(ie_parse_ci_build_number)
     message(STATUS "OpenVINO version is ${IE_VERSION}")
 endmacro()
 
-if (DEFINED ENV{CI_BUILD_NUMBER})
-    set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
-else()
-    branchName(GIT_BRANCH)
-    commitHash(GIT_COMMIT_HASH)
+macro (ie_set_version IE_VERSION)
+    if (DEFINED ENV{CI_BUILD_NUMBER})
+        set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
+    else()
+        branchName(GIT_BRANCH)
+        commitHash(GIT_COMMIT_HASH)
+        if(${IE_VERSION} EQUAL 0)
+            set(CI_BUILD_NUMBER "custom_${GIT_BRANCH}_${GIT_COMMIT_HASH}")
+        else()
+            set(CI_BUILD_NUMBER "${IE_VERSION}_${GIT_BRANCH}_${GIT_COMMIT_HASH}")
+        endif()
+    endif()
+endmacro()
 
-    set(custom_build "custom_${GIT_BRANCH}_${GIT_COMMIT_HASH}")
-    set(CI_BUILD_NUMBER "${custom_build}")
-endif()
-
-# provides Inference Engine version
-# 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses ie_version.hpp
+ie_set_version(0)
+#[[ Provides Inference Engine version via either of the two:
+    1. Use CI_BUILD_NUMBER if defined in env
+    2. Parse ie_version.hpp
+]]
 ie_parse_ci_build_number()
+ie_set_version("${IE_VERSION}")
 
 macro (addVersionDefines FILE)
     set(__version_file ${FILE})
