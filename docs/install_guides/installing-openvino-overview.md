@@ -43,8 +43,8 @@ For Python developers, the easiest way is to [install OpenVINO Development Tools
 For C++ developers, you may choose one of the following installation options for OpenVINO Runtime on your specific operating system:
 
 * Linux: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Linux](installing-openvino-linux-header.md).
-* Windows: You can install OpenVINO Runtime using a [Docker](installing-openvino-docker-windows.md).
-<!-- * macOS: You can install OpenVINO Runtime using an - No other method outside pypi as of writing -->
+* Windows: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Windows](installing-openvino-windows-header.md).
+* macOS: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on macOS](installing-openvino-macos-header.md).
 * [Raspbian OS](installing-openvino-raspbian.md).
 
 > **NOTE**: With the introduction of the 2022.1 release, the OpenVINO Development Tools can be installed **only** via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
