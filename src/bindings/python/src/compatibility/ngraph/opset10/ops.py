@@ -43,14 +43,20 @@ def interpolate(
     :param  image:         The node providing input tensor with data for interpolation.
     :param  output_shape:  1D tensor describing output shape for spatial axes.
     :param  scales:        1D tensor describing scales for spatial axes.
-    :param  mode:          Specifies type of interpolation. Possible values are: nearest, linear, linear_onnx, cubic.
+    :param  mode:          Specifies type of interpolation. Possible values are: nearest, linear,
+                           linear_onnx, cubic.
     :param  shape_calculation_mode:
-                           Specifies which input, sizes or scales, is used to calculate an output shape.
-    :param  pads_begin:    Specifies the number of pixels to add to the beginning of the image being interpolated. 
-    :param  pads_end:      Specifies the number of pixels to add to the end of the image being interpolated. 
+                           Specifies which input, sizes or scales, is used to calculate an output
+                           shape.
+    :param  pads_begin:    Specifies the number of pixels to add to the beginning of the image
+                           being interpolated.
+    :param  pads_end:      Specifies the number of pixels to add to the end of the image being
+                           interpolated.
     :param  coordinate_transformation_mode:
-                           Specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor.
-    :param  nearest_mode:  Specifies round mode when mode == nearest and is used only when mode == nearest.
+                           Specifies how to transform the coordinate in the resized tensor to the
+                           coordinate in the original tensor.
+    :param  nearest_mode:  Specifies round mode when mode == nearest and is used only when
+                           mode == nearest.
     :param  antialias:     Specifies whether to perform anti-aliasing.
     :param  cube_coeff:    Specifies the parameter a for cubic interpolation.
     :param  axes:          1D tensor specifying dimension indices where interpolation is applied.
