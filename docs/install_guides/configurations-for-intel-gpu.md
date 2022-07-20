@@ -64,7 +64,7 @@ To check if you have this driver installed:
 4. Click the **Driver** tab to see the driver version. 
    ![](../img/DeviceDriverVersion.PNG)
 
-
+You are done updating your device driver and are ready to use your GPU.
 ## What’s Next?
 
 You can try out the toolkit with:
