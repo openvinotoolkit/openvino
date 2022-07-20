@@ -28,6 +28,9 @@ const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 
 const char unsupported_batched_blob[] = "Batched input blob is expected to contain NV12 blobs";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
+const char str_host_mem_not_allocated[] = "Failed to allocate host memory.";
+const char str_device_mem_not_allocated[] = "Failed to allocate device memory.";
+const char str_shared_mem_not_allocated[] = "Failed to allocate shared memory.";
 
 template <typename src_t, typename dst_t>
 void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
@@ -904,6 +907,7 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, std::shared_ptr
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
     auto blob = make_blob_with_precision(desc, alloc ? alloc : CreateDefaultAllocator());
     blob->allocate();
+    checkAlloc(blob, str_host_mem_not_allocated);
     return blob;
 }
 
@@ -919,7 +923,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
-
+    checkAlloc(blob, str_shared_mem_not_allocated);
     return blob;
 }
 
@@ -1256,6 +1260,7 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                          0,
                                                          RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
         getBlobImpl(blobPtr.get())->allocate();
+        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     } else {
         auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
@@ -1263,6 +1268,7 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                         desc,
                                                         layout);
         getBlobImpl(blobPtr.get())->allocate();
+        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     }
 }
