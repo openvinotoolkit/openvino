@@ -6,7 +6,6 @@
 from functools import partial
 from typing import List, Optional
 
-import numpy as np
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
@@ -24,18 +23,18 @@ _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 
 @nameable_op
 def interpolate(
-    image: NodeInput, 
-    output_shape: NodeInput, 
-    scales: NodeInput, 
-    mode: str, 
+    image: NodeInput,
+    output_shape: NodeInput,
+    scales: NodeInput,
+    mode: str,
     shape_calculation_mode: str,
-    pads_begin: Optional[List[int]] = None, 
-    pads_end: Optional[List[int]] = None, 
-    coordinate_transformation_mode: str = "half_pixel", 
+    pads_begin: Optional[List[int]] = None,
+    pads_end: Optional[List[int]] = None,
+    coordinate_transformation_mode: str = "half_pixel",
     nearest_mode: str = "round_prefer_floor",
-    antialias: bool = False, 
+    antialias: bool = False,
     cube_coeff: float = -0.75,
-    axes: Optional[NodeInput] = None, 
+    axes: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Perform interpolation of independent slices in input tensor.
@@ -63,19 +62,20 @@ def interpolate(
     :param  name:          Optional name for the output node.
     :return: Node representing interpolation operation.
     """
-
     attrs = {
         "mode": mode,
         "shape_calculation_mode": shape_calculation_mode,
         "coordinate_transformation_mode": coordinate_transformation_mode,
         "nearest_mode": nearest_mode,
         "antialias": antialias,
-        "cube_coeff": cube_coeff
+        "cube_coeff": cube_coeff,
     }
 
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image, output_shape, scales, axes)
+    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image,
+                                                                                 output_shape,
+                                                                                 scales, axes)
 
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)

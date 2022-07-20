@@ -6,7 +6,6 @@
 from functools import partial
 from typing import List, Optional
 
-import numpy as np
 from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import nameable_op
@@ -63,19 +62,20 @@ def interpolate(
     :param  name:          Optional name for the output node.
     :return: Node representing interpolation operation.
     """
-
     attrs = {
         "mode": mode,
         "shape_calculation_mode": shape_calculation_mode,
         "coordinate_transformation_mode": coordinate_transformation_mode,
         "nearest_mode": nearest_mode,
         "antialias": antialias,
-        "cube_coeff": cube_coeff
+        "cube_coeff": cube_coeff,
     }
 
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image, output_shape, scales, axes)
+    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image,
+                                                                                 output_shape,
+                                                                                 scales, axes)
 
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
