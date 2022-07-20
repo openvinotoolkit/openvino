@@ -88,20 +88,87 @@ void MakeJitConstForParam(JitConstants& jit, const std::string& name, size_t ran
 }  // namespace
 
 KernelsData DFTKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    KernelsData kernels_data;
     if (!Validate(params, options)) {
-        return kernels_data;
+        return {};
     }
-    kernels_data.push_back(KernelData::Default<dft_params>(params));
-    KernelData& kernel_data = kernels_data.front();
-    auto& derived_params = dynamic_cast<dft_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(derived_params);
-    auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params, options);
-    auto jit_constants = GetJitConstants(derived_params);
-    auto jit = CreateJit(kernelName, jit_constants, entry_point);
-    auto& clKernelData = kernel_data.kernels[0];
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point);
-    return kernels_data;
+
+    KernelData kd = KernelData::Default<dft_params>(params);
+    const auto& derived_params = dynamic_cast<const dft_params&>(params);
+
+    // For IRDFT case we create two kernels with different data
+    // First, do IDFT on outer axes and input data
+    // Second, do IRDFT on the last axis and data from the first kernel
+    if (derived_params.mode == dft_params::Mode::real && derived_params.kind == dft_params::Kind::inverse &&
+        derived_params.axes.size() > 1) {
+        // Helper vector
+        std::vector<std::pair<dft_params, cldnn::arguments_desc>> kernels_params;
+
+        // Fill IDFT kernel data
+        auto idft_params = derived_params;
+        idft_params.mode = dft_params::Mode::complex;
+        idft_params.axes.pop_back();
+        idft_params.signal_size.pop_back();
+        const cldnn::arguments_desc idft_arguments{{ArgumentDescriptor::Types::INPUT, 0},
+                                                   {ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}};
+
+        auto& idft_input = idft_params.inputs.front();
+        auto idft_input_sizes = idft_input.LogicalDims();
+        // NOTE: This is a small workaround for a 3d case
+        // We always should have first dimension equal to 2, so we swap it with the second dimension
+        if (idft_input_sizes[0] == 1) {
+            std::swap(idft_input_sizes[0], idft_input_sizes[1]);
+            idft_input = DataTensor(idft_input_sizes, idft_input.GetDType(), idft_input.GetLayout());
+        }
+
+        // Calculate IDFT output sizes
+        auto idft_output_sizes = idft_input_sizes;
+        auto& idft_output = idft_params.outputs.front();
+        for (const auto& axis : idft_params.axes) {
+            auto inverted_axis = idft_output_sizes.size() - 1 - axis;
+            idft_output_sizes[inverted_axis] = idft_output.LogicalDims()[inverted_axis];
+        }
+        idft_output = DataTensor(idft_output_sizes, idft_input.GetDType(), idft_input.GetLayout());
+
+        // Set internal buffer
+        kd.internalBufferDataType = idft_input.GetDType();
+        kd.internalBufferSizes.push_back(idft_output.PhysicalSizeInBytes());
+
+        // Fill IRDFT kernel data
+        auto irdft_params = derived_params;
+        irdft_params.inputs.front() = idft_output;
+        irdft_params.axes = {derived_params.axes.back()};
+        irdft_params.signal_size = {derived_params.signal_size.back()};
+        const cldnn::arguments_desc irdft_arguments{{ArgumentDescriptor::Types::INTERNAL_BUFFER, 0},
+                                                    {ArgumentDescriptor::Types::OUTPUT, 0}};
+
+        // Fill kernels
+        kernels_params.emplace_back(idft_params, idft_arguments);
+        kernels_params.emplace_back(irdft_params, irdft_arguments);
+        const auto kKernelsNum = kernels_params.size();
+        kd.kernels.resize(kKernelsNum);
+        for (size_t i = 0; i < kKernelsNum; ++i) {
+            dft_params kernel_params;
+            cldnn::arguments_desc kernel_arguments;
+            std::tie(kernel_params, kernel_arguments) = kernels_params[i];
+
+            const auto dispatch_data = SetDefault(kernel_params);
+            const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options, i);
+            const auto jit_constants = GetJitConstants(kernel_params);
+            const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+            auto& clKernelData = kd.kernels[i];
+            FillCLKernelData(clKernelData, dispatch_data, kernel_params.engineInfo, kernelName, jit, entry_point);
+            clKernelData.params.arguments = kernel_arguments;
+        }
+    } else {
+        const auto dispatch_data = SetDefault(derived_params);
+        const auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, derived_params, options);
+        const auto jit_constants = GetJitConstants(derived_params);
+        const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+        auto& clKernelData = kd.kernels[0];
+        FillCLKernelData(clKernelData, dispatch_data, derived_params.engineInfo, kernelName, jit, entry_point);
+    }
+
+    return {kd};
 }
 
 ParamsKey DFTKernelRef::GetSupportedKey() const {
@@ -146,7 +213,7 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         auto inverted_axis = dims_size - axis;
         auto signal_size = params.signal_size[i];
 
-        // We need to take signal size into account for RDFT case, as output size can be not the same as signal size
+        // For RDFT case, we need to take signal size into account, as output size can be not the same as signal size
         if (params.mode == dft_params::Mode::real && params.kind == dft_params::Kind::forward) {
             if (signal_size != -1) {
                 signal_sizes[inverted_axis] = signal_size;
@@ -156,7 +223,17 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         }
 
         s *= signal_sizes[inverted_axis];
+
+        // NOTE: We can use full signal size as axis value, but this doesn't make much sense, as it will be zero-padded
+        // So, we take minimum size here and save some dummy cycles in kernel
         auto axis_value = std::min(signal_sizes[inverted_axis], in_sizes[inverted_axis]);
+
+        // For IRDFT case, we should use full signal size as axis value and interpret input data as Hermitian-symmetric
+        if (params.mode == dft_params::Mode::real && params.kind == dft_params::Kind::inverse) {
+            axis_value = signal_sizes[inverted_axis];
+            MakeJitConstForParam(jit, "SYMMETRIC_AXIS", out_rank, axis, true);
+        }
+
         MakeJitConstForParam(jit, "AXIS", out_rank, axis, axis_value);
         MakeJitConstForParam(jit, "SIGNAL_SIZE", out_rank, axis, signal_sizes[inverted_axis]);
     }

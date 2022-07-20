@@ -49,13 +49,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_1d_real,
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
                          DFT9LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,
-                         DFT9LayerTest,
-                         combine({{10, 2}},   // input shapes
-                                 {{0}},       // axes
-                                 {{}, {3}}),  // signal sizes
-                         DFT9LayerTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_3d,
                          DFT9LayerTest,
                          combine({{10, 4, 2}},    // input shapes

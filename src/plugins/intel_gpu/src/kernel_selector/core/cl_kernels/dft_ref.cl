@@ -13,6 +13,7 @@ typedef float2 cfloat;
 #define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
 #define expi(x)      ((cfloat)(cos(x), sin(x)))
 #define expmi(x)     ((cfloat)(cos(x), -sin(x)))
+#define conj(x)      ((cfloat)(real(x), -imag(x)))
 #define czero()      ((cfloat)(0))
 
 // TODO: pregenerate e{r,i} array on host in macro. maybe it could be done with kernel which runs once?
@@ -104,11 +105,97 @@ KERNEL(dft_ref)(const __global INPUT0_TYPE* data, __global OUTPUT_TYPE* output) 
 #ifdef AXIS_BATCH
                         a += ab * b;
 #endif
+
+#ifdef REAL_DFT
+#    ifdef INVERSE_DFT_MULTIPLIER
+#        if OUTPUT_DIMS == 4
+#            define SYMMETRIC_ORDER_REAL sb, sf, sy, 0
+#            define SYMMETRIC_ORDER_IMAG sb, sf, sy, 1
+#        elif OUTPUT_DIMS == 5
+#            define SYMMETRIC_ORDER_REAL sb, sf, sz, sy, 0
+#            define SYMMETRIC_ORDER_IMAG sb, sf, sz, sy, 1
+#        elif OUTPUT_DIMS == 6
+#            define SYMMETRIC_ORDER_REAL sb, sf, sw, sz, sy, 0
+#            define SYMMETRIC_ORDER_IMAG sb, sf, sw, sz, sy, 1
+#        endif
+                        bool is_zero = false;
+                        bool is_conj = false;
+#        ifdef SYMMETRIC_AXIS_BATCH
+                        uint sb = b;
+                        if (sb > OUTPUT_BATCH_NUM / 2) {
+                            sb = OUTPUT_BATCH_NUM - sb;
+                            is_conj = true;
+                        }
+                        if (sb >= INPUT0_BATCH_NUM) {
+                            is_zero = true;
+                        }
+#        else
+#            define sb b
+#        endif
+#        ifdef SYMMETRIC_AXIS_FEATURE
+                        uint sf = f;
+                        if (sf > OUTPUT_FEATURE_NUM / 2) {
+                            sf = OUTPUT_FEATURE_NUM - sf;
+                            is_conj = true;
+                        }
+                        if (sf >= INPUT0_FEATURE_NUM) {
+                            is_zero = true;
+                        }
+#        else
+#            define sf f
+#        endif
+#        ifdef SYMMETRIC_AXIS_W
+                        uint sw = w;
+                        if (sw > OUTPUT_SIZE_W / 2) {
+                            sw = OUTPUT_SIZE_W - sw;
+                            is_conj = true;
+                        }
+                        if (sw >= INPUT0_SIZE_W) {
+                            is_zero = true;
+                        }
+#        else
+#            define sw w
+#        endif
+#        ifdef SYMMETRIC_AXIS_Z
+                        uint sz = z;
+                        if (sz > OUTPUT_SIZE_Z / 2) {
+                            sz = OUTPUT_SIZE_Z - sz;
+                            is_conj = true;
+                        }
+                        if (sz >= INPUT0_SIZE_Z) {
+                            is_zero = true;
+                        }
+#        else
+#            define sz z
+#        endif
+#        ifdef SYMMETRIC_AXIS_Y
+                        uint sy = y;
+                        if (sy > OUTPUT_SIZE_Y / 2) {
+                            sy = OUTPUT_SIZE_Y - sy;
+                            is_conj = true;
+                        }
+                        if (sy >= INPUT0_SIZE_Y) {
+                            is_zero = true;
+                        }
+#        else
+#            define sy y
+#        endif
+                        cfloat X = czero();
+                        if (!is_zero) {
+                            const uint input_real_index = GET_INDEX(INPUT0, SYMMETRIC_ORDER_REAL);
+                            const uint input_imag_index = GET_INDEX(INPUT0, SYMMETRIC_ORDER_IMAG);
+                            X = (cfloat)(data[input_real_index], data[input_imag_index]);
+                            if (is_conj) {
+                                X = conj(X);
+                            }
+                        }
+#    else
                         const uint input_real_index = GET_INDEX(INPUT0, ORDER_REAL);
-// clang-format off
-#if defined(REAL_DFT) && !defined(INVERSE_DFT_MULTIPLIER)
                         const float X = data[input_real_index];
+#    endif
+// clang-format off
 #else
+                        const uint input_real_index = GET_INDEX(INPUT0, ORDER_REAL);
                         const uint input_imag_index = GET_INDEX(INPUT0, ORDER_IMAG);
                         const cfloat X = (cfloat)(data[input_real_index], data[input_imag_index]);
 #endif
