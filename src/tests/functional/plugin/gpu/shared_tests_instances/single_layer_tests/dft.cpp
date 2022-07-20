@@ -53,28 +53,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_2d,
                          DFT9LayerTest,
                          combine({{10, 2}},   // input shapes
                                  {{0}},       // axes
-                                 {{}, {5}}),  // signal sizes
+                                 {{}, {3}}),  // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_3d,
                          DFT9LayerTest,
-                         combine({{10, 4, 2}},   // input shapes
-                                 {{0, 1}},       // axes
-                                 {{}, {5, 2}}),  // signal sizes
+                         combine({{10, 4, 2}},    // input shapes
+                                 {{0, 1}},        // axes
+                                 {{}, {3, 10}}),  // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d,
                          DFT9LayerTest,
-                         combine({{10, 4, 8, 2}},   // input shapes
-                                 {{0, 1, 2}},       // axes
-                                 {{}, {5, 2, 5}}),  // signal sizes
+                         combine({{10, 4, 8, 2}},    // input shapes
+                                 {{0, 1, 2}},        // axes
+                                 {{}, {3, 10, 8}}),  // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d_negative_axes,
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d_negative_reversed_axes,
                          DFT9LayerTest,
-                         combine({{10, 4, 8, 2}},   // input shapes
-                                 {{-1, -2, -3}},    // axes
-                                 {{}, {5, 2, 5}}),  // signal sizes
+                         combine({{10, 4, 8, 2}},    // input shapes
+                                 {{-1, -2, -3}},     // axes
+                                 {{}, {8, 10, 3}}),  // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DFT_4d_single_axis,
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d,
                          DFT9LayerTest,
                          combine({{10, 4, 8, 2, 2}},    // input shapes
                                  {{0, 1, 2, 3}},        // axes
-                                 {{}, {5, 2, 5, 20}}),  // signal sizes
+                                 {{}, {3, 10, 8, 6}}),  // signal sizes
                          DFT9LayerTest::getTestCaseName);
 
 // RDFT can support last axis
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_5d_real_last_axis,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
-                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD),
                                           testing::Values(ngraph::helpers::DFTOpMode::REAL),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -109,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_complex,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
-                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
                                           testing::Values(ngraph::helpers::DFTOpType::FORWARD,
                                                           ngraph::helpers::DFTOpType::INVERSE),
                                           testing::Values(ngraph::helpers::DFTOpMode::COMPLEX),
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DFT_6d_real,
                          testing::Combine(testing::Values(InferenceEngine::SizeVector{10, 4, 8, 2, 5, 2}),
                                           testing::ValuesIn(inputPrecisions),
                                           testing::ValuesIn(std::vector<std::vector<int64_t>>{{{0, 1, 2, 3, 4}}}),
-                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {5, 2, 5, 20, 10}}),
+                                          testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {3, 10, 8, 6, 2}}),
                                           testing::Values(ngraph::helpers::DFTOpType::INVERSE),
                                           testing::Values(ngraph::helpers::DFTOpMode::REAL),
                                           testing::Values(CommonTestUtils::DEVICE_GPU)),
