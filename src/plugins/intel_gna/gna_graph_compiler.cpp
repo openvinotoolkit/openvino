@@ -193,28 +193,48 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     split_connection.emplace(id, layerInfoItem);
 }
 
-void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
-    if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 == target) {
-        cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_30());
-    }
+void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(const std::string& target) {
+    auto temp = GNALimitations::Cnn2D::AbstractValidator::Create(target);
+    cnn2dValidator.reset(temp.release());
 }
 
-void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth, const uint32_t inChannels,
-    const uint32_t kH, const uint32_t kW, const uint32_t kN, const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision,
-    const uint32_t dilH, const uint32_t dilW) const {
+void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name,
+                                                  const uint32_t inHeight,
+                                                  const uint32_t inWidth,
+                                                  const uint32_t inChannels,
+                                                  const uint32_t kH,
+                                                  const uint32_t kW,
+                                                  const uint32_t kN,
+                                                  const uint32_t strideH,
+                                                  const uint32_t strideW,
+                                                  const uint32_t dilH,
+                                                  const uint32_t dilW,
+                                                  OvGnaType inPrecision) const {
     if (cnn2dValidator) {
-        cnn2dValidator->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
+        cnn2dValidator
+            ->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
     }
 }
 
-void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(std::string name, const uint32_t windowH, const uint32_t windowW,
-    const uint32_t strideH, const uint32_t strideW) const {
+void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(const std::string& name,
+                                                      const uint32_t windowH,
+                                                      const uint32_t windowW,
+                                                      const uint32_t strideH,
+                                                      const uint32_t strideW) const {
     if (cnn2dValidator) {
         cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
         THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
+    }
+}
+
+bool GNAPluginNS::GNAGraphCompiler::IsCnn2DInputPaddingSupported(const std::string& name) const {
+    if (cnn2dValidator) {
+        return cnn2dValidator->IsPaddingSupported();
+    } else {
+        THROW_GNA_EXCEPTION << "No Cnn2D input padding validator found for layer " << name;
     }
 }
 
@@ -587,8 +607,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
-        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+    if (!IsCnn2DInputPaddingSupported(convolution.name) &&
+        (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
     }
 
@@ -598,6 +619,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
     }
+    convolution._padding_x = convolution._pads_end.at(X_AXIS);
+    convolution._padding_y = convolution._pads_end.at(Y_AXIS);
 
     if (convolution._kernel_x > effectiveInputWidth ||
         convolution._kernel_y > effectiveInputHeight) {
@@ -636,7 +659,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     ValidateCnn2D(layer->name,
         in_height, in_width, in_channels,
         convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
-        inputPrec, convolution._dilation_y, convolution._dilation_x);
+        convolution._dilation_y, convolution._dilation_x, inputPrec);
 
     float weight_scale_factor = getScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
@@ -1885,18 +1908,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     auto orientation = kDnnInterleavedOrientation;
 
-    if (inputs->getDims().size() == 4) {
-        uint32_t w_dim_in = GetDataDimSize(inputs, 1);
-        uint32_t h_dim_in = GetDataDimSize(inputs, 2);
-        uint32_t c_dim_in = GetDataDimSize(inputs, 3);
-        uint32_t b_dim_in = GetDataDimSize(inputs, 4);
-
-        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in * b_dim_in : w_dim_in * c_dim_in * b_dim_in;
-        num_rows = (w_dim_in == 1) ? w_dim_in : h_dim_in;
-    } else {
-        num_columns = GetDataDimSize(inputs, 2);
-        num_rows = GetDataDimSize(inputs, 1);
-    }
+    uint32_t w_dim_in = GetDataDimSize(inputs, DataDimName::W);
+    uint32_t h_dim_in = GetDataDimSize(inputs, DataDimName::H);
+    uint32_t c_dim_in = GetDataDimSize(inputs, DataDimName::C);
+    uint32_t n_dim_in = GetDataDimSize(inputs, DataDimName::N);
+    num_columns = n_dim_in;
+    num_rows = w_dim_in * h_dim_in * c_dim_in;
 
     if (dnn->new_num_conv_columns) {
         if (dnn->new_num_conv_columns % num_columns == 0) {
