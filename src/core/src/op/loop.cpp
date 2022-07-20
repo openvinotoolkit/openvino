@@ -4,6 +4,7 @@
 
 #include "ngraph/op/loop.hpp"
 
+#include <climits>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
@@ -197,9 +198,8 @@ void op::v5::Loop::validate_and_infer_types() {
     m_bodies[0]->validate_nodes_and_infer_types();
 
     if (!back_edges.empty()) {
-        // The number of iterations can be big or unknown. If it is too big we spend a lot of time in this shape
-        // inference. Hardcode a max thresh to avoid wasting too much time.
-        int i, max_num_of_iterations = 10;
+        // if an exact value is available, limit the number of iterations.
+        size_t i, max_num_of_iterations = m_num_iterations == -1 ? INT_MAX : m_num_iterations;
         bool need_reinvalidate = false;
         for (i = 0; i < max_num_of_iterations; i++) {
             need_reinvalidate = false;
@@ -209,6 +209,9 @@ void op::v5::Loop::validate_and_infer_types() {
                 if (auto body_output_description =
                         ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& body_value_shape = body_value.get_partial_shape();
+                    auto input_param =
+                        m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
+                    const auto& input_param_ps = input_param->get_partial_shape();
                     if (body_value_shape.rank().is_static()) {
                         // handle the case: when sub-model's output shape does not compatible input shape in a
                         // back-edge, such as
@@ -218,30 +221,41 @@ void op::v5::Loop::validate_and_infer_types() {
                         // when iteration number is unknown or sub-model output shape may be vary, the Result shape
                         // should infer as (-1, -1), then set changed one to input and propagate to others.
                         if (back_edges.count(output_description->m_body_value_index)) {
-                            auto input_param =
-                                m_bodies[0]->get_parameters().at(back_edges[output_description->m_body_value_index]);
-                            const auto& input_param_ps = input_param->get_partial_shape();
                             if (input_param_ps.rank().is_static()) {
                                 const auto body_rank_len = body_value_shape.rank().get_length();
                                 const auto input_rank_len = input_param_ps.rank().get_length();
-                                if (body_rank_len == input_rank_len) {
-                                    if (!input_param_ps.compatible(body_value_shape)) {
-                                        ov::PartialShape new_ps(body_value_shape);
-                                        for (auto i = 0; i < body_value_shape.size(); i++) {
-                                            if (!body_value_shape[i].compatible(input_param_ps[i])) {
-                                                new_ps[i] = Dimension::dynamic();
-                                            }
+                                ov::PartialShape new_ps;
+                                const auto new_ps_rank_len = std::max(body_rank_len, input_rank_len);
+                                new_ps.resize(new_ps_rank_len);
+                                bool shape_changed = false;
+                                for (auto j = new_ps_rank_len - 1; j >= 0; j--) {
+                                    const auto body_idx_from_right = body_rank_len - 1 - (new_ps_rank_len - 1 - j);
+                                    const auto input_idx_from_right = input_rank_len - 1 - (new_ps_rank_len - 1 - j);
+                                    if (body_idx_from_right >= 0 && input_idx_from_right >= 0) {
+                                        if (!body_value_shape[body_idx_from_right].compatible(
+                                                input_param_ps[input_idx_from_right])) {
+                                            new_ps[j] = Dimension::dynamic();
+                                            shape_changed = true;
                                         }
-                                        // reset sub model input shape
-                                        input_param->set_partial_shape(new_ps);
-                                        need_reinvalidate = true;
+                                    } else if (body_idx_from_right >= 0) {
+                                        new_ps[j] = body_value_shape[body_idx_from_right];
+                                    } else {
+                                        new_ps[j] = input_param_ps[input_idx_from_right];
                                     }
-                                } else {
-                                    // rank changed, use new shape do the shape infer
-                                    input_param->set_partial_shape(body_value_shape);
+                                }
+
+                                // reset sub model input shape
+                                if (shape_changed) {
                                     need_reinvalidate = true;
+                                    input_param->set_partial_shape(new_ps);
                                 }
                             }
+                        }
+                    } else {
+                        if (input_param_ps.rank().is_static()) {
+                            // output shape is dynamic, let the input known now we are dynamic shape
+                            input_param->set_partial_shape(body_value_shape);
+                            need_reinvalidate = true;
                         }
                     }
                 }
@@ -252,11 +266,6 @@ void op::v5::Loop::validate_and_infer_types() {
             } else {
                 break;
             }
-        }
-        if (i == max_num_of_iterations && need_reinvalidate) {
-            NODE_VALIDATION_CHECK(this,
-                                  false,
-                                  "Shape infer number reaches the max try number but the shape is still computed.");
         }
     }
 
