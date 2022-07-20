@@ -134,18 +134,19 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
-
 get_linux_name(LINUX_OS_NAME)
 if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
     # Debian packages are enabled on Ubuntu systems
-    # so, system TBB can be tried for usage
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+    # so, system TBB / pugixml can be tried for usage
+    set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+    set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+# for static libraries case libpugixml.a must be compiled with -fPIC
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
+
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_LIBS_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 
