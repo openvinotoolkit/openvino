@@ -12,6 +12,7 @@ from openvino.runtime.utils.types import make_constant_node
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset9 as ov
+import openvino.runtime.opset10 as ov_opset10
 from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
@@ -2173,3 +2174,24 @@ def test_grid_sample_custom_attributes():
     assert node_attributes["align_corners"] is True
     assert node_attributes["mode"] == "nearest"
     assert node_attributes["padding_mode"] == "reflection"
+
+
+@pytest.mark.parametrize("dtype", np_types)
+def test_interpolate_opset4(dtype):
+
+    image_shape = [1, 3, 1024, 1024]
+    image_node = ov.parameter(image_shape, dtype, name="Image")
+    output_shape = [256, 256]
+    scales = np.array([1/16, 1/16], dtype=np.float32)
+    axes = [2, 3]
+    mode = "cubic"
+
+    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], 'scales'), 
+                                                   ([1, 3, 256, 256], 'sizes')]:
+
+        node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales, axes=axes,
+                                      mode=mode, shape_calculation_mode=shape_calculation_mode)
+
+        assert node.get_type_name() == "Interpolate"
+        assert node.get_output_size() == 1
+        assert list(node.get_output_shape(0)) == expected_shape

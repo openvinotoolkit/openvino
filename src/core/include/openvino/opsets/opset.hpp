@@ -172,4 +172,5 @@ const OPENVINO_API OpSet& get_opset7();
  */
 const OPENVINO_API OpSet& get_opset8();
 const OPENVINO_API OpSet& get_opset9();
+const OPENVINO_API OpSet& get_opset10();
 }  // namespace ov

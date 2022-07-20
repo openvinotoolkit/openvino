@@ -61,4 +61,5 @@ const NGRAPH_API OpSet& get_opset6();
 const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
 const NGRAPH_API OpSet& get_opset9();
+const NGRAPH_API OpSet& get_opset10();
 }  // namespace ngraph
