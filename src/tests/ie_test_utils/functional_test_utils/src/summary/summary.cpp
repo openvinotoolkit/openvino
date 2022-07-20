@@ -8,6 +8,7 @@ using namespace ov::test::utils;
 
 bool Summary::extendReport = false;
 bool Summary::saveReportWithUniqueName = false;
+bool Summary::isCrashReported = false;
 size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
 

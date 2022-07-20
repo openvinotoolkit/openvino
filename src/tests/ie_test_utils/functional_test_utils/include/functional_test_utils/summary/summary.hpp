@@ -63,6 +63,7 @@ protected:
     bool isReported = false;
 
     static size_t saveReportTimeout;
+    static bool isCrashReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
     static const char *outputFolder;

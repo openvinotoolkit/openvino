@@ -52,29 +52,32 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
         opsStats.insert({op, PassRate()});
     }
     auto &passrate = opsStats[op];
+    if (isCrashReported) {
+        passrate.crashed--;
+    }
     switch (status) {
         case PassRate::PASSED:
             if (!passrate.isImplemented) {
                 passrate.isImplemented = true;
             }
             passrate.passed++;
-            passrate.crashed--;
             break;
         case PassRate::FAILED:
             passrate.failed++;
-            passrate.crashed--;
             break;
         case PassRate::SKIPPED:
             passrate.skipped++;
             break;
         case PassRate::CRASHED:
             passrate.crashed++;
-            break;
+            isCrashReported = true;
+            return;
         case PassRate::HANGED:
             passrate.hanged++;
             passrate.crashed--;
             break;
     }
+    isCrashReported = false;
 }
 
 void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {

@@ -35,6 +35,7 @@ void ApiSummaryDestroyer::initialize(ApiSummary *p) {
 
 ApiSummary::ApiSummary() : apiStats() {
     reportFilename = CommonTestUtils::API_REPORT_FILENAME;
+    isCrashReported = false;
 }
 
 ApiSummary &ApiSummary::getInstance() {
@@ -61,6 +62,8 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
     if (cur_stat.find(real_device) == cur_stat.end()) {
         cur_stat.insert({real_device, PassRate()});
     }
+    if (isCrashReported)
+        cur_stat[real_device].crashed--;
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
@@ -71,23 +74,22 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
                 cur_stat[real_device].isImplemented = true;
             }
             cur_stat[real_device].passed++;
-            cur_stat[real_device].crashed--;
             break;
         }
         case PassRate::Statuses::HANGED: {
             cur_stat[real_device].hanged++;
-            cur_stat[real_device].crashed--;
             break;
         }
         case PassRate::Statuses::FAILED: {
             cur_stat[real_device].failed++;
-            cur_stat[real_device].crashed--;
             break;
         }
         case PassRate::Statuses::CRASHED:
             cur_stat[real_device].crashed++;
-            break;
+            isCrashReported = true;
+            return;
     }
+    isCrashReported = false;
 }
 
 ov_entity ApiSummary::getOvEntityByName(const std::string& name) {
