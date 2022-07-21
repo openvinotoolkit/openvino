@@ -93,4 +93,17 @@ brew install libusb
 ```
 
 You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
-Proceed to the <a href="openvino_docs_install_guides_installing_openvino_macos.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+
+## What’s Next?
+
+Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
+
+Developing in Python:
+   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
+   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+
+Developing in C++:
+   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
+   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
+   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
