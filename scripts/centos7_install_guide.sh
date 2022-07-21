@@ -11,7 +11,7 @@ Help()
    # Display Help
    echo "Add description of the script functions here."
    echo
-   echo "Syntax: scriptTemplate [-h|g|p|c|m|b|y]"
+   echo "Syntax: scriptTemplate [-h|g|p|c|m|b|y|r]"
    echo "options:"
    echo "h     print this Help."
    echo "g     gcc version(default 8)"
@@ -20,11 +20,13 @@ Help()
    echo "m     model name(default resnet-50-pytorch)" 
    echo "b     use benchmark_app c++(default false)"
    echo "y     update yum(default false)" 
+   echo "r     rebuild mode to check installation(default false)"
 }
 
 usage() 
 { echo "Usage: [-g <7 or 8>] [-p <6, 7, 8 or 9>] [-c <cmake dir>] [-m <evaluation model>] \
- [-b benchmark_app c++ <true or false>] [-y <true or false>]" [-h help] 1>&2; exit 1; }
+ [-b benchmark_app c++ <true or false>] [-y <true or false>] [-r <true or false>] " \
+ [-h help] 1>&2; exit 1; }
 
 CppBenchmarkFunc()
 {
@@ -36,7 +38,7 @@ if command -v $benchmark_appPath; then
   $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
 else
   echo "not find $benchmark_appPath"
-  exit
+  exit 1
  fi
 }
 
@@ -46,16 +48,18 @@ else
 ############################################################
 ############################################################
 
+# get the absolute path from script's dir
+ovDir=$(cd `dirname $0` && cd ../.. && pwd)
+cd $ovDir/openvino
 # check OS version
-if [ -f /etc/lsb-release ]; then
-  echo "Ubuntu install guide is on the way"
-elif [ -f /etc/redhat-release ]; then
+if [ -f /etc/redhat-release ]; then
   echo "Demo to install and evaluate OV on centos7.x"
-elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
-  echo "no plan for Raspbian install guide"
+else 
+  echo "This script is only for centos7"
+  exit 1
 fi
 echo "############################################################"
-echo "openvino 2022.1.0 has been validated"
+echo "current openvino(tag): $(git describe --tags)"
 echo "############################################################"
 # Set variables
 gccSet=7
@@ -64,13 +68,14 @@ cmakeDir=~
 model=resnet-50-pytorch
 benchmarkCpp=false
 yumUpdate=false
+rebuild=false
 
 ############################################################
 # Process the input options. Add options as needed.        #
 ############################################################
 
 # Get the options
-while getopts "g:p:c:m:b:y:h" option; do
+while getopts "g:p:c:m:b:y:r:h" option; do
     case "${option}" in
         g) gccSet=$OPTARG;;
         p) pySet=$OPTARG;;
@@ -78,6 +83,7 @@ while getopts "g:p:c:m:b:y:h" option; do
         m) model=$OPTARG;;
         b) benchmarkCpp=$OPTARG;;
         y) yumUpdate=$OPTARG;;
+        r) rebuild=$OPTARG;;
         h) Help 
         exit;; # display Help
         \?) usage;;      
@@ -104,16 +110,13 @@ else
   exit 1
 fi 
 
-# get the absolute path from script's dir
-ovDir=$(cd `dirname $0` && cd ../.. && pwd)
-
 ############################################################
 #     0.system dependency and environment                  #
 ############################################################
 echo "############################################################"
 echo ">>> 0.system dependency and environment"
 
-echo "ssumes proxy exists"
+echo "assumes proxy exists"
 
 <<comment
 sudo -i
@@ -126,6 +129,10 @@ if $yumUpdate; then
   sudo yum update
 else
   echo "yum will not update"
+fi
+
+if $rebuild; then
+  echo "rebuild mode: build OV and install new whl"
 fi
 
 echo "############################################################"
@@ -144,7 +151,9 @@ if [ ! -d ~/anaconda3 ]; then
 else 
   echo "anaconda3 exists"
 fi
-export PATH="/home/openvino/anaconda3/bin:$PATH"
+conda init
+source ~/.bashrc
+conda config --set auto_activate_base false
 
 ############################################################
 #     1.Download CMake                                     #
@@ -224,6 +233,19 @@ pip install -U pip wheel setuptools cython patchelf
 # different dir to cmake, e.g. "build_gcc8_py39", "install_gcc8_py38"
 buildDir=build_gcc${gccSet}"_py3"${pySet}
 installDir=install_gcc${gccSet}"_py3"${pySet}
+
+if [ -d $buildDir ]; then 
+  echo "delete $buildDir"
+  rm -rf $buildDir
+fi
+if [ -d $installDir ]; then 
+  echo "delete $installDir"
+  rm -rf $installDir
+fi
+if [ -d temp ]; then 
+  echo "delete temp"
+  rm -rf temp
+fi
 mkdir -p $buildDir && mkdir -p $installDir && cd $buildDir
 
 # check python path before cmake
@@ -236,8 +258,11 @@ pathDPYTHON_INCLUDE_DIR=$(find $pyPath/include -maxdepth 1 -name python3.$pySet*
 
 echo "############################################################"
 echo ">>> 3.3 cmake to build OV"
-if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ]; then
-  echo "whls not exist, now cmake"
+if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ] || $rebuild; then
+  if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ] ; then
+    echo "whls not exist"
+  fi
+  echo "cmake now"
   # will download prebuild TBB instead of using system's 
   cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON \
   -DCMAKE_INSTALL_PREFIX=../$installDir -DENABLE_SYSTEM_TBB=OFF -DENABLE_OPENCV=OFF \
@@ -250,7 +275,8 @@ if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ]; then
   make --jobs=$(nproc --all)
   make install
   else cd $ovDir/openvino/$installDir/tools/
-  echo openvino-2022*.whl openvino_dev-2022*.whl exits
+  echo openvino-2022*.whl exits
+  echo openvino_dev-2022*.whl exits
 fi
 
 ############################################################
@@ -259,11 +285,14 @@ fi
 echo "############################################################"
 echo ">>> 4.Install python wheel"
 # check mo and benchmark_app 
-if ! command -v mo; then
-  echo "mo not exists"
-  echo install openvino-2022*.whl openvino_dev-2022*.whl
+# TODO: mo -v return error, Maybe change it to mo --version
+if [ ! command -v mo ] || $rebuild ; then
+  if [ ! command -v mo ] ; then
+    echo "mo not exists"
+  fi  
   cd $ovDir/openvino/$installDir/tools
-  pip install openvino-2022*.whl openvino_dev-2022*.whl  
+  echo install openvino-2022*.whl openvino_dev-2022*.whl
+  pip install --force-reinstall openvino-2022*.whl openvino_dev-2022*.whl  
   else echo "mo exists"
 fi
 
@@ -278,8 +307,12 @@ echo ">>> 5.$model evaluation with benchmark_app"
 ############################################################
 mkdir -p ~/ov_models
 
-if [ ! -d ~/ov_models/public/$model ]; then
-  echo "$model not exists, now install onnx, pytorch, omz_downloader and omz_converter"
+if [ ! -d ~/ov_models/public/$model ] || $rebuild; then
+  if [ ! -d ~/ov_models/public/$model ]; then
+    echo "$model not exists"
+  fi
+  echo "now install onnx, pytorch, omz_downloader and omz_converter"
+  pip install protobuf==3.16.0 
   pip install onnx==1.11.0 # python3.6 not support ONNX 1.12
   pip install openvino-dev[pytorch] # install ONNX's dependency
   omz_downloader --name $model -o ~/ov_models/
@@ -303,7 +336,7 @@ echo "Congratulation! centos7-install-guide is finished."
 echo "############################################################"
 echo "Here is an OV usage example on centos7:"
 echo "source /opt/rh/devtoolset-$gccSet/enable"
-echo "export PATH=\"/home/openvino/anaconda3/bin:\$PATH\""
+echo "export PATH=\"~/anaconda3/bin:\$PATH\""
 echo "conda activate py3$pySet"
 echo "benchmark_app -m ~/ov_models/public/$model/FP32/$model.xml -d CPU"
 echo "############################################################"
