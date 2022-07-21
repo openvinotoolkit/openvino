@@ -49,6 +49,8 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual void init_kernels() = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
+
+    // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
 
 protected:
