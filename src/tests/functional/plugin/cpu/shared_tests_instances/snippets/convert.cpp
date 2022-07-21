@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Convert, Convert,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_Convert),
                                  ::testing::ValuesIn(types_Convert),
-                                 ::testing::Values(1),
+                                 ::testing::Values(2),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertInput, ConvertInput,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertInput),
                                  ::testing::ValuesIn(types_ConvertInput),
-                                 ::testing::Values(1),
+                                 ::testing::Values(3),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertOutput, ConvertOutput,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertInput),
                                  ::testing::ValuesIn(types_ConvertInput),
-                                 ::testing::Values(1),
+                                 ::testing::Values(3),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertStub, ConvertStub,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertInput),
                                  ::testing::ValuesIn(types_ConvertInput),
-                                 ::testing::Values(2),
+                                 ::testing::Values(4),
                                  ::testing::Values(2),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertPartialInputsAndResults, ConvertP
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertPartialInputsAndResults),
                                  ::testing::ValuesIn(types_ConvertPartialInputsAndResults),
-                                 ::testing::Values(2),
+                                 ::testing::Values(5),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);
