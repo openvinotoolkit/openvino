@@ -197,6 +197,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
         { "PriorBoxClustered", Type::PriorBoxClustered},
+        {"Interaction", Type::Interaction}
 };
 
 Type TypeFromName(const std::string& type) {
@@ -300,6 +301,8 @@ std::string NameFromType(const Type type) {
             return "ScatterElementsUpdate";
         case Type::ScatterNDUpdate:
             return "ScatterNDUpdate";
+        case Type::Interaction:
+            return "Interaction";
         case Type::Interpolate:
             return "Interpolate";
         case Type::Reduce:
