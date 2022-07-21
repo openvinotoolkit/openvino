@@ -43,7 +43,7 @@ void Convert::SetUp() {
 
 parameters Convert::generate_params_random() const {
     int32_t startFrom, range, resolution = 5;
-    switch(output_type) {
+    switch (output_type) {
         case ov::element::f32:
         case ov::element::i32:
         case ov::element::bf16:
@@ -99,7 +99,7 @@ parameters ConvertInput::generate_params_random() const {
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         int32_t startFrom, range, resolution = 1;
-        switch(funcInputs[i].get_element_type()) {
+        switch (funcInputs[i].get_element_type()) {
             case ov::element::f32:
             case ov::element::bf16:
                 startFrom = -10;
