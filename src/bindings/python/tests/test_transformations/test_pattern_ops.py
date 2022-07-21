@@ -26,7 +26,7 @@ def test_wrap_type_pattern_type():
         WrapType(f"opset{i}::Parameter")
 
     # Negative check not to forget to update opset map in get_type function
-    expect_exception(lambda: WrapType(f"opset{last_opstet_number + 1}.Parameter"), 
+    expect_exception(lambda: WrapType(f"opset{last_opstet_number + 1}.Parameter"),
                      f"Unsupported opset type: opset{last_opstet_number + 1}")
 
     # Generic negative test cases
