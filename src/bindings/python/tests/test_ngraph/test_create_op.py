@@ -2176,8 +2176,15 @@ def test_grid_sample_custom_attributes():
     assert node_attributes["padding_mode"] == "reflection"
 
 
+@pytest.mark.parametrize(
+    ("expected_shape", "shape_calculation_mode",),
+    [
+        ([1, 3, 64, 64], "scales"),
+        ([1, 3, 256, 256], "sizes"),
+    ],
+)
 @pytest.mark.parametrize("dtype", np_types)
-def test_interpolate_opset4(dtype):
+def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 
     image_shape = [1, 3, 1024, 1024]
     image_node = ov.parameter(image_shape, dtype, name="Image")
@@ -2186,13 +2193,9 @@ def test_interpolate_opset4(dtype):
     axes = [2, 3]
     mode = "cubic"
 
-    for expected_shape, shape_calculation_mode in [([1, 3, 64, 64], "scales"),
-                                                   ([1, 3, 256, 256], "sizes")]:
-
-        node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                      axes=axes, mode=mode,
-                                      shape_calculation_mode=shape_calculation_mode)
-
-        assert node.get_type_name() == "Interpolate"
-        assert node.get_output_size() == 1
-        assert list(node.get_output_shape(0)) == expected_shape
+    node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
+                                  axes=axes, mode=mode,
+                                  shape_calculation_mode=shape_calculation_mode)
+    assert node.get_type_name() == "Interpolate"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
