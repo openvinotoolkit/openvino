@@ -24,7 +24,6 @@ public:
         if (base::load(src, convert)) {
             return true;
         }
-
         else if (py::isinstance<py::str>(src)) {
             value = new ov::Layout(py::cast<std::string>(src));
             return true;
