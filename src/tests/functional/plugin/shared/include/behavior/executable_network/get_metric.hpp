@@ -64,7 +64,8 @@ protected:
     std::string heteroDeviceName;
 public:
     void SetUp() override {
-        target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;
+        target_device = GetParam();
+        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();

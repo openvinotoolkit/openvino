@@ -111,7 +111,6 @@ protected:
 
     ov::CompiledModel execNet;
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 };

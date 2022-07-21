@@ -87,7 +87,7 @@ TEST_P(OVInferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTo
     // GetNetwork(3000, 380) make inference around 20ms on GNA SW
     // so increases chances for getting RESULT_NOT_READY
     OV_ASSERT_NO_THROW(execNet = core->compile_model(
-        SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38), targetDevice, configuration));
+        SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38), target_device, configuration));
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
     std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;

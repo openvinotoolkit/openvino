@@ -16,10 +16,10 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(const testing::TestP
 
 void OVInferRequestPerfCountersTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    std::tie(targetDevice, configuration) = this->GetParam();
-    function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
+    std::tie(target_device, configuration) = this->GetParam();
+    function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
     configuration.insert(ov::enable_profiling(true));
-    execNet = core->compile_model(function, targetDevice, configuration);
+    execNet = core->compile_model(function, target_device, configuration);
     req = execNet.create_infer_request();
 }
 

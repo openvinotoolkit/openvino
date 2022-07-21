@@ -187,7 +187,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    auto execNet = ie->compile_model(function, target_device, configuration);
     // Create InferRequest
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -208,7 +208,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    auto execNet = ie->compile_model(function, target_device, configuration);
     // Create InferRequest
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -223,12 +223,12 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
 
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     ov::AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
@@ -285,12 +285,12 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
 
 std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
