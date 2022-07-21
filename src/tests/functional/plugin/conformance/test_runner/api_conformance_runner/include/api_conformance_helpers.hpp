@@ -85,16 +85,18 @@ inline const std::vector<std::string> return_all_possible_device_combination() {
     return res;
 }
 
-inline std::map<std::string, std::string> AnyMap2StringString(const AnyMap& config) {
+inline std::map<std::string, std::string> AnyMap2StringMap(const AnyMap& config) {
+    if (config.empty())
+        return {};
     std::map<std::string, std::string> result;
     for (const auto& configItem : config) {
-        result.insert({{configItem.first, configItem.second.as<std::string>()}});
+        result.insert({configItem.first, configItem.second.as<std::string>()});
     }
     return result;
 }
 
 const std::vector<std::map<std::string, std::string>> empty_config = {
-        AnyMap2StringString(ov::test::conformance::pluginConfig),
+        AnyMap2StringMap(ov::test::conformance::pluginConfig),
 };
 
 }  // namespace conformance
