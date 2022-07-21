@@ -14,9 +14,9 @@ def get_test_function():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ops.relu(param)
-    func = Model([relu], [param], "test")
-    assert func is not None
-    return func
+    model = Model([relu], [param], "test")
+    assert model is not None
+    return model
 
 
 def test_compare_functions():
@@ -37,11 +37,11 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
 def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.CompiledModel:
     param = ops.parameter(input_shape, np.float32, name="parameter")
     relu = ops.relu(param, name="relu")
-    func = Model([relu], [param], "test")
-    func.get_ordered_ops()[2].friendly_name = "friendly"
+    model = Model([relu], [param], "test")
+    model.get_ordered_ops()[2].friendly_name = "friendly"
 
     core = Core()
-    return core.compile_model(func, "CPU", {})
+    return core.compile_model(model, "CPU", {})
 
 
 def generate_add_model() -> openvino.pyopenvino.Model:

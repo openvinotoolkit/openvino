@@ -87,10 +87,10 @@ def test_serialize_pass_v2():
 
     assert func is not None
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -99,13 +99,13 @@ def test_serialize_pass_v2():
 def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
-    func = Model(node_ceil, [], "TestFunction")
-    elem_type = func.get_ordered_ops()[0].get_element_type().get_type_name()
+    model = Model(node_ceil, [], "TestFunction")
+    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
     assert elem_type == "f32"
-    compress_model_transformation(func)
+    compress_model_transformation(model)
 
-    assert func is not None
-    elem_type = func.get_ordered_ops()[0].get_element_type().get_type_name()
+    assert model is not None
+    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
     assert elem_type == "f16"
 
 
@@ -120,10 +120,10 @@ def test_version_default():
     func = Model(model, [parameter_a, parameter_b], "Model")
 
     serialize(func, xml_path, bin_path)
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -150,10 +150,10 @@ def test_version_ir_v10():
     func = Model(model, [parameter_a, parameter_b], "Model")
 
     serialize(func, xml_path, bin_path, "IR_V10")
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -170,10 +170,10 @@ def test_version_ir_v11():
     func = Model(model, [parameter_a, parameter_b], "Model")
 
     serialize(func, xml_path, bin_path, "IR_V11")
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)

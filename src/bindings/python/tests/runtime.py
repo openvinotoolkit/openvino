@@ -34,16 +34,16 @@ def get_runtime():
 
 
 class Runtime(object):
-    """Represents an nGraph runtime environment."""
+    """Represents a graph runtime environment."""
 
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
-        log.debug(f"Creating Inference Engine for {backend_name}")
+        log.debug(f"Creating runtime for {backend_name}")
         self.backend = Core()
         assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
 
     def set_config(self, config: Dict[str, str]) -> None:
-        """Set the inference engine configuration."""
+        """Set the runtime configuration."""
         self.backend.set_property(device_name=self.backend_name, properties=config)
 
     def computation(self, node_or_function: Union[Node, Model], *inputs: Node) -> "Computation":
@@ -66,7 +66,7 @@ class Runtime(object):
 
 
 class Computation(object):
-    """nGraph callable computation object."""
+    """Graph callable computation object."""
 
     def __init__(self, runtime: Runtime, ng_function: Model) -> None:
         self.runtime = runtime
