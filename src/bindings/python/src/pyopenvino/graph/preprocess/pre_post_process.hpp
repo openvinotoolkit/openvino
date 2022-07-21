@@ -40,12 +40,7 @@ public:
      * ignored by implicit casters.
      */
     static handle cast(ov::Layout src, return_value_policy policy, handle parent) {
-        return cast(&src, policy, parent);
-    }
-
-    static handle cast(ov::Layout *src, return_value_policy policy, handle parent) {
-        return base::cast(src, policy, parent);
-
+        return cast(src, policy, parent);
     }
 };
 }

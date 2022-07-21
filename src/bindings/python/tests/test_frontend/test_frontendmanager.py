@@ -86,6 +86,20 @@ def test_load_pathlib():
 
 
 @mock_needed
+def test_load_wrong_path():
+    clear_all_stat()
+
+    class test_class:
+        def __str__(self):
+            return "test class"
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    with pytest.raises(RuntimeError) as e:
+        fe.load(test_class())
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+
+
+@mock_needed
 def test_load_by_model():
     clear_all_stat()
     fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
