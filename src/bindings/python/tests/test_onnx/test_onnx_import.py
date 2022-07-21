@@ -44,10 +44,10 @@ def test_simple_graph():
     )
     model = make_model(graph, producer_name="ngraph ONNX Importer")
 
-    ng_model_function = import_onnx_model(model)
+    graph_model_function = import_onnx_model(model)
 
     runtime = get_runtime()
-    computation = runtime.computation(ng_model_function)
+    computation = runtime.computation(graph_model_function)
     assert np.array_equal(
         computation(
             np.array([1], dtype=np.float32),

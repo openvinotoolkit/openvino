@@ -372,7 +372,7 @@ def skip_if_onnx_frontend_is_disabled():
 
 # Function to compare ng Functions (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
-def compare_functions(current, expected):  # noqa: C901 the function is too complex
+def compare_models(current, expected):  # noqa: C901 the function is too complex
     result = True
     msg = ""
     if current.get_friendly_name() != expected.get_friendly_name():
@@ -431,9 +431,9 @@ def test_extract_subgraph():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -451,9 +451,9 @@ def test_extract_subgraph_2():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_2.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -472,9 +472,9 @@ def test_extract_subgraph_3():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -497,9 +497,9 @@ def test_extract_subgraph_4():
     result_func = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_4.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_func, expected_model_converted)
     assert res
 
 
@@ -521,9 +521,9 @@ def test_extract_subgraph_by_op_place_as_input():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_4.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -544,9 +544,9 @@ def test_extract_subgraph_by_op_place_as_output():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_5.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -566,9 +566,9 @@ def test_extract_subgraph_by_op_place_as_output_2():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_inputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -590,9 +590,9 @@ def test_extract_subgraph_by_port_place_as_output():
     result_model = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -610,9 +610,9 @@ def test_override_all_outputs():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_outputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -629,9 +629,9 @@ def test_override_all_outputs_2():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_outputs_2.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -649,9 +649,9 @@ def test_override_all_outputs_3():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_outputs_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -673,9 +673,9 @@ def test_override_all_outputs_invalid_place():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_outputs_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -697,9 +697,9 @@ def test_override_all_inputs():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_override_all_inputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -724,9 +724,9 @@ def test_override_all_inputs_invalid_place():
     result_model = fe.convert(model)
 
     expected_model = fe.load("input_model_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -777,9 +777,9 @@ def test_set_partial_shape():
     result_model = fe.convert(model)
 
     expected_model = fe.load("test_partial_shape.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model_converted = fe.convert(expected_model)
 
-    res = compare_functions(result_model, expected_func)
+    res = compare_models(result_model, expected_model_converted)
     assert res
 
 
@@ -1009,7 +1009,7 @@ def test_add_output_place_is_output():
 
     result_model = fe.convert(model)
 
-    res = compare_functions(orig_model, result_model)
+    res = compare_models(orig_model, result_model)
     assert res
 
 
@@ -1027,7 +1027,7 @@ def test_add_output_place_is_input():
     model.add_output(place)
     result_model = fe.convert(model)
    
-    res = compare_functions(orig_model, result_model)
+    res = compare_models(orig_model, result_model)
     assert res
 
 
@@ -1238,10 +1238,10 @@ def test_remove_output():
     model.remove_output(place)
 
     expected_model = fe.load("remove_output.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model_converted = fe.convert(expected_model)
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model_converted)
     assert res
 
 
@@ -1257,10 +1257,10 @@ def test_remove_output_when_place_is_input():
     model.remove_output(place)
 
     expected_model = fe.load("input_model.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model_converted = fe.convert(expected_model)
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model_converted)
     assert res
 
 
@@ -1307,10 +1307,10 @@ def test_cut_and_add_new_input_place():
     model.cut_and_add_new_input(place, "new_input")
 
     expected_model = fe.load("cut_and_add_new_input_place.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model_converted = fe.convert(expected_model)
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model_converted)
     assert res
 
 
@@ -1329,10 +1329,10 @@ def test_cut_and_add_new_input_edge():
     model.cut_and_add_new_input(edge_mul0, "new_input")
 
     expected_model = fe.load("cut_and_add_new_input_edge.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model_converted = fe.convert(expected_model)
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model_converted)
     assert res
 
 
@@ -1349,10 +1349,10 @@ def test_set_tensor_value():
     place1 = model.get_place_by_tensor_name(tensor_name="in1")
     model.set_tensor_value(place1, new_values)
 
-    model_func = fe.convert(model)
+    model_converted = fe.convert(model)
 
     iteration = None
-    current_ops = model_func.get_ordered_ops()
+    current_ops = model_converted.get_ordered_ops()
 
     for i in range(len(current_ops)):
         if (current_ops[i].get_friendly_name() == "in1"):

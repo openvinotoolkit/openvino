@@ -10,7 +10,7 @@ from typing import Tuple, Union, List
 import numpy as np
 
 
-def get_test_function():
+def get_test_model():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ops.relu(param)
@@ -19,14 +19,14 @@ def get_test_function():
     return model
 
 
-def test_compare_functions():
+def test_compare_models():
     try:
-        from openvino.test_utils import compare_functions
-        func = get_test_function()
-        status, _ = compare_functions(func, func)
+        from openvino.test_utils import compare_models
+        model = get_test_model()
+        status, _ = compare_models(model, model)
         assert status
     except RuntimeError:
-        print("openvino.test_utils.compare_functions is not available")
+        print("openvino.test_utils.compare_models is not available")
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
