@@ -2177,7 +2177,7 @@ def test_grid_sample_custom_attributes():
 
 
 @pytest.mark.parametrize(
-    ("expected_shape", "shape_calculation_mode",),
+    ("expected_shape", "shape_calculation_mode"),
     [
         ([1, 3, 64, 64], "scales"),
         ([1, 3, 256, 256], "sizes"),
