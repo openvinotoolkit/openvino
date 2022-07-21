@@ -54,15 +54,16 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 ### <a name="install-openvino"></a>Step 1: Install OpenVINO Core Components
 
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-   Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu. You will download two files: 
+   Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu. There are typically two files for you to download: 
    ```sh
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip.sha256
    ``` 
+   where the `.sha256` file is used to verify the availablity of the package.
    
-2. Locate the downloaded files in your system. This document assumes this is your `Downloads` directory. 
+2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
    
-3. Open a command prompt terminal window, and verify the checksum of the downloaded `sha256` file by using the following command:
+3. (Optional) Open a command prompt terminal window, and verify the package by using the following command:
    ```sh
    CertUtil -hashfile <archive name>.zip.sha256 SHA256
    ```

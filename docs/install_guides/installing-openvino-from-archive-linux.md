@@ -55,18 +55,19 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 ### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Package
 
-1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download). You will download two files: 
+1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for Linux](https://software.intel.com/en-us/openvino-toolkit/choose-download). There are typically two files for you to download: 
    ```sh
    l_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz
    l_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz.sha256
    ``` 
+   where the `.sha256` file is used to verify the availablity of the package.
 2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 3. Change the directory to where you downloaded the archive files.<br>
    For example, if you downloaded the files to the current user's `Downloads` directory, use the following command:
    ```sh
    cd ~/Downloads/
    ```
-4. Verify the checksum of the downloaded `sha256` file:
+4. (Optional) To verify the package:
    ```sh
    sha256sum <archive name>.tgz.sha256
    ```

@@ -39,13 +39,14 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
-1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). Select the Intel® Distribution of OpenVINO™ toolkit for macOS package from the dropdown menu. You will download two files: 
+1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). Select the Intel® Distribution of OpenVINO™ toolkit for macOS package from the dropdown menu. There are typically two files for you to download: 
    ```sh
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz.sha256
    ``` 
+   where the `.sha256` file is used to verify the availablity of the package.
 
-2. Locate the downloaded files in your system. This document assumes this is your `Downloads` directory. 
+2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
 
 3. Open a command prompt terminal window, and verify the checksum of the downloaded `sha256` file by using the following command:
    ```sh
@@ -121,7 +122,7 @@ Developing in C++:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 
-## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
