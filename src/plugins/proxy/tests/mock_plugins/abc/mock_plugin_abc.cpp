@@ -58,7 +58,7 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         std::vector<std::string> metrics;
         metrics.push_back("AVAILABLE_DEVICES");
         metrics.push_back("SUPPORTED_METRICS");
-        metrics.push_back("FULL_DEVICE_NAME");
+        metrics.push_back(ov::device::uuid.name());
         return metrics;
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
@@ -67,15 +67,17 @@ Parameter MockPluginAbc::GetConfig(const std::string& name,
         return configs;
     } else if (name == "NUM_STREAMS") {
         return num_streams;
-    } else if (name == ov::device::full_name) {
-        std::string deviceFullName = "";
-        if (device_id == "abc_a")
-            deviceFullName = "a";
-        else if (device_id == "abc_b")
-            deviceFullName = "b";
-        else if (device_id == "abc_c")
-            deviceFullName = "c";
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid;
+        for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+            if (device_id == "abc_a")
+                uuid.uuid[i] = i;
+            else if (device_id == "abc_b")
+                uuid.uuid[i] = i * 2;
+            else if (device_id == "abc_c")
+                uuid.uuid[i] = i * 3;
+        }
+        return decltype(ov::device::uuid)::value_type{uuid};
     }
 
     IE_THROW(NotImplemented) << name;
@@ -96,7 +98,7 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         std::vector<ov::PropertyName> roProperties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::available_devices.name()),
-            RO_property(ov::device::full_name.name()),
+            RO_property(ov::device::uuid.name()),
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
@@ -113,21 +115,23 @@ Parameter MockPluginAbc::GetMetric(const std::string& name,
         std::vector<std::string> metrics;
         metrics.push_back("AVAILABLE_DEVICES");
         metrics.push_back("SUPPORTED_METRICS");
-        metrics.push_back("FULL_DEVICE_NAME");
+        metrics.push_back(ov::device::uuid.name());
         return metrics;
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
         configs.push_back("NUM_STREAMS");
         return configs;
-    } else if (name == ov::device::full_name) {
-        std::string deviceFullName = "";
-        if (device_id == "abc_a")
-            deviceFullName = "a";
-        else if (device_id == "abc_b")
-            deviceFullName = "b";
-        else if (device_id == "abc_c")
-            deviceFullName = "c";
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid;
+        for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+            if (device_id == "abc_a")
+                uuid.uuid[i] = i;
+            else if (device_id == "abc_b")
+                uuid.uuid[i] = i * 2;
+            else if (device_id == "abc_c")
+                uuid.uuid[i] = i * 3;
+        }
+        return decltype(ov::device::uuid)::value_type{uuid};
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {"abc_a", "abc_b", "abc_c"};
         return decltype(ov::available_devices)::value_type(availableDevices);

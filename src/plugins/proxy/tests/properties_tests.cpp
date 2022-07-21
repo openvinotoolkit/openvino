@@ -27,8 +27,8 @@ TEST_F(ProxyTests, get_property_on_default_device) {
             EXPECT_EQ("0", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::num_streams(2));
             EXPECT_EQ("2", get_string_value(core.get_property(dev_name, property)));
-        } else if (property == "FULL_DEVICE_NAME") {
-            EXPECT_EQ("a", get_string_value(core.get_property(dev_name, property)));
+        } else if (property == ov::device::uuid) {
+            EXPECT_EQ("000102030405060708090a0b0c0d0e0f", get_string_value(core.get_property(dev_name, property)));
         } else {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }
@@ -49,8 +49,8 @@ TEST_F(ProxyTests, get_property_on_mixed_device) {
             EXPECT_EQ("0", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::num_streams(2));
             EXPECT_EQ("2", get_string_value(core.get_property(dev_name, property)));
-        } else if (property == "FULL_DEVICE_NAME") {
-            EXPECT_EQ("b", get_string_value(core.get_property(dev_name, property)));
+        } else if (property == ov::device::uuid) {
+            EXPECT_EQ("00020406080a0c0e10121416181a1c1e", get_string_value(core.get_property(dev_name, property)));
         } else {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }
@@ -71,8 +71,8 @@ TEST_F(ProxyTests, get_property_on_specified_device) {
             EXPECT_EQ("NO", get_string_value(core.get_property(dev_name, property)));
             core.set_property(dev_name, ov::enable_profiling(true));
             EXPECT_EQ("YES", get_string_value(core.get_property(dev_name, property)));
-        } else if (property == "FULL_DEVICE_NAME") {
-            EXPECT_EQ("d", get_string_value(core.get_property(dev_name, property)));
+        } else if (property == ov::device::uuid) {
+            EXPECT_EQ("0004080c1014181c2024282c3034383c", get_string_value(core.get_property(dev_name, property)));
         } else {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }

@@ -153,27 +153,38 @@ InferenceEngine::IExecutableNetworkInternal::Ptr ov::proxy::Plugin::ImportNetwor
         GetCore()->ImportNetwork(model, get_fallback_device(get_device_from_config(config)), device_config));
 }
 
-std::vector<std::pair<std::string, std::vector<std::string>>> ov::proxy::Plugin::get_hidden_devices() const {
-    std::map<std::string, std::vector<std::string>> result;
+std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() const {
+    std::vector<std::vector<std::string>> result;
+    const auto core = GetCore();
+    OPENVINO_ASSERT(core != nullptr);
 
-    auto hidden_devices = GetCore()->GetHiddenDevicesFor(this->_pluginName);
-    for (const auto& device : hidden_devices) {
-        std::string full_name = "unknown";
-        // TODO: Allow to use different plugins for different plugins (option of xml file)
-        try {
-            full_name = GetCore()->GetConfig(device, ov::device::full_name.name()).as<std::string>();
-        } catch (...) {
+    auto hidden_highlevel_devices = core->GetHiddenDevicesFor(this->_pluginName);
+    std::map<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>, std::string> first_uuid_dev_map;
+    for (const auto& device : hidden_highlevel_devices) {
+        const std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
+        for (const auto& device_id : supported_device_ids) {
+            const std::string full_device_name = device + '.' + device_id;
+            try {
+                ov::device::UUID uuid = core->get_property(full_device_name, ov::device::uuid);
+                auto it = first_uuid_dev_map.find(uuid.uuid);
+                if (it == first_uuid_dev_map.end()) {
+                    // First unique element
+                    result.emplace_back(std::vector<std::string>{full_device_name});
+                    first_uuid_dev_map[uuid.uuid] = full_device_name;
+                } else {
+                    for (size_t i = 0; i < result.size(); i++) {
+                        if (result[i].at(0) != it->second)
+                            continue;
+                        result[i].emplace_back(full_device_name);
+                    }
+                }
+            } catch (...) {
+                // Device doesn't have UUID, so it means that device is unique
+                result.emplace_back(std::vector<std::string>{full_device_name});
+            }
         }
-        result[full_name].emplace_back(device);
     }
-
-    std::vector<std::pair<std::string, std::vector<std::string>>> end_result(result.size());
-    size_t i(0);  // Should we use full name?
-    for (const auto& it : result) {
-        end_result[i] = {it.first, it.second};
-        i++;
-    }
-    return end_result;
+    return result;
 }
 
 std::vector<std::string> ov::proxy::Plugin::get_primary_devices() const {
@@ -181,7 +192,7 @@ std::vector<std::string> ov::proxy::Plugin::get_primary_devices() const {
     std::vector<std::string> devices;
     const auto all_devices = get_hidden_devices();
     for (const auto& dev : all_devices) {
-        devices.emplace_back(dev.second.at(0));
+        devices.emplace_back(dev.at(0));
     }
 
     return devices;
@@ -197,11 +208,11 @@ std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
 std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     const auto all_devices = get_hidden_devices();
     OPENVINO_ASSERT(all_devices.size() > idx);
-    if (all_devices[idx].second.size() == 1) {
-        return all_devices[idx].second.at(0);
+    if (all_devices[idx].size() == 1) {
+        return all_devices[idx].at(0);
     } else {
         std::string device_concatenation;
-        for (const auto& dev : all_devices[idx].second) {
+        for (const auto& dev : all_devices[idx]) {
             if (!device_concatenation.empty())
                 device_concatenation += ",";
             device_concatenation += dev;

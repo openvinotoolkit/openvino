@@ -55,21 +55,23 @@ Parameter MockPluginBde::GetConfig(const std::string& name,
         std::vector<std::string> metrics;
         metrics.push_back("AVAILABLE_DEVICES");
         metrics.push_back("SUPPORTED_METRICS");
-        metrics.push_back("FULL_DEVICE_NAME");
+        metrics.push_back(ov::device::uuid.name());
         return metrics;
     } else if (name == "SUPPORTED_CONFIG_KEYS") {
         std::vector<std::string> configs;
         configs.push_back("PERF_COUNT");
         return configs;
-    } else if (name == ov::device::full_name) {
-        std::string deviceFullName = "";
-        if (device_id == "bde_b")
-            deviceFullName = "b";
-        else if (device_id == "bde_d")
-            deviceFullName = "d";
-        else if (device_id == "bde_e")
-            deviceFullName = "e";
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid;
+        for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+            if (device_id == "bde_b")
+                uuid.uuid[i] = i * 2;
+            else if (device_id == "bde_d")
+                uuid.uuid[i] = i * 4;
+            else if (device_id == "bde_e")
+                uuid.uuid[i] = i * 5;
+        }
+        return decltype(ov::device::uuid)::value_type{uuid};
     }
 
     IE_THROW(NotImplemented);
@@ -90,7 +92,7 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         std::vector<ov::PropertyName> roProperties{
             RO_property(ov::supported_properties.name()),
             RO_property(ov::available_devices.name()),
-            RO_property(ov::device::full_name.name()),
+            RO_property(ov::device::uuid.name()),
         };
         // the whole config is RW before network is loaded.
         std::vector<ov::PropertyName> rwProperties{
@@ -107,7 +109,7 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         std::vector<std::string> metrics;
         metrics.push_back("AVAILABLE_DEVICES");
         metrics.push_back("SUPPORTED_METRICS");
-        metrics.push_back("FULL_DEVICE_NAME");
+        metrics.push_back(ov::device::uuid.name());
         return metrics;
     } else if (name == "PERF_COUNT") {
         return m_profiling;
@@ -116,15 +118,17 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
         configs.push_back("NUM_STREAMS");
         configs.push_back("PERF_COUNT");
         return configs;
-    } else if (name == ov::device::full_name) {
-        std::string deviceFullName = "";
-        if (device_id == "bde_b")
-            deviceFullName = "b";
-        else if (device_id == "bde_d")
-            deviceFullName = "d";
-        else if (device_id == "bde_e")
-            deviceFullName = "e";
-        return decltype(ov::device::full_name)::value_type(deviceFullName);
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid;
+        for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
+            if (device_id == "bde_b")
+                uuid.uuid[i] = i * 2;
+            else if (device_id == "bde_d")
+                uuid.uuid[i] = i * 4;
+            else if (device_id == "bde_e")
+                uuid.uuid[i] = i * 5;
+        }
+        return decltype(ov::device::uuid)::value_type{uuid};
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {"bde_b", "bde_d", "bde_e"};
         return decltype(ov::available_devices)::value_type(availableDevices);

@@ -35,7 +35,7 @@ public:
         const std::map<std::string, std::string>& config) override;
 
 private:
-    std::vector<std::pair<std::string, std::vector<std::string>>> get_hidden_devices() const;
+    std::vector<std::vector<std::string>> get_hidden_devices() const;
     std::string get_fallback_device(size_t idx) const;
     std::vector<std::string> get_primary_devices() const;
     std::string get_primary_device(size_t idx) const;

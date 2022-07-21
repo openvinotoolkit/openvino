@@ -1010,37 +1010,12 @@ public:
     std::vector<std::string> GetHiddenDevicesFor(const std::string& main_device) const override {
         // list of devices with priority
         std::vector<std::pair<std::string, size_t>> devices;
-        const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
         for (auto&& pluginDesc : pluginRegistry) {
             const auto& deviceName = pluginDesc.first;
             const auto& desc = pluginDesc.second;
             if (desc.proxy_name != main_device)
                 continue;
-            std::vector<std::string> devicesIDs;
-            try {
-                const ie::Parameter p = GetMetric(deviceName, propertyName);
-                devicesIDs = p.as<std::vector<std::string>>();
-            } catch (const ie::Exception&) {
-                // plugin is not created by e.g. invalid env
-            } catch (const ov::Exception&) {
-                // plugin is not created by e.g. invalid env
-            } catch (const std::runtime_error&) {
-                // plugin is not created by e.g. invalid env
-            } catch (const std::exception& ex) {
-                IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                           << " device and call GetMetric: " << ex.what();
-            } catch (...) {
-                IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                           << " device and call GetMetric";
-            }
-
-            if (devicesIDs.size() > 1) {
-                for (auto&& deviceID : devicesIDs) {
-                    devices.push_back({deviceName + '.' + deviceID, desc.proxy_priority});
-                }
-            } else if (!devicesIDs.empty()) {
-                devices.push_back({deviceName, desc.proxy_priority});
-            }
+            devices.push_back({deviceName, desc.proxy_priority});
         }
         std::sort(devices.begin(),
                   devices.end(),
