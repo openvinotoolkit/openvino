@@ -78,6 +78,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
             endforeach()
         endforeach()
+
+        # remember TBBROOT path or system one
+        set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
     elseif(tbb_downloaded)
         if(WIN32)
             install(DIRECTORY "${TBB}/bin"
