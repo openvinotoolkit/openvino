@@ -4,7 +4,9 @@
 from .data_loader import DataLoader
 from .engine import Engine
 from .metric import Metric
+from .helpers import QuantizationParameters, quantize_post_training, ExportParameters, export
 
 __all__ = [
-    'Metric', 'DataLoader', 'Engine'
+    'Metric', 'DataLoader', 'Engine', 
+    'QuantizationParameters', 'quantize_post_training', 'ExportParameters', 'export'
 ]

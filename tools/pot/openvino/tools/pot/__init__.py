@@ -41,6 +41,9 @@ from .graph import load_model, save_model
 from .graph.model_utils import compress_model_weights
 from .pipeline.initializer import create_pipeline
 
+from .api.helpers import quantize_post_training, QuantizationParameters, ExportParameters, \
+                         export
+
 QUANTIZATION_ALGORITHMS = [
     'MinMaxQuantization',
     'RangeOptimization',
