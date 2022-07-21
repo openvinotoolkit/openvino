@@ -17,6 +17,7 @@
 #include <set>
 
 #include <openvino/core/partial_shape.hpp>
+#include <openvino/core/type/element_type.hpp>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -116,6 +117,8 @@ struct data_type_traits {
 
     static std::string name(data_types data_type) {
         switch (data_type) {
+            case data_types::bin:
+                return "bin";
             case data_types::i8:
                 return "i8";
             case data_types::u8:
@@ -130,7 +133,7 @@ struct data_type_traits {
                 return "f32";
             default:
                 assert(0);
-                return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
+                return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(data_type)) + ")";
         }
     }
 
@@ -207,6 +210,55 @@ inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
 template <typename T>
 bool data_type_match(data_types data_type) {
     return data_type == type_to_data_type<T>::value;
+}
+
+inline data_types data_type_to_element_type(ov::element::Type t) {
+    switch (t) {
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::f64:
+        return cldnn::data_types::f32;
+    case ov::element::Type_t::f16:
+        return cldnn::data_types::f16;
+    case ov::element::Type_t::u8:
+        return cldnn::data_types::u8;
+    case ov::element::Type_t::i8:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
+        return cldnn::data_types::i32;
+    case ov::element::Type_t::i64:
+        return cldnn::data_types::i64;
+    case ov::element::Type_t::boolean:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::u1:
+        return cldnn::data_types::bin;
+    default:
+        throw std::runtime_error("Can't convert " + t.get_type_name() + " element type");
+    }
+}
+
+inline ov::element::Type element_type_to_data_type(data_types t) {
+    switch (t) {
+    case cldnn::data_types::f32:
+        return ov::element::Type_t::f32;
+    case cldnn::data_types::f16:
+        return ov::element::Type_t::f16;
+    case cldnn::data_types::u8:
+        return ov::element::Type_t::u8;
+    case cldnn::data_types::i8:
+        return ov::element::Type_t::i8;
+    case cldnn::data_types::i32:
+        return ov::element::Type_t::i32;
+    case cldnn::data_types::i64:
+        return ov::element::Type_t::i64;
+    case cldnn::data_types::bin:
+        return ov::element::Type_t::u1;
+    default:
+        throw std::runtime_error("Can't convert " + data_type_traits::name(t) + " precision");
+    }
 }
 
 /// Helper function to get both data_types and format::type in a single, unique value. Useable in 'case' statement.
@@ -424,6 +476,9 @@ struct layout {
     ov::Shape get_shape() const;
 
     tensor get_tensor() const;
+
+    template<typename T>
+    T get() const;
 
     void set_tensor(const tensor& size);
 

@@ -119,16 +119,19 @@ public:
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
 
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
-                                              const layout& out_layout) const override {
-        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(),
-                                  in_layouts, out_layout,
-                                  get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
-                                  optional_layout(weights().get_output_layout()),
-                                  bias_term() ? optional_layout(bias().get_output_layout()) : optional_layout(),
-                                  weights_zero_points_term() ? optional_layout(weights_zero_points().get_output_layout()) : optional_layout(),
-                                  activations_zero_points_term() ? optional_layout(activations_zero_points().get_output_layout()) : optional_layout(),
-                                  compensation_term() ? optional_layout(compensation().get_output_layout()) : optional_layout()));
+    using parent::get_kernel_impl_params;
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+        params->weights_layout = optional_layout(weights().get_output_layout());
+        if (bias_term())
+            params->bias_layout = optional_layout(bias().get_output_layout());
+        if (weights_zero_points_term())
+            params->weights_zero_points_layout = optional_layout(weights_zero_points().get_output_layout());
+        if (activations_zero_points_term())
+            params->activations_zero_points_layout = optional_layout(activations_zero_points().get_output_layout());
+        if (compensation_term())
+            params->compensation_layout = optional_layout(compensation().get_output_layout());
+        return params;
     }
 
 private:

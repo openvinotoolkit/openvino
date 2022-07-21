@@ -124,6 +124,7 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
+      _stream(_engine.create_stream()),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
@@ -136,6 +137,13 @@ program::program(engine& engine_ref,
     prepare_nodes(nodes);
     build_program(is_internal);
 }
+
+program::program(engine& engine)
+    : _engine(engine),
+      _stream(_engine.create_stream()),
+      options(build_options()),
+      processing_order(),
+      tuning_cache(nullptr) { }
 
 program::~program() {
 }
