@@ -765,55 +765,35 @@ public:
     }
 };
 
-class Constant : public ngraph::pass::MatcherPass {
+class Constant : public ov::pass::ModelPass {
 public:
-    Constant() {
-        MATCHER_SCOPE(Constant);
-        auto pattern_root = pattern::wrap_type<opset8::Constant>();
-        auto callback = [=](pattern::Matcher& m) {
-            auto inputs = m.get_match_value().get_target_inputs();
-            for (const auto& input : inputs) {
-                if (ric_attr::has(input)) {
-                    auto ric = ric_attr::get(input);
-                    ric.set_is_final(true);
-                    ric_attr::set(input, ric);
-                } else {
-                    continue;
-                }
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        // TODO: enable conditional compile
+        // RUN_ON_FUNCTION_SCOPE(Constant);
+        for (const auto& node : model->get_ordered_ops()) {
+            if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
+                 std::dynamic_pointer_cast<opset8::FakeQuantize>(node) ||
+                 std::dynamic_pointer_cast<opset8::Convert>(node)) &&
+                node->get_output_partial_shape(0).rank().is_static()) {
+                continue;
             }
-            MATCHER_SCOPE_ENABLE(Constant);
-            return true;
-        };
-
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
-        register_matcher(m, callback);
-    }
-};
-
-class Unsupported : public ngraph::pass::MatcherPass {
-public:
-    Unsupported() {
-        MATCHER_SCOPE(Unsupported);
-        auto pattern_root = pattern::any_input();
-        auto callback = [=](pattern::Matcher& m) {
-            for (const auto& output : m.get_match_root()->outputs()) {
+            for (const auto& output : node->outputs()) {
                 for (const auto& consumer : output.get_target_inputs()) {
                     if (ric_attr::has(consumer)) {
                         auto ric = ric_attr::get(consumer);
-                        if (ric.is_final()) {
-                            continue;
+                        if (std::dynamic_pointer_cast<opset8::Constant>(node)) {
+                            ric.set_is_final(true);
+                            ric_attr::set(consumer, ric);
+                        } else {  // Unsupported
+                            if (!ric.is_final()) {
+                                ric.set_can_be_fused(false);
+                            }
                         }
-                        ric.set_can_be_fused(false);
-                        NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                     }
                 }
             }
-            MATCHER_SCOPE_ENABLE(Unsupported);
-            return true;
-        };
-
-        auto m = std::make_shared<pattern::Matcher>(pattern_root, matcher_name);
-        register_matcher(m, callback);
+        }
+        return true;
     }
 };
 
@@ -839,8 +819,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
     ric_back_prop->add_matcher<back_prop::Binary>();
     ric_back_prop->add_matcher<back_prop::ConvertPassThrough>();
-    ric_back_prop->add_matcher<back_prop::Constant>();
-    ric_back_prop->add_matcher<back_prop::Unsupported>();
+    m.register_pass<back_prop::Constant>();
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
