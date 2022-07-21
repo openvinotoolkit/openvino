@@ -416,14 +416,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if 'feManager' in argv:
         del argv.feManager
-
+    name = argv.model_name
+    argv.model_name = getattr(graph.graph['cmd_params'], 'model_name', name)
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
+                    output_model_name=name,
                     mean_data=mean_data,
                     input_names=input_names,
                     meta_info=get_meta_info(argv),

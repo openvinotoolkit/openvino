@@ -54,6 +54,8 @@ class InterpolateTranspose(FrontReplacementSubgraph):
         return [InterpolateNormalizer]
 
     def replace_sub_graph(self, graph: Graph, match: dict):
+        graph.graph['cmd_params'].model_name = 'transpose_interpolate_matched'
+        return
         interpolate = match['interpolate']
         transpose_1 = match['transpose_1']
         transpose_2 = match['transpose_2']
