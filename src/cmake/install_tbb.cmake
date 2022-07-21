@@ -79,7 +79,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             endforeach()
         endforeach()
 
-        # TODO: experiment with IE_TBB_DIR_INSTALL
+        # remember TBBROOT path or system one
         set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
     elseif(tbb_downloaded)
         if(WIN32)
