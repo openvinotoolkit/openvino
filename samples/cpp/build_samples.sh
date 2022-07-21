@@ -14,7 +14,7 @@ usage() {
     exit 1
 }
 
-samples_type=$(basename "$PWD")
+samples_type=$(basename "$( dirname "${BASH_SOURCE[0]-$0}" )" )
 build_dir="$HOME/inference_engine_${samples_type}_samples_build"
 sample_install_dir=""
 
