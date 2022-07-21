@@ -1045,7 +1045,7 @@ def test_embedding_bag_packed_sum():
 
 
 @pytest.mark.parametrize("dtype", integral_np_types)
-def test_interpolate(dtype):
+def test_interpolate_opset1(dtype):
     image_shape = [1, 3, 1024, 1024]
     output_shape = [64, 64]
     attributes = {

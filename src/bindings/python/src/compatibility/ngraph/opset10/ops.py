@@ -48,18 +48,19 @@ def interpolate(
                            Specifies which input, sizes or scales, is used to calculate an output
                            shape.
     :param  pads_begin:    Specifies the number of pixels to add to the beginning of the image
-                           being interpolated.
+                           being interpolated. Default is None.
     :param  pads_end:      Specifies the number of pixels to add to the end of the image being
-                           interpolated.
+                           interpolated. Default is None.
     :param  coordinate_transformation_mode:
                            Specifies how to transform the coordinate in the resized tensor to the
-                           coordinate in the original tensor.
+                           coordinate in the original tensor. Default is "half_pixel".
     :param  nearest_mode:  Specifies round mode when mode == nearest and is used only when
-                           mode == nearest.
-    :param  antialias:     Specifies whether to perform anti-aliasing.
-    :param  cube_coeff:    Specifies the parameter a for cubic interpolation.
+                           mode == nearest. Default is "round_prefer_floor".
+    :param  antialias:     Specifies whether to perform anti-aliasing. Default is False.
+    :param  cube_coeff:    Specifies the parameter a for cubic interpolation. Default is -0.75.
     :param  axes:          1D tensor specifying dimension indices where interpolation is applied.
-    :param  name:          Optional name for the output node.
+                           Default is None.
+    :param  name:          Optional name for the output node. Default is None.
     :return: Node representing interpolation operation.
     """
     attrs = {
@@ -78,4 +79,6 @@ def interpolate(
                                                                                  output_shape,
                                                                                  scales, axes)
 
+    # This is an update of the operator version, so even though this is opset 10,
+    # the operator is taken from opset 4.
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)

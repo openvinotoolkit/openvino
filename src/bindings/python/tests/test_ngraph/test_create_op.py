@@ -1015,7 +1015,7 @@ def test_embedding_bag_packed_sum():
 
 
 @pytest.mark.parametrize("dtype", integral_np_types)
-def test_interpolate(dtype):
+def test_interpolate_opset1(dtype):
     image_shape = [1, 3, 1024, 1024]
     output_shape = [64, 64]
     attributes = {
@@ -1026,7 +1026,7 @@ def test_interpolate(dtype):
 
     image_node = ov.parameter(image_shape, dtype, name="Image")
 
-    node = ov.interpolate(image_node, output_shape, attributes)
+    node = ov_opset1.interpolate(image_node, output_shape, attributes)
     expected_shape = [1, 3, 64, 64]
 
     assert node.get_type_name() == "Interpolate"
