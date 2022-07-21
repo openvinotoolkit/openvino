@@ -16,10 +16,13 @@ namespace op {
 OutputVector translate_conv_2d_op(const NodeContext& node) {
     auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
+    // retrieve attributes for Conv2D
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+
+    // retrieve optional attributes
+    auto tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1});
 
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
