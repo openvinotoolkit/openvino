@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "va/va.h"
 
 #ifdef __cplusplus
     #define INFERENCE_ENGINE_C_API_EXTERN extern "C"
@@ -58,6 +59,7 @@ typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
+typedef struct ie_va_context ie_va_context_t;
 
 /**
  * @struct ie_version
@@ -465,6 +467,42 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t
 */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_from_file(ie_core_t *core, const char *xml, const char *device_name, \
         const ie_config_t *config, ie_executable_network_t **exe_network);
+
+/**
+ * @brief Creates an executable network from a given network object. Users can create as many networks as they need and use
+ * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
+ * @ingroup Core
+ * @param core A pointer to the ie_core_t instance.
+ * @param network A pointer to the input ie_network instance to create the executable network from.
+ * @param context A pointer to ie_va_context_t created by ie_make_shared_context
+ * @param config Device configuration.
+ * @param exe_network A pointer to the newly created executable network.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_va_context_t *context, \
+        const ie_config_t *config, ie_executable_network_t **exe_network);
+
+/**
+ * @brief Creates VAContext using VADisplay in existing GPU pipeline
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param deviceName A device name to create a remote context for
+ * @param device A `VADisplay` to create remote context from
+ * @param i420Blob A pointer to the newly created blob.
+ * @param va_context A pointer to the newly created VAContext.
+ * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means that root
+ * device should be used
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_make_shared_context(ie_core_t *core, const char *device_name, VADisplay device, \
+        ie_va_context_t **va_context, int target_tile_id);
+
+/**
+ * @brief Release the momory occupied by the ie_va_context_t pointer.
+ * @ingroup Core
+ * @param va_context A pointer to ie_va_context_t to release memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_shared_context_free(ie_va_context_t **va_context);
 
 /**
  * @brief Sets configuration for device.
@@ -1008,6 +1046,20 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_nv12(const
  * @return Status code of the operation: OK(0) for success.
 */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, const ie_blob_t *v, ie_blob_t **i420Blob);
+
+/**
+ * @brief Obtain a NV12 tensor from NV12 VA decoder output using specified height,width and VASurfaceID
+ * The resulting tensor contains two remote tensors for Y and UV planes of the surface.
+ * @ingroup Blob
+ * @param height A height of Y plane
+ * @param width A width of Y plane
+ * @param context VA context created by ov_va_context_create
+ * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
+ * @param nv12Blob A pointer to the newly created blob.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_from_surface(const size_t height, const size_t widht, const ie_va_context_t *context, \
+        VASurfaceID nv12_surf, ie_blob_t **nv12Blob);
 
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.

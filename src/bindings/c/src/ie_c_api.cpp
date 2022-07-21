@@ -19,6 +19,8 @@
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
 #include "c_api/ie_c_api.h"
+#include "ie/gpu/gpu_context_api_va.hpp"
+#include "ie/cldnn/cldnn_config.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -60,6 +62,14 @@ struct ie_blob {
  */
 struct ie_network {
     IE::CNNNetwork object;
+};
+
+/**
+ * @struct ie_va_context
+ * @brief Video acceleration context
+ */
+struct ie_va_context {
+    InferenceEngine::gpu::VAContext::Ptr object;
 };
 
 /**
@@ -450,6 +460,50 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
     } CATCH_IE_EXCEPTIONS
 
     return status;
+}
+
+IEStatusCode ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_va_context_t *context, \
+        const ie_config_t *config, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || network == nullptr || context == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.LoadNetwork(network->object, context->object, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_make_shared_context(ie_core_t *core, const char *device_name, VADisplay device, \
+        ie_va_context_t **va_context, int target_tile_id = -1) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || device == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        *va_context = new ie_va_context_t;
+        (*va_context)->object = IE::gpu::make_shared_context(core->object, device_name, device, target_tile_id);
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+void ie_shared_context_free(ie_va_context_t **va_context) {
+    if (va_context) {
+        delete *va_context;
+        *va_context = NULL;
+    }
 }
 
 IEStatusCode ie_core_load_network_from_file(ie_core_t *core, const char *xml, const char *device_name, \
@@ -1509,6 +1563,18 @@ IEStatusCode ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, co
         _blob->object = IE::make_shared_blob<IE::I420Blob>(y->object, u->object, v->object);
         *i420Blob = _blob.release();
     } CATCH_IE_EXCEPTIONS
+
+    return IEStatusCode::OK;
+}
+
+IEStatusCode ie_blob_make_memory_from_surface(const size_t height, const size_t widht, const ie_va_context_t *context, \
+        VASurfaceID nv12_surf, ie_blob_t **nv12Blob) {
+    if (context == nullptr || nv12Blob == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    *nv12Blob = new ie_blob_t;
+    (*nv12Blob)->object = IE::gpu::make_shared_blob_nv12(height, widht, context->object, nv12_surf);
 
     return IEStatusCode::OK;
 }

@@ -17,8 +17,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino)
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
 
-if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+find_package(OpenCL QUIET)
+if(NOT OpenCL_FOUND)
+    MESSAGE(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} will be built without OpenCL support. Install OpenCL.")
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino ${OpenCL_LIBRARY})
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
