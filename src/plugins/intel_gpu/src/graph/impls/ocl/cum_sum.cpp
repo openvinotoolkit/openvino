@@ -85,20 +85,14 @@ public:
 namespace detail {
 
 attach_cum_sum_impl::attach_cum_sum_impl() {
-    implementation_map<cum_sum>::add(impl_types::ocl, cum_sum_impl::create, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfwzyx,
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<cum_sum>::add(impl_types::ocl, cum_sum_impl::create, types, formats);
 }
 
 }  // namespace detail

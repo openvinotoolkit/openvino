@@ -76,10 +76,12 @@ public:
 namespace detail {
 
 attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
-    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, lstm_dynamic_input_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+    };
+
+    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, lstm_dynamic_input_impl::create, types, formats);
 }
 
 }  // namespace detail

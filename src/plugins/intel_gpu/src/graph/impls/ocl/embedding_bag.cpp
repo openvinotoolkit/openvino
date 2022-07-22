@@ -68,10 +68,12 @@ public:
 namespace detail {
 
 attach_embedding_bag_impl::attach_embedding_bag_impl() {
-    implementation_map<embedding_bag>::add(impl_types::ocl, embedding_bag_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+    };
+
+    implementation_map<embedding_bag>::add(impl_types::ocl, embedding_bag_impl::create, types, formats);
 }
 
 }  // namespace detail

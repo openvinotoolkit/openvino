@@ -146,9 +146,12 @@ private:
 namespace detail {
 
 attach_binary_convolution_impl::attach_binary_convolution_impl() {
-    implementation_map<binary_convolution>::add(impl_types::ocl, binary_convolution_impl::create, {
-        std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
-    });
+    auto types = {data_types::bin};
+    auto formats = {
+        format::b_fs_yx_32fp,
+    };
+
+    implementation_map<binary_convolution>::add(impl_types::ocl, binary_convolution_impl::create, types, formats);
 }
 
 }  // namespace detail

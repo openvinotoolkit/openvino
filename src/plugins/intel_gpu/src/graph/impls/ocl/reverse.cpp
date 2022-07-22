@@ -50,33 +50,14 @@ public:
 namespace detail {
 
 attach_reverse_impl::attach_reverse_impl() {
-    implementation_map<reverse>::add(impl_types::ocl,
-                                     reverse_impl::create,
-                                     {
-                                         std::make_tuple(data_types::f16, format::bfyx),
-                                         std::make_tuple(data_types::f16, format::bfzyx),
-                                         std::make_tuple(data_types::f16, format::bfwzyx),
+    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfwzyx,
+        format::bfyx,
+        format::bfzyx,
+    };
 
-                                         std::make_tuple(data_types::f32, format::bfyx),
-                                         std::make_tuple(data_types::f32, format::bfzyx),
-                                         std::make_tuple(data_types::f32, format::bfwzyx),
-
-                                         std::make_tuple(data_types::i32, format::bfyx),
-                                         std::make_tuple(data_types::i32, format::bfzyx),
-                                         std::make_tuple(data_types::i32, format::bfwzyx),
-
-                                         std::make_tuple(data_types::i64, format::bfyx),
-                                         std::make_tuple(data_types::i64, format::bfzyx),
-                                         std::make_tuple(data_types::i64, format::bfwzyx),
-
-                                         std::make_tuple(data_types::i8, format::bfyx),
-                                         std::make_tuple(data_types::i8, format::bfzyx),
-                                         std::make_tuple(data_types::i8, format::bfwzyx),
-
-                                         std::make_tuple(data_types::u8, format::bfyx),
-                                         std::make_tuple(data_types::u8, format::bfzyx),
-                                         std::make_tuple(data_types::u8, format::bfwzyx)
-                                     });
+    implementation_map<reverse>::add(impl_types::ocl, reverse_impl::create, types, formats);
 }
 
 }  // namespace detail

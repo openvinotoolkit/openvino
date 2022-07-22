@@ -51,13 +51,12 @@ public:
 namespace detail {
 
 attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
-    implementation_map<reverse_sequence>::add(impl_types::ocl, reverse_sequence_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-    });
+    auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32};
+    auto formats = {
+        format::bfyx,
+    };
+
+    implementation_map<reverse_sequence>::add(impl_types::ocl, reverse_sequence_impl::create, types, formats);
 }
 
 }  // namespace detail

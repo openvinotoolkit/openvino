@@ -50,16 +50,15 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
 namespace detail {
 
 attach_region_yolo_impl::attach_region_yolo_impl() {
-    implementation_map<region_yolo>::add(impl_types::ocl, region_yolo_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+    };
+
+    implementation_map<region_yolo>::add(impl_types::ocl, region_yolo_impl::create, types, formats);
 }
 
 }  // namespace detail

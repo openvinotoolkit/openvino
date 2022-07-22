@@ -88,7 +88,7 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
         format::bs_fs_zyx_bsv16_fsv32,
         format::bs_fs_zyx_bsv16_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16
+        format::bs_fs_zyx_bsv32_fsv16,
     };
 
     implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, types, formats);

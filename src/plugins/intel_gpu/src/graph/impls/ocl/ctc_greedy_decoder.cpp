@@ -60,12 +60,12 @@ public:
 namespace detail {
 
 attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
-    implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, ctc_greedy_decoder_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i32, data_types::i64};
+    auto formats = {
+        format::bfyx,
+    };
+
+    implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, ctc_greedy_decoder_impl::create, types, formats);
 }
 
 }  // namespace detail

@@ -95,12 +95,13 @@ public:
 namespace detail {
 
 attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
-    implementation_map<lstm_gemm>::add(impl_types::ocl, lstm_gemm_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::fyxb,
+    };
+
+    implementation_map<lstm_gemm>::add(impl_types::ocl, lstm_gemm_impl::create, types, formats);
 }
 
 }  // namespace detail

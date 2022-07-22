@@ -116,10 +116,12 @@ public:
 namespace detail {
 
 attach_roi_pooling_impl::attach_roi_pooling_impl() {
-    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+    };
+
+    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, types, formats);
 }
 
 }  // namespace detail

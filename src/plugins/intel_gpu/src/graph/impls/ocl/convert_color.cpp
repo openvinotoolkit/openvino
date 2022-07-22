@@ -63,14 +63,13 @@ public:
 namespace detail {
 
 attach_convert_color_impl::attach_convert_color_impl() {
-    implementation_map<convert_color>::add(impl_types::ocl, convert_color_impl::create, {
-        std::make_tuple(data_types::f32, format::nv12),
-        std::make_tuple(data_types::f16, format::nv12),
-        std::make_tuple(data_types::u8,  format::nv12),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::u8,  format::byxf),
-    });
+    auto types = {data_types::u8, data_types::f16, data_types::f32};
+    auto formats = {
+        format::byxf,
+        format::nv12,
+    };
+
+    implementation_map<convert_color>::add(impl_types::ocl, convert_color_impl::create, types, formats);
 }
 
 }  // namespace detail

@@ -156,10 +156,10 @@ void add_required_reorders::run(program& p) {
 
                 if (!correct_layout_selected) {
                     throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
-                                                " (format: " + std::to_string(original_layout.format.value) +
+                                                " (format: " + original_layout.format.to_string() +
                                                 ", data_type: " + data_type_traits::name(original_layout.data_type) + ") "
                                                 "compatible with " + node->id() +
-                                                " (format: " + std::to_string(node->get_output_layout().format.value) +
+                                                " (format: " + node->get_output_layout().format.to_string() +
                                                 ", data_type: " + data_type_traits::name(node->get_output_layout().data_type) + ")");
                 }
             }
