@@ -60,7 +60,7 @@ First, the test should confirm that the new pybind11-based class of `MyTensor` i
 Note that name of the file is connected to the class/module to be tested. This is exactly why tests are structured in folders that are describing what tests are supposed to be there. Always add tests to correct places, new folders and files should be created only when necessary. Quick overview of the structure:
 
     tests/test_frontend           <-- frontend manager and extensions
-    tests/test_runtime   <-- runtime classes such as Core and Tensor
+    tests/test_runtime            <-- runtime classes such as Core and Tensor
     tests/test_graph              <-- operators and their implementation
     tests/test_onnx               <-- ONNX Frontend tests and validation
     tests/test_transformations    <-- optimization passes for OV Models 

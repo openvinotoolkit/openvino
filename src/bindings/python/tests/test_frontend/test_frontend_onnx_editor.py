@@ -1026,7 +1026,7 @@ def test_add_output_place_is_input():
     place = model.get_place_by_tensor_name(tensor_name="in1")
     model.add_output(place)
     result_model = fe.convert(model)
-   
+
     res = compare_models(orig_model, result_model)
     assert res
 

@@ -543,12 +543,12 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
     core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
     core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                "strides": [2, 2],
-                                                                "pads_begin": [0, 0],
-                                                                "pads_end": [1, 1],
-                                                                "exclude-pad": True,
-                                                                "auto_pad": "same_upper",
-                                                                "rounding_type": "floor"}))
+                                                                  "strides": [2, 2],
+                                                                  "pads_begin": [0, 0],
+                                                                  "pads_end": [1, 1],
+                                                                  "exclude-pad": True,
+                                                                  "auto_pad": "same_upper",
+                                                                  "rounding_type": "floor"}))
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
@@ -573,12 +573,12 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
     core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
     core.add_extension(OpExtension("AvgPool", "AveragePool", {}, {"kernel": [2, 2],
-                                                                "strides": [2, 2],
-                                                                "pads_begin": [0, 0],
-                                                                "pads_end": [1, 1],
-                                                                "exclude-pad": True,
-                                                                "auto_pad": "same_upper",
-                                                                "rounding_type": "floor"}))
+                                                                  "strides": [2, 2],
+                                                                  "pads_begin": [0, 0],
+                                                                  "pads_end": [1, 1],
+                                                                  "exclude-pad": True,
+                                                                  "auto_pad": "same_upper",
+                                                                  "rounding_type": "floor"}))
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
@@ -601,12 +601,12 @@ def test_op_extension_via_frontend_extension_map_attributes():
     core.add_extension(OpExtension("Concat", {"axis": "axis"}, {"axis": 0}))
 
     core.add_extension(OpExtension("AvgPool", "AveragePool", {"kernel": "kernel_shape",
-                                                            "strides": "strides",
-                                                            "auto_pad": "auto_pad"},
-                                 {"pads_begin": [0, 0],
-                                  "pads_end": [1, 1],
-                                  "exclude-pad": True,
-                                  "rounding_type": "floor"}))
+                                                              "strides": "strides",
+                                                              "auto_pad": "auto_pad"},
+                                                             {"pads_begin": [0, 0],
+                                                              "pads_end": [1, 1],
+                                                              "exclude-pad": True,
+                                                              "rounding_type": "floor"}))
 
     model = core.read_model(onnx_model_for_op_extension_test)
     assert model
