@@ -61,11 +61,11 @@ def test_compact_api_wrong_path():
     # it is necessary to assure that provided argument is either
     # python string or pathlib.Path object rather than some class
     # with implemented __str__ magic method
-    class test_class:
+    class TestClass:
         def __str__(self):
             return "test class"
     with pytest.raises(RuntimeError) as e:
-        compile_model(test_class())
+        compile_model(TestClass())
     assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
 
 
