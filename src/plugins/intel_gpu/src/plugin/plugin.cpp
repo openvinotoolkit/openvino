@@ -540,7 +540,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = GetCore()->isNewAPI();
+    const bool is_new_api = IsNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -661,7 +661,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     auto iter = device_map.find(device_id);
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
-    bool is_new_api = GetCore()->isNewAPI();
+    bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
