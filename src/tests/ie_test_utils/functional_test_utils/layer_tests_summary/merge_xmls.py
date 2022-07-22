@@ -22,13 +22,30 @@ def parse_arguments():
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default=".")
     parser.add_argument("-f", "--output_filename", help=output_filename_help, default="report")
-    parser.add_argument("-t", "--report_type", help=report_type_help, default="API")
+    parser.add_argument("-t", "--report_type", help=report_type_help, default="OP")
 
     return parser.parse_args()
 
 
-def aggregate_test_results(results: ET.SubElement, xml_reports: list, report_type: str):
-    timestamp = None
+def update_node(xml_node: ET.SubElement, aggregated_res: ET.SubElement):
+    for attr_name in xml_node.attrib:
+        if attr_name == "passrate":
+            continue
+        if attr_name == "implemented":
+            xml_value = xml_node.attrib.get(attr_name) == "true"
+            aggregated_value = aggregated_res.attrib.get(attr_name) == "true"
+            str_value = "true" if xml_value or aggregated_value else "false"
+            aggregated_res.set(attr_name, str_value)
+            continue
+        xml_value = int(xml_node.attrib.get(attr_name))
+        aggregated_value = int(aggregated_res.attrib.get(attr_name))
+        # if attr_name == "crashed" and xml_value > 0:
+            # print("f")
+        aggregated_res.set(attr_name, str(xml_value + aggregated_value))
+
+
+def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list, report_type: str):
+    aggregated_timestamp = None
     for xml in xml_reports:
         logger.info(f" Processing: {xml}")
         try:
@@ -36,53 +53,36 @@ def aggregate_test_results(results: ET.SubElement, xml_reports: list, report_typ
         except ET.ParseError:
             logger.error(f' {xml} is corrupted and skipped')
             continue
+        xml_results = xml_root.find("results")
         xml_timestamp = xml_root.get("timestamp")
-        if (timestamp is None) or (xml_timestamp < timestamp):
-            timestamp = xml_timestamp
-        for device in xml_root.find("results"):
-            device_results = results.find(device.tag)
-            if device_results is None:
-                results.append(device)
-            else:
-                device_results_report = xml_root.find("results").find(device.tag)
-                # op or api_type
-                for report_entry in device_results_report:
-                    if device_results.find(report_entry.tag) is not None:
-                        entry = device_results.find(report_entry.tag)
-                        if report_type == "OP":
-                            for attr_name in device_results.find(report_entry.tag).attrib:
-                                if attr_name == "passrate":
-                                    continue
-                                if attr_name == "implemented":
-                                    xml_value = report_entry.attrib.get(attr_name) == "true"
-                                    aggregated_value = entry.attrib.get(attr_name) == "true"
-                                    str_value = "true" if xml_value or aggregated_value else "false"
-                                    device_results.find(entry.tag).set(attr_name, str_value)
-                                    continue
-                                xml_value = int(report_entry.attrib.get(attr_name))
-                                aggregated_value = int(entry.attrib.get(attr_name))
-                                device_results.find(entry.tag).set(attr_name, str(xml_value + aggregated_value))
-                        else:
-                            api_results_report = xml_root.find("results").find(device.tag).find(entry.tag)
-                            for api_entry in entry:
-                                if api_results_report.find(api_entry.tag) is not None:
-                                    for attr_name in device_results.find(report_entry.tag).find(api_entry.tag).attrib:
-                                        if attr_name == "passrate":
-                                            continue
-                                        if attr_name == "implemented":
-                                            xml_value = report_entry.find(api_entry.tag).attrib.get(attr_name) == "true"
-                                            aggregated_value = api_entry.attrib.get(attr_name) == "true"
-                                            str_value = "true" if xml_value or aggregated_value else "false"
-                                            device_results.find(entry.tag).find(api_entry.tag).set(attr_name, str_value)
-                                            continue
-                                        xml_value = int(report_entry.find(api_entry.tag).attrib.get(attr_name))
-                                        aggregated_value = int(api_entry.attrib.get(attr_name))
-                                        device_results.find(entry.tag).find(api_entry.tag).set(attr_name, str(xml_value + aggregated_value))
-                                else:
-                                    entry.append(api_entry)
-                    else:
-                        device_results.append(report_entry)
-    return timestamp
+        if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
+            aggregated_timestamp = xml_timestamp
+        for xml_device_entry in xml_results:
+            aggregated_device_results = aggregated_results.find(xml_device_entry.tag)
+            if aggregated_device_results is None:
+                aggregated_results.append(xml_device_entry)
+                continue
+            # op or api_type
+            for xml_results_entry in xml_device_entry:
+                aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
+                if aggregated_results_entry is None:
+                    aggregated_device_results.append(xml_results_entry)
+                    continue
+                if report_type == "OP":
+                    update_node(xml_results, aggregated_results)
+                else:
+                    for xml_api_entry in xml_results_entry:
+                        aggregated_api_report = aggregated_results_entry.find(xml_api_entry.tag)
+                        if aggregated_api_report is None:
+                            aggregated_results_entry.append(xml_api_entry)
+                            continue
+                        for xml_real_device in xml_api_entry:
+                            aggregated_real_device_report = aggregated_api_report.find(xml_real_device.tag)
+                            if aggregated_real_device_report is None:
+                                aggregated_api_report.append(xml_real_device)
+                                continue
+                            update_node(xml_real_device, aggregated_real_device_report)
+    return aggregated_timestamp
 
 
 def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str, report_type: str):
@@ -126,8 +126,9 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         if report_type == "OP":
             utils.update_passrates(results)
         else:
-            for sub_result in results:
-                utils.update_passrates(sub_result)
+            pass
+            # for sub_result in results:
+                # utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 
