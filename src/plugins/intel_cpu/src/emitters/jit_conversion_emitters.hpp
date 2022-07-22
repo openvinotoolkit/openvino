@@ -81,6 +81,8 @@ private:
     void dword2sint8(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void dword2uint8(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+
+    size_t aux_vecs_count() const override;
 };
 
 }   // namespace intel_cpu

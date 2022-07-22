@@ -36,7 +36,8 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
 
 const std::vector<std::vector<ov::Shape>> inputShapes_Convert = {
         { ov::Shape{2, 16} },
-        { ov::Shape{5, 5} }
+        { ov::Shape{5, 5} },
+        { ov::Shape{2, 12, 1} }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Convert, Convert,
@@ -53,7 +54,6 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::f32 }, { ov::element::bf16 } },
 
         { { ov::element::bf16 }, { ov::element::f32 } },
-        { { ov::element::bf16 }, { ov::element::i32 } },
 
         { { ov::element::i8 }, { ov::element::f32 } },
         { { ov::element::i8 }, { ov::element::i32 } },
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertPartialInputsAndResults, ConvertP
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes_ConvertPartialInputsAndResults),
                                  ::testing::ValuesIn(types_ConvertPartialInputsAndResults),
-                                 ::testing::Values(5),
+                                 ::testing::Values(6),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          Convert::getTestCaseName);

@@ -302,7 +302,7 @@ void jit_convert_saturation_emitter::dword2uint8(const std::vector<size_t> &in_v
     Xmm xmm_dst = Xmm(out_vec_idxs[0]);
 
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
-        Vmm vmm_zero  = Vmm(out_vec_idxs[0]);
+        Vmm vmm_zero  = Vmm(aux_vec_idxs[0]);
         h->vpxord(vmm_zero, vmm_zero, vmm_zero);
         h->vpmaxsd(vmm_src, vmm_src, vmm_zero);
         h->vpmovusdb(xmm_dst, vmm_src);
@@ -312,6 +312,10 @@ void jit_convert_saturation_emitter::dword2uint8(const std::vector<size_t> &in_v
             h->vpermq(ymm_src, ymm_src, 0x08);
         h->uni_vpackuswb(xmm_dst, xmm_src, xmm_src);
     }
+}
+
+size_t jit_convert_saturation_emitter::aux_vecs_count() const {
+    return output_type == ov::element::u8 ? 1 : 0;
 }
 
 }   // namespace intel_cpu
