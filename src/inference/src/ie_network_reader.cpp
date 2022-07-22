@@ -487,20 +487,17 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         params.emplace_back(weights_path);
     }
 
-    try {
-        FE = manager.load_by_model(params);
-        if (FE) {
-            FE->add_extension(ov_exts);
-            if (!exts.empty())
-                FE->add_extension(wrap_old_extensions(exts));
-            inputModel = FE->load(params);
-        }
+    FE = manager.load_by_model(params);
+    if (FE) {
+        FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
+        inputModel = FE->load(params);
+    }
 
-        if (inputModel) {
-            auto ngFunc = FE->convert(inputModel);
-            return convert_to_cnnnetwork(ngFunc, exts, newAPI);
-        }
-    } catch (...) {
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -552,19 +549,16 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         params.emplace_back(weights_buffer);
     }
 
-    try {
-        FE = manager.load_by_model(params);
-        if (FE) {
-            FE->add_extension(ov_exts);
-            if (!exts.empty())
-                FE->add_extension(wrap_old_extensions(exts));
-            inputModel = FE->load(params);
-        }
-        if (inputModel) {
-            auto ngFunc = FE->convert(inputModel);
-            return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
-        }
-    } catch (...) {
+    FE = manager.load_by_model(params);
+    if (FE) {
+        FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
+        inputModel = FE->load(params);
+    }
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
 
 #ifdef ENABLE_IR_V7_READER
