@@ -36,6 +36,3 @@ from openvino.pyopenvino import InitializationFailure
 from openvino.pyopenvino import OpConversionFailure
 from openvino.pyopenvino import OpValidationFailure
 from openvino.pyopenvino import GeneralFailure
-
-# version
-from openvino.pyopenvino import get_version
