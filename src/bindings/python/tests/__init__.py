@@ -5,7 +5,7 @@
 import pytest
 
 # test.BACKEND_NAME is a configuration variable determining which
-# graph backend tests will use. It's set during pytest configuration time.
+# OV backend tests will use. It's set during pytest configuration time.
 # See `pytest_configure` hook in `conftest.py` for more details.
 BACKEND_NAME = None
 
