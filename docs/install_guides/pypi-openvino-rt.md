@@ -80,7 +80,7 @@ For general troubleshooting steps and issues, see [Troubleshooting Guide for Ope
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
