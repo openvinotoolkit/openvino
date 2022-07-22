@@ -204,11 +204,27 @@ public:
         return false;
     }
 
+    static void add(impl_types impl_type, factory_type factory,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, factory, combine(types, formats));
+    }
+
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
         if (impl_type == impl_types::any) {
             throw std::runtime_error("[CLDNN] Can't register impl with type any");
         }
         map_type::instance().insert({impl_type, {keys, factory}});
+    }
+
+private:
+    static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        std::set<key_type> keys;
+        for (const auto& type : types) {
+            for (const auto& format : formats) {
+                keys.emplace(type, format);
+            }
+        }
+        return keys;
     }
 };
 }  // namespace cldnn
