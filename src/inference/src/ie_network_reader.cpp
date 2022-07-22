@@ -500,11 +500,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
-    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
-    std::string FEs;
-    for (const auto& fe_name : manager.get_available_front_ends())
-        FEs += fe_name + " ";
-
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -520,6 +515,11 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 #endif  // ENABLE_IR_V7_READER
+
+    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
+    std::string FEs;
+    for (const auto& fe_name : manager.get_available_front_ends())
+        FEs += fe_name + " ";
 
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
