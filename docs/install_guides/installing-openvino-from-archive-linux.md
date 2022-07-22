@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime from Archive Files for Linux {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
+# Install OpenVINO™ Runtime on Linux from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_linux}
 
 With the OpenVINO™ 2022.2 release, you can download the archive files and install OpenVINO Runtime directly. 
 
@@ -60,32 +60,35 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    l_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz
    l_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz.sha256
    ``` 
-   where the `.sha256` file is used to verify the availablity of the package.
+   where the `.sha256` file is used to verify the success of the download process.
 2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 3. Change the directory to where you downloaded the archive files.<br>
    For example, if you downloaded the files to the current user's `Downloads` directory, use the following command:
    ```sh
    cd ~/Downloads/
    ```
-4. (Optional) To verify the package by using the `.sha256` file:
+4. To verify the package by using the `.sha256` file:
    ```sh
    sha256sum <archive name>.tgz.sha256
    ```
+   If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
 5. Extract OpenVINO files from the `.tgz` file:
    ```sh
    tar xf <archive name>.tgz -C <destination_dir>
    ```
-   where the `<destination_dir>` is the directory that you extract OpenVINO files to. 
-   
-The standard OpenVINO `<INSTALL_DIR>` used in this document are:
-* For root or administrator: `/opt/intel/openvino_<version>/`
-* For regular users: `/home/<USER>/intel/openvino_<version>/`
+   where the `<destination_dir>` is the directory that you extract OpenVINO files to. You're recommended to set it as:
+   * For root users or administrators: `/opt/intel/`
+   * For regular users: `/home/<USER>/intel/`
 
-You're recommended to move your extracted files to the standard `<INSTALL_DIR>`:
-* For root or administrator: `sudo mv <extracted_folder> /opt/intel`
-* For regular users: `mv <extracted_folder> /home/<USER>/intel/`
+If you forgot to set the directory in Step 5, you can then use `sudo mv <extracted_folder> /opt/intel` (for root users or administrators), or `mv <extracted_folder> /home/<USER>/intel/` (for regular users) to set that.
 
-For simplicity, it is useful to create a symbolink link: `ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022`. If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
+For simplicity, it is useful to create a symbolink link:
+```sh
+ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022
+```
+If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
+
+The `/opt/intel/openvino_<version>/` or `/home/<USER>/intel/openvino_<version>/` will be referred as the standard OpenVINO `<INSTALL_DIR>` in this document.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 

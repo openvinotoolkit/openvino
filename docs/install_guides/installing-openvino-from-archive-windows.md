@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime from Archive Files for Windows 10 {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
+# Install OpenVINO™ Runtime on Windows 10 from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
 With the OpenVINO™ 2022.2 release, you can download the archive files and install OpenVINO Runtime directly.
 
@@ -51,7 +51,7 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 ## Installing OpenVINO Runtime
 
-### <a name="install-openvino"></a>Step 1: Install OpenVINO Core Components
+### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu. There are typically two files for you to download: 
@@ -59,14 +59,15 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip.sha256
    ``` 
-   where the `.sha256` file is used to verify the availablity of the package.
+   where the `.sha256` file is used to verify the success of the download process.
    
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
    
-3. (Optional) Open a command prompt terminal window, and verify the package by using the `.sha256` file:
+3. Open a command prompt terminal window, and verify the package by using the `.sha256` file:
    ```sh
    CertUtil -hashfile <archive name>.zip.sha256 SHA256
    ```
+   If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
 
 4. Unzip the `<archive name>.zip` file using your preferred archive tool. 
  

@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime from Archive Files for macOS {#openvino_docs_install_guides_installing_openvino_from_archive_macos}
+# Install OpenVINO™ Runtime on macOS from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_macos}
 
 With the OpenVINO™ 2022.2 release, you can download the archive files and install OpenVINO Runtime directly.
 
@@ -44,7 +44,7 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz.sha256
    ``` 
-   where the `.sha256` file is used to verify the availablity of the package.
+   where the `.sha256` file is used to verify the success of the download process.
 
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
 
@@ -52,16 +52,16 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    ```sh
    shasum -a 256 <archive name>.tgz.sha256
    ```
+   If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
 
 4. Extract OpenVINO files from the `.tgz` file:
    ```sh
-   tar xf <archive name>.tgz -C <INSTALL_DIR>
+   tar xf <archive name>.tgz -C <destination_dir>
    ```
+   where the `<destination_dir>` is the directory that you extract OpenVINO files to. You're recommended to set it as `/opt/intel/`.
+   The standard OpenVINO `INSTALL_DIR` referenced in this document is `/opt/intel/openvino_<version>`.
 
-The standard OpenVINO `<INSTALL_DIR>` used in this document is: `/opt/intel/openvino_<version>/`
-You're recommended to move your extracted files to that directory.
-
-For simplicity, you can also create a symbolic link to the latest installation: `/opt/intel/openvino_2022/`.
+For simplicity, you can create a symbolic link to the latest installation: `/opt/intel/openvino_2022/`. 
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
