@@ -128,15 +128,11 @@ namespace {
 InsertCopyBeforeMemoryLayer::InsertCopyBeforeMemoryLayer() {
     MATCHER_SCOPE(InsertCopyBeforeMemoryLayer);
 
-    auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat,
-                                                ngraph::op::ReadValueBase,
+    auto memory_op = ngraph::pattern::wrap_type<ngraph::op::ReadValueBase,
                                                 ngraph::op::AssignBase>();
+
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto node = std::dynamic_pointer_cast<ngraph::Node>(m.get_match_root());
-
-        if (!std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node) &&
-            !std::dynamic_pointer_cast<ngraph::op::AssignBase>(node))
-            return false;
 
         // Insert copy layers after concat inputs with multiple connections to concat
         for (size_t i = 0; i < node->get_input_size(); i++) {
@@ -159,20 +155,17 @@ InsertCopyBeforeMemoryLayer::InsertCopyBeforeMemoryLayer() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_op, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(memory_op, matcher_name);
     this->register_matcher(m, callback);
 }
 
 InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
     MATCHER_SCOPE(InsertCopyBeforeConcatLayer);
 
-    auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat,
-                                                ngraph::op::ReadValueBase,
-                                                ngraph::op::AssignBase>();
+    auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
+
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
-        if (!concat)
-            return false;
 
         std::set<std::shared_ptr<ngraph::Node>> inputs;
         // Insert copy layers after concat inputs with multiple connections to concat
