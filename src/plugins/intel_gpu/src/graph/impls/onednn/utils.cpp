@@ -163,6 +163,7 @@ std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
         case cldnn::format::b_fs_zyx_fsv2: return "aBcde2b";
+        case cldnn::format::bs_fs_yx_bsv16_fsv32: return "ABcd16a32b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
     }
@@ -388,6 +389,16 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
                     && blk.inner_blks[0] == 2
                     && blk.inner_idxs[0] == 1) {
                     return cldnn::format::b_fs_yx_fsv2;
+        }
+        if (desc.data.ndims == 4 && blk.inner_nblks == 2
+                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
+                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                    return cldnn::format::bs_fs_yx_bsv16_fsv32;
+        }
+        if (desc.data.ndims == 5 && blk.inner_nblks == 2
+                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
+                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
+                    return cldnn::format::bs_fs_zyx_bsv16_fsv32;
         }
         std::stringstream msg;
         msg << "Unsupported onednn dnnl::memory::desc find_data_format. "

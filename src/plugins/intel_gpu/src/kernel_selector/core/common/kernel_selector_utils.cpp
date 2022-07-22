@@ -265,7 +265,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                               output_layout == DataLayout::b_fs_yx_fsv16 || output_layout == DataLayout::b_fs_zyx_fsv16 ||
                               output_layout == DataLayout::b_fs_yx_fsv32 || output_layout == DataLayout::b_fs_zyx_fsv32;
 
-    auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+    auto blocked_bsv_fsv_layout = output_layout == DataLayout::bs_fs_yx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv16_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
                                   output_layout == DataLayout::bs_fs_zyx_bsv32_fsv16 || output_layout == DataLayout::bs_fs_zyx_bsv32_fsv32;
 
@@ -435,6 +435,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::b_fs_yx_fsv32,          {1, 32}},
         {DataLayout::b_fs_zyx_fsv32,         {1, 32}},
         {DataLayout::bs_fs_yx_bsv16_fsv16,   {16, 16}},
+        {DataLayout::bs_fs_yx_bsv16_fsv32,   {16, 32}},
         {DataLayout::bs_fs_zyx_bsv16_fsv16,  {16, 16}},
         {DataLayout::bs_fs_zyx_bsv16_fsv32,  {16, 32}},
         {DataLayout::bs_f_bsv8__af8,         {8, 8}},

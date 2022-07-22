@@ -85,6 +85,7 @@ struct format {
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
         b_fs_zyx_fsv32,                         ///< format used for blocked int8 3d convolution
+        bs_fs_yx_bsv16_fsv32,                   ///< format used for 2D blocked convolution (batch and features blocked by 16 and 32)
         bs_fs_zyx_bsv16_fsv32,                  ///< format used for 3D blocked convolution (batch and features blocked by 16 and 32)
         bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
         bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)

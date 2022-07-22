@@ -132,6 +132,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfwzyx;
         case format::b_fs_zyx_fsv16:
             return kernel_selector::data_layout::b_fs_zyx_fsv16;
+        case format::bs_fs_yx_bsv16_fsv32:
+            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv32:
             return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv16:

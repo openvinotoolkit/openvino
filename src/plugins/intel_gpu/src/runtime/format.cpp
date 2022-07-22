@@ -42,6 +42,7 @@ const format_traits& format::traits(type fmt) {
             FMT_TRAITS(fs_b_yx_fsv32,         1, 1, 2, 0, {1, 0, 2, 3},       "fbyx",   "bfxy?",  {{1, 32}}),
             FMT_TRAITS(b_fs_yx_32fp,          1, 1, 2, 0, {0, 1, 2, 3},       "bfyx",   "bfxy?",  {}),
             FMT_TRAITS(b_fs_zyx_fsv16,        1, 1, 3, 0, {0, 1, 2, 3, 4},    "bfzyx",  "bfxyz",  {{1, 16}}),
+            FMT_TRAITS(bs_fs_yx_bsv16_fsv32,  1, 1, 2, 0, {0, 1, 2, 3},       "bfyx",   "bfxy",   {{0, 16 }, {1, 32}}),
             FMT_TRAITS(bs_fs_zyx_bsv16_fsv32, 1, 1, 3, 0, {0, 1, 2, 3, 4},    "bfzyx",  "bfxyz",  {{0, 16 }, {1, 32}}),
             FMT_TRAITS(bs_fs_zyx_bsv16_fsv16, 1, 1, 3, 0, {0, 1, 2, 3, 4},    "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}),
             FMT_TRAITS(bs_fs_yx_bsv16_fsv16,  1, 1, 2, 0, {0, 1, 2, 3},       "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}),
