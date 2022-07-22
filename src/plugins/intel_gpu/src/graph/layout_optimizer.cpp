@@ -822,7 +822,7 @@ static bool is_node_for_onednn(program_node& node, fully_connected_node const& f
     bool is_suitable_for_onednn = true;
     auto out_layout = node.get_output_layout();
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.node->is_type<eltwise>()) {
+        if (fo.is_type<eltwise>()) {
             // FC checkings
             auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
             auto in_dt = in_layout.data_type;

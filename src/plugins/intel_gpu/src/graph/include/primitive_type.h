@@ -6,7 +6,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/layout.hpp"
-
+#include "kernel_selector_helper.h"
 #include <memory>
 #include <string>
 

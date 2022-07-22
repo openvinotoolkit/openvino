@@ -898,7 +898,6 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
         } else if (desc.is_type<eltwise>()) {
-            //auto& e_node = node->as<eltwise>();
             auto dep_idx = desc.dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
 
@@ -931,7 +930,6 @@ void program_node::init_onednn_primitive_attributes() {
                 }
             }
         } else if (desc.is_type<quantize>()) {
-//            auto& q_node = node->as<quantize>();
             auto dep_idx = desc.dep_start_idx;
 
             // ********************************* Common case with output range usage ********************************* //
