@@ -5,14 +5,6 @@
 import os
 import sys
 
-from pkg_resources import get_distribution, DistributionNotFound
-
-
-try:
-    __version__ = get_distribution("openvino-core").version
-except DistributionNotFound:
-    __version__ = "0.0.0.dev0"
-
 if sys.platform == "win32":
     # Installer, yum, pip installs openvino dlls to the different directories
     # and those paths need to be visible to the openvino modules
@@ -38,3 +30,4 @@ if sys.platform == "win32":
 from .ie_api import *
 
 __all__ = ["IENetwork", "TensorDesc", "IECore", "Blob", "PreProcessInfo", "get_version"]
+__version__ = get_version()
