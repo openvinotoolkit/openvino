@@ -50,7 +50,9 @@ install(TARGETS ${TARGET_NAME}
 # OpenVINO 2.0 C API test sample
 set(TARGET_NAME "openvino_capi_test")
 
-add_executable(${TARGET_NAME} ov_c_api_test.cpp test_model_repo.hpp)
+add_executable(${TARGET_NAME} ov_core_test.cpp ov_compiled_model_test.cpp ov_infer_request_test.cpp
+        ov_layout_test.cpp ov_model_test.cpp ov_partial_shape_test.cpp
+        ov_preprocess_test.cpp ov_tensor_test.cpp ov_test.cpp ov_test.hpp)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
     commonTestUtils gtest_main)
 

@@ -1,16 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <gtest/gtest.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <condition_variable>
-#include <fstream>
-#include <mutex>
-
-#include "openvino/openvino.h"
-#include "openvino/openvino.hpp"
 #include "ov_test.hpp"
 
 TEST(ov_preprocess, ov_preprocess_prepostprocessor_create) {

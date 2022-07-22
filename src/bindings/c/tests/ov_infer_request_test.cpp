@@ -1,17 +1,12 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <gtest/gtest.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <condition_variable>
-#include <fstream>
 #include <mutex>
-
-#include "openvino/openvino.h"
-#include "openvino/openvino.hpp"
 #include "ov_test.hpp"
+
+std::mutex m;
+bool ready = false;
+std::condition_variable condVar;
 
 void get_tensor_info(ov_model_t* model,
                      bool input,

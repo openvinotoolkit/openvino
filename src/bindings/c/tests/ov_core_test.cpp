@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
+#include "test_model_repo.hpp"
 
 TEST(ov_c_api_version, api_version) {
     ov_version_t version;
