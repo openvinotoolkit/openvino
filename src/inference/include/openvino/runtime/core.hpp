@@ -671,4 +671,10 @@ public:
     RemoteContext get_default_context(const std::string& device_name);
 };
 
+/**
+ * @brief Shut down the openvino by releasing dependent resources.
+ * @note This function should be used by advanced user to control unload the resources.
+ */
+OPENVINO_RUNTIME_API void openvino_shutdown();
+
 }  // namespace ov
