@@ -243,6 +243,13 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         }
 
         auto& node_rt_info = return_node->get_rt_info();
+
+        std::vector<std::shared_ptr<ngraph::Function>> sub_graphs;
+        for (auto &sub_graph : node->getSubGraphs()) {
+            sub_graphs.push_back(dump_graph_as_ie_ngraph_net(*sub_graph));
+        }
+        node_rt_info["SubGraphs"] = sub_graphs;
+
         node_rt_info["SPD"] = toString(&node->getSelectedPrimitiveDescriptor()->getConfig());
         {
             std::stringstream ss;

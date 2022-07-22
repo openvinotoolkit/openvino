@@ -97,6 +97,8 @@ private:
     impl_desc_type implementationType;
 };
 
+class Graph;
+
 class Node {
 public:
     Node(const Node &) = delete;
@@ -581,6 +583,10 @@ public:
 
     void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
         sharedMutex = mutex;
+    }
+
+    virtual std::vector<Graph *> getSubGraphs() {
+        return {};
     }
 
 protected:

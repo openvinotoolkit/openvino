@@ -13,6 +13,8 @@
 
 #include "Python.h"
 
+#include "openvino/core/model.hpp"  // ov::Model
+
 namespace Common {
 namespace utils {
 
@@ -20,6 +22,14 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
         return any.as<py::object>();
+    }
+    // Check for ov::Model
+    else if (any.is<std::shared_ptr<ov::Model> >()) {
+        return py::cast(any.as<std::shared_ptr<ov::Model> >());
+    }
+    // Check for vector of ov::Model
+    else if (any.is<std::vector<std::shared_ptr<ov::Model>>>()) {
+        return py::cast(any.as<std::vector<std::shared_ptr<ov::Model>>>());
     }
     // Check for std::string
     else if (any.is<std::string>()) {

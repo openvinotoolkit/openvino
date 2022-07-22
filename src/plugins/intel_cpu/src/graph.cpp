@@ -437,6 +437,12 @@ void Graph::InitDescriptors() {
             if (inputNode)
                 inputNode->withMeanImage();
         }
+
+        // propagate config into subgraph
+        for (auto &sub_graph : node->getSubGraphs()) {
+            sub_graph->setConfig(getConfig());
+        }
+
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         node->getSupportedDescriptors();
 
