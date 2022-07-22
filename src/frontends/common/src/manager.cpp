@@ -20,7 +20,9 @@ class FrontEndManager::Impl {
     std::vector<PluginInfo> m_plugins;
 
     /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
-    static std::map<std::string, std::shared_ptr<void>> m_shared_objects_map;
+    static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
+    /// \brief Mutex to guard access the shared object map
+    static std::mutex m_shared_objects_map_mutex;
 
 public:
     Impl() {
@@ -31,9 +33,10 @@ public:
 
     FrontEnd::Ptr make_frontend(const ov::frontend::PluginInfo& plugin) {
         auto fe_obj = std::make_shared<FrontEnd>();
-
         fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
         fe_obj->m_actual = plugin.get_creator().m_creator();
+
+        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
         m_shared_objects_map.emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
 
         return fe_obj;
@@ -108,6 +111,11 @@ public:
         PluginInfo plugin_info(name, std::move(creator));
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         m_plugins.push_back(std::move(plugin_info));
+    }
+
+    static void shutdown() {
+        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
+        m_shared_objects_map.clear();
     }
 
 private:
@@ -215,7 +223,8 @@ private:
     }
 };
 
-std::map<std::string, std::shared_ptr<void>> FrontEndManager::Impl::m_shared_objects_map{};
+std::unordered_map<std::string, std::shared_ptr<void>> FrontEndManager::Impl::m_shared_objects_map{};
+std::mutex FrontEndManager::Impl::m_shared_objects_map_mutex{};
 
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 
@@ -243,4 +252,8 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
 template <>
 FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
+}
+
+void FrontEndManager::shutdown() {
+    Impl::shutdown();
 }
