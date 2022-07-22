@@ -67,21 +67,25 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    ```sh
    cd ~/Downloads/
    ```
-4. (Optional) To verify the package:
+4. (Optional) To verify the package by using the `.sha256` file:
    ```sh
    sha256sum <archive name>.tgz.sha256
    ```
-5. Extract the archive file:
+5. Extract OpenVINO files from the `.tgz` file:
    ```sh
-   tar xf <archive name>.tgz -C <INSTALL_DIR>
+   tar xf <archive name>.tgz -C <destination_dir>
    ```
-   <br>You should see the installation has started. 
-
-By default, OpenVINO Runtime is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
+   where the `<destination_dir>` is the directory that you extract OpenVINO files to. 
+   
+The standard OpenVINO `<INSTALL_DIR>` used in this document are:
 * For root or administrator: `/opt/intel/openvino_<version>/`
 * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
-For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/` or `/home/<USER>/intel/openvino_2022/`.
+You're recommended to move your extracted files to the standard `<INSTALL_DIR>`:
+* For root or administrator: `sudo mv <extracted_folder> /opt/intel`
+* For regular users: `mv <extracted_folder> /home/<USER>/intel/`
+
+For simplicity, it is useful to create a symbolink link: `ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022`. If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 

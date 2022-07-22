@@ -63,17 +63,16 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
    
-3. (Optional) Open a command prompt terminal window, and verify the package by using the following command:
+3. (Optional) Open a command prompt terminal window, and verify the package by using the `.sha256` file:
    ```sh
    CertUtil -hashfile <archive name>.zip.sha256 SHA256
    ```
 
-4. Unzip the `<archive name>.zip` file using your preferred archive tool.
-   <br>You should see the installation has started. 
+4. Unzip the `<archive name>.zip` file using your preferred archive tool. 
  
-By default, OpenVINO Runtime is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
+The standard OpenVINO `<INSTALL_DIR>` used in this document is `C:\Program Files (x86)\Intel\openvino_<version>\`. You're recommended to move the extracted files to that directory. 
 
-For simplicity, a symbolic link to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022/`.
+For simplicity, you can also create a symbolic link to the latest installation: `C:\Program Files (x86)\Intel\openvino_2022\`.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 

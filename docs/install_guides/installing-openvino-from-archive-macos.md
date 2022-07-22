@@ -48,22 +48,20 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
 
-3. Open a command prompt terminal window, and verify the checksum of the downloaded `sha256` file by using the following command:
+3. (Optional) Open a command prompt terminal window, and verify the checksum of the `sha256` file by using the following command:
    ```sh
    shasum -a 256 <archive name>.tgz.sha256
    ```
 
-4. Extract the archive file:
+4. Extract OpenVINO files from the `.tgz` file:
    ```sh
    tar xf <archive name>.tgz -C <INSTALL_DIR>
    ```
-   <br>You should see the installation has started. 
 
-By default, tOpenVINO Runtime is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
+The standard OpenVINO `<INSTALL_DIR>` used in this document is: `/opt/intel/openvino_<version>/`
+You're recommended to move your extracted files to that directory.
 
-`/opt/intel/openvino_<version>/`
-
-For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
+For simplicity, you can also create a symbolic link to the latest installation: `/opt/intel/openvino_2022/`.
 
 To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
