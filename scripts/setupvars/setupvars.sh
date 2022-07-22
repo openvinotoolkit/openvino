@@ -52,7 +52,14 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
         export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
     fi
     export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
-    export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+
+    if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+    fi
 fi
 
 if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
