@@ -9,7 +9,7 @@ Since the 2020.4 release, OpenVINO™ has supported native usage of ONNX models.
    .. code-block:: cpp
    
       ov::Core core;
-      std::shared_ptr<ov::Model> model = core.read_model("model.xml")
+      std::shared_ptr<ov::Model> model = core.read_model("model.onnx")
  
 .. tab:: Python
 
@@ -17,7 +17,7 @@ Since the 2020.4 release, OpenVINO™ has supported native usage of ONNX models.
 
       import openvino.runtime as ov
       core = ov.Core()
-      model = core.read_model("model.xml")
+      model = core.read_model("model.onnx")
 @endsphinxdirective
 
 While ONNX models are directly supported by OpenVINO™, it can be useful to convert them to IR format to take advantage of advanced OpenVINO optimization tools and features. For information on how to convert an ONNX model to the OpenVINO IR format, see the [Converting an ONNX Model](https://github.com/openvinotoolkit/openvino/pull/MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md) page.
