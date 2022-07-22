@@ -49,9 +49,6 @@ from openvino.pyopenvino import get_batch
 from openvino.pyopenvino import set_batch
 from openvino.pyopenvino import serialize
 
-# version
-__version__ = get_version() 
-
 # Import opsets
 from openvino.runtime import opset1
 from openvino.runtime import opset2

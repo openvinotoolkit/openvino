@@ -9,6 +9,13 @@ Low level wrappers for the PrePostProcessing C++ API.
 # flake8: noqa
 
 from openvino.utils import add_openvino_libs_to_path
+from pkg_resources import get_distribution, DistributionNotFound
+
+
+try:
+    __version__ = get_distribution("openvino-core").version
+except DistributionNotFound:
+    __version__ = "0.0.0.dev0"
 
 add_openvino_libs_to_path()
 
@@ -27,5 +34,3 @@ from openvino.pyopenvino.preprocess import ResizeAlgorithm
 
 # version
 from openvino.pyopenvino import get_version
-
-__version__ = get_version() 
