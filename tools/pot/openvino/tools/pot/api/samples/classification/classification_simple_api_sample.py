@@ -43,19 +43,19 @@ def main():
         ],
     }
 
-    # Create a user-defined DataLoader object
+    # Step 1: Create a user-defined DataLoader object
     data_loader = ImageNetDataLoader(dataset_config)
 
     # Define mandatory quantization parameters
     parameters = QuantizationParameters()
     parameters.model_name = 'sample_model'
-    parameters.model_path = os.path.expanduser(args.model),
-    parameters.weights_path = os.path.expanduser(args.weights)
+    parameters.model_path = args.model
+    parameters.weights_path = args.weights
 
-    # Quantize model
+    # Step 2: Quantize model
     compressed_model = quantize_post_training(parameters, data_loader)
 
-    # Save quantized model
+    # Step 3: Save quantized model
     export(compressed_model, os.path.join(os.path.curdir, 'optimized'))
 
 if __name__ == '__main__':
