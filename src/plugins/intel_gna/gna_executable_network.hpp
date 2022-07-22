@@ -69,10 +69,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     InferenceEngine::IInferRequestInternal::Ptr
         CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
-        if (!this->_plugin)
-            return nullptr;
-        const auto& core = _plugin->GetCore();
-        if (!core || !core->isNewAPI())
+        if (!this->_plugin || !_plugin->IsNewAPI())
             return nullptr;
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
