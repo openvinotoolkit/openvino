@@ -8,7 +8,7 @@ include(cmake/ie_parallel.cmake)
 ov_find_package_tbb()
 
 if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2021)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB is used")
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) is used")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
     # download and find a prebuilt version of TBBBind_2_5
@@ -53,8 +53,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(ENABLE_SYSTEM_TBB OR tbb_custom)
-        # need to take locations of actual libraries and install them
+    if(CPACK_GENERATOR STREQUAL "DEB" AND NOT ENABLE_SYSTEM_TBB)
+        message(FATAL_ERROR "Debian packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+    endif()
+
+    if(ENABLE_SYSTEM_TBB)
+        # for system libraries we still need to install TBB libraries
+        # so, need to take locations of actual libraries and install them
         foreach(tbb_lib IN LISTS TBB_IMPORTED_TARGETS)
             get_target_property(tbb_loc ${tbb_lib} IMPORTED_LOCATION_RELEASE)
             # depending on the TBB, tbb_loc can be in form:
@@ -78,9 +83,16 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
             endforeach()
         endforeach()
+    elseif(tbb_custom)
+        # for custom TBB we need to install it to our package
+        # to simplify life for our customers
+        set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
+        file(RELATIVE_PATH IE_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
+        set(IE_TBB_DIR_INSTALL "${IE_TBBROOT_INSTALL}/${IE_TBB_DIR_INSTALL}")
 
-        # remember TBBROOT path or system one
-        set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
+        install(DIRECTORY "${TBBROOT}/"
+                DESTINATION "${IE_TBBROOT_INSTALL}"
+                COMPONENT tbb)
     elseif(tbb_downloaded)
         if(WIN32)
             install(DIRECTORY "${TBB}/bin"
