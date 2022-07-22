@@ -29,6 +29,10 @@ public:
 
     void inline setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
+    std::vector<Graph *> getSubGraphs() override {
+        return {&subGraphThen, &subGraphElse};
+    }
+
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override { return false; };

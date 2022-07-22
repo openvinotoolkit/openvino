@@ -95,6 +95,8 @@ private:
     impl_desc_type implementationType;
 };
 
+class Graph;
+
 class Node {
 public:
     Node(const Node &) = delete;
@@ -571,6 +573,10 @@ public:
 
     void setRuntimeCache(MultiCachePtr cache) {
         rtParamsCache = cache;
+    }
+
+    virtual std::vector<Graph *> getSubGraphs() {
+        return {};
     }
 
 protected:

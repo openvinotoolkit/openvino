@@ -142,8 +142,11 @@ def generate_str(model, show_rt_info = False):
 def print_model(model, show_rt_info = False):
     print(generate_str(model, show_rt_info))
 
+avg_latency = None
+
 def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
     # create all nodes before edges
+    sub_graphs = []
     g = Digraph(graph_name, graph_attr={"outputorder":"edgesfirst"})
     node2name = {}
     name2node = {}
@@ -325,7 +328,10 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
         #if type_name.startswith("Constant"):
         #    allinfo += "\n----values----\n{}".format(",".join(n.get_value_strings()[:32]))
 
-        
+        if "SubGraphs" in rt_info:
+            for sg in rt_info["SubGraphs"]:
+                sub_graphs.append([friendly_name, sg])
+
         if type_name == "Subgraph":
             submodel = rt_info["body"]
             allinfo += "\n----model-----\n{}".format(generate_str(submodel))
@@ -485,12 +491,14 @@ def generate_graph(model, fontsize=12, graph_name="", detailed_label=False):
                 style=style,
                 penwidth = "{:.3f}".format(penwidth),
                 fontsize=str(fontsize*8//10))
-    return g, data_map
+    return g, data_map, sub_graphs
 
-def visualize_model(model, fontsize=12, filename=None, detailed_label=False):
-    g, data_map = generate_graph(model, fontsize, detailed_label=detailed_label)
-    graph_src = Source(g.source, format="svg")
-    if filename:
+def visualize_model(model, fontsize=12, file_path=None, detailed_label=False):
+    
+    file_base, file_ext = os.path.splitext(file_path)
+
+    def dump_file(g, filename):
+        graph_src = Source(g.source, format="svg")
         svg = graph_src.pipe().decode('utf-8')
         if filename.endswith(".html"):
             output_src = dot_to_html.dot_to_html(svg)
@@ -498,8 +506,16 @@ def visualize_model(model, fontsize=12, filename=None, detailed_label=False):
             output_src = svg
         with open(filename,'w') as output_file:
             output_file.write(output_src)
-        return
-    return graph_src, data_map
+        
+        print(f"   {filename} is generated!")
+
+    def dump_for_model(suffix, model):    
+        g, data_map, sub_graphs = generate_graph(model, fontsize, detailed_label=detailed_label)
+        dump_file(g, f"{file_base}_{suffix}{file_ext}")
+        for name, sub_model in sub_graphs:
+            dump_for_model(name, sub_model)
+
+    dump_for_model("main", model)
 
 def serialize_model(self, model_path):
     weight_path = model_path[:model_path.find(".xml")] + ".bin"
@@ -530,7 +546,7 @@ def fill_tensors_with_random(input, shape):
     tensor.data[:] = rs.uniform(rand_min, rand_max, list(shape)).astype(dtype)
     return tensor
 
-def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_limit=60):
+def test_infer_queue(compiled_model, all_input, num_request, num_infer, time_limit=60):
     infer_queue = ov.AsyncInferQueue(compiled_model, num_request)
 
     latency_list = []
@@ -540,19 +556,6 @@ def test_infer_queue(compiled_model, input_shapes, num_request, num_infer, time_
         prof_list.append(request.profiling_info)
 
     infer_queue.set_callback(callback)
-
-    all_input = {}
-    for port, input in enumerate(compiled_model.inputs):
-        if port < len(input_shapes):
-            static_shape = input_shapes[port]
-        else:
-            static_shape = input.get_shape()
-        all_input[port] = fill_tensors_with_random(input, static_shape)
-
-    print("========1")
-    ireq = compiled_model.create_infer_request()
-    res = ireq.infer(all_input)
-    print("========2")
 
     for i in range(num_request):
         infer_queue.start_async(all_input, userdata=i)
@@ -580,6 +583,8 @@ if __name__ == "__main__":
                         help="Dump raw model")
     parser.add_argument("--bf16", action="store_true",
                         help="Enable inference with bf16")
+    parser.add_argument("--ext", type=str, default="",
+                        help="exension to load")
     parser.add_argument("--nthreads", type=int, default=4,
                         help="Set INFERENCE_NUM_THREADS for profiling (default is 4)")
     parser.add_argument("-r","--reshape", type=str, default="()",
@@ -589,9 +594,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     core = ov.Core()
+
+    if len(args.ext):
+        print(f"add_extension {args.ext} ...")
+        core.add_extension(args.ext)
+
     model_path = args.model
     model_fname = os.path.splitext(os.path.split(model_path)[1])[0]
     model = core.read_model(model_path)
+
+    print("Inputs of the model:")
+    for port, _input in enumerate(model.inputs):
+        print("\t[{}] {}".format(port, _input))
+    print("Outputs of the model:")
+    for port, _output in enumerate(model.outputs):
+        print("\t[{}] {}".format(port, _output))
+
 
     device = "CPU"
 
@@ -621,20 +639,35 @@ if __name__ == "__main__":
     compiled_model = core.compile_model(model, device, dev_prop)
 
     input_shapes = eval(args.input_shapes)
-    print("Inputs of the model:")
+    print("Inputs of the compiled_model:")
     for port, _input in enumerate(compiled_model.inputs):
         print("\t[{}] {}".format(port, _input))
         if (port < len(input_shapes)):
             print("\t\t static input shape:{}".format(input_shapes[port]))
-    print("Outputs of the model:")
+    print("Outputs of the compiled_model:")
     for port, _output in enumerate(compiled_model.outputs):
         print("\t[{}] {}".format(port, _output))
 
-    if args.perf:
-        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, input_shapes, 2, 20000, time_limit=args.time)
+    if args.perf:        
+        all_input = {}
+        for port, input in enumerate(compiled_model.inputs):
+            if port < len(input_shapes):
+                static_shape = input_shapes[port]
+            else:
+                static_shape = input.get_shape()
+            if isinstance(static_shape, str):
+                all_input[port] = np.load(static_shape, allow_pickle=True)
+            else:
+                all_input[port] = fill_tensors_with_random(input, static_shape)
+
+        latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, all_input, 2, 20000, time_limit=args.time)
+        avg_latency = np.mean(latency_list)
+        print(f"  latency_list: {latency_list} ms")
+        print(f"  avg_latency: {avg_latency} ms")
+        
         print(f"test_infer_queue FPS:{fps:.4f}")
 
     dest_file = "visual_{}_{}{}.html".format(model_fname, device, "_bf16" if args.bf16 else "")
     print("Saving runtime model to: {}".format(dest_file))
-    compiled_model.get_runtime_model().visualize(filename=dest_file)
+    compiled_model.get_runtime_model().visualize(file_path=dest_file)
     print("Model is successfully saved")
