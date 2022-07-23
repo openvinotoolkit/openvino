@@ -62,7 +62,7 @@ protected:
 public:
     static primitive_impl* create(const binary_convolution_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = impl_param->weights_layout.convert_to_weights_layout(false);
+        const auto& weights_layout = (*impl_param->weights_layout).convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
         const auto& split = primitive->split();

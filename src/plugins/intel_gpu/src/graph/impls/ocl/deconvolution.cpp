@@ -55,11 +55,7 @@ public:
         const auto& primitive = arg.get_primitive();
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-#if 0  // TODO: support dilation
-        const auto& dilation = primitive->dilation;
-#else
         const ov::Strides dilation(impl_param->output_layout.get_spatial_rank(), 1);
-#endif
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;

@@ -119,38 +119,32 @@ struct kernel_impl_params {
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
-    layout weights_layout = layout(data_types::f32, format::any, tensor());
+    //optional_layout weights_layout = layout(data_types::f32, format::any, tensor());
+    optional_layout weights_layout;
 
-    bool bias_term = false;
-    layout bias_layout = layout(data_types::f32, format::any, tensor());
-
-    bool weights_zero_points_term = false;
-    layout weights_zero_points_layout = layout(data_types::f32, format::any, tensor());
-
-    bool activations_zero_points_term = false;
-    layout activations_zero_points_layout = layout(data_types::f32, format::any, tensor());
-
-    bool compensation_term = false;
-    layout compensation_layout = layout(data_types::f32, format::any, tensor());
+    optional_layout bias_layout;
+    optional_layout weights_zero_points_layout;
+    optional_layout activations_zero_points_layout;
+    optional_layout compensation_layout;
 
     kernel_impl_params(program& _prog, std::shared_ptr<const primitive> _desc, size_t _uid,
                        const std::vector<layout>& _int_layouts, layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs, const std::vector<activation_additional_params>& _act_params,
-                       layout _weights_layout = layout(data_types::f32, format::any, tensor()),
-                       bool   _bias_term = false,                    layout _bias_layout = layout(data_types::f32, format::any, tensor()),
-                       bool   _weights_zero_points_term = false,     layout _weights_zero_points_layout = layout(data_types::f32, format::any, tensor()),
-                       bool   _activations_zero_points_term = false, layout _activations_zero_points_layout = layout(data_types::f32, format::any, tensor()),
-                       bool   _compensation_term = false,            layout _compensation_layout = layout(data_types::f32, format::any, tensor()))
+                       optional_layout _weights_layout = optional_layout(),
+                       optional_layout _bias_layout = optional_layout(),
+                       optional_layout _weights_zero_points_layout = optional_layout(),
+                       optional_layout _activations_zero_points_layout = optional_layout(),
+                       optional_layout _compensation_layout = optional_layout())
                        : has_runtime_layouts(true),
                          prog(_prog), desc(_desc), unique_id(_uid),
                          input_layouts(_int_layouts), output_layout(_out_layout),
                          fused_desc(_fused_descs),
                          fused_act_funcs(_fused_act_funcs), activation_params(_act_params),
-                         weights_layout(_weights_layout), bias_term(_bias_term), bias_layout(_bias_layout),
-                         weights_zero_points_term(_weights_zero_points_term), weights_zero_points_layout(_weights_zero_points_layout),
-                         activations_zero_points_term(_activations_zero_points_term), activations_zero_points_layout(_activations_zero_points_layout),
-                         compensation_term(_compensation_term), compensation_layout(_compensation_layout) {}
+                         weights_layout(_weights_layout), bias_layout(_bias_layout),
+                         weights_zero_points_layout(_weights_zero_points_layout),
+                         activations_zero_points_layout(_activations_zero_points_layout),
+                         compensation_layout(_compensation_layout) {}
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
@@ -265,10 +259,10 @@ template <typename params_t>
 inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, uint32_t split = 1, uint32_t groups = 1,
                                                 bool has_group_dimension = false) {
     params_t params = get_default_params<params_t>(param_info, split);
-    params.weights = convert_weights_tensor(param_info.weights_layout, has_group_dimension);
+    params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
 
-    if (param_info.bias_term) {
-        auto bias_layout = param_info.bias_layout;
+    if (param_info.bias_layout) {
+        auto bias_layout = *param_info.bias_layout;
         if (groups != 1) {
             auto bias_size = bias_layout.get_tensor();
             bias_size.feature[0] /= static_cast<int>(groups);
@@ -285,21 +279,21 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
                                                    bool has_group_dimension = false) {
     params_t params = get_weights_bias_default_params<params_t>(param_info, split, groups, has_group_dimension);
 
-    if (param_info.weights_zero_points_term) {
+    if (param_info.weights_zero_points_layout) {
         params.weights_zero_points.push_back(
-            convert_data_tensor(param_info.weights_zero_points_layout)
+            convert_data_tensor(*param_info.weights_zero_points_layout)
             .FlattenFeatureAndSpatials());
     }
 
-    if (param_info.activations_zero_points_term) {
+    if (param_info.activations_zero_points_layout) {
         params.activations_zero_points.push_back(
-            convert_data_tensor(param_info.activations_zero_points_layout)
+            convert_data_tensor(*param_info.activations_zero_points_layout)
             .FlattenFeatureAndSpatials());
     }
 
-    if (param_info.compensation_term) {
+    if (param_info.compensation_layout) {
         params.compensation.push_back(
-            convert_data_tensor(param_info.compensation_layout).FlattenFeatureAndSpatials());
+            convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
     }
 
     return params;
