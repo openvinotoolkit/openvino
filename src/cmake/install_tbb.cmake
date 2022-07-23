@@ -43,13 +43,16 @@ endif()
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
-    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR ENABLE_SYSTEM_TBB))
+       ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
+         (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
+          DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
     if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR})
+    elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
+           DEFINED TBBROOT OR DEFINED TBB_DIR)
         set(tbb_custom ON)
     endif()
 
