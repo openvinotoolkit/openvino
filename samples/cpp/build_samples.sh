@@ -75,11 +75,11 @@ if ! command -v cmake &>/dev/null; then
 fi
 
 OS_PATH=$(uname -m)
-NUM_THREADS="-j2"
+NUM_THREADS=2
 
 if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
-  NUM_THREADS="-j8"
+  NUM_THREADS=8
 fi
 
 if [ -e "$build_dir/CMakeCache.txt" ]; then
