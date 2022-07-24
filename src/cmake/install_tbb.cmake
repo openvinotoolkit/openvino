@@ -43,13 +43,16 @@ endif()
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
-    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR ENABLE_SYSTEM_TBB))
+       ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
+         (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
+          DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
     if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR})
+    elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
+           DEFINED TBBROOT OR DEFINED TBB_DIR)
         set(tbb_custom ON)
     endif()
 
@@ -129,10 +132,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         ie_cpack_add_component(tbb_dev REQUIRED)
         list(APPEND core_dev_components tbb_dev)
 
-        set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
+        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/cmake")
         install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                    "${TBB}/cmake/TBBConfigVersion.cmake"
-                DESTINATION runtime/${IE_TBB_DIR_INSTALL}
+                      "${TBB}/cmake/TBBConfigVersion.cmake"
+                DESTINATION ${IE_TBB_DIR_INSTALL}
                 COMPONENT tbb_dev)
         install(DIRECTORY "${TBB}/include"
                 DESTINATION runtime/3rdparty/tbb
@@ -160,8 +163,8 @@ if(install_tbbbind)
             DESTINATION runtime/3rdparty/tbb_bind_2_5
             COMPONENT tbb)
 
-    set(IE_TBBBIND_DIR_INSTALL "3rdparty/tbb_bind_2_5/cmake")
+    set(IE_TBBBIND_DIR_INSTALL "runtime/3rdparty/tbb_bind_2_5/cmake")
     install(FILES "${TBBBIND_2_5}/cmake/TBBBIND_2_5Config.cmake"
-            DESTINATION runtime/${IE_TBBBIND_DIR_INSTALL}
+            DESTINATION ${IE_TBBBIND_DIR_INSTALL}
             COMPONENT tbb_dev)
 endif()
