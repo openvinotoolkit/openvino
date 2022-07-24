@@ -43,13 +43,16 @@ endif()
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - TODO: system TBB also needs to be a part of wheel packages
 if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
-    (TBB MATCHES ${TEMP} OR DEFINED ENV{TBBROOT} OR ENABLE_SYSTEM_TBB))
+       ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
+         (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
+          DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
     if(TBB MATCHES ${TEMP})
         set(tbb_downloaded ON)
-    elseif(DEFINED ENV{TBBROOT})
+    elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
+           DEFINED TBBROOT OR DEFINED TBB_DIR)
         set(tbb_custom ON)
     endif()
 
@@ -87,6 +90,22 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
         set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
+
+        # TBBROOT is not defined if ENV{TBBROOT} is not found
+        # so, we have to deduce this value outselves
+        if(NOT DEFINED TBBROOT AND DEFINED ENV{TBBROOT})
+            file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
+        endif()
+        if(NOT DEFINED TBBROOT)
+            get_target_property(_tbb_include_dir TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+            get_filename_component(TBBROOT ${_tbb_include_dir} PATH)
+        endif()
+        if(DEFINED TBBROOT)
+            set(TBBROOT "${TBBROOT}" CACHE PATH "TBBROOT path" FORCE)
+        else()
+            message(FATAL_ERROR "Failed to deduce TBBROOT, please define env var TBBROOT")
+        endif()
+
         file(RELATIVE_PATH IE_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
         set(IE_TBB_DIR_INSTALL "${IE_TBBROOT_INSTALL}/${IE_TBB_DIR_INSTALL}")
 
