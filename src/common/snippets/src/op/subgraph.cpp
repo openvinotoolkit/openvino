@@ -14,6 +14,8 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 
+#include "transformations/utils/utils.hpp"
+
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 
@@ -92,6 +94,16 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
     auto body_node = node->clone_with_new_inputs(body_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        const std::string new_name = ngraph::op::util::get_ie_output_name(node);
+        auto& out_tensor = body_node->get_output_tensor(i);
+        out_tensor.set_name(new_name);
+        if (!node->get_output_tensor(i).get_names().empty()) {
+            out_tensor.set_names(node->get_output_tensor(i).get_names());
+        }
+    }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     if (node->get_output_size() != body_node->get_output_size()) {
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
