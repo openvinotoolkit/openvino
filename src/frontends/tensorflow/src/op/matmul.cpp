@@ -31,7 +31,7 @@ OutputVector translate_batch_mat_mul_op(const NodeContext& node) {
     auto adj_x = node.get_attribute<bool>("adj_x", false);
     auto adj_y = node.get_attribute<bool>("adj_y", false);
 
-    auto result = make_shared<MatMul>(x, y, false, false);
+    auto result = make_shared<MatMul>(x, y, adj_x, adj_y);
     set_node_name(node.get_name(), result);
     return result->outputs();
 }
