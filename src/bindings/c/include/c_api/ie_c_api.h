@@ -24,7 +24,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "va/va.h"
+#ifndef _WIN32
+    #include "va/va.h"
+#endif
 
 #ifdef __cplusplus
     #define INFERENCE_ENGINE_C_API_EXTERN extern "C"
@@ -59,7 +61,8 @@ typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
-typedef struct ie_va_context ie_va_context_t;
+typedef struct ie_remote_context ie_remote_context_t;
+
 
 /**
  * @struct ie_version
@@ -474,12 +477,12 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_from_file
  * @ingroup Core
  * @param core A pointer to the ie_core_t instance.
  * @param network A pointer to the input ie_network instance to create the executable network from.
- * @param context A pointer to ie_va_context_t created by ie_make_shared_context
+ * @param context A pointer to ie_va_context_t created by ie_make_shared_va_context
  * @param config Device configuration.
  * @param exe_network A pointer to the newly created executable network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_va_context_t *context, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_remote_context_t *context, \
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
@@ -494,15 +497,16 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_va(ie_cor
  * device should be used
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_make_shared_context(ie_core_t *core, const char *device_name, VADisplay device, \
-        ie_va_context_t **va_context, int target_tile_id);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_make_shared_va_context(ie_core_t *core, const char *device_name, VADisplay device, \
+        ie_remote_context_t **va_context, int target_tile_id);
 
 /**
  * @brief Release the momory occupied by the ie_va_context_t pointer.
  * @ingroup Core
- * @param va_context A pointer to ie_va_context_t to release memory.
+ * @param context A pointer to ie_remote_context_t to release memory.
  */
-INFERENCE_ENGINE_C_API(void) ie_shared_context_free(ie_va_context_t **va_context);
+INFERENCE_ENGINE_C_API(void) ie_shared_context_free(ie_remote_context_t **context);
+
 
 /**
  * @brief Sets configuration for device.
@@ -1058,7 +1062,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_i420(const
  * @param nv12Blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_from_surface(const size_t height, const size_t widht, const ie_va_context_t *context, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_nv12_from_va_surface(const size_t height, const size_t width, const ie_remote_context_t *context, \
         VASurfaceID nv12_surf, ie_blob_t **nv12Blob);
 
 /**

@@ -19,7 +19,8 @@
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
 #include "c_api/ie_c_api.h"
-#include "ie/gpu/gpu_context_api_va.hpp"
+#include "ie/ie_remote_context.hpp"
+#include "ie/gpu/gpu_params.hpp"
 #include "ie/cldnn/cldnn_config.hpp"
 
 namespace IE = InferenceEngine;
@@ -65,11 +66,11 @@ struct ie_network {
 };
 
 /**
- * @struct ie_va_context
- * @brief Video acceleration context
+ * @struct ie_remote_context
+ * @brief Remote context
  */
-struct ie_va_context {
-    InferenceEngine::gpu::VAContext::Ptr object;
+struct ie_remote_context {
+    InferenceEngine::RemoteContext::Ptr object;
 };
 
 /**
@@ -462,7 +463,7 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
     return status;
 }
 
-IEStatusCode ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_va_context_t *context, \
+IEStatusCode ie_core_load_network_va(ie_core_t *core, const ie_network_t *network, ie_remote_context_t *context, \
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
@@ -482,8 +483,8 @@ IEStatusCode ie_core_load_network_va(ie_core_t *core, const ie_network_t *networ
     return status;
 }
 
-IEStatusCode ie_make_shared_context(ie_core_t *core, const char *device_name, VADisplay device, \
-        ie_va_context_t **va_context, int target_tile_id = -1) {
+IEStatusCode ie_make_shared_va_context(ie_core_t *core, const char *device_name, VADisplay device, \
+        ie_remote_context_t **context, int target_tile_id = -1) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device == nullptr) {
@@ -492,17 +493,20 @@ IEStatusCode ie_make_shared_context(ie_core_t *core, const char *device_name, VA
     }
 
     try {
-        *va_context = new ie_va_context_t;
-        (*va_context)->object = IE::gpu::make_shared_context(core->object, device_name, device, target_tile_id);
+        *context = new ie_remote_context_t;
+        IE::ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                              {GPU_PARAM_KEY(VA_DEVICE), static_cast<IE::gpu_handle_param>(device)},
+                              {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
+        (*context)->object = core->object.CreateContext(device_name, contextParams);
     } CATCH_IE_EXCEPTIONS
 
     return status;
 }
 
-void ie_shared_context_free(ie_va_context_t **va_context) {
-    if (va_context) {
-        delete *va_context;
-        *va_context = NULL;
+void ie_shared_context_free(ie_remote_context **context) {
+    if (context) {
+        delete *context;
+        *context = NULL;
     }
 }
 
@@ -1567,14 +1571,25 @@ IEStatusCode ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, co
     return IEStatusCode::OK;
 }
 
-IEStatusCode ie_blob_make_memory_from_surface(const size_t height, const size_t widht, const ie_va_context_t *context, \
+IEStatusCode ie_blob_make_memory_nv12_from_va_surface(const size_t height, const size_t width, const ie_remote_context_t *context, \
         VASurfaceID nv12_surf, ie_blob_t **nv12Blob) {
     if (context == nullptr || nv12Blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
     *nv12Blob = new ie_blob_t;
-    (*nv12Blob)->object = IE::gpu::make_shared_blob_nv12(height, widht, context->object, nv12_surf);
+    // despite of layout, blob dimensions always follow in N, C, H, W order
+    IE::TensorDesc ydesc(IE::Precision::U8, {1, 1, height, width}, IE::Layout::NHWC);
+    IE::ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+                           {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), nv12_surf},
+                           {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
+    IE::Blob::Ptr y_blob = std::dynamic_pointer_cast<IE::Blob>(context->object->CreateBlob(ydesc, blobParams));
+
+    IE::TensorDesc uvdesc(IE::Precision::U8, {1, 2, height / 2, width / 2}, IE::Layout::NHWC);
+    blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
+    IE::Blob::Ptr uv_blob = std::dynamic_pointer_cast<IE::Blob>(context->object->CreateBlob(uvdesc, blobParams));
+
+    (*nv12Blob)->object = IE::make_shared_blob<IE::NV12Blob>(y_blob, uv_blob);
 
     return IEStatusCode::OK;
 }
