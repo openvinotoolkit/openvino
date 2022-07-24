@@ -56,9 +56,9 @@ public:
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
 
-    std::shared_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
                                               const layout& out_layout) const override {
-        return std::make_shared<kernel_impl_params>(get_program(), get_primitive(), get_unique_id(),
+        return make_unique<kernel_impl_params>(get_program(), get_primitive(), get_unique_id(),
                                   in_layouts, out_layout,
                                   get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
                                   optional_layout(weights().get_output_layout()),
