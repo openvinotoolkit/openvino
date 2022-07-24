@@ -27,7 +27,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def update_node(xml_node: ET.SubElement, aggregated_res: ET.SubElement):
+def update_result_node(xml_node: ET.SubElement, aggregated_res: ET.SubElement):
     for attr_name in xml_node.attrib:
         if attr_name == "passrate":
             continue
@@ -69,19 +69,14 @@ def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list,
                     aggregated_device_results.append(xml_results_entry)
                     continue
                 if report_type == "OP":
-                    update_node(xml_results, aggregated_results)
+                    update_result_node(xml_results, aggregated_results)
                 else:
-                    for xml_api_entry in xml_results_entry:
-                        aggregated_api_report = aggregated_results_entry.find(xml_api_entry.tag)
-                        if aggregated_api_report is None:
-                            aggregated_results_entry.append(xml_api_entry)
+                    for xml_real_device_entry in xml_results_entry:
+                        aggregated_real_device_api_report = aggregated_results_entry.find(xml_real_device_entry.tag)
+                        if aggregated_real_device_api_report is None:
+                            aggregated_results_entry.append(xml_real_device_entry)
                             continue
-                        for xml_real_device in xml_api_entry:
-                            aggregated_real_device_report = aggregated_api_report.find(xml_real_device.tag)
-                            if aggregated_real_device_report is None:
-                                aggregated_api_report.append(xml_real_device)
-                                continue
-                            update_node(xml_real_device, aggregated_real_device_report)
+                        update_result_node(xml_real_device_entry, aggregated_real_device_api_report)
     return aggregated_timestamp
 
 
@@ -126,9 +121,8 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         if report_type == "OP":
             utils.update_passrates(results)
         else:
-            pass
-            # for sub_result in results:
-                # utils.update_passrates(sub_result)
+            for sub_result in results:
+                utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 
