@@ -46,9 +46,10 @@ public:
     bool canBeExecutedInInt8() const;
     size_t getGroupNum() const { return groupNum; }
 
-    std::vector<uint8_t> inputZeroPoints;
-    std::vector<float> weightsZeroPoints;
-    std::vector<int32_t> outputCompensation;
+    std::vector<uint8_t> legacyInputZeroPoints;
+    std::vector<float> legacyWeightsZeroPoints;
+    std::vector<int32_t> legacyOutputCompensation;
+    std::vector<int32_t> inputZeroPoints;
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
@@ -89,9 +90,10 @@ private:
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
-
+    void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
+    void SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 3>& attrs, const uint8_t attrsNum);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
@@ -101,6 +103,7 @@ private:
     MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
 
+    void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
 
     bool withBiases;
@@ -110,6 +113,7 @@ private:
     bool isPrimitivesPriorityDefined = false;
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
+    bool preferLegacyZeroPoint = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -143,10 +147,10 @@ private:
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
 
+    MemoryPtr legacyInputZeroPointsMemPtr;
+    MemoryPtr legacyWeightsZeroPointsMemPtr;
+    MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr inputZeroPointsMemPtr;
-    MemoryPtr weightsZeroPointsMemPtr;
-    MemoryPtr outputCompensationMemPtr;
-
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };

@@ -620,10 +620,14 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                 if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
                     return false;
                 }
-
+                auto zeroPointEqualCnt = 0;
                 for (int j = 0; j < zeroPointDataSize; j++) {
-                    convNode->inputZeroPoints.push_back(zeroPointsData[j]);
+                    convNode->legacyInputZeroPoints.push_back(zeroPointsData[j]);
+                    if (zeroPointsData[j] == zeroPointsData[0])
+                        zeroPointEqualCnt++;
                 }
+                if (zeroPointEqualCnt == zeroPointDataSize)
+                    convNode->inputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
             } else {
                 return false;
             }
@@ -631,8 +635,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
             return false;
         }
 
-        if (convNode->outputCompensation.empty()) {
-            convNode->outputCompensation.resize(OC);
+        if (convNode->legacyOutputCompensation.empty()) {
+            convNode->legacyOutputCompensation.resize(OC);
         }
 
         return true;
@@ -643,7 +647,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (convNode == nullptr)
             IE_THROW() << "Cannot get convolution node " << node->getName();
 
-        if (convNode->inputZeroPoints.empty())
+        if (convNode->legacyInputZeroPoints.empty())
             return;
 
         auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
@@ -684,16 +688,17 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 
                                 auto w = static_cast<int32_t>(weightsPtr[widx]);
 
-                                auto izp = !convNode->inputZeroPoints.empty() ? static_cast<int32_t>(convNode->inputZeroPoints[g * IC + ic]) : 0;
+                                auto izp = !convNode->legacyInputZeroPoints.empty() ? static_cast<int32_t>(convNode->legacyInputZeroPoints[g * IC + ic]) : 0;
                                 a += w * izp;
 
-                                auto wzp = !convNode->weightsZeroPoints.empty() ? static_cast<int32_t>(convNode->weightsZeroPoints[g * OC + oc]) : 0;
+                                auto wzp = !convNode->legacyWeightsZeroPoints.empty() ?
+                                            static_cast<int32_t>(convNode->legacyWeightsZeroPoints[g * OC + oc]) : 0;
                                 a -= wzp * izp;
                             }
                         }
                     }
                 }
-                convNode->outputCompensation[g * OC + oc] = -a;
+                convNode->legacyOutputCompensation[g * OC + oc] = -a;
             }
         }
     };
@@ -835,7 +840,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (conv == nullptr)
             IE_THROW() << "Cannot cast to convolution node " << node->getName();
 
-        if (!conv->weightsZeroPoints.empty())
+        if (!conv->legacyWeightsZeroPoints.empty())
             return false;
 
         const auto &strides = conv->getStride();
@@ -885,7 +890,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
             return false;
 
-        if (!convChild->inputZeroPoints.empty() || !convChild->weightsZeroPoints.empty())
+        if (!convChild->legacyInputZeroPoints.empty() || !convChild->legacyWeightsZeroPoints.empty())
             return false;
 
         bool withBias = convChild->getOriginalInputPrecisions().size() == 3;

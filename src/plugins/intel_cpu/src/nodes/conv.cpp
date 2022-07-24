@@ -288,11 +288,11 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
 
 bool Convolution::canBeExecutedInInt8() const {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
-    if (!inputZeroPoints.empty())
+    if (!legacyInputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
-    if (!weightsZeroPoints.empty())
+    if (!legacyWeightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
     return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
@@ -408,7 +408,7 @@ void Convolution::getSupportedDescriptors() {
     }
 
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
-    if (!inputZeroPoints.empty())
+    if (!legacyInputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
@@ -715,15 +715,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    // attr[0] - depthwise, quantize
-    // attr[1] - binary
-    dnnl::primitive_attr attrs[2];
-    auto attrsNum = shouldTryBrgconv ? 2 : 1;
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (shouldTryBrgconv) {
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-    }
-
+    std::array<dnnl::primitive_attr, 3> attrs;
+    const uint8_t attrsNum = !shouldTryBrgconv ? 1 : inputZeroPoints.size() == 1 ? 3 : 2;
+    SetPostOpsAndZeroPoints(attrs, attrsNum);
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
@@ -731,7 +725,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             continue;
         for (int i = 0; i < attrsNum; i++) {
             auto &attr = attrs[i];
-            addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
                 NodeConfig config;
@@ -894,33 +887,63 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     if (!inputZeroPoints.empty()) {
-        attr.set_input_zero_points(inputZeroPoints.size(), 1 << 1 /*through C dim*/);
-
+        attr.set_zero_points(DNNL_ARG_SRC, 0, inputZeroPoints);
         if (!inputZeroPointsMemPtr) {
             inputZeroPointsMemPtr.reset(new Memory(getEngine()));
-            DnnlBlockedMemoryDesc memoryDesc(Precision::U8, {inputZeroPoints.size()});
+            DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
             inputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
         }
     }
+}
 
-    if (!weightsZeroPoints.empty()) {
-        attr.set_weights_zero_points(weightsZeroPoints.size(), 1 << 1 /*through C dim*/);
-
-        if (!weightsZeroPointsMemPtr) {
-            weightsZeroPointsMemPtr.reset(new Memory(getEngine()));
-            DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {weightsZeroPoints.size()});
-            weightsZeroPointsMemPtr->Create(memoryDesc, weightsZeroPoints.data());
+void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
+    if (!legacyInputZeroPoints.empty()) {
+        attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
+        if (!legacyInputZeroPointsMemPtr) {
+            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::U8, {legacyInputZeroPoints.size()});
+            legacyInputZeroPointsMemPtr->Create(memoryDesc, legacyInputZeroPoints.data());
         }
     }
 
-    if (!outputCompensation.empty()) {
-        attr.set_output_compensations(outputCompensation.size(), 1 << 1 /*through C dim*/);
+    if (!legacyWeightsZeroPoints.empty()) {
+        attr.set_weights_zero_points(legacyWeightsZeroPoints.size(), 1 << 1 /*through C dim*/);
 
-        if (!outputCompensationMemPtr) {
-            outputCompensationMemPtr.reset(new Memory(getEngine()));
-            DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {outputCompensation.size()});
-            outputCompensationMemPtr->Create(memoryDesc, outputCompensation.data());
+        if (!legacyWeightsZeroPointsMemPtr) {
+            legacyWeightsZeroPointsMemPtr.reset(new Memory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {legacyWeightsZeroPoints.size()});
+            legacyWeightsZeroPointsMemPtr->Create(memoryDesc, legacyWeightsZeroPoints.data());
         }
+    }
+
+    if (!legacyOutputCompensation.empty()) {
+        attr.set_output_compensations(legacyOutputCompensation.size(), 1 << 1 /*through C dim*/);
+
+        if (!legacyOutputCompensationMemPtr) {
+            legacyOutputCompensationMemPtr.reset(new Memory(getEngine()));
+            DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {legacyOutputCompensation.size()});
+            legacyOutputCompensationMemPtr->Create(memoryDesc, legacyOutputCompensation.data());
+        }
+    }
+}
+
+// attr[0] - depthwise, quantize postops. pass output compensation.
+// attr[1] - binary postops. If zp per-tensor on AMX, pass per-tensor zp intput, otherwise pass output compensation.
+// attr[2] - depthwise, quantize postops. Only available when zp per-tensor on AMX, pass per-tensor zp intput.
+void Convolution::SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 3>& attrs, const uint8_t attrsNum) {
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    addLegacyZeroPoints(attrs[0]);
+
+    if (attrsNum == 2) {
+        //If having input zp, would be per-channel.
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+        addLegacyZeroPoints(attrs[1]);
+    } else if (attrsNum == 3) {
+        //Having per-tensor input zero point.
+        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+        addZeroPoints(attrs[1]);
+        setPostOps(attrs[2], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+        addZeroPoints(attrs[2]);
     }
 }
 
@@ -942,14 +965,10 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
-    // attr[0] - depthwise, quantize
-    // attr[1] - binary
-    dnnl::primitive_attr attrs[2];
-    auto attrsNum = shouldTryBrgconv ? 2 : 1;
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-    if (shouldTryBrgconv) {
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-    }
+
+    std::array<dnnl::primitive_attr, 3> attrs;
+    const uint8_t attrsNum = !shouldTryBrgconv ? 1 : inputZeroPoints.size() == 1 ? 3 : 2;
+    SetPostOpsAndZeroPoints(attrs, attrsNum);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -962,7 +981,6 @@ void Convolution::initDescriptor(const NodeConfig& config) {
             continue;
         for (int n = 0; n < attrsNum; n++) {
             auto &attr = attrs[n];
-            addZeroPoints(attr);
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
                 NodeConfig cfg;
@@ -1012,10 +1030,12 @@ void Convolution::initDescriptor(const NodeConfig& config) {
 
                 if (selected_count == selectedPrimitiveDescriptorIndex) {
                     if (impl_type != selectedPD->getImplementationType()) {
-                        IE_THROW() << "Cannot get the original layer configuration!";
+                        IE_THROW() << getName() << " expected selectedPD impl_type: " << impl_type_to_string(selectedPD->getImplementationType())
+                                    << " but got: " << impl_type_to_string(impl_type);
                     }
                     rightConfig = cfg;
-                    preferLegacyPostOps = n == 0;
+                    preferLegacyPostOps = (n != 1);
+                    preferLegacyZeroPoint = (attrsNum != 3) || (n == 0);
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {
                     if (impl_type == selectedPD->getImplementationType()) {
@@ -1276,7 +1296,10 @@ void Convolution::prepareParams() {
 
     auto initPrimitiveAttr = [&]() {
         dnnl::primitive_attr attr;
-        addZeroPoints(attr);
+        if (preferLegacyZeroPoint)
+            addLegacyZeroPoints(attr);
+        else
+            addZeroPoints(attr);
         setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), preferLegacyPostOps, true);
 
         return std::make_shared<dnnl::primitive_attr>(std::move(attr));
@@ -1416,7 +1439,11 @@ void Convolution::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        appendZeroPointsArgs();
+        if (preferLegacyZeroPoint)
+            appendLegacyZeroPointsArgs();
+        else
+            appendZeroPointsArgs();
+
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
@@ -1542,17 +1569,25 @@ void Convolution::addFusedNode(const NodePtr &fusingNode) {
     Node::addFusedNode(fusingNode);
 }
 
+void Convolution::appendLegacyZeroPointsArgs() {
+    if (legacyInputZeroPointsMemPtr != nullptr) {
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = legacyInputZeroPointsMemPtr->GetPrimitive();
+    }
+    if (legacyWeightsZeroPointsMemPtr != nullptr) {
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = legacyWeightsZeroPointsMemPtr->GetPrimitive();
+    }
+    if (legacyOutputCompensationMemPtr != nullptr) {
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = legacyOutputCompensationMemPtr->GetPrimitive();
+    }
+}
+
+
 void Convolution::appendZeroPointsArgs() {
     if (inputZeroPointsMemPtr != nullptr) {
         primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = inputZeroPointsMemPtr->GetPrimitive();
     }
-    if (weightsZeroPointsMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = weightsZeroPointsMemPtr->GetPrimitive();
-    }
-    if (outputCompensationMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = outputCompensationMemPtr->GetPrimitive();
-    }
 }
+
 
 }   // namespace node
 }   // namespace intel_cpu
