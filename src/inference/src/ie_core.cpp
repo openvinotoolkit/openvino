@@ -161,7 +161,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     // to lock parallel access to pluginRegistry and plugins
     mutable std::unordered_map<std::string, std::mutex> dev_mutexes;
     std::mutex& get_mutex(const std::string& dev_name = "") const {
-        return dev_mutexes.at(dev_name);
+        try {
+            return dev_mutexes.at(dev_name);
+        } catch (const std::out_of_range& ex) {
+            throw ov::Exception("Cannot get mutex for device: " + dev_name);
+        }
     }
     void add_mutex(const std::string& dev_name) {
         dev_mutexes[dev_name];
