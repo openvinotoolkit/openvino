@@ -344,7 +344,7 @@ void kernels_cache::build_all() {
     auto _task_executor = _engine.get_task_executor();
     std::exception_ptr exception;
     std::vector<InferenceEngine::Task> tasks;
-    for (int idx = 0; idx < batches.size(); idx++) {
+    for (size_t idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
         tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {

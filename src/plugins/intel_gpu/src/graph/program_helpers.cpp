@@ -119,8 +119,10 @@ layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data
 std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, layout const& l2) {
     const auto& l1_pad = l1.data_padding;
     const auto& l2_pad = l2.data_padding;
-    auto offset_last_element_l1 = l1.get_linear_offset(l1.size - tensor{1});
-    auto offset_last_element_l2 = l2.get_linear_offset(l2.size - tensor{1});
+    auto l1_size = l1.get_tensor();
+    auto l2_size = l2.get_tensor();
+    int64_t offset_last_element_l1 = l1.get_linear_offset(l1_size - tensor{1});
+    int64_t offset_last_element_l2 = l2.get_linear_offset(l2_size - tensor{1});
     if (l1 == l2)
         return {true, true};
     if (l1.data_type != l2.data_type)
@@ -131,7 +133,7 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         (l2.format == format::bfyx || l2.format == format::bfzyx || l2.format == format::bfwzyx) && !l1_pad &&
         !l2_pad && l1.get_linear_size() == l2.get_linear_size())
         return {false, true};
-    if (l1.size != l2.size)
+    if (l1_size != l2_size)
         return {false, false};
     if (l1.get_linear_size() != l2.get_linear_size())
         return {false, false};
@@ -166,10 +168,10 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         return {false, false};
 
     // If data is actually 1d along f and dense, the layouts are identical
-    if (l1.data_type == l2.data_type && l1.size == l2.size && !l1_pad && !l2_pad && l1.size.batch[0] == 1 &&
-        ((l1.format.spatial_num() == 2 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1) ||
-        ((l1.format.spatial_num() == 3 && l1.size.spatial[0] == 1 && l1.size.spatial[1] == 1 && l1.size.spatial[2] == 1))) &&
-        (offset_last_element_l1 + 1 == l1.size.feature[0] && offset_last_element_l2 + 1 == l2.size.feature[0]))
+    if (l1.data_type == l2.data_type && l1_size == l2_size && !l1_pad && !l2_pad && l1_size.batch[0] == 1 &&
+        ((l1.format.spatial_num() == 2 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1) ||
+        ((l1.format.spatial_num() == 3 && l1_size.spatial[0] == 1 && l1_size.spatial[1] == 1 && l1_size.spatial[2] == 1))) &&
+        (offset_last_element_l1 + 1 == l1_size.feature[0] && offset_last_element_l2 + 1 == l2_size.feature[0]))
         return {false, true};
 
     auto l1_pitch = l1.get_pitches();
@@ -177,10 +179,10 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
 
     // ignore pitches which will never be used (for dims with size == 1)
     for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l1.size.raw[i] == 1)
+        if (l1_size.raw[i] == 1)
             l1_pitch.raw[i] = 0;
     for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l2.size.raw[i] == 1)
+        if (l2_size.raw[i] == 1)
             l2_pitch.raw[i] = 0;
 
     auto l1_offset = l1.get_linear_offset();
@@ -192,8 +194,8 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
 }
 
 bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
-    if (l.size.spatial[0] > 1 || l.size.spatial[1] > 1 || (l.get_spatial_rank() == 3 && l.size.spatial[2] > 1)
-        || l.size.batch[0] > 1) {
+    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
+        || l.batch() > 1) {
         return true;
     }
     return false;
@@ -222,12 +224,12 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
-            && p_layout.format == d_layout.format && p_layout.size == d_layout.size
+            && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
             && p_layout.data_padding == d_layout.data_padding
             && dep_node.get_users().size() == 1
             && !p_node.is_type<pooling>()) {
             return add_fusing_type::sum;
-        } else if (p_layout.size == d_layout.size) {
+        } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;
         }
     }

@@ -31,9 +31,7 @@ inline const float& clamp(const float& v, const float& lower, const float& upper
 }
 
 inline bool hasSingleBatchOutput(const program_node& node) {
-    const auto batch = node.get_output_layout().size.batch;
-
-    return batch.empty() || (batch.size() == 1 && batch[0] == 1);
+    return node.get_output_layout().batch() == 1;
 }
 
 struct roi_t {
@@ -213,7 +211,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         int min_bbox_x = 1;
         int min_bbox_y = 1;
 
-        auto image_info_size = image_info->get_layout().size;
+        auto image_info_size = image_info->get_layout().get_tensor();
         auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
 
         int scaled_min_bbox_size = instance.argument.min_bbox_size;

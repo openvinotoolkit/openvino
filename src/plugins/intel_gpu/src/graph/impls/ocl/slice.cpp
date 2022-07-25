@@ -90,14 +90,14 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         std::vector<std::int32_t> selected_start(data_shape.size(), 0);
         std::vector<std::int32_t> selected_step(data_shape.size(), 1);
         std::vector<std::int32_t> selected_end(data_shape);
-        for (int axe = 0; axe < axes.size(); axe++) {
-            auto transformed_axe = axes[axe] < 0 ? data_shape.size() + axes[axe] : axes[axe];
-            auto start = start_elts[axe];
-            auto end = end_elts[axe];
+        for (size_t axis = 0; axis < axes.size(); axis++) {
+            auto transformed_axe = axes[axis] < 0 ? data_shape.size() + axes[axis] : axes[axis];
+            auto start = start_elts[axis];
+            auto end = end_elts[axis];
             auto dim_size = data_shape[transformed_axe];
             selected_start[transformed_axe] = std::max(std::min(start < 0 ? dim_size + start : start, dim_size - 1), 0);
             selected_end[transformed_axe] = std::max(std::min(end < 0 ? dim_size + end : end, dim_size - 1), 0);
-            selected_step[transformed_axe] = step_elts[axe];
+            selected_step[transformed_axe] = step_elts[axis];
         }
         params.start = std::move(selected_start);
         params.end = std::move(selected_end);

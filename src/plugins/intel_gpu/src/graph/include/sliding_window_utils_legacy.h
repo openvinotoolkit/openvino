@@ -372,7 +372,7 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
         needed_size = tensor::max(needed_size_sym, needed_size_asym);
     }
 
-    const auto& actual_data_size = actual_input_layout.size;
+    const auto& actual_data_size = actual_input_layout.get_tensor();
     const auto& actual_lpad = actual_input_layout.data_padding.lower_size();
     const auto& actual_upad = actual_input_layout.data_padding.upper_size();
 

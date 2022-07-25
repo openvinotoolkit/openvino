@@ -63,7 +63,7 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node) 
                 "Output dimensions must be positive");
 
     for (size_t i = 0; i < spatial_num; ++i)
-        if (crops_begin.spatial[i] + crops_end.spatial[i] >= block_shape.spatial[i] * input_layout.size.spatial[i])
+        if (crops_begin.spatial[i] + crops_end.spatial[i] >= block_shape.spatial[i] * input_layout.spatial(i))
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Output dimensions must be positive");
 

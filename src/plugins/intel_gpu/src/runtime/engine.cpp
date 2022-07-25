@@ -57,9 +57,9 @@ static size_t get_cpu_ram_size() {
 namespace cldnn {
 
 engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-: _device(device)
-, _configuration(configuration)
-, _task_executor(task_executor) {}
+: _task_executor(task_executor)
+, _device(device)
+, _configuration(configuration) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();

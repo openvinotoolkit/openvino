@@ -129,9 +129,9 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 
 Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
     bool createTopologyOnly, bool partialBuild)
-    : m_config(config)
+    : m_curBatch(-1)
+    , m_config(config)
     , m_engine(engine)
-    , m_curBatch(-1)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = network.getInputsInfo();
@@ -268,7 +268,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
                     it->second->reshape(shape, l);
                     // detect changed output batch dimension
                     SizeVector new_shape = it->second->getTensorDesc().getDims();
-                    for (int64_t i = 0; i < old_shape.size(); i++) {
+                    for (int64_t i = 0; i < static_cast<int64_t>(old_shape.size()); i++) {
                         if (old_shape[i] != new_shape[i]) {
                             m_output_batch_dim[iname] = i;
                             break;
@@ -304,7 +304,7 @@ int Program::GetMaxBatchSizeForSingleProgram() {
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
-    if (program_id >= m_programs.size())
+    if (program_id >= static_cast<int32_t>(m_programs.size()))
         IE_THROW() << "Invalid program ID";
 
     return m_programs[program_id];

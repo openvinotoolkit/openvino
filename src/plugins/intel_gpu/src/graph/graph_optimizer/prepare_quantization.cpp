@@ -65,9 +65,12 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     auto mem_output_high = output_high.get_attached_memory_ptr();
 
     auto scales_layout = mem_input_low->get_layout();
-    scales_layout.size = tensor::max(scales_layout.size, mem_input_high->get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_low->get_layout().size);
-    scales_layout.size = tensor::max(scales_layout.size, mem_output_high->get_layout().size);
+    auto max_size = tensor(0);
+    max_size = tensor::max(max_size, mem_input_high->get_layout().get_tensor());
+    max_size = tensor::max(max_size, mem_output_low->get_layout().get_tensor());
+    max_size = tensor::max(max_size, mem_output_high->get_layout().get_tensor());
+
+    scales_layout.set_tensor(max_size);
 
     auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
@@ -75,7 +78,7 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
     auto get_offset_safe = [](const layout& l, const tensor& idx) -> int {
-        auto sizes = l.size;
+        auto sizes = l.get_tensor();
         auto pitches = l.get_pitches();
 
         return (idx.batch[0] % sizes.batch[0])*pitches.batch[0]
@@ -458,7 +461,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
         dep.get_output_layout().data_type != data_types::u8 ||
         (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
-        dep.get_output_layout().size != reorder_node.get_output_layout().size)
+        dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
 
     p.replace_all_usages(reorder_node, dep);
@@ -608,7 +611,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     bool need_compensation = false;
 
-    auto output_size = convolution_node.get_output_layout().size;
+    auto output_size = convolution_node.get_output_layout().get_tensor();
     int ofm = in1.get_output_layout().batch();
     int ifm = in0.get_output_layout().feature();
     int ofm_aligned = ((ofm + 31) / 32) * 32;

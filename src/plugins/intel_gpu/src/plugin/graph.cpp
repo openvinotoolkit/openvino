@@ -138,7 +138,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
     for (const auto& memStateInfo : memStatesInfo) {
         std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
         std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {
-            return first.size.batch[0] < second.size.batch[0];
+            return first.batch() < second.batch();
         });
         std::vector<cldnn::network::VariableState::Ptr> memoryStates;
         memoryStates.reserve(orderedLayouts.size());
@@ -310,7 +310,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         Precision precision = data_type_to_precision(layout.data_type);
         SizeVector dims;
         auto l = InferenceEngine::Layout::NCHW;
-        auto size = layout.size;
+        auto size = layout.get_tensor();
         if (layout.format.dimension() == 4) {
             dims = {static_cast<size_t>(size.batch[0]),
                     static_cast<size_t>(size.feature[0]),

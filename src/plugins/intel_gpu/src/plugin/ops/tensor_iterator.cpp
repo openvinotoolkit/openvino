@@ -46,15 +46,6 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     return md;
 }
 
-static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-        const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
-    for (auto& back_edge : back_edges) {
-        if (back_edge.from == old_primitive_id) {
-            back_edge.from = new_primitive_id;
-        }
-    }
-}
-
 static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 

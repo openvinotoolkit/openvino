@@ -517,8 +517,8 @@ public:
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
-        ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
-        ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+        ASSERT_EQ(out_lay.get_tensor().sizes()[0], reference_result.size());                 // b
+        ASSERT_EQ(out_lay.get_tensor().sizes()[1], reference_result[0].size());              // f
         ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
         ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
         ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y
@@ -1731,8 +1731,8 @@ public:
             cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
-            ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
-            ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+            ASSERT_EQ(out_lay.get_tensor().sizes()[0], reference_result.size());                 // b
+            ASSERT_EQ(out_lay.get_tensor().sizes()[1], reference_result[0].size());              // f
             ASSERT_EQ(out_lay.spatial(3), reference_result[0][0].size());           // w
             ASSERT_EQ(out_lay.spatial(2), reference_result[0][0][0].size());        // z
             ASSERT_EQ(out_lay.spatial(1), reference_result[0][0][0][0].size());     // y

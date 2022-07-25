@@ -35,12 +35,14 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
 
     if (outShape.batch[0] > 1 && memory_type == cldnn::convert_color::memory_type::image) {
         std::vector<cldnn::primitive_id> convert_color_names;
-        for (size_t b = 0; b < outShape.batch[0]; ++b) {
+        for (int b = 0; b < outShape.batch[0]; ++b) {
             cldnn::primitive::primitive_id_arr batchedInputPrimitives = { inputPrimitives[0] + "_" + std::to_string(b),
                                                                           inputPrimitives[1] + "_" + std::to_string(b)};
             cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
             convert_color_names.emplace_back(batched_prim_id);
-            out_layout.size.batch[0] = 1;
+            auto new_shape = outShape;
+            new_shape.batch[0] = 1;
+            out_layout.set_tensor(new_shape);
 
             p.AddPrimitive(cldnn::convert_color(batched_prim_id,
                                                 batchedInputPrimitives,

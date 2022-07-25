@@ -64,8 +64,8 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
           nms_threshold{nms_threshold},
           num_classes{num_classes},
           post_nms_count{post_nms_count},
-          class_agnostic_box_regression{class_agnostic_box_regression},
           max_detections_per_image{max_detections_per_image},
+          class_agnostic_box_regression{class_agnostic_box_regression},
           max_delta_log_wh{max_delta_log_wh},
           deltas_weights{std::move(deltas_weights)} {}
 

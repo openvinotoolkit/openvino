@@ -19,7 +19,7 @@ primitive_type_id bucketize::type_id() {
 layout bucketize_inst::calc_output_layout(const bucketize_node& node) {
     auto input_layout = node.input().get_output_layout();
     auto primitive = node.get_primitive();
-    return {*primitive->output_data_type, input_layout.format, input_layout.size};
+    return {*primitive->output_data_type, input_layout.format, input_layout.get_tensor()};
 }
 
 std::string bucketize_inst::to_string(const bucketize_node& node) {

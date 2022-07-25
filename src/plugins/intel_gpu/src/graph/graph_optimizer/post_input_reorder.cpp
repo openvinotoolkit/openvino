@@ -59,7 +59,7 @@ void post_input_reorder::run(program& p) {
                 auto previous_layout = node->get_output_layout();
                 layout current_layout(input_layout.data_type,
                                       layout_format,
-                                      input_layout.size,
+                                      input_layout.get_tensor(),
                                       input_layout.data_padding);
                 auto& reorder = add_reorder(p, input, node, current_layout);
                 reorder.set_unique_id();

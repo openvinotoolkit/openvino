@@ -976,20 +976,20 @@ public:
         const memory::ptr input = inputs[0];
 
         //Output is bfyx
-        auto output = engine.allocate_memory(cldnn::layout(input->get_layout().data_type, input->get_layout().format, input->get_layout().size));
+        auto output = engine.allocate_memory(cldnn::layout(input->get_layout().data_type, input->get_layout().format, input->get_layout().get_tensor()));
 
         cldnn::mem_lock<Type> in0_mem(input, get_test_stream());
         cldnn::mem_lock<Type> out_mem(output, get_test_stream());
 
-        const int in0_b = input->get_layout().size.sizes()[0];
-        const int in0_f = input->get_layout().size.sizes()[1];
-        const int in0_h = input->get_layout().size.sizes()[3];
-        const int in0_w = input->get_layout().size.sizes()[2];
+        const int in0_b = input->get_layout().get_tensor().sizes()[0];
+        const int in0_f = input->get_layout().get_tensor().sizes()[1];
+        const int in0_h = input->get_layout().get_tensor().sizes()[3];
+        const int in0_w = input->get_layout().get_tensor().sizes()[2];
 
-//        const int out_b = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[0];
-//        const int out_f = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[1];
-//        const int out_h = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[2];
-//        const int out_w = output->get_layout().size.transform(cldnn::format::bfyx, 0).sizes()[3];
+//        const int out_b = output->get_layout().get_tensor().transform(cldnn::format::bfyx, 0).sizes()[0];
+//        const int out_f = output->get_layout().get_tensor().transform(cldnn::format::bfyx, 0).sizes()[1];
+//        const int out_h = output->get_layout().get_tensor().transform(cldnn::format::bfyx, 0).sizes()[2];
+//        const int out_w = output->get_layout().get_tensor().transform(cldnn::format::bfyx, 0).sizes()[3];
 
 //        assert(in0_b == out_b);
 //        assert(in0_f == out_f);
@@ -1064,9 +1064,9 @@ public:
             const auto chans = format::traits(p->fmt).order;
 
             res << "_" << "Input" << i;
-            for (unsigned int j = 0; j < p->input_layouts[i].size.sizes(p->fmt).size(); ++j)
+            for (unsigned int j = 0; j < p->input_layouts[i].get_tensor().sizes(p->fmt).size(); ++j)
             {
-                res << chans[j] << p->input_layouts[i].size.sizes(p->fmt)[j];
+                res << chans[j] << p->input_layouts[i].get_tensor().sizes(p->fmt)[j];
             }
         }
 

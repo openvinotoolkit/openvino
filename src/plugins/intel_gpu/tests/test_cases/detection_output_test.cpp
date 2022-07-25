@@ -447,10 +447,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().batch(), 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().feature(), 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(1), keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().spatial(0), 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 

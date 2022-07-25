@@ -361,7 +361,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (auto i = 0; i < reference_results.size(); i++) {
+    for (size_t i = 0; i < reference_results.size(); i++) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
@@ -424,7 +424,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (auto i = 0; i < reference_results.size(); i++) {
+    for (size_t i = 0; i < reference_results.size(); i++) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image), "clReleaseMemObject");
@@ -604,7 +604,7 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (auto i = 0; i < reference_results.size(); i++) {
+    for (size_t i = 0; i < reference_results.size(); i++) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(i420_image_plane_y), "clReleaseMemObject");

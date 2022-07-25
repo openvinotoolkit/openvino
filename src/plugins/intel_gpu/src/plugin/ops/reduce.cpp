@@ -28,7 +28,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    size_t rank = op->get_input_shape(0).size();
+    int64_t rank = op->get_input_shape(0).size();
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
     if (!axes_constant) {

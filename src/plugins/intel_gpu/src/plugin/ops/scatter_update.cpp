@@ -16,7 +16,7 @@ namespace intel_gpu {
 static inline cldnn::scatter_update::scatter_update_axis GetScatterUpdateAxis(int axis, unsigned rank) {
     if (axis < 0)
         axis += rank;
-    if (axis < 0 || axis >= rank)
+    if (axis < 0 || axis >= static_cast<int32_t>(rank))
         IE_THROW() << "ScatterUpdate axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and GPU plugin,

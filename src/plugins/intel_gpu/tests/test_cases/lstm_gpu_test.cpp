@@ -346,7 +346,7 @@ std::string get_string_id(size_t i) {
 void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, memory::ptr cell,
     memory::ptr weights, memory::ptr recurrent, memory::ptr biases, int sequence_len,
     bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true) {
-    auto hidden_size = hidden->get_layout().size;
+    auto hidden_size = hidden->get_layout().get_tensor();
     t.add(input_layout("input", input->get_layout()));
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
     std::vector<primitive_id> output_ids_offsets;

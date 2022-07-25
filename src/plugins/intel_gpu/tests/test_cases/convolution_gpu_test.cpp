@@ -8555,11 +8555,11 @@ public:
 
     cldnn::tensor get_expected_output_tensor() override {
         auto convolution = std::static_pointer_cast<const cldnn::convolution>(layer_params);
-        tensor input_size = generic_params->input_layouts[0].size;
+        tensor input_size = generic_params->input_layouts[0].get_tensor();
         auto dilation = convolution->dilation;
         auto stride = convolution->stride;
         auto pad = convolution->pad;
-        tensor weights_size = generic_params->input_layouts[1].size;
+        tensor weights_size = generic_params->input_layouts[1].get_tensor();
 
         int kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
         int kernel_extent_x = dilation[dilation.size() - 1] * (weights_size.spatial[0] - 1) + 1;
@@ -8586,21 +8586,21 @@ public:
 
         // Update inputs.
         auto input = inputs[0];
-        auto input_size = inputs[0]->get_layout().size;
+        auto input_size = inputs[0]->get_layout().get_tensor();
         VVVVF<Type> input_rnd = generate_random_4d<Type>(input_size.batch[0], input_size.feature[0], input_size.spatial[1], input_size.spatial[0], -2, 2, k);
         VF<Type> input_rnd_vec = flatten_4d<Type>(input->get_layout().format, input_rnd);
         set_values(input, input_rnd_vec);
 
         // Update weights.
         auto weight_input = inputs[1];
-        auto weight_size = inputs[1]->get_layout().size;
+        auto weight_size = inputs[1]->get_layout().get_tensor();
         VVVVF<Type> weight_rnd = generate_random_4d<Type>(weight_size.batch[0], weight_size.feature[0], weight_size.spatial[1], weight_size.spatial[0], -2, 2, k);
         VF<Type> weight_rnd_vec = flatten_4d<Type>(weight_input->get_layout().format, weight_rnd);
         set_values(weight_input, weight_rnd_vec);
 
         // Update biases.
         auto bias_input = inputs[2];
-        auto bias_size = inputs[2]->get_layout().size;
+        auto bias_size = inputs[2]->get_layout().get_tensor();
         VF<Type> bias_rnd = generate_random_1d<Type>(bias_size.spatial[0], -2, 2, k);
         set_values(bias_input, bias_rnd);
     }
@@ -8613,11 +8613,11 @@ public:
 
         data_types dt = inputs[0]->get_layout().data_type;
 
-        tensor input_size = inputs[0]->get_layout().size;
+        tensor input_size = inputs[0]->get_layout().get_tensor();
         ov::Strides dilation = convolution->dilation;
         ov::Strides stride = convolution->stride;
         ov::CoordinateDiff pad = convolution->pad;
-        tensor weights_size = inputs[1]->get_layout().size;
+        tensor weights_size = inputs[1]->get_layout().get_tensor();
         padding output_padding = convolution->output_padding;
 
         tensor output_size = get_expected_output_tensor();

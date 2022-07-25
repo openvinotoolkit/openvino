@@ -54,7 +54,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node) 
                 "Input feature shape after padding must be divisible by block_shape");
 
     for (size_t i = 0; i < spatial_num; ++i)
-        if ((input_layout.size.spatial[i] + pads_begin.spatial[i] + pads_end.spatial[i]) % block_shape.spatial[i] != 0)
+        if ((input_layout.spatial(i) + pads_begin.spatial[i] + pads_end.spatial[i]) % block_shape.spatial[i] != 0)
             CLDNN_ERROR_MESSAGE(node.id(),
                 "Input spatial shapes after padding must be divisible by block_shape");
 

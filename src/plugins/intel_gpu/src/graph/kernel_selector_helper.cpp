@@ -720,7 +720,7 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
-    const auto& vals = l.size.sizes(l.format);
+    const auto& vals = l.get_tensor().sizes(l.format);
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);
@@ -776,7 +776,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 }
 
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
-    const auto& t = l.size.sizes(l.format);
+    const auto& t = l.get_tensor().sizes(l.format);
     const auto ks_type = to_weights_type(l.data_type);
     const auto ks_layout = to_weights_layout(l.format, is_grouped);
     std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));

@@ -141,7 +141,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-    auto output_size = output_layout.size;
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input size",

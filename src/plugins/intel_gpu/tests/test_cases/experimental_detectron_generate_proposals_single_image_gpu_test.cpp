@@ -161,7 +161,7 @@ public:
 
         const auto &expected_roi_scores = param.expected_roi_scores;
         const auto &expected_rois = param.expected_rois;
-        for (size_t i = 0; i < param.post_nms_count; ++i) {
+        for (int64_t i = 0; i < param.post_nms_count; ++i) {
             EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
 
             // order of proposals with zero scores is not guaranteed (to be precise,

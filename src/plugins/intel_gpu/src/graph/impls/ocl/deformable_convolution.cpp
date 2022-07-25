@@ -40,7 +40,7 @@ public:
     static primitive_impl* create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(false);
-        const auto& weights_size = weights_layout.size;
+        const auto& weights_size = weights_layout.get_tensor();
 
         const auto& split = primitive->split();
         const auto& groups = primitive->groups;

@@ -72,7 +72,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     tuning_data.sub_group_size = 8;
 
     // Known cases for TGL where simd16 works better than simd8
-    bool simd16_is_faster = output_feature == 1024 & output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
+    bool simd16_is_faster = output_feature == 1024 && output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
     simd16_is_faster |= (input_feature == 25088 || input_feature == 21504) && output_feature == 512 &&
                         input_batch == 1 && output_batch == 1 && input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
 

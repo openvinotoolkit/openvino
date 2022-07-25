@@ -32,7 +32,7 @@ void strided_slice_optimize::run(program& p) {
                     node->remove_dependency(i);
 
             auto node_layout = strided_slice_node.get_output_layout();
-            auto node_size = node_layout.size.sizes(format::bfyx);
+            auto node_size = node_layout.get_tensor().sizes(format::bfyx);
 
             auto is_shift_possible = [&](const std::vector<int32_t>& dims) -> bool {
                 if (dims.empty())

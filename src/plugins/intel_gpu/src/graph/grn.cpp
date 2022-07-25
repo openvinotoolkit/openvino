@@ -17,7 +17,7 @@ layout grn_inst::calc_output_layout(grn_node const& node) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
 
-    return layout(output_type, input_node_layout.format, input_node_layout.size);
+    return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }
 
 std::string grn_inst::to_string(grn_node const& node) {

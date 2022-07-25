@@ -228,9 +228,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto inputSize = prim_node.input().get_output_layout().size;
+            auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
@@ -250,9 +250,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
@@ -274,9 +274,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -303,7 +303,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = prim->size[prim->size.size() - i - 1];
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -1335,7 +1335,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
             auto ifm = static_cast<uint32_t>(input_size.feature[0]);
             if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                 total_dw_conv_layers++;

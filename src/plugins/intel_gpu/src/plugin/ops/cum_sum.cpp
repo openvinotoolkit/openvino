@@ -16,7 +16,7 @@ namespace intel_gpu {
 static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t rank) {
     if (axis < 0)
         axis += rank;
-    if (axis < 0 || axis >= rank)
+    if (axis < 0 || axis >= static_cast<int32_t>(rank))
         IE_THROW() << "CumSum axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and GPU plugin,

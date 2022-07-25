@@ -49,7 +49,7 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     }
     // Prepare output buffer
     if (output_buffers.empty()) {
-        for (auto i = 0; i < base_params.outputs.size(); ++i) {
+        for (size_t i = 0; i < base_params.outputs.size(); ++i) {
             int num_of_output_elements = static_cast<int>(base_params.outputs[i].PhysicalSize());
             output_buffers.push_back(_engine.allocate_memory({from_data_type(base_params.outputs[0].GetDType()),
                                                              format::bfyx, tensor(1, 1, num_of_output_elements, 1)}));

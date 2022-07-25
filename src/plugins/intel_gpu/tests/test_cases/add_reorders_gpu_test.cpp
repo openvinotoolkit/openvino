@@ -83,7 +83,7 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
 
-    auto sizes = get_sizes(input->get_layout().size, axis);
+    auto sizes = get_sizes(input->get_layout().get_tensor(), axis);
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
