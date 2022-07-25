@@ -1,6 +1,6 @@
-# AUGRUCell  {#openvino_docs_ops_sequence_AUGRUCell_3}
+# AUGRUCell  {#openvino_docs_ops_sequence_AUGRUCell_dev}
 
-**Versioned name**: *AUAUGRUCell-10*
+**Versioned name**: *AUAUGRUCell-dev*
 
 **Category**: *Sequence processing*
 

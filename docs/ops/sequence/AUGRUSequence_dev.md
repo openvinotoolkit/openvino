@@ -1,6 +1,6 @@
-# AUGRUSequence  {#openvino_docs_ops_sequence_AUGRUSequence_10}
+# AUGRUSequence  {#openvino_docs_ops_sequence_AUGRUSequence_dev}
 
-**Versioned name**: *AUGRUSequence-10*
+**Versioned name**: *AUGRUSequence-dev*
 
 **Category**: *Sequence processing*
 
