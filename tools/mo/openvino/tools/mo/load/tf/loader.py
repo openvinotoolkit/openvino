@@ -7,10 +7,6 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-
-    import numpy
-    print("+++++++++++++++++++++++++++++++++++++++++++++NUMPY version = ", numpy.__version__)
-    print(numpy.__file__)
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
 except ImportError:
