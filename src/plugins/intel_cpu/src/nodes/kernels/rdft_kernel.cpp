@@ -473,7 +473,6 @@ void jit_fft_kernel_f32<isa>::generate() {
     Vmm odd_indices = Vmm(reg_idx++);
     Vmm twiddles_indices = Vmm(reg_idx++);
     Vmm gather_mask = Vmm(reg_idx++);
-    Vmm zero = Vmm(reg_idx++);
     Vmm vmm_signal_size = Vmm(reg_idx++);
 
     auto complex_to_complex_multiply = [this, &odd_perm, &neg_mask]
@@ -522,8 +521,6 @@ void jit_fft_kernel_f32<isa>::generate() {
     mov(subblock_start, ptr[param1 + GET_OFF_FFT(subblock_start)]);
     mov(block_size_mask, block_size);
     dec(block_size_mask);
-
-    uni_vpxor(zero, zero, zero);
 
     mov(input_ptr, input_base_ptr);
 
