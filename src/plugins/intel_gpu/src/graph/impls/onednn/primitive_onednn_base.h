@@ -126,8 +126,6 @@ protected:
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
         auto& node = instance.get_node();
-        auto& engine = instance.get_network().get_engine();
-        auto dnnl_engine = engine.get_onednn_engine();
 
         // Get current post-ops info
         auto onednn_attrs = node.get_onednn_primitive_attributes();
@@ -207,8 +205,6 @@ protected:
 
     virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance) const {
         std::unordered_map<int, dnnl::memory> args;
-        auto& engine = instance.get_network().get_engine();
-        auto dnnl_engine = engine.get_onednn_engine();
 
         {
             auto& input = instance.input_memory(0);

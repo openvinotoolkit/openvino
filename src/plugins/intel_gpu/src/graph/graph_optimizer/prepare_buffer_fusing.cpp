@@ -103,15 +103,32 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         }
     }
 
-    // Implicit concat for onednn only when use_usm and batch 1.
+    // Implicit concat for onednn only when use_usm.
     if (is_onednn_impl) {
         bool use_usm = node.get_program().get_engine().use_unified_shared_memory();
         layout out_l = node.get_output_layout();
 
         if (!use_usm)
             return false;
-        if (out_l.size.batch[0] > 1)
-            return false;
+        // Multi batch implicit concat WA code: AS-IS oneDNN only support convolution sub-memory API.
+        if (out_l.size.batch[0] > 1) {
+            size_t idx = 0;
+            for (auto const& input : node.get_dependencies()) {
+                if (input->get_preferred_impl_type() == impl_types::onednn) {
+                    if (!input->is_type<convolution>())
+                        return false;
+                    if (idx > 0) {
+                        for (auto const& user : input->get_users()) {
+                            if (user->get_preferred_impl_type() == impl_types::onednn &&
+                                !(user->is_type<convolution>() || user->is_type<concatenation>())) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                idx++;
+            }
+        }
     }
 
     // For in place concatenation input layouts and data types must match.
@@ -133,18 +150,22 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
-        if (l.format.block_sizes().size() > 1)
-            return false;
+        if (input->get_preferred_impl_type() != impl_types::onednn) {
+            if (l.format.block_sizes().size() > 1)
+                return false;
+        }
 
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
         if (idx != node.get_dependencies().size() - 1) {
-            if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16) &&
+            if ((l.format == format::b_fs_yx_fsv16 || l.format == format::b_fs_zyx_fsv16 ||
+                 l.format == format::bs_fs_yx_bsv32_fsv16 || l.format == format::bs_fs_zyx_bsv32_fsv16) &&
                 (l.feature() % 16 != 0 || node.get_primitive()->axis != 1))
                 return false;
 
-            if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
+            if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32 ||
+                 l.format == format::bs_fs_yx_bsv32_fsv32 || l.format == format::bs_fs_zyx_bsv32_fsv32) &&
                 (l.feature() % 32 != 0 || node.get_primitive()->axis != 1))
                 return false;
 

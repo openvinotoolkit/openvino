@@ -48,8 +48,28 @@ protected:
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
-        auto attrs = instance.get_node().get_onednn_primitive_attributes();
+        auto batch = instance.node.get_output_layout().batch();
+        std::unordered_map<int, dnnl::memory> args;
+
+        {
+            auto& input = instance.input_memory(0);
+            int64_t offset = 0;
+            if (batch == 1) {
+                offset = onednn::get_f_offset(instance.node.input().get_output_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            }
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+        }
+
+        {
+            auto& output = instance.output_memory();
+            int64_t offset = 0;
+            if (batch == 1) {
+                offset = onednn::get_f_offset(instance.node.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            }
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         {
             auto weights = instance.weights_memory(0);
@@ -60,6 +80,8 @@ protected:
             auto bias = instance.bias_memory(0);
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
+
+        auto attrs = instance.get_node().get_onednn_primitive_attributes();
 
         if (has_zero_points(DNNL_ARG_SRC, attrs)) {
             auto a_zp = instance.activations_zero_points_memory(0);
@@ -204,6 +226,23 @@ protected:
             auto ks = weights_md.dims()[weights_offset];
             auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
             pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+        }
+
+        // Feature lower padding in oneDNN is only used in implicit concat.
+        auto f_padding = arg.get_output_layout().data_padding.lower_size().feature[0];
+        if (arg.get_output_layout().batch() > 1 && f_padding > 0) {
+            bool has_user_concat = false;
+            for (auto const& node : arg.get_users()) {
+                if (node->is_type<concatenation>()) {
+                    auto concat_output_md = onednn::layout_to_memory_desc(node->get_output_layout());
+                    output_md = concat_output_md.submemory_desc(output_md.dims(), {0, f_padding, 0, 0});
+                    has_user_concat = true;
+                    break;
+                }
+            }
+            if (!has_user_concat) {
+                throw std::runtime_error("Unexpected feature padding without concat user");
+            }
         }
 
         if (arg.bias_term()) {
