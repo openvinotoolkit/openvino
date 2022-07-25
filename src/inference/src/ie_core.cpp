@@ -55,11 +55,6 @@ using namespace std::placeholders;
 
 namespace ov {
 
-namespace frontend {
-class FrontEndManager;
-std::shared_ptr<FrontEndManager> get_frontend_manager();
-}  // namespace frontend
-
 // Specify the default device when no device name is provided.
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
@@ -96,7 +91,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[ie::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName.find("AUTO") == 0) {
+    } else if (deviceName == "AUTO" || deviceName.find("AUTO:") == 0) {
         deviceName_ = "AUTO";
         if (deviceName.find("AUTO:") == 0) {
             config_[ie::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
@@ -284,7 +279,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     };
 
-    std::shared_ptr<void> frontEndManagerPtr;
     ExecutorManager::Ptr executorManagerPtr;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
@@ -453,7 +447,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         executorManagerPtr = executorManager();
-        frontEndManagerPtr = ov::frontend::get_frontend_manager();
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -615,6 +608,7 @@ public:
         std::map<std::string, std::string>& config_with_batch = parsed._config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch);
         parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -701,6 +695,17 @@ public:
         }
     }
 
+    void CleanUpProperties(std::string& deviceName, std::map<std::string, std::string>& config) {
+        // auto-batching is not applicable, if there is auto_batch_timeout, delete it
+        if (deviceName.find("BATCH") == std::string::npos) {
+            const auto& batch_timeout_mode = config.find(ov::auto_batch_timeout.name());
+            if (batch_timeout_mode != config.end()) {
+                if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+                    config.erase(batch_timeout_mode);
+            }
+        }
+    }
+
     ie::SoExecutableNetworkInternal LoadNetwork(const ie::CNNNetwork& network,
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
@@ -709,6 +714,7 @@ public:
         std::map<std::string, std::string> config_with_batch = config;
         // if auto-batching is applicable, the below function will patch the device name and config accordingly:
         ApplyAutoBatching(network, deviceName, config_with_batch);
+        CleanUpProperties(deviceName, config_with_batch);
 
         bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
