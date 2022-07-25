@@ -29,7 +29,6 @@ static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType
 static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
     p.ValidateInputs(op, {2, 3, 4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
@@ -95,7 +94,6 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         }
         case 2: {
             auto mutable_precision_first = op->get_output_element_type(1);
-
             cldnn::layout mutableLayoutFirst = cldnn::layout(
                 DataTypeFromPrecision(mutable_precision_first),
                 cldnn::format::bfyx,
