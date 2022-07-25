@@ -53,8 +53,8 @@ OutputVector translate_linspace_op(const NodeContext& node) {
     auto delta = make_shared<Divide>(make_shared<Subtract>(stop, start), num_minus_1);
 
     auto zero = make_shared<Constant>(num.get_element_type(), Shape{}, 0);
-    auto range_0_num_minus_1 = make_shared<ConvertLike>(make_shared<Range>(zero, num, one,
-        num.get_element_type()), start);
+    auto range_0_num_minus_1 =
+        make_shared<ConvertLike>(make_shared<Range>(zero, num, one, num.get_element_type()), start);
 
     // convert a case with scalar inputs
     if (axis.empty() && start_rank == 0) {
