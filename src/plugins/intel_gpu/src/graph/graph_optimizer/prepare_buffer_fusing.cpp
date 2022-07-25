@@ -149,10 +149,11 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
-        if (idx > 0 && input->get_preferred_impl_type() != impl_types::onednn) {
-            if (l.format.block_sizes().size() > 1)
-                return false;
-        }
+        // TODO check accuracy -> seems no issue.
+        // if (idx > 0 && input->get_preferred_impl_type() != impl_types::onednn) {
+        //     if (l.format.block_sizes().size() > 1)
+        //         return false;
+        // }
 
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
