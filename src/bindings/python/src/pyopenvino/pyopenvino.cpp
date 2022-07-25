@@ -8,6 +8,7 @@
 #include <openvino/core/version.hpp>
 #include <string>
 
+#include "openvino/runtime/core.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
@@ -94,6 +95,8 @@ PYBIND11_MODULE(pyopenvino, m) {
         },
         py::arg("model"),
         py::arg("batch_size") = -1);
+
+    m.def("shutdown", &ov::openvino_shutdown, R"(Shutdown openvino runtime by try unload libraries)");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
