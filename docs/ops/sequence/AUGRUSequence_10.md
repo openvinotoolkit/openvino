@@ -90,7 +90,7 @@ The rest of the attributes are supported only with default values:
 
 * **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 3D tensor of type *T1* and shape `[batch_size, num_directions, hidden_size]`. Input hidden state data. **Required.**
+* **2**: `H_t` - 3D tensor of type *T1* and shape `[batch_size, num_directions, hidden_size]`. Input with initial hidden state data. **Required.**
 
 * **3**: `sequence_lengths` - 1D tensor of type *T2* and shape `[batch_size]`. Specifies real sequence lengths for each batch element. **Required.**
 
@@ -123,7 +123,7 @@ The rest of the attributes are supported only with default values:
             <dim>4</dim>
             <dim>16</dim>
         </port>
-        <port id="1"> <!-- `initial_hidden_state` input -->
+        <port id="1"> <!-- `H_t` input -->
             <dim>1</dim>
             <dim>1</dim>
             <dim>128</dim>

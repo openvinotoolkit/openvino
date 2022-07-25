@@ -74,18 +74,18 @@ The rest of the attributes are supported only with default values:
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: False
-  * **Required**: *no*
+  * **Required**: *no*.
   * **Supported value**: False
 
 **Inputs**
 
 * **1**: `X` - 2D tensor of type *T* and shape `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D tensor of type *T* and shape `[batch_size, hidden_size]`. **Required.**
+* **2**: `H_t` - 2D tensor of type *T* and shape `[batch_size, hidden_size]`. Input with initial hidden state data. **Required.**
 
-* **3**: `W` - 2D tensor of type *T* and shape `[3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required.**
+* **3**: `W` - 2D tensor of type *T* and shape `[3 * hidden_size, input_size]`. The weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **4**: `R` - 2D tensor of type *T* and shape `[3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
+* **4**: `R` - 2D tensor of type *T* and shape `[3 * hidden_size, hidden_size]`. The recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
 * **6**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
 
@@ -109,7 +109,7 @@ The rest of the attributes are supported only with default values:
             <dim>1</dim>
             <dim>16</dim>
         </port>
-        <port id="1"> <!-- `initial_hidden_state` input -->
+        <port id="1"> <!-- `H_t` input -->
             <dim>1</dim>
             <dim>128</dim>
         </port>
