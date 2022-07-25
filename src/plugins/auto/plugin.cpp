@@ -96,6 +96,31 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     // last token in the string (which has no comma after that)
     devicesWithRequests.push_back(priorities.substr(i, priorities.length() - i));
 
+    auto setTputAsDefault = [&](const std::string& targetDevice,
+                               std::map<std::string, std::string>& deviceConfig,
+                               const std::map<std::string, std::string>& mergedConfig) {
+        if (GetName() == "AUTO" && deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end() &&
+            mergedConfig.find(targetDevice) == mergedConfig.end()) {
+            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
+            // specified for target device.
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+            return;
+        }
+
+        // set TPUT for MULTI if no above propertis were set by user
+        if (GetName() == "MULTI") {
+            if (mergedConfig.find(targetDevice) != mergedConfig.end())
+                return;
+            for (auto&& kvp : mergedConfig) {
+                if (kvp.first == ov::hint::performance_mode || kvp.first == ov::affinity ||
+                    kvp.first == ov::num_streams || kvp.first == ov::inference_num_threads) {
+                    return;
+                }
+            }
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+        }
+    };
+
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
@@ -107,12 +132,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        if (GetName() == "AUTO" && deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end() &&
-            tconfig.find(deviceName) == tconfig.end()) {
-            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
-            // specified for target device.
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
-        }
+        setTputAsDefault(deviceName, deviceConfig, tconfig);
         return deviceConfig;
     };
 
