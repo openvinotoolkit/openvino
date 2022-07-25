@@ -37,7 +37,7 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.node.weights().get_output_layout().data_type;,
+                                                    instance.node.weights().get_output_layout().data_type,
                                                     "");
 
         return res;
