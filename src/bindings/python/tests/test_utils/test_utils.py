@@ -26,7 +26,7 @@ def test_compare_functions():
         status, _ = compare_functions(func, func)
         assert status
     except RuntimeError:
-        print("openvino.test_utils.compare_functions is not available")
+        print("openvino.test_utils.compare_functions is not available") # noqa: T201
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:

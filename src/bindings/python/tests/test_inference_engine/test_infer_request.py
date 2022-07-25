@@ -387,7 +387,6 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
 
     request.infer([tensor1, array1])
 
-    print(request.outputs[0].data)
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
@@ -412,7 +411,6 @@ def test_async_mixed_values(device, ov_type, numpy_dtype):
     request.start_async([tensor1, array1])
     request.wait()
 
-    print(request.outputs[0].data)
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 

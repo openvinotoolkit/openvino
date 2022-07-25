@@ -541,7 +541,6 @@ def test_ngraph_preprocess_dump():
     ppp.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
     ppp.input().model().set_layout(ov.Layout("NCHW"))
     p_str = str(ppp)
-    print(ppp)
     assert "Pre-processing steps (5):" in p_str
     assert "convert type (f32):" in p_str
     assert "reverse channels:" in p_str
