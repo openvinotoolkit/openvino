@@ -69,7 +69,7 @@ def aggregate_test_results(aggregated_results: ET.SubElement, xml_reports: list,
                     aggregated_device_results.append(xml_results_entry)
                     continue
                 if report_type == "OP":
-                    update_result_node(xml_results, aggregated_results)
+                    update_result_node(xml_results_entry, aggregated_results_entry)
                 else:
                     for xml_real_device_entry in xml_results_entry:
                         aggregated_real_device_api_report = aggregated_results_entry.find(xml_real_device_entry.tag)
