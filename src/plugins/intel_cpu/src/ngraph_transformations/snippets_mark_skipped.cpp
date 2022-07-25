@@ -260,6 +260,11 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
     // eliminate getNumNonConstInputs() check
     int fusingAxis = can_be_converted_to_FC ? (matmul_shape.size() == 3 ? 2 : 1) : matmul_shape.size() - 1;
 
+    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
+        updatedChainType = NodeFusingType::FusedWithMisc;
+        return true;
+    }
+
     // canFuse() from MatMul for case with rank > 2
     // Algorithm::EltwisePowerStatic is ignored
     if (!can_be_converted_to_FC &&
@@ -287,10 +292,6 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
         }
     }
 
-    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
-        updatedChainType = NodeFusingType::FusedWithMisc;
-        return true;
-    }
     //    FullyConnectedBiasFusion
     if (!(can_be_converted_to_FC && ov::is_type<ngraph::opset1::Add>(node) &&
         bias_shape.back() == matmul_shape.back() &&
