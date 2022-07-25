@@ -14,8 +14,8 @@ import json
 from pathlib import Path
 
 
-if sys.hexversion < 0x3060000:
-    raise Exception("Python version must be >= 3.6")
+if sys.version_info.minor < 7:
+    raise Exception("Python version must be >= 3.7")
 
 
 class ConfigException(Exception):

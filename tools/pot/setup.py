@@ -87,10 +87,10 @@ DEPENDENCY_LINKS = []
 
 python_version = sys.version_info[:2]
 if python_version[0] < 3:
-    print('Only Python >= 3.6 is supported by POT/OV')
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
-elif python_version[1] < 6:
-    print('Only Python >= 3.6 is supported by POT/OV')
+elif python_version[1] < 7:
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
 
 
