@@ -39,6 +39,44 @@ Activation functions for gates: *sigmoid* for f, *tanh* for g.
   * **Required**: *yes*
 
 
+The rest of the attributes are supported only with default values:
+
+* *activations*
+
+  * **Description**: activation functions for gates
+  * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
+  * **Type**: a list of strings
+  * **Default value**: *sigmoid* for f, *tanh* for g
+  * **Required**: *no*
+  * **Supported value**: *sigmoid* for f, *tanh* for g
+
+* *activations_alpha, activations_beta*
+
+  * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on chosen activation functions
+  * **Range of values**: a list of floating-point numbers
+  * **Type**: `float[]`
+  * **Default value**: []
+  * **Required**: *no*
+  * **Supported value**: []
+
+* *clip*
+
+  * **Description**: *clip* specifies bound values *[-C, C]* for tensor clipping. Clipping is performed before activations.
+  * **Range of values**: a positive floating-point number
+  * **Type**: `float`
+  * **Default value**: `0.` that means the clipping is not applied
+  * **Required**: *no*
+  * **Supported value**: `0.`
+
+* *linear_before_reset*
+
+  * **Description**: *linear_before_reset* flag denotes, if the output of hidden gate is multiplied by the reset gate before or after linear transformation.
+  * **Range of values**: True or False
+  * **Type**: `boolean`
+  * **Default value**: False
+  * **Required**: *no*
+  * **Supported value**: False
+
 **Inputs**
 
 * **1**: `X` - 2D tensor of type *T* and shape `[batch_size, input_size]`, input data. **Required.**
@@ -49,7 +87,7 @@ Activation functions for gates: *sigmoid* for f, *tanh* for g.
 
 * **4**: `R` - 2D tensor of type *T* and shape `[3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **5**: `B` - 1D tensor of type *T* and shape `[3 * hidden_size]`, the biases, gate order: zrh. **Required.**
+* **6**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
 
 * **6**: `A` - 2D tensor of type *T* and shape `[batch_size, 1]`, the attention score. **Required.**
 
@@ -65,7 +103,7 @@ Activation functions for gates: *sigmoid* for f, *tanh* for g.
 **Example**
 ```xml
 <layer ... type="AUGRUCell" ...>
-    <data hidden_size="128" linear_before_reset="1"/>
+    <data hidden_size="128"/>
      <input>
         <port id="0"> <!-- `X` input data -->
             <dim>1</dim>
