@@ -79,8 +79,6 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
-    bool needPrepareParams() const override;
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;

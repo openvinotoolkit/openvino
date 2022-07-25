@@ -29,9 +29,9 @@ namespace intel_cpu {
 namespace node {
 
 
-static const size_t DATA_INDEX = 0;
-static const size_t AXES_INDEX = 1;
-static const size_t SIGNAL_SIZE_INDEX = 2;
+static constexpr size_t DATA_INDEX = 0;
+static constexpr size_t AXES_INDEX = 1;
+static constexpr size_t SIGNAL_SIZE_INDEX = 2;
 static constexpr double PI = 3.14159265358979323846;
 
 
@@ -197,18 +197,6 @@ void RDFT::execute(dnnl::stream strm) {
 
 bool RDFT::created() const {
     return getType() == Type::RDFT;
-}
-
-void RDFT::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
-
-bool RDFT::needPrepareParams() const {
-    return true;
 }
 
 static void adjustInputSize(VectorDims& inputShape,
