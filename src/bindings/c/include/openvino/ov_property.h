@@ -3,14 +3,17 @@
 //
 
 /**
- * @brief This is header file for ov_property C API
- *
+ * @brief This is header file for ov_property C API.
+ * A header for advanced hardware specific properties for OpenVINO runtime devices.
+ * To use in set_property, compile_model, import_model, get_property methods.
  * @file ov_property.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+
+typedef struct ov_property ov_property_t;
 
 /**
  * @enum ov_performance_mode_e
@@ -111,35 +114,35 @@ typedef struct {
 
 /**
  * @brief Create a property object.
- * @ingroup Property
+ * @ingroup property
  * @param ov_status_e a status code, return OK if successful
  */
 OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
 
 /**
  * @brief Free property object.
- * @ingroup Property
+ * @ingroup property
  * @param property will be released.
  */
 OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
 
 /**
  * @brief Create a property value object.
- * @ingroup Property
+ * @ingroup property
  * @param ov_status_e a status code, return OK if successful
  */
 OPENVINO_C_API(ov_status_e) ov_property_value_create(ov_property_value_t** value);
 
 /**
  * @brief Clean property data.
- * @ingroup Property
+ * @ingroup property
  * @param property data will be clean.
  */
 OPENVINO_C_API(void) ov_property_value_clean(ov_property_value_t* value);
 
 /**
  * @brief Put <key, value> into property object.
- * @ingroup Property
+ * @ingroup property
  * @param property will be add new <key, value>.
  */
 OPENVINO_C_API(ov_status_e) ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value);

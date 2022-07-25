@@ -1,92 +1,9 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/ov_shape.h"
+#include "openvino/ov_partial_shape.h"
 
 #include "common.h"
-
-ov_status_e ov_dimension_create(ov_dimension_t** dim, int64_t min_dimension, int64_t max_dimension) {
-    if (!dim || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
-    }
-
-    try {
-        std::unique_ptr<ov_dimension_t> _dim(new ov_dimension_t);
-        if (min_dimension != max_dimension) {
-            _dim->object = ov::Dimension(min_dimension, max_dimension);
-        } else {
-            if (min_dimension > -1) {
-                _dim->object = ov::Dimension(min_dimension);
-            } else {
-                _dim->object = ov::Dimension();
-            }
-        }
-        *dim = _dim.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_dimension_free(ov_dimension_t* dim) {
-    if (dim)
-        delete dim;
-}
-
-ov_status_e ov_rank_create(ov_rank_t** rank, int64_t min_dimension, int64_t max_dimension) {
-    if (!rank || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
-    }
-
-    try {
-        std::unique_ptr<ov_rank_t> _rank(new ov_rank_t);
-        if (min_dimension != max_dimension) {
-            _rank->object = ov::Dimension(min_dimension, max_dimension);
-        } else {
-            if (min_dimension > -1) {
-                _rank->object = ov::Dimension(min_dimension);
-            } else {
-                _rank->object = ov::Dimension();
-            }
-        }
-        *rank = _rank.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_rank_free(ov_rank_t* rank) {
-    if (rank)
-        delete rank;
-}
-
-ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
-    if (!dimensions) {
-        return ov_status_e::INVALID_PARAM;
-    }
-    *dimensions = nullptr;
-    try {
-        std::unique_ptr<ov_dimensions_t> dims(new ov_dimensions_t);
-        if (!dims) {
-            return ov_status_e::CALLOC_FAILED;
-        }
-        *dimensions = dims.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_dimensions_add(ov_dimensions_t* dimensions, int64_t min_dimension, int64_t max_dimension) {
-    if (!dimensions || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
-    }
-    dimensions->object.emplace_back(min_dimension, max_dimension);
-    return ov_status_e::OK;
-}
-
-void ov_dimensions_free(ov_dimensions_t* dimensions) {
-    if (dimensions)
-        delete dimensions;
-}
 
 ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_rank_t* rank, ov_dimensions_t* dims) {
     if (!partial_shape_obj || !rank) {
@@ -190,33 +107,4 @@ ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** pa
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
-}
-
-ov_status_e ov_layout_create(ov_layout_t** layout, const char* layout_desc) {
-    if (!layout || !layout_desc) {
-        return ov_status_e::INVALID_PARAM;
-    }
-
-    try {
-        std::unique_ptr<ov_layout_t> _layout(new ov_layout_t);
-        _layout->object = ov::Layout(layout_desc);
-        *layout = _layout.release();
-    }
-    CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
-}
-
-void ov_layout_free(ov_layout_t* layout) {
-    if (layout)
-        delete layout;
-}
-
-const char* ov_layout_to_string(ov_layout_t* layout) {
-    if (!layout) {
-        return str_to_char_array("Error: null layout!");
-    }
-
-    auto str = layout->object.to_string();
-    const char* res = str_to_char_array(str);
-    return res;
 }

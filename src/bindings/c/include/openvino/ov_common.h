@@ -41,50 +41,6 @@
 #    define OPENVINO_C_API_CALLBACK
 #endif
 
-#define MAX_DIMENSION 8
-
-typedef struct ov_core ov_core_t;
-typedef struct ov_output_const_node ov_output_const_node_t;
-typedef struct ov_output_node ov_output_node_t;
-typedef struct ov_model ov_model_t;
-typedef struct ov_compiled_model ov_compiled_model_t;
-typedef struct ov_infer_request ov_infer_request_t;
-
-typedef struct ov_property ov_property_t;
-
-typedef struct ov_tensor ov_tensor_t;
-typedef struct ov_rank ov_rank_t;
-typedef struct ov_dimension ov_dimension_t;
-typedef struct ov_dimensions ov_dimensions_t;
-typedef struct ov_layout ov_layout_t;
-typedef struct ov_partial_shape ov_partial_shape_t;
-
-typedef struct ov_preprocess_prepostprocessor ov_preprocess_prepostprocessor_t;
-typedef struct ov_preprocess_inputinfo ov_preprocess_inputinfo_t;
-typedef struct ov_preprocess_inputtensorinfo ov_preprocess_inputtensorinfo_t;
-typedef struct ov_preprocess_outputinfo ov_preprocess_outputinfo_t;
-typedef struct ov_preprocess_outputtensorinfo ov_preprocess_outputtensorinfo_t;
-typedef struct ov_preprocess_inputmodelinfo ov_preprocess_inputmodelinfo_t;
-typedef struct ov_preprocess_preprocesssteps ov_preprocess_preprocesssteps_t;
-
-/**
- * @struct ov_shape_t
- * @brief Reprents a static shape.
- */
-typedef struct {
-    int64_t rank;
-    int64_t dims[MAX_DIMENSION];
-} ov_shape_t;
-
-/**
- * @struct ov_output_node_list_t
- * @brief Reprents an array of ov_output_nodes.
- */
-typedef struct {
-    ov_output_const_node_t* output_nodes;
-    size_t num;
-} ov_output_node_list_t;
-
 /**
  * @enum ov_status_code_e
  * @brief This enum contains codes for all possible return values of the interface functions
@@ -108,12 +64,6 @@ typedef enum {
     INFER_CANCELLED = 15,
     UNKNOWN_ERROR = 16,
 } ov_status_e;
-
-/**
- * @enum ov_preprocess_resizealgorithm_e
- * @brief This enum contains codes for all preprocess resize algorithm.
- */
-typedef enum { RESIZE_LINEAR, RESIZE_CUBIC, RESIZE_NEAREST } ov_preprocess_resizealgorithm_e;
 
 /**
  * @enum ov_element_type_e

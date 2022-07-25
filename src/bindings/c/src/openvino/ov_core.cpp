@@ -4,7 +4,6 @@
 #include "openvino/ov_core.h"
 
 #include "common.h"
-#include "openvino/ov_property.h"
 
 /**
  * @variable global value for error info.
@@ -479,4 +478,9 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
     if (versions->versions)
         delete[] versions->versions;
     versions->versions = nullptr;
+}
+
+void ov_free(const char* content) {
+    if (content)
+        delete content;
 }

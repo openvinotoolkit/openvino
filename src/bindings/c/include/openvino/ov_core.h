@@ -3,15 +3,21 @@
 //
 
 /**
- * @brief This is a header file for the ov_core C API
- *
+ * @brief This is a header file for the ov_core C API, which is a C wrapper for ov::Core class.
+ * This class represents an OpenVINO runtime Core entity.
  * @file ov_core.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+#include "ov_compiled_model.h"
+#include "ov_model.h"
+#include "ov_node.h"
 #include "ov_property.h"
+#include "ov_tensor.h"
+
+typedef struct ov_core ov_core_t;
 
 /**
  * @struct ov_version

@@ -43,6 +43,14 @@ struct ov_core {
 };
 
 /**
+ * @struct ov_model
+ * @brief This is an interface of ov::Model
+ */
+struct ov_model {
+    std::shared_ptr<ov::Model> object;
+};
+
+/**
  * @struct ov_output_const_node
  * @brief This is an interface of ov::Output<const ov::Node>
  */
@@ -59,11 +67,84 @@ struct ov_output_node {
 };
 
 /**
- * @struct ov_model
- * @brief This is an interface of ov::Model
+ * @struct ov_property
+ * @brief This is an interface of property
  */
-struct ov_model {
-    std::shared_ptr<ov::Model> object;
+struct ov_property {
+    ov::AnyMap object;
+};
+
+/**
+ * @struct ov_compiled_model
+ * @brief This is an interface of ov::CompiledModel
+ */
+struct ov_compiled_model {
+    std::shared_ptr<ov::CompiledModel> object;
+};
+
+/**
+ * @struct ov_infer_request
+ * @brief This is an interface of ov::InferRequest
+ */
+struct ov_infer_request {
+    std::shared_ptr<ov::InferRequest> object;
+};
+
+/**
+ * @struct ov_layout
+ * @brief This is an interface of ov::Layout
+ */
+struct ov_layout {
+    ov::Layout object;
+};
+
+/**
+ * @struct ov_rank
+ * @brief This is an interface of ov::Dimension
+ */
+struct ov_rank {
+    ov::Dimension object;
+};
+
+/**
+ * @struct ov_dimension
+ * @brief This is an interface of ov::Dimension
+ */
+struct ov_dimension {
+    ov::Dimension object;
+};
+
+/**
+ * @struct ov_dimensions
+ * @brief This is an interface of std::vector<ov::Dimension>
+ */
+struct ov_dimensions {
+    std::vector<ov::Dimension> object;
+};
+
+/**
+ * @struct ov_partial_shape
+ * @brief It represents a shape that may be partially or totally dynamic.
+ * A PartialShape may have:
+ * Dynamic rank. (Informal notation: `?`)
+ * Static rank, but dynamic dimensions on some or all axes.
+ *     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
+ * Static rank, and static dimensions on all axes.
+ *     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
+ *
+ * An interface to make user can initialize ov_partial_shape_t
+ */
+struct ov_partial_shape {
+    ov::Dimension rank;
+    std::vector<ov::Dimension> dims;
+};
+
+/**
+ * @struct ov_tensor
+ * @brief This is an interface of ov_tensor
+ */
+struct ov_tensor {
+    std::shared_ptr<ov::Tensor> object;
 };
 
 /**
@@ -120,87 +201,6 @@ struct ov_preprocess_inputmodelinfo {
  */
 struct ov_preprocess_preprocesssteps {
     ov::preprocess::PreProcessSteps* object;
-};
-
-/**
- * @struct ov_compiled_model
- * @brief This is an interface of ov::CompiledModel
- */
-struct ov_compiled_model {
-    std::shared_ptr<ov::CompiledModel> object;
-};
-
-/**
- * @struct ov_infer_request
- * @brief This is an interface of ov::InferRequest
- */
-struct ov_infer_request {
-    std::shared_ptr<ov::InferRequest> object;
-};
-
-/**
- * @struct ov_tensor
- * @brief This is an interface of ov_tensor
- */
-struct ov_tensor {
-    std::shared_ptr<ov::Tensor> object;
-};
-
-/**
- * @struct ov_layout
- * @brief This is an interface of ov::Layout
- */
-struct ov_layout {
-    ov::Layout object;
-};
-
-/**
- * @struct ov_rank
- * @brief This is an interface of ov::Dimension
- */
-struct ov_rank {
-    ov::Dimension object;
-};
-
-/**
- * @struct ov_dimension
- * @brief This is an interface of ov::Dimension
- */
-struct ov_dimension {
-    ov::Dimension object;
-};
-
-/**
- * @struct ov_dimensions
- * @brief This is an interface of std::vector<ov::Dimension>
- */
-struct ov_dimensions {
-    std::vector<ov::Dimension> object;
-};
-
-/**
- * @struct ov_partial_shape
- * @brief It represents a shape that may be partially or totally dynamic.
- * A PartialShape may have:
- * Dynamic rank. (Informal notation: `?`)
- * Static rank, but dynamic dimensions on some or all axes.
- *     (Informal notation examples: `{1,2,?,4}`, `{?,?,?}`)
- * Static rank, and static dimensions on all axes.
- *     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
- *
- * An interface to make user can initialize ov_partial_shape_t
- */
-struct ov_partial_shape {
-    ov::Dimension rank;
-    std::vector<ov::Dimension> dims;
-};
-
-/**
- * @struct ov_property
- * @brief This is an interface of property
- */
-struct ov_property {
-    ov::AnyMap object;
 };
 
 /**

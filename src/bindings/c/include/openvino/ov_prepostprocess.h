@@ -3,14 +3,31 @@
 //
 
 /**
- * @brief This is a header file for prepostprocess C API
- *
+ * @brief This is a header file for prepostprocess C API, which is a C wrapper for ov::preprocess class.
+ * Main class for adding pre- and post- processing steps to existing ov::Model
  * @file ov_prepostprocess.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+#include "ov_layout.h"
+#include "ov_model.h"
+#include "ov_tensor.h"
+
+typedef struct ov_preprocess_prepostprocessor ov_preprocess_prepostprocessor_t;
+typedef struct ov_preprocess_inputinfo ov_preprocess_inputinfo_t;
+typedef struct ov_preprocess_inputtensorinfo ov_preprocess_inputtensorinfo_t;
+typedef struct ov_preprocess_outputinfo ov_preprocess_outputinfo_t;
+typedef struct ov_preprocess_outputtensorinfo ov_preprocess_outputtensorinfo_t;
+typedef struct ov_preprocess_inputmodelinfo ov_preprocess_inputmodelinfo_t;
+typedef struct ov_preprocess_preprocesssteps ov_preprocess_preprocesssteps_t;
+
+/**
+ * @enum ov_preprocess_resizealgorithm_e
+ * @brief This enum contains codes for all preprocess resize algorithm.
+ */
+typedef enum { RESIZE_LINEAR, RESIZE_CUBIC, RESIZE_NEAREST } ov_preprocess_resizealgorithm_e;
 
 // prepostprocess
 /**

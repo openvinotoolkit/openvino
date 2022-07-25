@@ -3,15 +3,21 @@
 //
 
 /**
- * @brief This is a C header file for the ov_compiled_model API
- *
+ * @brief This is a C header file for the ov_compiled_model API, which is a C wrapper for ov::CompiledModel class.
+ * A compiled model is compiled by a specific device by applying multiple optimization
+ * transformations, then mapping to compute kernels.
  * @file ov_compiled_model.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+#include "ov_infer_request.h"
+#include "ov_model.h"
+#include "ov_node.h"
 #include "ov_property.h"
+
+typedef struct ov_compiled_model ov_compiled_model_t;
 
 // Compiled Model
 /**

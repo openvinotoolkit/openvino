@@ -3,14 +3,17 @@
 //
 
 /**
- * @brief This is a header file for the ov_infer_request C API
- *
+ * @brief This is a header file for the ov_infer_request C API, which is a C wrapper for ov::InferRequest class
+ * This is a class of infer request that can be run in asynchronous or synchronous manners.
  * @file ov_infer_request.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+#include "ov_tensor.h"
+
+typedef struct ov_infer_request ov_infer_request_t;
 
 /**
  * @struct ov_callback_t

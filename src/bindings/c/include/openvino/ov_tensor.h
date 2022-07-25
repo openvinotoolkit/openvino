@@ -3,26 +3,30 @@
 //
 
 /**
- * @brief This is a header file for ov_tensor C API
- *
+ * @brief This is a header file for ov_tensor C API, which is a wrapper for ov::Tensor class
+ * Tensor API holding host memory
  * @file ov_tensor.h
  */
 
 #pragma once
 
 #include "ov_common.h"
+#include "ov_partial_shape.h"
+#include "ov_shape.h"
+
+typedef struct ov_tensor ov_tensor_t;
 
 // Tensor
 /**
- * @defgroup Tensor Tensor
+ * @defgroup tensor tensor
  * @ingroup openvino_c
- * Set of functions representing of Tensor, Shape, PartialShape, etc.
+ * Set of functions representing of tensor.
  * @{
  */
 
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
- * @ingroup Tensor
+ * @ingroup tensor
  * @param type Tensor element type
  * @param shape Tensor shape
  * @param host_ptr Pointer to pre-allocated host memory
@@ -37,7 +41,7 @@ ov_tensor_create_from_host_ptr(const ov_element_type_e type,
 
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
- * @ingroup Tensor
+ * @ingroup tensor
  * @param type Tensor element type
  * @param shape Tensor shape
  * @param tensor A point to ov_tensor_t
@@ -48,7 +52,7 @@ ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor
 
 /**
  * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param shape Tensor shape
  * @param tensor A point to ov_tensor_t
  */
@@ -56,7 +60,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_set_shape(ov_tensor_t* tensor, const ov_sh
 
 /**
  * @brief Get shape for tensor.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param shape Tensor shape
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
@@ -65,7 +69,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_shape(const ov_tensor_t* tensor, ov_sh
 
 /**
  * @brief Get type for tensor.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param type Tensor element type
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
@@ -74,7 +78,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_element_type(const ov_tensor_t* tensor
 
 /**
  * @brief the total number of elements (a product of all the dims or 1 for scalar).
- * @ingroup Tensor
+ * @ingroup tensor
  * @param elements_size number of elements
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
@@ -83,7 +87,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_size(const ov_tensor_t* tensor, size_t
 
 /**
  * @brief the size of the current Tensor in bytes.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param byte_size the size of the current Tensor in bytes.
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
@@ -92,7 +96,7 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_byte_size(const ov_tensor_t* tensor, s
 
 /**
  * @brief Provides an access to the underlaying host memory.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param data A point to host memory.
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
@@ -101,17 +105,9 @@ OPENVINO_C_API(ov_status_e) ov_tensor_data(const ov_tensor_t* tensor, void** dat
 
 /**
  * @brief Free ov_tensor_t.
- * @ingroup Tensor
+ * @ingroup tensor
  * @param tensor A point to ov_tensor_t
  */
 OPENVINO_C_API(void) ov_tensor_free(ov_tensor_t* tensor);
 
-/**
- * @brief Create a rank object
- * @ingroup Tensor
- * @param min_dimension The lower inclusive limit for the dimension
- * @param max_dimension The upper inclusive limit for the dimension
- * @param ov_status_e a status code.
- */
-
-/** @} */  // end of Tensor
+/** @} */  // end of tensor
