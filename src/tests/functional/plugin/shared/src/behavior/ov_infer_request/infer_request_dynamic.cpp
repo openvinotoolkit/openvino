@@ -27,6 +27,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 namespace ov {
@@ -492,6 +493,21 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     OV_ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape2);
     ASSERT_TRUE(checkOutput(req.get_tensor("input_tensor"), req.get_tensor(outputName)));
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithLocalCore) {
+    ov::CompiledModel compiled_model;
+    {
+        ov::Core local_core = createCoreWithTemplate();
+        const std::string tensor_name = "input_tensor";
+        std::map<std::string, ov::PartialShape> shapes;
+        shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+        OV_ASSERT_NO_THROW(function->reshape(shapes));
+        // Load ov::Model to target plugins
+        compiled_model = local_core.compile_model(function, targetDevice, configuration);
+    }
+    // Create InferRequest
+    OV_ASSERT_NO_THROW(compiled_model.create_infer_request());
 }
 
 TEST_P(OVNotSupportRequestDynamicTests, InferDynamicNotSupported) {
