@@ -573,7 +573,6 @@ openvino/tools/mo/front/tf/graph_utils.py
 openvino/tools/mo/front/tf/identity_ext.py
 openvino/tools/mo/front/tf/identityN_to_identity.py
 openvino/tools/mo/front/tf/if_ext.py
-openvino/tools/mo/front/tf/InterpolateTransposes.py
 openvino/tools/mo/front/tf/IteratorGetNext_ext.py
 openvino/tools/mo/front/tf/IteratorGetNextCut.py
 openvino/tools/mo/front/tf/loader.py
