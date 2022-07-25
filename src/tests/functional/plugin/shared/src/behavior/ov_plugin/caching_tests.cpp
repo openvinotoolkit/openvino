@@ -138,7 +138,7 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
 
 void CompileModelCacheTestBase::SetUp() {
     ovModelWithName funcPair;
-    std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
@@ -150,6 +150,9 @@ void CompileModelCacheTestBase::SetUp() {
     std::stringstream ss;
     auto hash = std::hash<std::string>()(GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
 }
@@ -172,7 +175,7 @@ void CompileModelCacheTestBase::run() {
         }
         init_input_shapes(static_shapes_to_test_representation(inShapes));
     }
-    if (!importExportSupported(*core)) {
+    if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
     }
@@ -194,6 +197,7 @@ void CompileModelCacheTestBase::run() {
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
         compiledModel = {}; // Destroy network object
+        inferRequest = {};
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
@@ -210,6 +214,134 @@ TEST_P(CompileModelCacheTestBase, CompareWithRefImpl) {
     run();
 }
 
+std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj) {
+    auto param = obj.param;
+    std::string deviceName;
+    std::pair<ov::AnyMap, std::string> userConfig;
+    std::tie(deviceName, userConfig) = obj.param;
+    auto properties = userConfig.first;
+    std::ostringstream result;
+    result << "device_name=" << deviceName << "_";
+    if (!properties.empty()) {
+        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+    }
+    result << userConfig.second;
+    return result.str();
+}
+
+TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
+    core->set_property(ov::cache_dir(cache_path));
+    try {
+        // Load CNNNetwork to target plugins
+        auto execNet = core->compile_model(function, targetDevice, configuration);
+        execNet = {};
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // Check that folder contains cache files and remove them
+        for (auto& ext : m_extList) {
+            // Check that folder contains cache files and remove them
+            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+        }
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            for (auto& ext : m_extList) {
+                // Check that folder contains cache files and remove them
+                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+        }
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+
+TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
+    core->set_property(ov::cache_dir(cache_path));
+    try {
+        // Load 1st CNNNetwork
+        auto execNet1 = core->compile_model(function, targetDevice, configuration);
+        execNet1 = {};
+        size_t n_cache_files = 0;
+        for (auto& ext : m_extList) {
+            // Check that folder contains cache files and remove them
+            n_cache_files += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
+        }
+
+        // Check that directory with cached kernels exists after loading network
+        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        // Load 2nd CNNNetwork
+        auto execNet2 = core->compile_model(function, targetDevice, configuration);
+        execNet2 = {};
+        size_t n_cache_files_compare = 0;
+        // Check that two loaded networks with same function creates same caches
+        for (auto& ext : m_extList) {
+            // Check that folder contains cache files and remove them
+            n_cache_files_compare += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
+            ASSERT_TRUE(CommonTestUtils::removeFilesWithExt(cache_path, ext));
+        }
+        ASSERT_EQ(n_cache_files_compare, n_cache_files);
+
+        // Remove directory and check that it doesn't exist anymore
+        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (CommonTestUtils::directoryExists(cache_path)) {
+            for (auto& ext : m_extList) {
+                // Check that folder contains cache files and remove them
+                ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+            }
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
+    #if defined(_WIN32) || defined(_WIN64)
+        GTEST_SKIP();
+    #else
+        for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+            std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+            std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+
+            try {
+                auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+                core->set_property(ov::cache_dir(cache_path_mb));
+                // Load CNNNetwork to target plugins
+                auto execNet = core->compile_model(function, targetDevice, configuration);
+                execNet = {};
+                // Check that directory with cached kernels exists after loading network
+                ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+                // Check that folder contains cache files and remove them
+                for (auto& ext : m_extList) {
+                    // Check that folder contains cache files and remove them
+                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                }
+                // Remove directory and check that it doesn't exist anymore
+                ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+            } catch (std::exception& ex) {
+                // Cleanup in case of any exception
+                if (CommonTestUtils::directoryExists(cache_path_w)) {
+                    for (auto& ext : m_extList) {
+                        // Check that folder contains cache files and remove them
+                        ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    }
+                    ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                }
+                FAIL() << ex.what() << std::endl;
+            }
+        }
+    #endif
+}
+#endif
 } // namespace behavior
 } // namespace test
 } // namespace ov

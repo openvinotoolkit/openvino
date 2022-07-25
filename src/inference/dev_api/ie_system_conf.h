@@ -104,4 +104,25 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core();
  */
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_bfloat16();
 
+/**
+ * @brief      Checks whether CPU supports AMX int8 capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is tAMX_INT8 instructions are available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_int8();
+
+/**
+ * @brief      Checks whether CPU supports AMX bf16 capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is tAMX_BF16 instructions are available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
+
+/**
+ * @brief      Checks whether CPU supports AMX capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is tAMX_INT8 or tAMX_BF16 instructions are available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
+
 }  // namespace InferenceEngine

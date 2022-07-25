@@ -46,7 +46,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
                 return false;
             }
         }
-
+        MATCHER_SCOPE_ENABLE(ReshapeTransformation);
         return transform(*context, m);
     };
 

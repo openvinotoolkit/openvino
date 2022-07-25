@@ -1,6 +1,6 @@
 # Installation & Deployment {#openvino_2_0_deployment}
 
-One of the main concepts for OpenVINO™ API 2.0 is being *"easy to use"*, which includes:
+One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which includes:
 * Simplification of migration from different frameworks to OpenVINO.
 * Organization of OpenVINO. 
 * Usage of development tools.

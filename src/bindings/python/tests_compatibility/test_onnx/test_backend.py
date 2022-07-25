@@ -40,12 +40,10 @@ from tests_compatibility import (
     xfail_issue_63039,
     xfail_issue_63043,
     xfail_issue_63044,
-    xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
     xfail_issue_69444,
     xfail_issue_78741,
-    xfail_issue_81974,
     xfail_issue_81976,
     skip_segfault,
     xfail_issue_82038,
@@ -328,17 +326,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_bernoulli_seed_expanded_cpu",
     ),
     (
-        xfail_issue_63136,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_DOUBLE_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_FLOAT16_cpu",
-    ),
-    (
         xfail_issue_63137,
         "OnnxBackendNodeModelTest.test_optional_get_element_cpu",
         "OnnxBackendNodeModelTest.test_optional_get_element_sequence_cpu",
@@ -449,17 +436,6 @@ tests_expected_to_fail = [
         skip_segfault,
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
-    ),
-    (
-        xfail_issue_81974,
-        "OnnxBackendNodeModelTest.test_gridsample_aligncorners_true_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bicubic_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_bilinear_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_border_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_nearest_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_reflection_padding_cpu",
-        "OnnxBackendNodeModelTest.test_gridsample_zeros_padding_cpu",
     ),
     (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator

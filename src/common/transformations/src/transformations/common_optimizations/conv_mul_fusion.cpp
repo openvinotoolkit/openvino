@@ -73,6 +73,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
+        MATCHER_SCOPE_ENABLE(ConvolutionMultiplyFusion);
         return true;
     };
 
@@ -160,7 +161,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         m_conv->set_friendly_name(m_mul->get_friendly_name());
         m_mul->output(0).replace(m_conv->output(0));
         copy_runtime_info(m_mul, {m_conv, new_weights});
-
+        MATCHER_SCOPE_ENABLE(GroupConvolutionMultiplyFusion);
         return true;
     };
 
@@ -227,6 +228,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
+        MATCHER_SCOPE_ENABLE(ConvolutionBackpropDataMultiplyFusion);
         return true;
     };
 
@@ -295,6 +297,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
+        MATCHER_SCOPE_ENABLE(GroupConvolutionBackpropDataMultiplyFusion);
         return true;
     };
 

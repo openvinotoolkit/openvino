@@ -1,11 +1,19 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
 from openvino.runtime import PartialShape, opset8
 from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput
-from openvino.runtime.passes import consumers_count, has_static_dim, has_static_dims, \
-    has_static_shape, has_static_rank, type_matches, type_matches_any
+from openvino.runtime.passes import (
+    consumers_count,
+    has_static_dim,
+    has_static_dims,
+    has_static_shape,
+    has_static_rank,
+    type_matches,
+    type_matches_any,
+)
 from openvino.runtime.utils.types import get_element_type
 
 from utils.utils import expect_exception
@@ -14,8 +22,8 @@ from utils.utils import expect_exception
 def test_wrap_type_pattern_type():
     last_opstet_number = 9
     for i in range(1, last_opstet_number + 1):
-        WrapType("opset{}.Parameter".format(i))
-        WrapType("opset{}::Parameter".format(i))
+        WrapType(f"opset{i}.Parameter")
+        WrapType(f"opset{i}::Parameter")
 
     # Negative check not to forget to update opset map in get_type function
     expect_exception(lambda: WrapType("opset10.Parameter"), "Unsupported opset type: opset10")
@@ -35,13 +43,13 @@ def test_wrap_type_ctors():
     slope = opset8.parameter(PartialShape([]))
     prelu = opset8.prelu(param.output(0), slope.output(0))
 
-    m = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"]), "FindActivation")
-    assert m.match(relu)
-    assert m.match(prelu)
+    matcher = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"]), "FindActivation")
+    assert matcher.match(relu)
+    assert matcher.match(prelu)
 
-    m = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"],
-                WrapType("opset8.Parameter").output(0)), "FindActivation")
-    assert m.match(relu)
+    matcher = Matcher(WrapType(["opset8.Relu", "opset8.PRelu"],
+                      WrapType("opset8.Parameter").output(0)), "FindActivation")
+    assert matcher.match(relu)
 
 
 def test_or():
@@ -50,10 +58,9 @@ def test_or():
     slope = opset8.parameter(PartialShape([]))
     prelu = opset8.prelu(param.output(0), slope.output(0))
 
-    m = Matcher(Or([WrapType("opset8.Relu"),
-                    WrapType("opset8.PRelu")]), "FindActivation")
-    assert m.match(relu)
-    assert m.match(prelu)
+    matcher = Matcher(Or([WrapType("opset8.Relu"), WrapType("opset8.PRelu")]), "FindActivation")
+    assert matcher.match(relu)
+    assert matcher.match(prelu)
 
 
 def test_any_input():
@@ -62,18 +69,18 @@ def test_any_input():
     slope = opset8.parameter(PartialShape([]))
     prelu = opset8.prelu(param.output(0), slope.output(0))
 
-    m = Matcher(WrapType("opset8.PRelu", [AnyInput(), AnyInput()]), "FindActivation")
-    assert not m.match(relu)
-    assert m.match(prelu)
+    matcher = Matcher(WrapType("opset8.PRelu", [AnyInput(), AnyInput()]), "FindActivation")
+    assert not matcher.match(relu)
+    assert matcher.match(prelu)
 
 
 def test_any_input_predicate():
     param = opset8.parameter(PartialShape([1, 3, 22, 22]))
     slope = opset8.parameter(PartialShape([]))
 
-    m = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
-    assert m.match(param)
-    assert not m.match(slope)
+    matcher = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
+    assert matcher.match(param)
+    assert not matcher.match(slope)
 
 
 def test_all_predicates():

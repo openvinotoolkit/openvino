@@ -64,7 +64,7 @@ ngraph::pass::ClampFusion::ClampFusion() {
 
         copy_runtime_info(nodes, clamp);
         replace_node(root_node, clamp);
-
+        MATCHER_SCOPE_ENABLE(ClampFusion);
         return true;
     };
 

@@ -21,7 +21,7 @@ class NonMaxSuppression(Op):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
-            'version': 'opset5',
+            'version': 'opset9',
             'infer': self.infer,
             'reverse_infer': self.reverse_infer,
             'output_type': np.int64,
@@ -36,14 +36,14 @@ class NonMaxSuppression(Op):
         version = self.get_opset()
         if version in ['opset1', 'opset3', 'opset4']:
             self.attrs['out_ports_count'] = 1
-        elif version == 'opset5':
+        elif version in ['opset5', 'opset9']:
             self.attrs['out_ports_count'] = 3
         else:
             raise Error('Unsupported operation opset version "{}"'.format(version))
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version in ['opset3', 'opset4', 'opset5']:
+        if version in ['opset3', 'opset4', 'opset5', 'opset9']:
             return [('sort_result_descending', lambda node: bool_to_str(node, 'sort_result_descending')),
                     'box_encoding',
                     ('output_type', lambda node: np_data_type_to_destination_type(node.output_type))]
@@ -57,7 +57,7 @@ class NonMaxSuppression(Op):
     def infer(node: Node):
         num_of_inputs = len(node.in_ports())
         opset = node.get_opset()
-        max_num_of_inputs = 6 if opset == 'opset5' else 5
+        max_num_of_inputs = 6 if opset in ['opset5', 'opset9'] else 5
         input_msg_fmt = 'NonMaxSuppression node {} from {} must have from 2 to {} inputs'
         node_name = node.soft_get('name', node.id)
         inputs_msg = input_msg_fmt.format(node_name, opset, max_num_of_inputs)
@@ -91,13 +91,13 @@ class NonMaxSuppression(Op):
         assert scores_shape[2] is dynamic_dimension or scores_shape[2] == num_input_boxes or scores_shape[2] is None \
                or num_input_boxes is None, 'Number of boxes mismatch for operation {}'.format(node_name)
 
-        if node.get_opset() in ['opset4', 'opset5']:
+        if node.get_opset() in ['opset4', 'opset5', 'opset9']:
             max_number_of_boxes = min(num_input_boxes, max_output_boxes_per_class) * boxes_shape[0] * num_classes
         else:
             max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
         node.out_port(0).data.set_shape(shape_array([max_number_of_boxes, 3]))
 
-        if opset == 'opset5':
+        if opset in ['opset5', 'opset9']:
             node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value, 3]))
             num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
             if num_of_outputs >= 2 and node.has_port('out', 1):
@@ -108,7 +108,7 @@ class NonMaxSuppression(Op):
     @staticmethod
     def type_infer(node):
         opset = node.get_opset()
-        if opset == 'opset5':
+        if opset in ['opset5', 'opset9']:
             node.out_port(0).set_data_type(node.output_type)
             if node.has_port('out', 1):
                 node.out_port(1).set_data_type(np.float32)

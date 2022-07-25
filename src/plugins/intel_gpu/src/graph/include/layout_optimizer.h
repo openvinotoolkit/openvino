@@ -138,6 +138,12 @@ private:
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
 
+    // custom_list
+    // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
+    // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
+    bool is_mixed_layout(program_node& prev, program_node& next,
+                         bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
+
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);
@@ -183,6 +189,7 @@ public:
     bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
+    impl_types get_forced_impl_type_by_config(program_node& node);
     bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);

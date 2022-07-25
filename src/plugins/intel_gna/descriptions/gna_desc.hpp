@@ -38,11 +38,11 @@ struct GnaDesc {
     std::vector<void *> ptrs = {};  // ptr per each infer request
 
     // help methods
-    uint32_t get_required_size() {
+    uint32_t get_required_size() const {
         return num_elements * tensor_precision.size();
     }
 
-    uint32_t get_allocated_size() {
+    uint32_t get_allocated_size() const {
         return allocated_size;
     }
 

@@ -4,6 +4,8 @@
 
 #include "gna_limitations.hpp"
 
+#include "gna/gna_config.hpp"
+
 #include <cstdint>
 #include <unordered_set>
 #include <legacy/ie_layers.h>
@@ -11,6 +13,8 @@
 #include <layers/gna_layer_type.hpp>
 #include <layers/gna_layer_info.hpp>
 #include "gna_graph_tools.hpp"
+#include "gna_lib_ver_selector.hpp"
+#include "common/gna_target.hpp"
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -115,55 +119,133 @@ std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h, c
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
-bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+const RangeLimit2D Validator_30::kInputHWLimit{{16, 384, "input height"}, {16, 240, "input width"}};
+const RangeMultipleLimit Validator_30::kInputChannelsNumberLimit{{8, 384, "number of input channels"}, 8};
+
+const RangeMultipleLimit Validator_30::kKernelNumberLimit{{8, 1024, "number of kernels"}, 8};
+const RectLimitByChannelsAndPrecision Validator_30::kKernelLimit{
+    {{{96, {7, 7}}, {136, {7, 5}}, {168, {7, 4}}, {240, {7, 3}}, {384, {7, 2}}}},
+    {{{48, {7, 7}}, {64, {7, 5}}, {80, {7, 4}}, {120, {7, 3}}, {384, {7, 1}}}},
+};
+
+const RangeLimit2D Validator_30::kDilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
+                                                {convDilationWidth, convDilationWidth, "dilation width"}};
+
+bool Validator_30::ValidateCnn2D(const std::string &name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
     const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-    OvGnaType inPrecision, bool exception) const {
-    const std::string prefix = "Layer Convolution2D: " + name + ":";
-    auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+    const OvGnaType inPrecision, const bool throwOnError) const {
+    const auto& kStrideLimit = kKernelLimit;
+    auto error = kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
 
-    error += kernelNumberLimit.GetErrorOrEmpty(kernelN);
-    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
-    error += kernelLimit.GetErrorOrEmpty(kernelH, kernelW, inPrecision, inChannels, "kernel");
-    error += strideLimit.GetErrorOrEmpty(strideH, strideW, inPrecision, inChannels, "convolution stride");
+    error += kKernelNumberLimit.GetErrorOrEmpty(kernelN);
+    error += kInputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
+    error += kKernelLimit.GetErrorOrEmpty(kernelH, kernelW, inPrecision, inChannels, "kernel");
+    error += kStrideLimit.GetErrorOrEmpty(strideH, strideW, inPrecision, inChannels, "convolution stride");
 
-    const RangeLimit kernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
-    const RangeLimit kernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+    const RangeLimit kKernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kKernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
 
-    error += kernelStrideHLimit.GetErrorOrEmpty(strideH);
-    error += kernelStrideWLimit.GetErrorOrEmpty(strideW);
+    error += kKernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kKernelStrideWLimit.GetErrorOrEmpty(strideW);
 
-    error += dilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+    error += kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
 
-    if (exception)
-        ThrowIfNotEmpty(prefix, error);
-
-    return error.empty() ? true : false;
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
 }
 
-bool Validator::ValidatePooling2D(std::string name,
+const VectorOrSquareLimit Validator_30::kPoolingWindowLimit{3, 1, 1};
+
+bool Validator_30::ValidatePooling2D(const std::string& name,
     const uint32_t windowH, const uint32_t windowW,
     const uint32_t strideH, const uint32_t strideW,
-    bool exception) const {
-    const std::string prefix = "Layer Pooling2D: " + name + ":";
-
-    auto error = poolingWindowLimit.GetErrorOrEmpty(windowH, windowW, "pooling window");
+    const bool throwOnError) const {
+    auto error = kPoolingWindowLimit.GetErrorOrEmpty(windowH, windowW, "pooling window");
     const RangeLimit poolingStrideHLimit{ 1, windowH, "pooling stride height (must be up to pooling window height)" };
     const RangeLimit poolingStrideWLimit{ 1, windowW, "pooling stride width (must be up to pooling window width)" };
 
     error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
     error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
 
-    if (exception)
-        ThrowIfNotEmpty(prefix, error);
-
-    return error.empty() ? true : false;
+    return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
 }
 
-void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {
+bool Validator_30::IsPaddingSupported() const {
+    return false;
+}
+
+const RangeLimit2D Validator_35::kInputHWLimit{{1, 65535, "input height"}, {1, 65535, "input width"}};
+const RangeLimit Validator_35::kInputChannelsNumberLimit1B{1, 2048, "number of input channels"};
+const RangeLimit Validator_35::kInputChannelsNumberLimit2B{1, 1024, "number of input channels"};
+
+const RangeLimit Validator_35::kKernelNumberLimit{1, 8192, "number of kernels"};
+const RangeLimit2D Validator_35::kKerneHWlLimit{{1, 255, "kernel height"}, {1, 256, "kernel width"}};
+const RangeLimit2D Validator_35::kStrideHWLimit{{1, 255, "convolution stride height"},
+                                                {1, 256, "convolution stride width"}};
+const RangeLimit2D Validator_35::kDilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
+                                                {convDilationWidth, convDilationWidth, "dilation width"}};
+
+bool Validator_35::ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+    const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
+    const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+    const OvGnaType inPrecision, const bool throwOnError) const {
+    auto error = kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+
+    error += kKernelNumberLimit.GetErrorOrEmpty(kernelN);
+    auto& inputChannelsNumberLimit = inPrecision == OvGnaTypeInt8 ? kInputChannelsNumberLimit1B : kInputChannelsNumberLimit2B;
+    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
+    error += kKerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
+    error += kStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    error += kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
+}
+
+const RangeLimit2D Validator_35::kPoolingWindowHWLimit{{1, 255, "pooling window height"},
+                                                       {1, 255, "pooling window width"}};
+const RangeLimit2D Validator_35::kPoolingStrideHWLimit{{1, 255, "pooling stride height"},
+                                                       {1, 255, "pooling stride width"}};
+
+bool Validator_35::ValidatePooling2D(const std::string& name,
+    const uint32_t windowH, const uint32_t windowW,
+    const uint32_t strideH, const uint32_t strideW,
+    const bool throwOnError) const {
+    auto error = kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
+    error += kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
+}
+
+bool Validator_35::IsPaddingSupported() const {
+    return true;
+}
+
+std::unique_ptr<AbstractValidator> AbstractValidator::Create(const std::string& target) {
+    if (target == common::kGnaTarget3_0) {
+        return tools::make_unique<Validator_30>();
+    } else if (target == common::kGnaTarget3_5) {
+        return tools::make_unique<Validator_35>();
+    }
+    return nullptr;
+}
+
+void AbstractValidator::ThrowIfNotEmpty(const std::string& prefix, const std::string& error) {
     if (!error.empty()) {
         THROW_GNA_EXCEPTION << prefix << error;
     }
+}
+
+bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
+    const std::string& error,
+    const std::string& operationName,
+    const std::string& type) {
+    if (throwOnError) {
+        const std::string prefix = "Layer " + type + ": " + operationName + ":";
+        ThrowIfNotEmpty(prefix, error);
+    }
+
+    return error.empty();
 }
 
 } // namespace Cnn2D

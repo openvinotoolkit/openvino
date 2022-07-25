@@ -35,6 +35,7 @@
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -69,6 +70,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/grid_sample.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
@@ -344,6 +346,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
@@ -499,6 +502,7 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
 }

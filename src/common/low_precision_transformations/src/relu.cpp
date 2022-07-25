@@ -27,6 +27,7 @@ ReluTransformation::ReluTransformation(const Params& params) : LayerTransformati
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ReluTransformation);
         return transform(*context, m);
     };
 

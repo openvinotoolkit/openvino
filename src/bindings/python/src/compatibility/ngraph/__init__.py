@@ -75,8 +75,10 @@ from ngraph.opset9 import gather_elements
 from ngraph.opset9 import gather_nd
 from ngraph.opset9 import gather_tree
 from ngraph.opset9 import gelu
+from ngraph.opset9 import generate_proposals
 from ngraph.opset9 import greater
 from ngraph.opset9 import greater_equal
+from ngraph.opset9 import grid_sample
 from ngraph.opset9 import grn
 from ngraph.opset9 import group_convolution
 from ngraph.opset9 import group_convolution_backprop_data
@@ -88,6 +90,7 @@ from ngraph.opset9 import hswish
 from ngraph.opset9 import idft
 from ngraph.opset9 import if_op
 from ngraph.opset9 import interpolate
+from ngraph.opset9 import irdft
 from ngraph.opset9 import i420_to_bgr
 from ngraph.opset9 import i420_to_rgb
 from ngraph.opset9 import less
@@ -130,6 +133,7 @@ from ngraph.opset9 import psroi_pooling
 from ngraph.opset9 import proposal
 from ngraph.opset9 import random_uniform
 from ngraph.opset9 import range
+from ngraph.opset9 import rdft
 from ngraph.opset9 import read_value
 from ngraph.opset9 import reduce_l1
 from ngraph.opset9 import reduce_l2

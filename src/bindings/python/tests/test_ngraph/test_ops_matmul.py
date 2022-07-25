@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9,7 +10,7 @@ from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    "shape_a, shape_b, transpose_a, transpose_b",
+    ("shape_a", "shape_b", "transpose_a", "transpose_b"),
     [
         # matrix, vector
         ([2, 4], [4], False, False),

@@ -45,6 +45,18 @@ bool with_cpu_x86_bfloat16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 }
 
+bool with_cpu_x86_avx512_core_amx_int8() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_INT8);
+}
+
+bool with_cpu_x86_avx512_core_amx_bf16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
+}
+
+bool with_cpu_x86_avx512_core_amx() {
+    return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
+}
+
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
                        "GOMP_DEBUG"

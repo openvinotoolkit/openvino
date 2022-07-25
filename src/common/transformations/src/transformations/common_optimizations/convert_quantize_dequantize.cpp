@@ -170,7 +170,7 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
         replace_node(mul, new_fq);
-
+        MATCHER_SCOPE_ENABLE(ConvertQuantizeDequantize);
         return true;
     };
 

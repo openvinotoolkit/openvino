@@ -21,6 +21,23 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+template <typename T>
+static void compare_result(std::map<cldnn::primitive_id, cldnn::network_output> ref_result,
+                           std::map<cldnn::primitive_id, cldnn::network_output> opt_result) {
+    auto output_ref = ref_result.begin()->second.get_memory();
+    mem_lock<T> output_ref_ptr{output_ref, get_test_stream()};
+
+    auto output_opt = opt_result.begin()->second.get_memory();
+    mem_lock<T> output_opt_ptr{output_opt, get_test_stream()};
+
+    // compare results
+    const size_t output_size = output_ref_ptr.size();
+    for (size_t i = 0; i < output_size; i++)
+    {
+        EXPECT_EQ(output_ref_ptr[i], output_opt_ptr[i]);
+    }
+}
+
 static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
@@ -73,14 +90,9 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network network_ref(engine, topology, options_ref);
     network_ref.set_input_data("input", input);
 
-    std::map<cldnn::primitive_id, cldnn::network_output> outputs_ref;
-
-    outputs_ref = network_ref.execute();
+    auto outputs_ref = network_ref.execute();
     cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
     e1->wait();
-
-    auto output_ref = outputs_ref.begin()->second.get_memory();
-    mem_lock<uint8_t> output_ref_ptr{output_ref, get_test_stream()};
 
     // run on optimized kernel
     cldnn::build_options options;
@@ -90,21 +102,23 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network network(engine, topology, options);
     network.set_input_data("input", input);
 
-    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
-
-    outputs = network.execute();
+    auto outputs = network.execute();
     cldnn::event::ptr e2 = outputs.at("reorder").get_event();
     e2->wait();
 
-    auto output = outputs.begin()->second.get_memory();
-    mem_lock<uint8_t> output_ptr{output, get_test_stream()};
-
-    // compare results
-    const size_t output_size = output_ref_ptr.size();
-    for (size_t i = 0; i < output_size; i++)
-    {
-        EXPECT_EQ(output_ref_ptr[i], output_ptr[i]);
-    }
+    // compare output_ref and output_opt.
+    if (output_data_type == data_types::i8)
+        compare_result<int8_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::u8)
+        compare_result<uint8_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::i32)
+        compare_result<int32_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::i64)
+        compare_result<int64_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::f16)
+        compare_result<int16_t>(outputs_ref, outputs);
+    else if (output_data_type == data_types::f32)
+        compare_result<float>(outputs_ref, outputs);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32) {
@@ -195,6 +209,32 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32) {
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48 + 5, 16, 4, 3);          // f
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32, 48, 48 + 3, 4, 4);          // x
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);  // b-f-x
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv16) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48 + 3, 16 + 1, 4, 2);
+}
+
+TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv32) {
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48, 48 + 3, 4, 4);
+    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48 + 3, 16 + 1, 4, 2);
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype) {
@@ -2290,7 +2330,7 @@ public:
 
         for (const auto& test_param : all_generic_params)
         {
-            cldnn::tensor input_tensor = test_param->input_layouts[0].size;
+            cldnn::tensor input_tensor = test_param->input_layouts[0].get_tensor();
 
             std::vector<cldnn::layout> output_layouts = {};
 
@@ -2335,7 +2375,7 @@ public:
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
 
-        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().size));
+        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
 
         cldnn::mem_lock<InputType> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<OutputType> output_mem(output, get_test_stream());
@@ -2457,7 +2497,7 @@ public:
 
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        tensor s = l.size;
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
             VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);

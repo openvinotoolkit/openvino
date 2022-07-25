@@ -7,6 +7,8 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
 #include <algorithm>
 #include <string>
@@ -39,11 +41,11 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         CLDNN_ERROR_MESSAGE(node.id(), "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
-            return layout(odt, ofmt, input_layout.size, op);
+            return layout(odt, ofmt, input_layout.get_tensor(), op);
 
         CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return layout(data_types::f16, format::bfyx, input_layout.size, op);
+        return layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
     }
 
     // transformation of data from standard to winograd
@@ -152,14 +154,15 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
+        ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.size, op);
+        return layout(odt, ofmt, input_layout.get_tensor(), op);
     }
 }
 
@@ -194,16 +197,16 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                           "Input dimension size",
-                          input_layout.size.raw.size(),
+                          input_layout.get_tensor().raw.size(),
                           "ouput dimension size",
-                          output_layout.size.raw.size(),
+                          output_layout.get_tensor().raw.size(),
                           "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
                           "(reorder) or when input > output (flatten).");
 
     if (!argument.subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
-                                 input_layout.size.feature.size(),
+                                 input_layout.get_tensor().feature.size(),
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");

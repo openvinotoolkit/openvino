@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -7,7 +8,7 @@ import pytest
 
 
 @pytest.fixture()
-def _proposal_node():
+def proposal_node():
     attributes = {
         "base_size": np.uint16(1),
         "pre_nms_topn": np.uint16(20),
@@ -37,7 +38,7 @@ def test_dynamic_attributes_softmax():
 
 
 @pytest.mark.parametrize(
-    "int_dtype, fp_dtype",
+    ("int_dtype", "fp_dtype"),
     [
         (np.uint8, np.float32),
         (np.uint16, np.float32),
@@ -96,8 +97,8 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert node.get_framework() == "OpenVINO"
 
 
-def test_dynamic_attr_cache(_proposal_node):
-    node = _proposal_node
+def test_dynamic_attr_cache(proposal_node):
+    node = proposal_node
 
     assert not node._attr_cache_valid
     node.set_nms_thresh(1.3453678102)
@@ -106,8 +107,8 @@ def test_dynamic_attr_cache(_proposal_node):
     assert node._attr_cache_valid
 
 
-def test_dynamic_attr_transitivity(_proposal_node):
-    node = _proposal_node
+def test_dynamic_attr_transitivity(proposal_node):
+    node = proposal_node
     node2 = node
 
     node.set_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
@@ -124,17 +125,17 @@ def test_dynamic_attributes_simple():
     input_size = 16
     hidden_size = 128
 
-    X_shape = [batch_size, input_size]
-    H_t_shape = [batch_size, hidden_size]
-    W_shape = [3 * hidden_size, input_size]
-    R_shape = [3 * hidden_size, hidden_size]
-    B_shape = [4 * hidden_size]
+    x_shape = [batch_size, input_size]
+    h_t_shape = [batch_size, hidden_size]
+    w_shape = [3 * hidden_size, input_size]
+    r_shape = [3 * hidden_size, hidden_size]
+    b_shape = [4 * hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=np.float32)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=np.float32)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=np.float32)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
     activations = ["tanh", "relu"]
     activations_alpha = [1.0, 2.0]
@@ -143,11 +144,11 @@ def test_dynamic_attributes_simple():
     linear_before_reset = True
 
     node = ov.gru_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_x,
+        parameter_h_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         activations,
         activations_alpha,

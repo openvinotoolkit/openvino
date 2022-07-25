@@ -65,8 +65,8 @@
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
-#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
@@ -106,7 +106,6 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 }  // namespace
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
@@ -152,10 +151,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
         static const precisions_array convert_precision_list {
@@ -187,23 +187,29 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                   ngraph::pass::ConvertSpaceToBatch>(
                 [](const_node_ptr &node) -> bool {
                     const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                    return rank <= 5lu;
+                    return rank <= 5;
                 });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
+        if (device_info.supports_immad) {
+            pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
+            pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
+        } else {
+            pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceSum>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMean>(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
+            pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
             [](const_node_ptr &node) -> bool {
                 return disableReduceDecomposition<ngraph::opset1::ReduceMax>(node);
             });
+        }
 
         auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
             if (std::dynamic_pointer_cast<const ngraph::opset6::RNNCell>(node)) {
@@ -383,7 +389,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (rank.is_dynamic()) {
                     return false;
                 }
-                if (rank.get_length() < 2ul) {
+                if (rank.get_length() < 2l) {
                     return false;
                 }
                 const auto dimension = shape[1];
@@ -476,5 +482,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

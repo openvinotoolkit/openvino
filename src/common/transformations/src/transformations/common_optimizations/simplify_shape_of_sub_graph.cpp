@@ -63,6 +63,7 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
     auto concat_label = ngraph::pattern::wrap_type<ngraph::opset1::Concat>(pattern::rank_equals(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_SCOPE_ENABLE(GroupedGatherElimination);
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeVector new_ops;

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -193,9 +194,9 @@ def test_query_state():
 # Preprocessing
 
 def test_pre_post_process_build():
-    p = PrePostProcessor(model)
-    p.input().model().set_layout(Layout("NC"))
-    check_gil_released_safe(p.build)
+    ppp = PrePostProcessor(model)
+    ppp.input().model().set_layout(Layout("NC"))
+    check_gil_released_safe(ppp.build)
 
 
 def test_model_reshape():

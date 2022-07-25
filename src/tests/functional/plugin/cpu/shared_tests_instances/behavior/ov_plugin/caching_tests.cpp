@@ -5,6 +5,7 @@
 #include "behavior/ov_plugin/caching_tests.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
+#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
 
 using namespace ov::test::behavior;
 using namespace ngraph;
@@ -61,9 +62,9 @@ namespace {
     static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
-        ov::op::v8::MulticlassNms::Attributes attr;
+        ov::op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>>(boxes, scores, attr);
+        auto nms = std::make_shared<ngraph::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
@@ -73,7 +74,7 @@ namespace {
         std::vector<ovModelWithName> funcs = {
             ovModelWithName { simple_function_non_max_supression_internal, "NonMaxSuppressionIEInternal"},
             ovModelWithName { simple_function_matrix_nms_internal, "NmsStaticShapeIE_MatrixNms"},
-            ovModelWithName { simple_function_multiclass_nms_internal, "NmsStaticShapeIE_MulticlassNms"},
+            ovModelWithName { simple_function_multiclass_nms_internal, "MulticlassNmsIEInternal"},
         };
         return funcs;
     }
@@ -83,7 +84,8 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, CompileModelCacheTestBase,
@@ -91,6 +93,39 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
+
+    const std::vector<ov::AnyMap> autoConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    };
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU_Internal, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(internal_functions_cpu()),
+                                    ::testing::ValuesIn(precisionsCPUInternal),
+                                    ::testing::ValuesIn(batchSizesCPUInternal),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::ValuesIn(autoConfigs)),
+                            CompileModelCacheTestBase::getTestCaseName);
+
 } // namespace

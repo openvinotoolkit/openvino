@@ -63,7 +63,7 @@ infer_request.wait();
 // Get output tensor by tensor name
 auto output = infer_request.get_tensor("tensor_name");
 const float *output_buffer = output.data<const float>();
-/* output_buffer[] - accessing output tensor data */
+// output_buffer[] - accessing output tensor data
 //! [part6]
 return 0;
 }

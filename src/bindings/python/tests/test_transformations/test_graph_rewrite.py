@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import opset8
@@ -9,11 +10,11 @@ from utils.utils import count_ops, get_test_function, PatternReplacement
 def test_graph_rewrite():
     model = get_test_function()
 
-    m = Manager()
+    manager = Manager()
     # check that register pass returns pass instance
-    anchor = m.register_pass(GraphRewrite())
+    anchor = manager.register_pass(GraphRewrite())
     anchor.add_matcher(PatternReplacement())
-    m.run_passes(model)
+    manager.run_passes(model)
 
     assert count_ops(model, "Relu") == [2]
 
@@ -26,9 +27,9 @@ def test_register_new_node():
 
             param = WrapType("opset8.Parameter")
 
-            def callback(m: Matcher) -> bool:
+            def callback(matcher: Matcher) -> bool:
                 # Input->...->Result => Input->Exp->...->Result
-                root = m.get_match_value()
+                root = matcher.get_match_value()
                 consumers = root.get_target_inputs()
 
                 exp = opset8.exp(root)
@@ -53,8 +54,8 @@ def test_register_new_node():
 
             param = WrapType("opset8.Exp")
 
-            def callback(m: Matcher) -> bool:
-                root = m.get_match_root()
+            def callback(matcher: Matcher) -> bool:
+                root = matcher.get_match_root()
                 root.output(0).replace(root.input_value(0))
 
                 # For testing purpose
@@ -64,10 +65,10 @@ def test_register_new_node():
 
             self.register_matcher(Matcher(param, "RemoveExp"), callback)
 
-    m = Manager()
-    ins = m.register_pass(InsertExp())
-    rem = m.register_pass(RemoveExp())
-    m.run_passes(get_test_function())
+    manager = Manager()
+    ins = manager.register_pass(InsertExp())
+    rem = manager.register_pass(RemoveExp())
+    manager.run_passes(get_test_function())
 
     assert ins.model_changed
     assert rem.model_changed

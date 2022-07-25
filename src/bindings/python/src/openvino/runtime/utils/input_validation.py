@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -35,19 +36,16 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
     :param      cond:           The optional function running additional checks.
 
     :raises     UserInputError:
-    returns    True if attribute satisfies all criterias. Otherwise False.
+
+    returns:    True if attribute satisfies all criterias. Otherwise False.
     """
     if not np.issubdtype(type(value), val_type):
         raise UserInputError(
-            '{} operator attribute "{}" value must by of type {}.'.format(
-                op_name, attr_key, val_type
-            )
+            f'{op_name} operator attribute "{attr_key}" value must by of type {val_type}.',
         )
     if cond is not None and not cond(value):
         raise UserInputError(
-            '{} operator attribute "{}" value does not satisfy provided condition.'.format(
-                op_name, attr_key
-            )
+            f'{op_name} operator attribute "{attr_key}" value does not satisfy provided condition.',
         )
     return True
 
@@ -72,9 +70,7 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
 
     if required and attr_key not in attr_dict:
         raise UserInputError(
-            'Provided dictionary is missing {} operator required attribute "{}"'.format(
-                op_name, attr_key
-            )
+            f'Provided dictionary is missing {op_name} operator required attribute "{attr_key}"',
         )
 
     if attr_key not in attr_dict:
@@ -85,8 +81,8 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
     if np.isscalar(attr_value):
         result = result and _check_value(op_name, attr_key, attr_value, val_type, cond)
     else:
-        for v in attr_value:
-            result = result and _check_value(op_name, attr_key, v, val_type, cond)
+        for value in attr_value:
+            result = result and _check_value(op_name, attr_key, value, val_type, cond)
 
     return result
 
@@ -104,33 +100,34 @@ def check_valid_attributes(
     :param  requirements:   The list of tuples describing attributes' requirements. The tuple should
                             contain following values:
                             (attr_name: str,
-                             is_required: bool,
-                             value_type: Type,
-                             value_condition: Callable)
+                            is_required: bool,
+                            value_type: Type,
+                            value_condition: Callable)
 
     :raises     UserInputError:
-    returns True if all attributes satisfies criterias. Otherwise False.
+
+    :returns True if all attributes satisfies criterias. Otherwise False.
     """
     for attr, required, val_type, cond in requirements:
         check_valid_attribute(op_name, attributes, attr, val_type, cond, required)
     return True
 
 
-def is_positive_value(x):  # type: (Any) -> bool
+def is_positive_value(value):  # type: (Any) -> bool
     """Determine whether the specified x is positive value.
 
-    :param      x:    The value to check.
+    :param      value:    The value to check.
 
     returns   True if the specified x is positive value, False otherwise.
     """
-    return x > 0
+    return value > 0
 
 
-def is_non_negative_value(x):  # type: (Any) -> bool
+def is_non_negative_value(value):  # type: (Any) -> bool
     """Determine whether the specified x is non-negative value.
 
-    :param      x:    The value to check.
+    :param      value:    The value to check.
 
     returns   True if the specified x is non-negative value, False otherwise.
     """
-    return x >= 0
+    return value >= 0

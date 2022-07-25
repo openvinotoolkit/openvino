@@ -10,9 +10,9 @@ For system requirements and troubleshooting, see <https://pypi.org/project/openv
 
 ### Step 1. Set Up Python Virtual Environment
 
-To avoid dependency conflicts, use a virtual environment. Skip this step only if you do want to install all dependencies globally.
+Use a virtual environment to avoid dependency conflicts. 
 
-Use the following command to create a virtual environment:
+To create a virtual environment, use the following command:
 
 @sphinxdirective
 

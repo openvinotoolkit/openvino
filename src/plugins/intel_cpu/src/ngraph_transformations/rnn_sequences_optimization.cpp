@@ -95,7 +95,7 @@ ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
         // Bidirectional cases are not supported
         if (gruSequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-
+        MATCHER_SCOPE_ENABLE(OptimizeGRUSequenceTransposes);
         return transform(gruSequence);
     };
 
@@ -115,7 +115,7 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
         // Bidirectional cases are not supported
         if (rnnSequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             return false;
-
+        MATCHER_SCOPE_ENABLE(OptimizeRNNSequenceTransposes);
         return transform(rnnSequence);
     };
 
@@ -138,6 +138,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
             }
         };
 
+        MATCHER_SCOPE_ENABLE(OptimizeLSTMSequenceTransposes);
         std::shared_ptr<ngraph::Node> lstmSequence = m.get_match_root();
         return checkSequence(lstmSequence) ? transform(lstmSequence) : false;
     };

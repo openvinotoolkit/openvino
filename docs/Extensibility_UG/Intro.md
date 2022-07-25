@@ -9,13 +9,13 @@
    openvino_docs_Extensibility_UG_add_openvino_ops
    openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
-   openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel
+   openvino_docs_Extensibility_UG_VPU_Kernel
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
 @endsphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
-TensorFlow, PyTorch, ONNX, PaddlePaddle, MXNet, Caffe, and Kaldi. The list of supported operations is different for
+TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for
 each of the supported frameworks. To see the operations supported by your framework, refer to
 [Supported Framework Operations](../MO_DG/prepare_model/Supported_Frameworks_Layers.md).
 
@@ -52,7 +52,7 @@ Depending on model format used for import, mapping of custom operation is implem
 
 2. If model is represented in TensorFlow, Caffe, Kaldi or MXNet formats, then [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) should be used. This approach is available for model conversion in Model Optimizer only.
 
-Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
 If you are implementing extensions for ONNX or PaddlePaddle new frontends and plan to use Model Optimizer `--extension` option for model conversion, then the extensions should be
 
