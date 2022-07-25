@@ -134,7 +134,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 # Install tree
 
-set(IE_INCLUDE_DIR "include/ie")
+set(IE_INCLUDE_DIR "runtime/include/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(GNA_PATH "${IE_CPACK_RUNTIME_PATH}")
