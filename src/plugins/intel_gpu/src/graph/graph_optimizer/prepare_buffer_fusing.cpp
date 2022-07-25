@@ -106,18 +106,17 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     // Implicit concat for onednn only when use_usm.
     if (is_onednn_impl) {
         bool use_usm = node.get_program().get_engine().use_unified_shared_memory();
-        layout out_l = node.get_output_layout();
 
         if (!use_usm)
             return false;
         // Multi batch implicit concat WA code: AS-IS oneDNN only support convolution sub-memory API.
-        if (out_l.size.batch[0] > 1) {
+        if (node.get_output_layout().batch() > 1) {
             size_t idx = 0;
             for (auto const& input : node.get_dependencies()) {
                 if (input->get_preferred_impl_type() == impl_types::onednn) {
-                    if (!input->is_type<convolution>())
-                        return false;
                     if (idx > 0) {
+                        if (!input->is_type<convolution>())
+                            return false;
                         for (auto const& user : input->get_users()) {
                             if (user->get_preferred_impl_type() == impl_types::onednn &&
                                 !(user->is_type<convolution>() || user->is_type<concatenation>())) {
@@ -150,7 +149,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
 
-        if (input->get_preferred_impl_type() != impl_types::onednn) {
+        if (idx > 0 && input->get_preferred_impl_type() != impl_types::onednn) {
             if (l.format.block_sizes().size() > 1)
                 return false;
         }
