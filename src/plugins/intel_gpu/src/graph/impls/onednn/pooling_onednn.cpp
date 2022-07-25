@@ -80,55 +80,16 @@ namespace detail {
 
 attach_pooling_onednn::attach_pooling_onednn() {
     implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
+        MAKE_TUPLE4(bfyx,                   f32, f16, u8, i8),
+        MAKE_TUPLE4(b_fs_yx_fsv16,          f32, f16, u8, i8),
+        MAKE_TUPLE4(b_fs_yx_fsv32,          f32, f16, u8, i8),
+        MAKE_TUPLE4(b_fs_zyx_fsv16,         f32, f16, u8, i8),
+        MAKE_TUPLE4(b_fs_zyx_fsv32,         f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_yx_bsv16_fsv16,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_yx_bsv32_fsv16,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_yx_bsv32_fsv32,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_zyx_bsv32_fsv16,  f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_zyx_bsv32_fsv32,  f32, f16, u8, i8),
     });
 }
 

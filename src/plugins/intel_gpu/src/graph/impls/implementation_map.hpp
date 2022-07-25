@@ -12,6 +12,35 @@
 #include <sstream>
 #include "to_string_utils.h"
 
+
+#define MAKE_TUPLE1(fmt, dt1) \
+    std::make_tuple(data_types::dt1, format::fmt)
+
+#define MAKE_TUPLE2(fmt, dt1, dt2) \
+    std::make_tuple(data_types::dt1, format::fmt), \
+    std::make_tuple(data_types::dt2, format::fmt)
+
+#define MAKE_TUPLE4(fmt, dt1, dt2, dt3, dt4) \
+    std::make_tuple(data_types::dt1, format::fmt), \
+    std::make_tuple(data_types::dt2, format::fmt), \
+    std::make_tuple(data_types::dt3, format::fmt), \
+    std::make_tuple(data_types::dt4, format::fmt)
+
+#define MAKE_TUPLE5(fmt, dt1, dt2, dt3, dt4, dt5) \
+    std::make_tuple(data_types::dt1, format::fmt), \
+    std::make_tuple(data_types::dt2, format::fmt), \
+    std::make_tuple(data_types::dt3, format::fmt), \
+    std::make_tuple(data_types::dt4, format::fmt), \
+    std::make_tuple(data_types::dt5, format::fmt)
+
+#define MAKE_TUPLE6(fmt, dt1, dt2, dt3, dt4, dt5, dt6) \
+    std::make_tuple(data_types::dt1, format::fmt), \
+    std::make_tuple(data_types::dt2, format::fmt), \
+    std::make_tuple(data_types::dt3, format::fmt), \
+    std::make_tuple(data_types::dt4, format::fmt), \
+    std::make_tuple(data_types::dt5, format::fmt), \
+    std::make_tuple(data_types::dt6, format::fmt)
+
 namespace cldnn {
 
 template <typename T, typename U>

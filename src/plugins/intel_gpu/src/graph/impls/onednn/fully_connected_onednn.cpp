@@ -139,15 +139,8 @@ namespace detail {
 
 attach_fully_connected_onednn::attach_fully_connected_onednn() {
     implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
+        MAKE_TUPLE4(bfyx,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bfzyx,  f32, f16, u8, i8),
     });
 }
 
