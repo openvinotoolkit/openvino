@@ -1,4 +1,6 @@
-opyright (C) 2018-2022 Intel Corporation
+#!/bin/sh
+
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 ############################################################
@@ -316,5 +318,3 @@ echo "benchmark_app -m ~/ov_models/public/$model/FP32/$model.xml -d CPU"
 echo "############################################################"
 conda deactivate && cd $ovDir/openvino 
 exit 1
-
-
