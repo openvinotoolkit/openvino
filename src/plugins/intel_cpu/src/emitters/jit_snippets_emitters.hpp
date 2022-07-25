@@ -685,7 +685,7 @@ private:
     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                    const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override {
         // jit_store_emitter makes some changes of data in src_vmm when there is some conversion of data types
-        // so to avoid data pollution for the next emitters we should save Vmm(in_idx[0)
+        // so to avoid data pollution for the next emitters we should save Vmm(in_idx[0])
         h->sub(h->rsp, get_vec_length());
         push_vec(h->ptr[h->rsp], in_idxs[0]);
 

@@ -57,8 +57,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void dword2int8(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
+    bool is_corner_case() const;
     void register_table_entries() override;
-    size_t aux_gprs_count() const override;
 };
 
 // This emitter is covered by the common dnnl behavior. The implementation uses a "saturation" conversion.

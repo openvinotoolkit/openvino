@@ -529,7 +529,7 @@ jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, en
 
 // 0 for temp reg for mask store and for 1 for table value in truncation arithmetic mode
 size_t jit_store_emitter::aux_gprs_count() const {
-    return mode == arithmetic_mode::truncation ? 2 : 1;
+    return mode == arithmetic_mode::truncation && !mayiuse(cpu::x64::avx512_core) ? 2 : 1;
 }
 
 // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and restore status)
@@ -1051,7 +1051,7 @@ template <typename Vmm>
     }
 
 void jit_store_emitter::register_table_entries() {
-    if (mode == arithmetic_mode::truncation) {
+    if (mode == arithmetic_mode::truncation && !mayiuse(cpu::x64::avx512_core)) {
         push_arg_entry_of("mask_truncation_byte", 0x000000ff, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }

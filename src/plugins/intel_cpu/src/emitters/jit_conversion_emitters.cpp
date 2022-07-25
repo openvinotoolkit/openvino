@@ -66,6 +66,11 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *ho
     prepare_table();
 }
 
+bool jit_convert_truncation_emitter::is_corner_case() const {
+    return one_of(input_type, ov::element::i8, ov::element::u8) &&
+           one_of(output_type, ov::element::i8, ov::element::u8);
+}
+
 void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                                                const emitter_context *emit_context) const {
@@ -87,10 +92,8 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
 
-    // In Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
-    if ((input_type == output_type) ||
-        (one_of(input_type, ov::element::i8, ov::element::u8) &&
-         one_of(output_type, ov::element::i8, ov::element::u8))) {
+    // For Truncation behavior we can just move data from src to dst if we want convert i8 -> u8 or u8 -> i8
+    if ((input_type == output_type) || is_corner_case()) {
         h->uni_vmovups(vmm_dst, vmm_src);
         return;
     }
@@ -152,12 +155,10 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
 }
 
 void jit_convert_truncation_emitter::register_table_entries() {
-    if (one_of(output_type, ov::element::i8, ov::element::u8))
+    if (host_isa_ == dnnl::impl::cpu::x64::avx2 &&
+        one_of(output_type, ov::element::i8, ov::element::u8) &&
+        !is_corner_case())
         push_arg_entry_of("mask_byte", 0x000000ff, true);
-}
-
-size_t jit_convert_truncation_emitter::aux_gprs_count() const {
-    return one_of(output_type, ov::element::i8, ov::element::u8);
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -315,7 +316,8 @@ void jit_convert_saturation_emitter::dword2uint8(const std::vector<size_t> &in_v
 }
 
 size_t jit_convert_saturation_emitter::aux_vecs_count() const {
-    return output_type == ov::element::u8 ? 1 : 0;
+    // 1 register is for dword2uint8
+    return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core? 1 : 0;
 }
 
 }   // namespace intel_cpu
