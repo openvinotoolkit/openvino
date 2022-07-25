@@ -390,7 +390,7 @@ pass::EliminateConcat::EliminateConcat() {
 NGRAPH_RTTI_DEFINITION(pass::EliminateSplit, "EliminateSplit", 0);
 
 pass::EliminateSplit::EliminateSplit() {
-    MATCHER_SCOPE(EliminateConcat);
+    MATCHER_SCOPE(EliminateSplit);
     auto convert_pattern = pattern::wrap_type<opset8::Split>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
