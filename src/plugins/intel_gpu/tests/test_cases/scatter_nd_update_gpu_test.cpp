@@ -67,7 +67,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::vector<T> result;
         auto indices_shape = p.indices_size.sizes(get_default_format(p.indices_rank));
         auto data_shape = p.input_size.sizes(p.input_format);
-        auto last_indices_dim = indices_shape.at(p.indices_rank - 1);
+        size_t last_indices_dim = indices_shape.at(p.indices_rank - 1);
 
         auto count = p.indices_size.count() / last_indices_dim;
 
@@ -99,12 +99,12 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
 
         std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
-        for (int i = 0; i < input_vec.size(); ++i)
+        for (size_t i = 0; i < input_vec.size(); ++i)
             input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
         std::reverse(input_vec.begin() + 2, input_vec.end());
 
         std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
-        for (int i = 0; i < updates_vec.size(); ++i)
+        for (size_t i = 0; i < updates_vec.size(); ++i)
             updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
         std::reverse(updates_vec.begin() + 2, updates_vec.end());
 
@@ -119,13 +119,13 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto updates_data_fp16 = generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         std::vector<float> input_data(params.input_size.count());
-        for (int i = 0; i < params.input_size.count(); ++i)
+        for (size_t i = 0; i < params.input_size.count(); ++i)
             input_data[i] = static_cast<float>(input_data_fp16[i]);
         std::vector<float> indices_data(params.indices_size.count());
-        for (int i = 0; i < params.indices_size.count(); ++i)
+        for (size_t i = 0; i < params.indices_size.count(); ++i)
             indices_data[i] = static_cast<float>(indices_data_fp16[i]);
         std::vector<float> updates_data(params.updates_size.count());
-        for (int i = 0; i < params.updates_size.count(); ++i)
+        for (size_t i = 0; i < params.updates_size.count(); ++i)
             updates_data[i] = static_cast<float>(updates_data_fp16[i]);
 
         set_values(input1, input_data_fp16);
@@ -179,12 +179,12 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         auto input3 = engine.allocate_memory({ params.updates_type, params.updates_format, params.updates_size });
 
         std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(params.input_format)));
-        for (int i = 0; i < input_vec.size(); ++i)
+        for (size_t i = 0; i < input_vec.size(); ++i)
             input_vec[i] = static_cast<int>(params.input_size.sizes()[i]);
         std::reverse(input_vec.begin() + 2, input_vec.end());
 
         std::vector<int> updates_vec(static_cast<int>(cldnn::format::dimension(params.updates_format)));
-        for (int i = 0; i < updates_vec.size(); ++i)
+        for (size_t i = 0; i < updates_vec.size(); ++i)
             updates_vec[i] = static_cast<int>(params.updates_size.sizes()[i]);
         std::reverse(updates_vec.begin() + 2, updates_vec.end());
 

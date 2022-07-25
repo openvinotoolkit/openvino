@@ -187,7 +187,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                   ngraph::pass::ConvertSpaceToBatch>(
                 [](const_node_ptr &node) -> bool {
                     const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                    return rank <= 5lu;
+                    return rank <= 5;
                 });
 
         if (device_info.supports_immad) {
@@ -389,7 +389,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (rank.is_dynamic()) {
                     return false;
                 }
-                if (rank.get_length() < 2ul) {
+                if (rank.get_length() < 2l) {
                     return false;
                 }
                 const auto dimension = shape[1];
