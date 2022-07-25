@@ -413,4 +413,3 @@ def test_checl(device):
     assert arr.shape == (10,)
     assert arr.dtype == "float32"
     assert arr.nbytes == 40
-    
