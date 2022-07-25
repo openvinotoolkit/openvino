@@ -873,7 +873,7 @@ void program_node::init_onednn_primitive_attributes() {
         auto node = cldnn_post_ops[idx].node;
 
         if (node->is_type<activation>()) {
-            auto fused_desc = node->as<activation>().get_primitive();;
+            auto fused_desc = node->as<activation>().get_primitive();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
