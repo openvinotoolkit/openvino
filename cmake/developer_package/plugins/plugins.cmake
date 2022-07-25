@@ -135,7 +135,12 @@ function(ie_add_plugin)
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
-            ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
+            ie_cpack_add_component(${install_component} 
+                                   DISPLAY_NAME "???"
+                                   DESCRIPTION "????"
+                                   REQUIRED
+                                   GROUP "???"
+                                   DEPENDS core)
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}

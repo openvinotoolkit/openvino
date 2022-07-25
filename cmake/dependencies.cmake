@@ -83,7 +83,7 @@ if(THREADING STREQUAL "OMP")
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
 
-    ie_cpack_add_component(omp REQUIRED)
+    ie_cpack_add_component(omp HIDDEN REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
             DESTINATION ${OV_CPACK_RUNTIMEDIR}

@@ -25,15 +25,15 @@ ie_cpack_add_component(${OV_CPACK_COMP_CPP_SAMPLES} DEPENDS ${OV_CPACK_COMP_CORE
 if(UNIX)
     install(DIRECTORY cpp/
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN *.bat EXCLUDE
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY cpp/
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             USE_SOURCE_PERMISSIONS
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
 endif()

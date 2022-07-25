@@ -110,6 +110,10 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
 endif()
 
+if(CPACK_GENERATOR STREQUAL "NSIS")
+    # TODO
+endif()
+
 macro(ie_cpack)
     if(NOT DEFINED CPACK_GENERATOR)
         set(CPACK_GENERATOR "TGZ")
@@ -143,6 +147,9 @@ macro(ie_cpack)
     else()
         set(CPACK_PACKAGE_NAME inference-engine)
     endif()
+
+    # TODO: for Wix
+    set(OpenVINO_VERSION "2.2.0")
 
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
     foreach(ver MAJOR MINOR PATCH)
