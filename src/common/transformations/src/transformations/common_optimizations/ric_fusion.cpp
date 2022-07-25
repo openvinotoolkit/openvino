@@ -533,7 +533,6 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             // Skip propagation for ShapeOf path
-            MATCHER_SCOPE_ENABLE(ShapeOf);
             return true;
         };
 

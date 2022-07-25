@@ -21,7 +21,7 @@ namespace pass {
 namespace low_precision {
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
-    MATCHER_SCOPE(MoveFakeQuantize);
+    MATCHER_SCOPE(MaxPoolTransformation);
     const auto concat = ngraph::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
     const auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
     const auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
@@ -44,7 +44,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(MoveFakeQuantize);
+        MATCHER_SCOPE_ENABLE(MaxPoolTransformation);
         return transform(*context, m);
     };
 
