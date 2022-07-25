@@ -504,7 +504,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithLocalCore) {
         shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
         OV_ASSERT_NO_THROW(function->reshape(shapes));
         // Load ov::Model to target plugins
-        compiled_model = local_core.compile_model(function, targetDevice, configuration);
+        compiled_model = local_core.compile_model(function, target_device, configuration);
     }
     // Create InferRequest
     OV_ASSERT_NO_THROW(compiled_model.create_infer_request());
