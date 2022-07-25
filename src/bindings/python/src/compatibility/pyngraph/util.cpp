@@ -11,6 +11,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/version.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace py = pybind11;
 
@@ -48,4 +49,6 @@ void regmodule_pyngraph_util(py::module m) {
     mod.def("get_ie_output_name", [](const ngraph::Output<ngraph::Node>& output) {
         return ngraph::op::util::get_ie_output_name(output);
     });
+
+    mod.def("shutdown", &ov::openvino_shutdown);
 }
