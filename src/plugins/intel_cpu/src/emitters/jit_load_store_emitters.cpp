@@ -829,6 +829,8 @@ template <typename Vmm>
                     h->vpermq(ymm, ymm, 0x08);
                 h->uni_vpackuswb(vmm, vmm, vmm);
             }
+
+            store_bytes(vmm, reg, offset, store_num);
         };
 
         switch (store_num) {
