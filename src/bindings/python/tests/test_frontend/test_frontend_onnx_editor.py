@@ -495,7 +495,6 @@ def test_extract_subgraph_4():
 
     expected_model = fe.convert(fe.load("extract_subgraph_4.onnx"))
 
-
     res = compare_models(result_func, expected_model)
     assert res
 
