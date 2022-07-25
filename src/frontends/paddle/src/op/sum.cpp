@@ -1,0 +1,29 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "default_opset.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
+
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
+NamedOutputs sum(const NodeContext& node) {
+    auto data = node.get_ng_inputs("X");
+    const auto input_type = data[0].get_element_type();
+    const auto shape = data[0].get_shape();
+    auto sum = data[0].get_node_shared_ptr();
+    for (int i = 1; i < data.size(); i++) {
+        // check the consistency of inputs
+        PADDLE_OP_CHECK(node, input_type == data[i].get_element_type(), "The types of inputs are not consistent!");
+        PADDLE_OP_CHECK(node, shape == data[i].get_shape(), "The shapes of inputs are not consistent!");
+        sum = std::make_shared<default_opset::Add>(sum, data[i]);
+    }
+    return node.default_single_output_mapping({sum}, {"Out"});
+}
+
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

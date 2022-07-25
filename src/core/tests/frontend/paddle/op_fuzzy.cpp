@@ -386,6 +386,8 @@ static const std::vector<std::string> models{
     std::string("strided_slice_input2_3"),
     std::string("strided_slice_input3_1"),
     std::string("strided_slice_input3_2"),
+    std::string("sum_1"),
+    std::string("sum_2"),
     std::string("swish_default_params"),
     std::string("swish_beta"),
     std::string("tanh"),
