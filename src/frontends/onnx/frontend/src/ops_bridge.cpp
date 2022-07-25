@@ -36,10 +36,15 @@
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 <<<<<<< HEAD
+<<<<<<< HEAD
 #include "op/com.microsoft/gelu.hpp"
 =======
 #include "op/com.microsoft/fusedgemm.hpp"
 >>>>>>> b67aeb881... [ONNX] Add operator com.microsoft.Fusedgemm support into frontend/onnx (#11878)
+=======
+#include "op/com.microsoft/fusedgemm.hpp"
+#include "op/com.microsoft/gelu.hpp"
+>>>>>>> 9be6c6de1... clang format
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
