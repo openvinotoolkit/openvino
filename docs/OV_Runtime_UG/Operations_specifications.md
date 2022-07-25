@@ -4,7 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
-
+   
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
