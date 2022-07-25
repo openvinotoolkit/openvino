@@ -138,13 +138,6 @@ namespace {
 template <typename key_type>
 std::string get_key_name(const key_type &) { return std::string(""); }
 
-template <>
-std::string get_key_name(const int32_t &k) { return std::to_string(k); }
-
-template <>
-std::string get_key_name(const std::tuple<data_types, format::type> &key) {
-    return dt_to_str(std::get<0>(key)) + "/" + fmt_to_str(std::get<1>(key));
-}
 } // namespace
 
 template <typename primitive_kind>
