@@ -326,10 +326,131 @@ static size_t dftSimdSize(int vlen) {
     return vlen / (2 * sizeof(float));
 }
 
+bool RDFTExecutor::canUseFFT(size_t dim) {
+    return isPowerOfTwo(dim) && dim > 1;
+}
+
+static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, size_t signalSize, bool parallelize) {
+    if (!parallelize) {
+        cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
+        src = src + 2 * inputSize - 4;
+        for (size_t i = inputSize; i < signalSize; i++, src -= 2) {
+            dst[2 * i] = src[0];
+            dst[2 * i + 1] = -src[1];
+        }
+    } else {
+        parallel_for(signalSize, [&] (size_t i) {
+                if (i < inputSize) {
+                    dst[2 * i] = src[2 * i];
+                    dst[2 * i + 1] = src[2 * i + 1];
+                } else {
+                    size_t src_idx = 2 * inputSize - 2 - i;
+                    dst[2 * i] = src[2 * src_idx];
+                    dst[2 * i + 1] = -src[2 * src_idx + 1];
+                }
+        });
+    }
+}
+
+static void fftCopyRealInputData(float* dst, float* src, size_t inputSize, bool parallelize) {
+    if (!parallelize) {
+        for (size_t i = 0; i < inputSize; i++) {
+            dst[2 * i] = src[i];
+            dst[2 * i + 1] = 0;
+        }
+    } else {
+        parallel_for(inputSize, [&] (size_t i) {
+            dst[2 * i] = src[i];
+            dst[2 * i + 1] = 0;
+        });
+    }
+}
+
+static void fftCopyInverseRealOutput(float* dst, float* src, size_t signalSize, bool parallelize) {
+    if (!parallelize) {
+        for (size_t i = 0; i < signalSize; i++) {
+            dst[i] = src[2 * i];
+        }
+    } else {
+        parallel_for(signalSize, [&] (size_t i) {
+            dst[i] = src[2 * i];
+        });
+    }
+}
+
+void RDFTExecutor::fft(float* input, const float* twiddlesPtr, float* output,
+                       size_t inputSize, size_t signalSize, size_t outputSize,
+                       enum dft_type type, bool parallelize) {
+    std::vector<float> scratchSpace(4 * signalSize, 0);
+
+    float* inputPtr = input;
+    float* outputPtr = &scratchSpace[2 * signalSize];
+
+    if (inputSize < signalSize || type == real_to_complex) {
+        if (isInverse)
+            fftCopyInverseInputData(&scratchSpace[0], input, inputSize, signalSize, parallelize);
+        else if (type == real_to_complex)
+            fftCopyRealInputData(&scratchSpace[0], input, inputSize, parallelize);
+        inputPtr = &scratchSpace[0];
+    }
+
+    size_t numBlocks = 0;
+    size_t blockSize = 0;
+
+    auto blockIteration = [&] (size_t block) {
+        size_t inputOffset = block * blockSize;
+        size_t outputOffset = block * blockSize / 2;
+        float cos = twiddlesPtr[2 * block];
+        float sin = twiddlesPtr[2 * block + 1];
+        if (isInverse)
+            sin = -sin;
+        for (size_t pair = 0; pair < blockSize / 2; pair++) {
+            float evenReal = inputPtr[2 * (inputOffset + pair)];
+            float evenImag = inputPtr[2 * (inputOffset + pair) + 1];
+            float oddReal = inputPtr[2 * (inputOffset + blockSize / 2 + pair)];
+            float oddImag = inputPtr[2 * (inputOffset + blockSize / 2 + pair) + 1];
+            outputPtr[2 * (outputOffset + pair)] = evenReal + cos * oddReal - sin * oddImag;
+            outputPtr[2 * (outputOffset + pair) + 1] = evenImag + cos * oddImag + sin * oddReal;
+            outputPtr[2 * (outputOffset + signalSize / 2 + pair)] = evenReal - cos * oddReal + sin * oddImag;
+            outputPtr[2 * (outputOffset + signalSize / 2 + pair) + 1] = evenImag - cos * oddImag - sin * oddReal;
+            if (isInverse && numBlocks == signalSize / 2) {
+                outputPtr[2 * (outputOffset + pair)] /= signalSize;
+                outputPtr[2 * (outputOffset + pair) + 1] /= signalSize;
+                outputPtr[2 * (outputOffset + signalSize / 2 + pair)] /= signalSize;
+                outputPtr[2 * (outputOffset + signalSize / 2 + pair) + 1] /= signalSize;
+            }
+        }
+    };
+
+    for (numBlocks = 1; numBlocks < signalSize; numBlocks *= 2) {
+        blockSize = signalSize / numBlocks;
+        if (numBlocks == signalSize / 2 && outputSize == signalSize && type != complex_to_real) {
+            outputPtr = output;
+        }
+        if (parallelize) {
+            parallel_for(numBlocks, blockIteration);
+        } else {
+            for (size_t block = 0; block < numBlocks; block++) {
+                blockIteration(block);
+            }
+        }
+        twiddlesPtr += numBlocks * 2;
+        if (numBlocks == 1 && inputPtr == input)
+            inputPtr = &scratchSpace[0];
+        std::swap(inputPtr, outputPtr);
+    }
+
+    if (type == complex_to_real) {
+        fftCopyInverseRealOutput(output, inputPtr, signalSize, parallelize);
+    } else if (outputSize != signalSize) {
+        cpu_memcpy(output, inputPtr, outputSize * complex_type_size<float>());
+    }
+}
+
 void RDFTExecutor::dftCommon(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
                               size_t inputSize, size_t signalSize, size_t outputSize,
-                              enum dft_type type, bool useFft, bool parallelize) {
-    if (useFft) {
+                              enum dft_type type, bool useFFT, bool parallelize) {
+    if (useFFT) {
         fft(inputPtr, twiddlesPtr, outputPtr,
             inputSize, signalSize, outputSize,
             type, parallelize);
@@ -383,7 +504,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
         break;
     }
 
-    bool useFft = canUseFFT(signalSize);
+    bool useFFT = canUseFFT(signalSize);
 
     size_t totalWorkSize = std::accumulate(iterationRange.begin(),
                                            iterationRange.end(),
@@ -402,7 +523,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                    inputSize, inputStrides);
             dftCommon(gatherBuffer, twiddlesPtr, scatterBuffer,
                        inputSize, signalSize, outputSize,
-                       type, useFft, !parallelizeOuterAxes);
+                       type, useFFT, !parallelizeOuterAxes);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         });
     } else {
@@ -417,7 +538,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                    inputSize, inputStrides);
             dftCommon(gatherBuffer, twiddlesPtr, scatterBuffer,
                        inputSize, signalSize, outputSize,
-                       type, useFft, !parallelizeOuterAxes);
+                       type, useFFT, !parallelizeOuterAxes);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         }
     }
@@ -507,7 +628,7 @@ void RDFTExecutor::irdftNd(float* inputPtr, float* outputPtr,
                 iterationRange);
 }
 
-std::vector<float> RDFTExecutor::generateTwiddlesFft(size_t N) {
+std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
     std::vector<float> twiddles;
     for (size_t numBlocks = 1; numBlocks < N; numBlocks *= 2) {
         for (size_t block = 0; block < numBlocks; block++) {
@@ -520,11 +641,11 @@ std::vector<float> RDFTExecutor::generateTwiddlesFft(size_t N) {
 }
 
 std::vector<float> RDFTExecutor::generateTwiddlesCommon(size_t signalSize, size_t outputSize,
-                                                          enum dft_type type, bool useFft) {
-    if (useFft) {
-        return generateTwiddlesFft(signalSize);
+                                                          enum dft_type type, bool useFFT) {
+    if (useFFT) {
+        return generateTwiddlesFFT(signalSize);
     }
-    return generateTwiddlesDft(signalSize, outputSize, type);
+    return generateTwiddlesDFT(signalSize, outputSize, type);
 }
 
 std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector<int>& signalSizes,
@@ -544,98 +665,17 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
     return twiddles;
 }
 
-static std::vector<int> generateFftIndices(int vlen) {
-    size_t simdSize = dftSimdSize(vlen);
-    std::vector<int> indices;
-    for (int numBlocks = 1; numBlocks < simdSize; numBlocks *= 2) {
-        int blockSize = simdSize / numBlocks;
-        for (int block = 0; block < simdSize / (blockSize / 2); block++) {
-            int inBase = block * blockSize;
-            for (int pair = 0; pair < blockSize / 2; pair++) {
-                int even = (inBase + pair);
-                indices.push_back(even * 2);
-                indices.push_back(even * 2 + 1);
-            }
-        }
-        for (int block = 0; block < simdSize / (blockSize / 2); block++) {
-            int inBase = block * blockSize;
-            for (int pair = 0; pair < blockSize / 2; pair++) {
-                int odd = (inBase + blockSize / 2 + pair);
-                indices.push_back(odd * 2);
-                indices.push_back(odd * 2 + 1);
-            }
-        }
-        for (int block = 0; block < simdSize / (blockSize / 2); block++) {
-            for (int pair = 0; pair < blockSize / 2; pair++) {
-                indices.push_back(block * 2);
-                indices.push_back(block * 2);
-            }
-        }
-    }
-    return indices;
-}
-
-static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, size_t signalSize, bool parallelize) {
-    if (!parallelize) {
-        cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
-        src = src + 2 * inputSize - 4;
-        for (size_t i = inputSize; i < signalSize; i++, src -= 2) {
-            dst[2 * i] = src[0];
-            dst[2 * i + 1] = -src[1];
-        }
-    } else {
-        parallel_for(signalSize, [&] (size_t i) {
-                if (i < inputSize) {
-                    dst[2 * i] = src[2 * i];
-                    dst[2 * i + 1] = src[2 * i + 1];
-                } else {
-                    size_t src_idx = 2 * inputSize - 2 - i;
-                    dst[2 * i] = src[2 * src_idx];
-                    dst[2 * i + 1] = -src[2 * src_idx + 1];
-                }
-        });
-    }
-}
-
-static void fftCopyRealInputData(float* dst, float* src, size_t inputSize, bool parallelize) {
-    if (!parallelize) {
-        for (size_t i = 0; i < inputSize; i++) {
-            dst[2 * i] = src[i];
-            dst[2 * i + 1] = 0;
-        }
-    } else {
-        parallel_for(inputSize, [&] (size_t i) {
-            dst[2 * i] = src[i];
-            dst[2 * i + 1] = 0;
-        });
-    }
-}
-
-static void fftCopyInverseRealOutput(float* dst, float* src, size_t signalSize, bool parallelize) {
-    if (!parallelize) {
-        for (size_t i = 0; i < signalSize; i++) {
-            dst[i] = src[2 * i];
-        }
-    } else {
-        parallel_for(signalSize, [&] (size_t i) {
-            dst[i] = src[2 * i];
-        });
-    }
-}
-
 struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
-            fftKernel.reset(new jit_fft_kernel_f32<cpu::x64::avx512_core>(isInverse));
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
             primDesc->setImplementationType(jit_avx512);
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
-            fftKernel.reset(new jit_fft_kernel_f32<cpu::x64::avx2>(isInverse));
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
             primDesc->setImplementationType(jit_avx2);
         } else if (mayiuse(cpu::x64::sse41)) {
@@ -651,19 +691,9 @@ struct RDFTJitExecutor : public RDFTExecutor {
             rdftKernel->create_ker();
         if (dftKernel)
             dftKernel->create_ker();
-        if (fftKernel)
-            fftKernel->create_ker();
-
-        fftIndices = generateFftIndices(vlen);
     }
 
-    bool canUseFFT(size_t dim) override {
-        return isPowerOfTwo(dim) &&
-               fftKernel &&
-               dim >= 4 * dftSimdSize(vlen);
-    }
-
-    std::vector<float> generateTwiddlesDft(size_t inputSize, size_t outputSize, enum dft_type type) override {
+    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         int simdSize = vlen / sizeof(float);
         if (type == real_to_complex || type == complex_to_complex) {
@@ -737,104 +767,9 @@ struct RDFTJitExecutor : public RDFTExecutor {
         }
     }
 
-    void fft(float* input, const float* twiddlesPtr, float* output,
-             size_t inputSize, size_t signalSize, size_t outputSize,
-             enum dft_type type, bool parallelize) override {
-        std::vector<float> scratchSpace(4 * signalSize, 0);
-
-        float* inputPtr = input;
-        float* outputPtr = &scratchSpace[2 * signalSize];
-        int* indicesPtr = &fftIndices[0];
-        size_t simdSize = dftSimdSize(vlen);
-        size_t input_stride = simdSize;
-
-        if (inputSize < signalSize || type == real_to_complex) {
-            if (isInverse)
-                fftCopyInverseInputData(&scratchSpace[0], input, inputSize, signalSize, parallelize);
-            else if (type == real_to_complex)
-                fftCopyRealInputData(&scratchSpace[0], input, inputSize, parallelize);
-            inputPtr = &scratchSpace[0];
-        }
-
-        size_t workDivideFactor = simdSize * 2;
-        size_t blockSize = 0;
-
-        auto blockIteration = [&] (size_t i, size_t nthr) {
-            size_t offset = i * workDivideFactor;
-            size_t block = offset / blockSize;
-            size_t inputOffset = block * blockSize * 2 + offset % blockSize;
-            size_t outputOffset = offset;
-            struct jit_fft_args params{};
-            params.input = inputPtr + inputOffset,
-            params.twiddles = twiddlesPtr,
-            params.output = outputPtr + outputOffset,
-            params.signal_size = signalSize,
-            params.block = block,
-            params.block_size = blockSize,
-            params.subblock_start = i * workDivideFactor / 2,
-            params.subblock_end = (i + 1) * workDivideFactor / 2,
-            (*fftKernel)(&params);
-        };
-
-        for (size_t numBlocks = 1; numBlocks < signalSize / simdSize; numBlocks *= 2) {
-            blockSize = signalSize / numBlocks;
-            if (parallelize) {
-                parallel_nt(signalSize / workDivideFactor, blockIteration);
-            } else {
-                for (size_t i = 0; i < signalSize / workDivideFactor; i++) {
-                    blockIteration(i, 0);
-                }
-            }
-            input_stride = simdSize * 2;
-            twiddlesPtr += numBlocks * 2;
-            std::swap(inputPtr, outputPtr);
-        }
-
-        auto smallBlockIteration = [&] (size_t i, size_t nthr) {
-            size_t offset = i * workDivideFactor;
-            size_t inputOffset = offset;
-            size_t outputOffset = offset;
-            struct jit_fft_args params{};
-            params.input = inputPtr + inputOffset * 2,
-            params.twiddles = twiddlesPtr + i * (simdSize / blockSize) * 2 * 2,
-            params.output = outputPtr + outputOffset,
-            params.indices = indicesPtr,
-            params.signal_size = signalSize,
-            params.block_size = blockSize,
-            params.subblock_start = i * workDivideFactor / 2,
-            params.subblock_end = (i + 1) * workDivideFactor / 2,
-            (*fftKernel)(&params);
-        };
-
-        for (size_t numBlocks = signalSize / simdSize; numBlocks < signalSize; numBlocks *= 2) {
-            blockSize = signalSize / numBlocks;
-            if (numBlocks == signalSize / 2 && outputSize == signalSize && type != complex_to_real) {
-                outputPtr = output;
-            }
-            if (parallelize) {
-                parallel_nt(signalSize / workDivideFactor, smallBlockIteration);
-            } else {
-                for (size_t i = 0; i < signalSize / workDivideFactor; i++) {
-                    smallBlockIteration(i, 0);
-                }
-            }
-            indicesPtr += 3 * 2 * simdSize;
-            twiddlesPtr += numBlocks * 2;
-            std::swap(inputPtr, outputPtr);
-        }
-
-        if (type == complex_to_real) {
-            fftCopyInverseRealOutput(output, inputPtr, signalSize, parallelize);
-        } else if (outputSize != signalSize) {
-            cpu_memcpy(output, inputPtr, outputSize * complex_type_size<float>());
-        }
-    }
-
     std::unique_ptr<jit_dft_kernel> rdftKernel = nullptr;
     std::unique_ptr<jit_dft_kernel> dftKernel = nullptr;
-    std::unique_ptr<jit_fft_kernel> fftKernel = nullptr;
 
-    std::vector<int> fftIndices;
     int vlen;
 };
 
@@ -843,11 +778,7 @@ struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
     private:
-        bool canUseFFT(size_t dim) override {
-            return isPowerOfTwo(dim) && dim > 1;
-        }
-
-        std::vector<float> generateTwiddlesDft(size_t inputSize, size_t outputSize, enum dft_type type) override {
+        std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
             std::vector<float> twiddles(inputSize * outputSize * 2);
             parallel_for2d(outputSize, inputSize, [&] (size_t k, size_t n) {
                 double angle = 2 * PI * k * n / inputSize;
@@ -960,75 +891,6 @@ struct RDFTRefExecutor : public RDFTExecutor {
                 dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
             } else if (type == complex_to_real) {
                 dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
-            }
-        }
-
-        void fft(float* input, const float* twiddlesPtr, float* output,
-                 size_t inputSize, size_t signalSize, size_t outputSize,
-                 enum dft_type type, bool parallelize) override {
-            std::vector<float> scratchSpace(4 * signalSize, 0);
-
-            float* inputPtr = input;
-            float* outputPtr = &scratchSpace[2 * signalSize];
-
-            if (inputSize < signalSize || type == real_to_complex) {
-                if (isInverse)
-                    fftCopyInverseInputData(&scratchSpace[0], input, inputSize, signalSize, parallelize);
-                else if (type == real_to_complex)
-                    fftCopyRealInputData(&scratchSpace[0], input, inputSize, parallelize);
-                inputPtr = &scratchSpace[0];
-            }
-
-            size_t numBlocks = 0;
-            size_t blockSize = 0;
-
-            auto blockIteration = [&] (size_t block) {
-                size_t inputOffset = block * blockSize;
-                size_t outputOffset = block * blockSize / 2;
-                float cos = twiddlesPtr[2 * block];
-                float sin = twiddlesPtr[2 * block + 1];
-                if (isInverse)
-                    sin = -sin;
-                for (size_t pair = 0; pair < blockSize / 2; pair++) {
-                    float evenReal = inputPtr[2 * (inputOffset + pair)];
-                    float evenImag = inputPtr[2 * (inputOffset + pair) + 1];
-                    float oddReal = inputPtr[2 * (inputOffset + blockSize / 2 + pair)];
-                    float oddImag = inputPtr[2 * (inputOffset + blockSize / 2 + pair) + 1];
-                    outputPtr[2 * (outputOffset + pair)] = evenReal + cos * oddReal - sin * oddImag;
-                    outputPtr[2 * (outputOffset + pair) + 1] = evenImag + cos * oddImag + sin * oddReal;
-                    outputPtr[2 * (outputOffset + signalSize / 2 + pair)] = evenReal - cos * oddReal + sin * oddImag;
-                    outputPtr[2 * (outputOffset + signalSize / 2 + pair) + 1] = evenImag - cos * oddImag - sin * oddReal;
-                    if (isInverse && numBlocks == signalSize / 2) {
-                        outputPtr[2 * (outputOffset + pair)] /= signalSize;
-                        outputPtr[2 * (outputOffset + pair) + 1] /= signalSize;
-                        outputPtr[2 * (outputOffset + signalSize / 2 + pair)] /= signalSize;
-                        outputPtr[2 * (outputOffset + signalSize / 2 + pair) + 1] /= signalSize;
-                    }
-                }
-            };
-
-            for (numBlocks = 1; numBlocks < signalSize; numBlocks *= 2) {
-                blockSize = signalSize / numBlocks;
-                if (numBlocks == signalSize / 2 && outputSize == signalSize && type != complex_to_real) {
-                    outputPtr = output;
-                }
-                if (parallelize) {
-                    parallel_for(numBlocks, blockIteration);
-                } else {
-                    for (size_t block = 0; block < numBlocks; block++) {
-                        blockIteration(block);
-                    }
-                }
-                twiddlesPtr += numBlocks * 2;
-                if (numBlocks == 1 && inputPtr == input)
-                    inputPtr = &scratchSpace[0];
-                std::swap(inputPtr, outputPtr);
-            }
-
-            if (type == complex_to_real) {
-                fftCopyInverseRealOutput(output, inputPtr, signalSize, parallelize);
-            } else if (outputSize != signalSize) {
-                cpu_memcpy(output, inputPtr, outputSize * complex_type_size<float>());
             }
         }
 };

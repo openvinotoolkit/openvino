@@ -32,16 +32,16 @@ struct RDFTExecutor {
         bool isInverse;
 
     private:
-        virtual bool canUseFFT(size_t dim) = 0;
+        virtual bool canUseFFT(size_t dim);
         virtual void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
                          size_t inputSize, size_t signalSize, size_t outputSize,
                          enum dft_type type, bool parallelize) = 0;
         virtual void fft(float* input, const float* twiddlesPtr, float* output,
                          size_t inputSize, size_t signalSize, size_t outputSize,
-                         enum dft_type type, bool parallelize) = 0;
+                         enum dft_type type, bool parallelize);
         void dftCommon(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
                         size_t inputSize, size_t signalSize, size_t outputSize,
-                        enum dft_type type, bool useFft, bool parallelize);
+                        enum dft_type type, bool useFFT, bool parallelize);
         void dftOnAxis(enum dft_type type,
                          float* inputPtr, float* outputPtr,
                          const float* twiddlesPtr, int axis,
@@ -67,10 +67,10 @@ struct RDFTExecutor {
                      const VectorDims& inputStrides,
                      const VectorDims& outputShape,
                      const VectorDims& outputStrides);
-        virtual std::vector<float> generateTwiddlesDft(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
-        std::vector<float> generateTwiddlesFft(size_t N);
+        virtual std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) = 0;
+        std::vector<float> generateTwiddlesFFT(size_t N);
         std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize,
-                                                  enum dft_type type, bool useFft);
+                                                  enum dft_type type, bool useFFT);
 };
 
 class RDFT : public Node {
