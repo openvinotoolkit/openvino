@@ -60,6 +60,7 @@ static const std::vector<std::string> models{
     std::string("bilinear_upsample_scales2"),
     std::string("bilinear_upsample_true_0"),
     std::string("bmm"),
+    std::string("ceil_float32"),
     std::string("clip"),
     std::string("conv2d_dilation_assymetric_pads_strides"),
     std::string("conv2d_SAME_padding"),
