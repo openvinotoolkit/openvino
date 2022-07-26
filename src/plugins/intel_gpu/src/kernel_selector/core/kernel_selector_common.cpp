@@ -272,6 +272,8 @@ std::string toString(SoftmaxDim d) {
         case SoftmaxDim::Z:       return "Z";
         case SoftmaxDim::FEATURE: return "FEATURE";
         case SoftmaxDim::BATCH:   return "BATCH";
+        case SoftmaxDim::ALL:     return "ALL";
+        case SoftmaxDim::FYX:     return "FYX";
         default: return "";
     }
 }
