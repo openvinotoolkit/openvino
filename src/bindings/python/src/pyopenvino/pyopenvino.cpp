@@ -152,7 +152,7 @@ PYBIND11_MODULE(pyopenvino, m) {
                 serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin", version="IR_V11")
         )");
 
-    m.def("shutdown", &ov::openvino_shutdown, R"(Shutdown openvino runtime by try unload libraries)");
+    m.def("shutdown", &ov::shutdown, R"(Shutdown openvino runtime by try unload libraries)");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);

@@ -14,7 +14,7 @@
 
 namespace ov {
 // Forward declaration
-FRONTEND_API void openvino_shutdown();
+FRONTEND_API void shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -78,7 +78,7 @@ private:
 
     std::unique_ptr<Impl> m_impl;
 
-    friend FRONTEND_API void ov::openvino_shutdown();
+    friend FRONTEND_API void ov::shutdown();
     /// \brief Shutdown the manager by try releasing frontend libraries
     static void shutdown();
 };
