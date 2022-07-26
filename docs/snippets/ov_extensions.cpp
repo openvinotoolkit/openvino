@@ -1,6 +1,12 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 #include <openvino/openvino.hpp>
 //! [add_extension_header]
 //#include <openvino/core/op_extension.hpp>
@@ -18,7 +24,6 @@
 //! [frontend_extension_ThresholdedReLU_header]
 
 #include <identity.hpp>
-
 
 int main() {
 {
@@ -128,3 +133,7 @@ core.add_extension("openvino_template_extension.so");
 }
 return 0;
 }
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
