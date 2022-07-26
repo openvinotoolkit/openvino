@@ -30,7 +30,6 @@
 using namespace InferenceEngine;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void createDirectory(std::string _path) {
@@ -570,5 +569,4 @@ Config& Configs::GetDefaultDeviceConfig() {
 IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
