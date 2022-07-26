@@ -84,8 +84,26 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 
 @endsphinxtabset
 
-### 5. Export quantized model
-When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorh and frozen graph - for TensorFlow 2.
+### 5. Multi-GPU distributed training
+In the case of distributed multi-GPU training (not DataParallel), you should call `compression_ctrl.distributed()` before the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
+@sphinxtabset
+
+@sphinxtab{PyTorch}
+
+@snippet docs/optimization_guide/nncf/code/qat_torch.py distributed
+
+@endsphinxtab
+
+@sphinxtab{TensorFlow 2}
+
+@snippet docs/optimization_guide/nncf/code/qat_tf.py distributed
+
+@endsphinxtab
+
+@endsphinxtabset
+
+### 6. Export quantized model
+When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in the case of PyTorch and frozen graph - for TensorFlow 2.
 
 @sphinxtabset
 
@@ -103,25 +121,7 @@ When fine-tuning finishes, the quantized model can be exported to the correspond
 
 @endsphinxtabset
 
-> **NOTE**: In the case of distributed multi-GPU training (not DataParallel), you should call `compression_ctrl.distributed()` before the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
-
 These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
-
-@sphinxtabset
-
-@sphinxtab{PyTorch}
-
-@snippet docs/optimization_guide/nncf/code/qat_torch.py distributed
-
-@endsphinxtab
-
-@sphinxtab{TensorFlow 2}
-
-@snippet docs/optimization_guide/nncf/code/qat_tf.py distributed
-
-@endsphinxtab
-
-@endsphinxtabset
 
 ### 7. (Optional) Save checkpoint
 To save model checkpoint use the following API:
