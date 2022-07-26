@@ -658,3 +658,431 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
     softmax_test,
     ::testing::Combine(::testing::ValuesIn(softmax_test::generate_generic_test_params()), ::testing::ValuesIn(softmax_test::generate_specific_test_params())),
     softmax_test::custom_param_name);
+
+
+
+namespace {
+template<typename T>
+struct SoftmaxParams {
+    softmax::dimension_t axis;
+    tensor input_tensor;
+    std::vector<T> input;
+    std::vector<T> expected;
+};
+
+template<typename T>
+using SoftmaxParamsWithFormat = std::tuple<
+    SoftmaxParams<T>,
+    format::type,     // source (plain) layout
+    format::type      // target (blocked) layout
+>;
+
+const std::vector<format::type> formats2D{
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+};
+
+const std::vector<format::type> formats3D{
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16
+};
+
+template<typename T>
+std::vector<T> getValues(const std::vector<float> &values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template<typename T>
+std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
+    const std::vector<SoftmaxParams<T>> result = {
+        {
+            softmax::dimension_t::normalize_all,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                6.45878e-06f, 5.288e-06f, 1.43743e-05f, 2.61917e-05f,
+                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+                0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
+                0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
+                7.3805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f})
+        },
+        {
+            softmax::dimension_t::normalize_fyx,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.00293631f, 0.00240404f, 0.00653487f, 0.0119073f,
+                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+                0.000117642f, 9.65661e-06f, 0.00642301f, 0.953259f,
+                0.000319783f, 9.65661e-06f, 0.0174596f, 0.0213251f,
+                7.15379e-06f, 7.15379e-06f, 2.65909e-10f, 0.00106172f})
+        },
+        {
+            softmax::dimension_t::normalize_b,
+            tensor(3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 3.f, 0.5f, 7.f, 12.f, 0.2f, 0.2f, -10.f, 5.2f,
+                4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+                0.264614f, 0.364855f, 0.268941f, 0.977054f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
+        },
+        {
+            softmax::dimension_t::normalize_f,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.264614f, 0.364855f, 0.268941f, 0.977054f,
+                0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+                0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
+        },
+        {
+            softmax::dimension_t::normalize_y,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.310026f, 0.167982f, 0.689974f, 0.832018f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f,
+                0.0179862f, 1.013e-05f, 0.982014f, 0.99999f,
+                0.0179862f, 0.000452622f, 0.982014f, 0.999547f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f})
+        },
+        {
+            softmax::dimension_t::normalize_x,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.549834f, 0.450166f, 0.354344f, 0.645656f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f,
+                0.924142f, 0.0758582f, 0.00669285f, 0.993307f,
+                0.970688f, 0.0293122f, 0.450166f, 0.549834f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f})
+        },
+
+    };
+    return result;
+}
+
+template<typename T>
+std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
+    const std::vector<SoftmaxParams<T>> result = {
+        {
+            softmax::dimension_t::normalize_all,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                3.08269e-10f, 2.52389e-10f, 6.86066e-10f, 1.25009e-09f, 3.4069e-10f, 2.28371e-10f, 6.86066e-10f, 3.3981e-09f,
+                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.76521e-10f, 3.08269e-10f, 4.65866e-15f, 1.37444e-07f,
+                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.08269e-10f, 3.76521e-10f, 3.44231e-14f, 1.86011e-08f,
+                5.60253e-09f, 4.59884e-10f, 3.05888e-07f, 4.53977e-05f, 4.13974e-08f, 3.08269e-10f, 1.1253e-07f, 0.999952f,
+                1.52293e-08f, 4.59884e-10f, 8.31488e-07f, 1.01558e-06f, 2.51738e-09f, 3.76521e-10f, 1.1253e-07f, 5.05629e-08f,
+                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 9.26093e-10f, 3.76521e-10f, 1.71382e-15f, 2.51738e-09f})
+        },
+        {
+            softmax::dimension_t::normalize_fyx,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.00115433f, 0.00094509f, 0.00256902f, 0.00468106f, 0.00127574f, 0.000855152f, 0.00256902f, 0.0127244f,
+                0.00127574f, 0.00127574f, 4.74195e-08f, 0.189336f, 0.00140991f, 0.00115433f, 1.74447e-08f, 0.514669f,
+                0.00127574f, 0.00127574f, 4.74195e-08f, 0.189336f, 0.00115433f, 0.00140991f, 1.289e-07f, 0.0696529f,
+                5.60253e-09f, 4.59884e-10f, 3.05888e-07f, 4.53978e-05f, 4.13974e-08f, 3.08269e-10f, 1.1253e-07f, 0.999952f,
+                1.52293e-08f, 4.59884e-10f, 8.31489e-07f, 1.01558e-06f, 2.51738e-09f, 3.76521e-10f, 1.1253e-07f, 5.05629e-08f,
+                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 9.26093e-10f, 3.76521e-10f, 1.71383e-15f, 2.51738e-09f})
+        },
+        {
+            softmax::dimension_t::normalize_b,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.0521536f, 0.354344f, 0.00223785f, 2.75357e-05f, 0.00816257f, 0.425557f, 0.0060598f, 3.39827e-09f,
+                0.0218813f, 0.425557f, 1.523e-08f, 0.0474259f, 0.130108f, 0.450166f, 4.13994e-08f, 0.731059f,
+                0.5f, 0.5f, 0.5f, 0.5f, 0.24974f, 0.5f, 0.952574f, 0.880797f,
+                0.947846f, 0.645656f, 0.997762f, 0.999972f, 0.991837f, 0.574443f, 0.99394f, 1.0f,
+                0.978119f, 0.574443f, 1.0f, 0.952574f, 0.869892f, 0.549834f, 1.0f, 0.268941f,
+                0.5f, 0.5f, 0.5f, 0.5f, 0.75026f, 0.5f, 0.0474259f, 0.119203f})
+        },
+        {
+            softmax::dimension_t::normalize_f,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.311493f, 0.270291f, 0.999963f, 0.0122108f, 0.332225f, 0.250089f, 0.999943f, 0.0213123f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f, 0.367165f, 0.337585f, 6.79002e-06f, 0.862025f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f, 0.30061f, 0.412327f, 5.01718e-05f, 0.116662f,
+                0.264614f, 0.364855f, 0.268941f, 0.977054f, 0.923207f, 0.290461f, 0.5f, 1.0f,
+                0.719295f, 0.364855f, 0.731059f, 0.0218575f, 0.0561403f, 0.35477f, 0.5f, 5.05653e-08f,
+                0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f, 0.0206528f, 0.35477f, 7.615e-09f, 2.5175e-09f})
+        },
+        {
+            softmax::dimension_t::normalize_z,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.475021f, 0.524979f, 0.5f, 0.268941f, 0.524979f, 0.475021f, 0.5f, 0.731059f,
+                0.475021f, 0.524979f, 0.731059f, 0.268941f, 0.524979f, 0.475021f, 0.268941f, 0.731059f,
+                0.524979f, 0.475021f, 0.268941f, 0.731059f, 0.475021f, 0.524979f, 0.731059f, 0.268941f,
+                0.119203f, 0.598688f, 0.731059f, 4.53979e-05f, 0.880797f, 0.401312f, 0.268941f, 0.999955f,
+                0.858149f, 0.549834f, 0.880797f, 0.952574f, 0.141851f, 0.450166f, 0.119203f, 0.0474259f,
+                0.268941f, 0.475021f, 0.880797f, 0.952574f, 0.731059f, 0.524979f, 0.119203f, 0.0474259f})
+        },
+        {
+            softmax::dimension_t::normalize_y,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.310026f, 0.167982f, 0.689974f, 0.832018f, 0.331812f, 0.0629734f, 0.668188f, 0.937027f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f, 0.999988f, 0.00223785f, 1.23728e-05f, 0.997762f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f, 0.999888f, 0.0198403f, 0.000111653f, 0.98016f,
+                0.0179862f, 1.013e-05f, 0.982014f, 0.99999f, 0.268941f, 3.08284e-10f, 0.731059f, 1.0f,
+                0.0179862f, 0.000452622f, 0.982014f, 0.999547f, 0.0218813f, 0.00739154f, 0.978119f, 0.992609f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f, 0.999998f, 0.130108f, 1.8506e-06f, 0.869892f})
+        },
+        {
+            softmax::dimension_t::normalize_x,
+            tensor(2, 3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
+                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
+                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
+                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
+            getValues<T>({
+                0.549834f, 0.450166f, 0.354344f, 0.645656f, 0.598688f, 0.401312f, 0.167982f, 0.832018f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f, 0.549834f, 0.450166f, 3.38949e-08f, 1.0f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f, 0.450166f, 0.549834f, 1.8506e-06f, 0.999998f,
+                0.924142f, 0.0758582f, 0.00669285f, 0.993307f, 0.992609f, 0.00739154f, 1.12535e-07f, 1.0f,
+                0.970688f, 0.0293122f, 0.450166f, 0.549834f, 0.869892f, 0.130108f, 0.689974f, 0.310025f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f, 0.710949f, 0.28905f, 6.80798e-07f, 0.999999f})
+        }
+    };
+    return result;
+}
+
+template<typename T>
+float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<half_t>() {
+    return 0.2;
+}
+
+std::string toString(const softmax::dimension_t axis) {
+    switch(axis) {
+        case softmax::normalize_b:
+            return "B";
+        case softmax::normalize_f:
+            return "F";
+        case softmax::normalize_x:
+            return "X";
+        case softmax::normalize_y:
+            return "Y";
+        case softmax::normalize_z:
+            return "Z";
+        case softmax::normalize_fyx:
+            return "FYX";
+        case softmax::normalize_all:
+            return "ALL";
+        default:
+            return "unknown";
+    }
+}
+
+std::string toString(const format::type format) {
+    switch(format) {
+        case format::bfyx:
+            return "bfyx";
+        case format::b_fs_yx_fsv16:
+            return "b_fs_yx_fsv16";
+        case format::b_fs_yx_fsv32:
+            return "b_fs_yx_fsv32";
+        case format::bs_fs_yx_bsv16_fsv16:
+            return "bs_fs_yx_bsv16_fsv16";
+        case format::bs_fs_yx_bsv32_fsv16:
+            return "bs_fs_yx_bsv32_fsv16";
+        case format::bs_fs_yx_bsv32_fsv32:
+            return "bs_fs_yx_bsv32_fsv32";
+        case format::bfzyx:
+            return "bfzyx";
+        case format::b_fs_zyx_fsv16:
+            return "b_fs_zyx_fsv16";
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return "bs_fs_zyx_bsv16_fsv16";
+        default:
+            return std::to_string(format);
+    }
+}
+
+struct PrintToStringParamName {
+    template<class T>
+    std::string operator()(const testing::TestParamInfo<SoftmaxParamsWithFormat<T> > &param) {
+        std::stringstream buf;
+        SoftmaxParams<T> p;
+        format::type plain_format;
+        format::type target_format;
+        std::tie(p, plain_format, target_format) = param.param;
+        buf << "_inputTensor=" << p.input_tensor.to_string()
+            << "_axis=" << toString(p.axis)
+            << "_plainFormat=" << toString(plain_format)
+            << "_targetFormat=" << toString(target_format);
+        return buf.str();
+    }
+};
+}; // namespace
+
+
+
+template<typename T>
+struct softmax_gpu_formats_test
+        : public ::testing::TestWithParam<SoftmaxParamsWithFormat<T> > {
+public:
+    void test() {
+        const auto data_type = type_to_data_type<T>::value;
+        SoftmaxParams<T> params;
+        format::type plain_format;
+        format::type target_format;
+
+        std::tie(params, plain_format, target_format) = this->GetParam();
+
+        auto& engine = get_test_engine();
+        const auto input = engine.allocate_memory({data_type, plain_format, params.input_tensor});
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", target_format, data_type));
+        topology.add(softmax("blocked_softmax", "reordered_input", params.axis));
+        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_type));
+
+        set_values(input, params.input);
+
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        network network(engine, topology);
+
+        network.set_input_data("input", input);
+        const auto outputs = network.execute();
+        const auto output = outputs.at("softmax").get_memory();
+        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
+        for (uint32_t i = 0; i < output_ptr.size(); i++) {
+            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
+        }
+    }
+};
+
+using softmax_gpu_formats_test_f32 = softmax_gpu_formats_test<float>;
+using softmax_gpu_formats_test_f16 = softmax_gpu_formats_test<half_t>;
+
+TEST_P(softmax_gpu_formats_test_f32, softmax_gpu_formats_test_f32) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(softmax_gpu_formats_test_f16, softmax_gpu_formats_test_f16) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f32_2d,
+                         softmax_gpu_formats_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams2D<float>()),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::ValuesIn(formats2D)
+                                 ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f16_2d,
+                         softmax_gpu_formats_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams2D<half_t>()),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::ValuesIn(formats2D)
+                                 ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f32_3d,
+                         softmax_gpu_formats_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams3D<float>()),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::ValuesIn(formats3D)
+                                 ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f16_3d,
+                         softmax_gpu_formats_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams3D<half_t>()),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::ValuesIn(formats3D)
+                                 ),
+                         PrintToStringParamName());
