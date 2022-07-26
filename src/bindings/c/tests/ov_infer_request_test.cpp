@@ -4,9 +4,6 @@
 #include <mutex>
 #include "ov_test.hpp"
 
-std::mutex m;
-bool ready = false;
-std::condition_variable condVar;
 
 void get_tensor_info(ov_model_t* model,
                      bool input,
@@ -87,7 +84,13 @@ public:
     char* in_tensor_name;
     ov_tensor_t* input_tensor;
     ov_tensor_t* output_tensor;
+    static std::mutex m;
+    static bool ready;
+    static std::condition_variable condVar;
 };
+bool ov_infer_request::ready = false;
+std::mutex ov_infer_request::m;
+std::condition_variable ov_infer_request::condVar;
 
 class ov_infer_request_ppp : public ::testing::TestWithParam<std::string> {
 protected:
@@ -283,9 +286,9 @@ void infer_request_callback(void* args) {
 
     ov_tensor_free(out_tensor);
 
-    std::lock_guard<std::mutex> lock(m);
-    ready = true;
-    condVar.notify_one();
+    std::lock_guard<std::mutex> lock(ov_infer_request::m);
+    ov_infer_request::ready = true;
+    ov_infer_request::condVar.notify_one();
 }
 
 TEST_P(ov_infer_request, infer_request_set_callback) {
@@ -300,9 +303,9 @@ TEST_P(ov_infer_request, infer_request_set_callback) {
     OV_EXPECT_OK(ov_infer_request_start_async(infer_request));
 
     if (!HasFatalFailure()) {
-        std::unique_lock<std::mutex> lock(m);
-        condVar.wait(lock, [] {
-            return ready;
+        std::unique_lock<std::mutex> lock(ov_infer_request::m);
+        ov_infer_request::condVar.wait(lock, [] {
+            return ov_infer_request::ready;
         });
     }
 }
