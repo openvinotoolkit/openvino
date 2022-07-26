@@ -270,7 +270,7 @@ bool op::v0::Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     NGRAPH_OP_SCOPE(v0_Squeeze_constant_fold);
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 

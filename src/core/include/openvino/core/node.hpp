@@ -494,6 +494,12 @@ public:
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
+protected:
+    /// \brief Check constant folding disabled attribute.
+    ///
+    /// \return true if constant folding disabled otherwise false.
+    bool is_const_fold_disabled() const;
+
 private:
     friend class ov::NodeAccessor;
     std::vector<Node*> m_control_dependents;
