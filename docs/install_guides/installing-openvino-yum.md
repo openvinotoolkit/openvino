@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using YUM Repository
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the YUM repository.
 
@@ -132,7 +132,6 @@ sudo yum install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 
 After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
 
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
 
 ### Step 5 (Optional): Configure Inference on Non-CPU Devices
 
