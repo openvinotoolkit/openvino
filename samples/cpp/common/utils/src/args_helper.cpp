@@ -141,6 +141,38 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
+using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
+
+InferenceEngine::Precision getPrecision(std::string value, const supported_precisions_t& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+
+InferenceEngine::Precision getPrecision(const std::string& value) {
+    static const supported_precisions_t supported_precisions = {
+        {"FP32", InferenceEngine::Precision::FP32}, {"f32", InferenceEngine::Precision::FP32},
+        {"FP16", InferenceEngine::Precision::FP16}, {"f16", InferenceEngine::Precision::FP16},
+        {"BF16", InferenceEngine::Precision::BF16}, {"bf16", InferenceEngine::Precision::BF16},
+        {"U64", InferenceEngine::Precision::U64},   {"u64", InferenceEngine::Precision::U64},
+        {"I64", InferenceEngine::Precision::I64},   {"i64", InferenceEngine::Precision::I64},
+        {"U32", InferenceEngine::Precision::U32},   {"u32", InferenceEngine::Precision::U32},
+        {"I32", InferenceEngine::Precision::I32},   {"i32", InferenceEngine::Precision::I32},
+        {"U16", InferenceEngine::Precision::U16},   {"u16", InferenceEngine::Precision::U16},
+        {"I16", InferenceEngine::Precision::I16},   {"i16", InferenceEngine::Precision::I16},
+        {"U8", InferenceEngine::Precision::U8},     {"u8", InferenceEngine::Precision::U8},
+        {"I8", InferenceEngine::Precision::I8},     {"i8", InferenceEngine::Precision::I8},
+        {"BOOL", InferenceEngine::Precision::BOOL}, {"boolean", InferenceEngine::Precision::BOOL},
+    };
+
+    return getPrecision(value, supported_precisions);
+}
+
 using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
 ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
     std::transform(value.begin(), value.end(), value.begin(), ::toupper);

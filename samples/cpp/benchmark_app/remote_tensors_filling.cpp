@@ -61,7 +61,7 @@ void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type&
     } else if (type == ov::element::boolean) {
         fill_buffer_random<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
     } else {
-        throw ov::Exception("Requested type is not supported");
+        IE_THROW() << "Requested type is not supported";
     }
 }
 
@@ -124,7 +124,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     }
     return remoteTensors;
 #else
-    throw ov::Exception("Device memory requested for GPU device, but OpenCL was not linked");
+    IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif
 }
 
@@ -160,7 +160,7 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
 
     return outputTensors;
 #else
-    throw ov::Exception("Device memory requested for GPU device, but OpenCL was not linked");
+    IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif
 }
 }  // namespace gpu

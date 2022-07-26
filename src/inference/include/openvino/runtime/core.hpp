@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_plugin_config.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"

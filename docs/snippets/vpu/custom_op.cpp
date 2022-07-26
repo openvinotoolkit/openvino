@@ -1,5 +1,4 @@
-#include "openvino/runtime/core.hpp"
-#include "ie_plugin_config.hpp"
+#include <openvino/runtime/core.hpp>
 
 int main() {
 //! [part0]
