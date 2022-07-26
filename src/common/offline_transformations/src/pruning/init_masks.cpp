@@ -76,9 +76,9 @@ public:
             NodeVector weights_calculation_nodes;
             auto cur_node = matmul->get_input_node_shared_ptr(1);
 
-            if (!cur_node->output(0).get_partial_shape().is_static()) return false;
+            if (cur_node->get_output_partial_shape(0).is_dynamic()) return false;
             auto dim_order = std::vector<int64_t>();
-            const auto input_size = cur_node->get_shape().size();
+            const auto input_size = cur_node->get_output_shape(0).size();
             for (int64_t idx = 0; idx < input_size; ++idx)
                 dim_order.push_back(idx);
 

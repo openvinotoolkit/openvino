@@ -17,11 +17,63 @@ template<typename T>
 static std::string vec_to_str(const std::vector<T> m) {
     std::ostringstream out;
     out << "[ ";
-    for (auto & val : m)
+    for (const auto & val : m)
         out << val << ' ';
     out << "]";
     return out.str();
 }
+
+
+static bool not_empty_mask(ngraph::Mask::Ptr mask) {
+    return mask && !mask->all_dims_are_empty();
+}
+
+
+static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
+    auto reshape_node = std::dynamic_pointer_cast<ngraph::opset6::Reshape>(node);
+    if (!reshape_node)
+        return false;
+
+    const auto input = reshape_node->input_value(0);
+    const auto shape = reshape_node->input_value(1);
+    if (input.get_partial_shape().is_dynamic() || shape.get_partial_shape().is_dynamic())
+        return false;
+
+    const auto output_shape_const_op = get_constant_from_source(shape);
+    if (!output_shape_const_op)
+        return false;
+
+    const auto input_shape = input.get_shape();
+    const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
+    const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
+    const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
+    if (output_elems <= 0 || input_elems == output_elems)
+        return false;
+    return true;
+}
+
+static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::Mask::Ptr mask) {
+    const auto shape = reshape->input_value(1);
+    const auto consumers = shape.get_node()->get_output_target_inputs(0);
+    if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
+        NGRAPH_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name()
+                    << " is not supported.";
+        return false;
+    }
+
+    auto sub_const_vector = std::vector<int64_t>();
+    for (auto & dim : *mask.get())
+        sub_const_vector.push_back(dim.size());
+
+    const auto sub_const = ngraph::opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
+    const auto sub = std::make_shared<ngraph::opset6::Subtract>(shape, sub_const);
+    consumers.begin()->replace_source_output(sub);
+
+    NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
+                << " by substracting " << vec_to_str(sub_const_vector);
+    return true;
+}
+
 
 bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     int64_t reduced_weights_count{0};
@@ -36,41 +88,14 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         if (!mask && init_mask)
             NGRAPH_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
 #endif
-
-        auto reshape_node = std::dynamic_pointer_cast<opset6::Reshape>(node);
-        if (reshape_node) {
-            const auto input = reshape_node->input_value(0);
-            const auto shape = reshape_node->input_value(1);
-            if (input.get_partial_shape().is_static() && shape.get_partial_shape().is_static()) {
-                const auto input_shape = input.get_shape();
-                const auto output_shape = get_constant_from_source(shape)->cast_vector<int64_t>();
-                const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
-                const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
-                if (output_elems > 0 && input_elems != output_elems && !mask->all_dims_are_empty()) {
-                    const auto consumers = shape.get_node()->get_output_target_inputs(0);
-                    if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
-                        NGRAPH_DEBUG << "Adoptation for node " << shape.get_node()->get_friendly_name()
-                                     << " is not supported.";
-                        continue;
-                    }
-
-                    auto sub_const_vector = std::vector<int64_t>();
-                    for (auto & dim : *mask.get())
-                        sub_const_vector.push_back(dim.size());
-
-                    const auto sub_const = opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
-                    const auto sub = std::make_shared<opset6::Subtract>(shape, sub_const);
-                    consumers.begin()->replace_source_output(sub);
-
-                    NGRAPH_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
-                                 << " by substracting " << vec_to_str(sub_const_vector);
-                }
-            }
-        }
+        if (is_static_reshape_op(node) && not_empty_mask(mask))
+            if (!maybe_adopt_reshape_node(node, mask))
+                continue;
 
         node->revalidate_and_infer_types();
 
         if (!mask) continue;
+
         // TODO: constant can be shared across functions so we need to avoid consumers from other function
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(node);
         if (!const_node) continue;
