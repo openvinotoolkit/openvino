@@ -4,11 +4,16 @@
 
 #include "pugixml.hpp"
 #include "shared_test_classes/base/snippets_test_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "exec_graph_info.hpp"
 
 namespace ov {
 namespace test {
 void SnippetsTestsCommon::validateNumSubgraphs() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     const auto& compiled_model = compiledModel.get_runtime_model();
     size_t num_subgraphs = 0;
     size_t num_nodes = 0;
