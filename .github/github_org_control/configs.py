@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 
-if sys.version_info.minor < 7:
+if sys.version_info[:3] < (3, 7, 0):
     raise Exception("Python version must be >= 3.7")
 
 
