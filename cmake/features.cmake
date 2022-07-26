@@ -59,7 +59,7 @@ cmake_dependent_option (ENABLE_WHEEL "Build wheel packages for PyPi" OFF
 # Inference Engine specific options
 #
 
-# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
@@ -134,32 +134,19 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
-
 get_linux_name(LINUX_OS_NAME)
 if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
     # Debian packages are enabled on Ubuntu systems
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
-
-    # check whether "default" (customly provided or system one) is available
-    find_package(TBB QUIET)
-    if(NOT TBB_FOUND)
-        message(WARNING "System TBB is not found, custom TBB version will be downloaded from shared drive")
-        # we still need to download prebuilt version of TBB
-        set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
-    endif()
-
-    # remove found TBB (or invalid TBB_DIR-NOTFOUND) from cache
-    unset(TBB_DIR CACHE)
-    unset(TBB_DIR)
-    unset(TBB_FOUND)
-    unset(TBB_IMPORTED_TARGETS)
-    unset(TBB_VERSION)
+    # so, system TBB / pugixml can be tried for usage
+    set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+    set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
+# for static libraries case libpugixml.a must be compiled with -fPIC
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
+
+ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_LIBS_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 

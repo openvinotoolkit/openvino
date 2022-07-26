@@ -46,9 +46,6 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     strided_slice_info.add("end mask", node.get_primitive()->end_mask);
     strided_slice_info.add("new axis mask", node.get_primitive()->new_axis_mask);
     strided_slice_info.add("shrink axis mask", node.get_primitive()->shrink_axis_mask);
-    strided_slice_info.add("begin_param shape", node.get_dependency(1).get_output_layout().size.to_string());
-    strided_slice_info.add("end_param shape", node.get_dependency(2).get_output_layout().size.to_string());
-    strided_slice_info.add("stride_param shape", node.get_dependency(3).get_output_layout().size.to_string());
 
     node_info->add("strided_slice info", strided_slice_info);
     node_info->dump(primitive_description);

@@ -66,7 +66,7 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
             },
             softmax);
         replace_node(div, softmax);
-
+        MATCHER_SCOPE_ENABLE(SoftmaxFusion);
         return true;
     };
 

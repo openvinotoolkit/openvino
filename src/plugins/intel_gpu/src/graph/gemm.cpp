@@ -25,14 +25,14 @@ layout gemm_inst::calc_output_layout(gemm_node const& node) {
     bool transpose_input0 = prim->transpose_input0;
     bool transpose_input1 = prim->transpose_input1;
 
-    auto M = !transpose_input0 ? input0_layout.size.spatial[1] : input0_layout.size.spatial[0];
-    auto N = !transpose_input1 ? input1_layout.size.spatial[0] : input1_layout.size.spatial[1];
+    auto M = !transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
+    auto N = !transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
 
-    auto output_size = input0_layout.size;
+    auto output_size = input0_layout.get_tensor();
 
     for (size_t i = 1; i < node.inputs_count(); ++i) {
         auto input_layout = node.input(i).get_output_layout();
-        output_size = tensor::max(output_size, input_layout.size);
+        output_size = tensor::max(output_size, input_layout.get_tensor());
     }
 
     output_size.spatial[0] = N;
@@ -79,15 +79,15 @@ gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : paren
     bool transpose_input0 = node.get_primitive()->transpose_input0;
     bool transpose_input1 = node.get_primitive()->transpose_input1;
 
-    auto transposed_x0 = input0_layout.size.spatial[0];
-    auto transposed_y0 = input0_layout.size.spatial[1];
+    auto transposed_x0 = input0_layout.spatial(0);
+    auto transposed_y0 = input0_layout.spatial(1);
 
     if (transpose_input0) {
         std::swap(transposed_x0, transposed_y0);
     }
 
-    auto transposed_x1 = input1_layout.size.spatial[0];
-    auto transposed_y1 = input1_layout.size.spatial[1];
+    auto transposed_x1 = input1_layout.spatial(0);
+    auto transposed_y1 = input1_layout.spatial(1);
 
     if (transpose_input1) {
         std::swap(transposed_x1, transposed_y1);
@@ -107,13 +107,13 @@ gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : paren
                               "Input 0 external dimension size",
                               transposed_y0,
                               "Input 2 rows number",
-                              input2_layout.size.spatial[1],
+                              input2_layout.spatial(1),
                               "");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Input 1 external dimension size",
                               transposed_x1,
                               "Input 2 columns number",
-                              input2_layout.size.spatial[0],
+                              input2_layout.spatial(0),
                               "");
     }
 }

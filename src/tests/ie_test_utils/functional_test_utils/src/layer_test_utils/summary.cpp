@@ -38,6 +38,7 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset6());
     opsets.push_back(ngraph::get_opset7());
     opsets.push_back(ngraph::get_opset8());
+    opsets.push_back(ngraph::get_opset9());
 }
 
 Summary &Summary::getInstance() {

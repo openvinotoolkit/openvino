@@ -34,7 +34,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
         // vector of new nGraph operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
-        attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
+        attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
         auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(new_args.at(0),
                                                                                                    new_args.at(1),
                                                                                                    attrs);
@@ -59,6 +59,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
         nms_new->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);
         ngraph::replace_node(nms, {output_0, output_1, output_2});
+        MATCHER_SCOPE_ENABLE(ConvertMatrixNmsToMatrixNmsIE);
         return true;
     };
 

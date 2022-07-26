@@ -31,14 +31,14 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
 
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
 
-    auto size = input_node_layout.size;
+    auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
     for (size_t i = 0; i < node.inputs_count(); i++) {
         if (i == primary_input_idx)
             continue;
 
         auto l = node.input(i).get_non_padded_output_layout();
-        size = tensor::max(size, l.size);
+        size = tensor::max(size, l.get_tensor());
         if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             format = format::b_fs_zyx_fsv16;
         else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
@@ -96,11 +96,13 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
 
     auto eltw = std::static_pointer_cast<const eltwise>((node.get_primitive()));
     if (!eltw->stride.empty()) {
+        auto new_size = input_node_layout.get_tensor();
         // we can safely use only first stride, since we're using first input, and input / stride should give exact same
         // value for every input
-        input_node_layout.size.spatial[0] = (input_node_layout.size.spatial[0] - 1) / eltw->stride[0].spatial[0] + 1;
-        input_node_layout.size.spatial[1] = (input_node_layout.size.spatial[1] - 1) / eltw->stride[0].spatial[1] + 1;
-        input_node_layout.size.spatial[2] = (input_node_layout.size.spatial[2] - 1) / eltw->stride[0].spatial[2] + 1;
+        new_size.spatial[0] = (input_node_layout.spatial(0) - 1) / eltw->stride[0].spatial[0] + 1;
+        new_size.spatial[1] = (input_node_layout.spatial(1) - 1) / eltw->stride[0].spatial[1] + 1;
+        new_size.spatial[2] = (input_node_layout.spatial(2) - 1) / eltw->stride[0].spatial[2] + 1;
+        input_node_layout.set_tensor(new_size);
         return input_node_layout;
     }
     return output_layout;
@@ -221,14 +223,14 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                               prim->stride.size(),
                               "");
 
-        const auto out_x = node.get_output_layout().size.spatial[0];
-        const auto out_y = node.get_output_layout().size.spatial[1];
+        const auto out_x = node.get_output_layout().spatial(0);
+        const auto out_y = node.get_output_layout().spatial(1);
         // check if strides are correctly set. I.e INPUT_SIZE_X / STRIDE_X = OUTPUT_SIZE_X, same for Y dimension
         for (size_t i = 0; i < inputs_count; i++) {
             const auto& in_layout = node.input(i).get_output_layout();
             auto stride = prim->stride[i];
 
-            const auto in_x_div_stride_x = (in_layout.size.spatial[0] - 1) / stride.spatial[0] + 1;
+            const auto in_x_div_stride_x = (in_layout.spatial(0) - 1) / stride.spatial[0] + 1;
             if (in_x_div_stride_x != out_x && in_x_div_stride_x != 1)
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
                                       "Eltwise input_x / stride_x",
@@ -237,7 +239,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       out_x,
                                       "");
 
-            const auto in_y_div_stride_y = (in_layout.size.spatial[1] - 1) / stride.spatial[1] + 1;
+            const auto in_y_div_stride_y = (in_layout.spatial(1) - 1) / stride.spatial[1] + 1;
             if (in_y_div_stride_y != out_y && in_y_div_stride_y != 1)
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
                                       "Eltwise inputyx / stride_y",
@@ -247,9 +249,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        std::vector<int32_t> input0_size = node.input().get_output_layout().size.raw.vector();
+        std::vector<int32_t> input0_size = node.input().get_output_layout().get_tensor().raw.vector();
         for (size_t i = 1; i < inputs_count; i++) {
-            std::vector<int32_t> input_size = node.input(i).get_output_layout().size.raw.vector();
+            std::vector<int32_t> input_size = node.input(i).get_output_layout().get_tensor().raw.vector();
             for (size_t d = 0; d < input0_size.size(); d++) {
                 bool sizes_equal = input0_size[d] == input_size[d];
                 bool broadcast =

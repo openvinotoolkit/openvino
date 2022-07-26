@@ -24,6 +24,7 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(FuseMultiplyToFakeQuantizeTransformation);
         return transform(*context, m);
     };
 

@@ -7,7 +7,7 @@
 #include <ie_parallel.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
+#include <onednn/dnnl.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 
@@ -16,10 +16,10 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
@@ -63,7 +63,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
     void generate() override {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
@@ -102,7 +102,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
                 vcmpps(k_mask, vmm_val, vmm_max, _cmp_nle_us);
             }
 
-            if (isa == x64::avx512_common) {
+            if (isa == x64::avx512_core) {
                 vptestmd(k_mask, vmm_mask, vmm_mask);
                 vblendmps(vmm_max | k_mask, vmm_max, vmm_val);
             } else {
@@ -243,8 +243,8 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
 
-    if (mayiuse(x64::avx512_common)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_core)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_core>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
         softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx2>(jcp));

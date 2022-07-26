@@ -92,6 +92,7 @@ public:
                  std::shared_ptr<ExecNetwork> execNetwork);
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
+    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 
 private:

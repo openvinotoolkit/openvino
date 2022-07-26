@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "cpu_types.h"
 
 #include <ie_layouts.h>
@@ -65,6 +65,13 @@ public:
      * @return pointer to InferenceEngine::Blob
      */
     static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
+
+    /**
+     * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
+     * @return InferenceEngine::TensorDesc
+     */
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc

@@ -32,7 +32,7 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -93,7 +93,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CumSum::execute(mkldnn::stream strm) {
+void CumSum::execute(dnnl::stream strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
@@ -259,7 +259,7 @@ bool CumSum::needPrepareParams() const {
     return false;
 }
 
-void CumSum::executeDynamicImpl(mkldnn::stream strm) {
+void CumSum::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

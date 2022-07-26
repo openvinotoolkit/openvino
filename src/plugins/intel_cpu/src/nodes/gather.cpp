@@ -13,7 +13,7 @@
 #include "kernels/gather_uni_kernel.hpp"
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::cpu;
+using namespace dnnl::impl::cpu;
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
@@ -41,7 +41,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache), batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -135,13 +135,13 @@ void Gather::initSupportedPrimitiveDescriptors() {
 void Gather::createPrimitive() {
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_common) ? x64::cpu_isa_traits<x64::avx512_common>::vlen / idxTypeSize :
+        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
             x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
     }
     // Gather instruction is not supported by SSE.
-    if ((x64::mayiuse(x64::avx512_common) || x64::mayiuse(x64::avx2)) &&
+    if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
             (isDynamicNode() || afterAxisSize == 1 || (afterAxisSize <= idxElPerVec &&
-            (x64::mayiuse(x64::avx512_common) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
+            (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
         jcp.reverseIndexing = reverseIndexing;
@@ -161,8 +161,8 @@ void Gather::createPrimitive() {
             }
         }
 
-        if (x64::mayiuse(x64::avx512_common)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx512_common>(jcp));
+        if (x64::mayiuse(x64::avx512_core)) {
+            jitKernel.reset(new jitUniGatherKernel<x64::avx512_core>(jcp));
         } else if (x64::mayiuse(x64::avx2)) {
             jitKernel.reset(new jitUniGatherKernel<x64::avx2>(jcp));
         }
@@ -253,7 +253,7 @@ void Gather::prepareParams() {
 
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        if (x64::mayiuse(x64::avx512_common)) {
+        if (x64::mayiuse(x64::avx512_core)) {
             selectedPD->setImplementationType(jit_avx512);
         } else if (x64::mayiuse(x64::avx2)) {
             selectedPD->setImplementationType(jit_avx2);
@@ -263,7 +263,7 @@ void Gather::prepareParams() {
     }
 }
 
-void Gather::execute(mkldnn::stream strm) {
+void Gather::execute(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -316,7 +316,7 @@ void Gather::execute(mkldnn::stream strm) {
     }
 }
 
-void Gather::executeDynamicImpl(mkldnn::stream strm) {
+void Gather::executeDynamicImpl(dnnl::stream strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();

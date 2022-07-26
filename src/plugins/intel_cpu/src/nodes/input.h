@@ -15,10 +15,10 @@ namespace node {
 
 class Input : public Node {
 public:
-    Input(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                    const std::string &type, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
-    Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const mkldnn::engine& eng,
+                    const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const dnnl::engine& eng,
                     WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
@@ -29,7 +29,7 @@ public:
     void withMeanImage();
     MemoryCPtr getMemoryPtr() const;
 
-    void executeDynamicImpl(mkldnn::stream strm) override {}
+    void executeDynamicImpl(dnnl::stream strm) override {}
     bool isExecutable() const override {
         return false;
     }

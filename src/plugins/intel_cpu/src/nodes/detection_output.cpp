@@ -6,12 +6,12 @@
 #include <vector>
 #include <mutex>
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include <ngraph/op/detection_output.hpp>
 #include "ie_parallel.hpp"
 #include "detection_output.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -51,7 +51,7 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -164,11 +164,11 @@ struct ConfidenceComparatorDO {
     const float* confData;
 };
 
-void DetectionOutput::executeDynamicImpl(mkldnn::stream strm) {
+void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void DetectionOutput::execute(mkldnn::stream strm) {
+void DetectionOutput::execute(dnnl::stream strm) {
     float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());

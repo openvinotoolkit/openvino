@@ -65,8 +65,8 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # install
 
-ov_install_static_lib(${TARGET_NAME} core OPTIONAL)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE} OPTIONAL)

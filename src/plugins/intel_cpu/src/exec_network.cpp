@@ -42,10 +42,7 @@ namespace intel_cpu {
 InferenceEngine::IInferRequestInternal::Ptr
 ExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin)
-        return nullptr;
-    const auto& core = _plugin->GetCore();
-    if (!core || !core->isNewAPI())
+    if (!this->_plugin || !_plugin->IsNewAPI())
         return nullptr;
     return std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
 }
@@ -67,13 +64,11 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
 ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const Config &cfg,
                          const ExtensionManager::Ptr& extMgr,
-                         NumaNodesWeights &numaNodesWeights,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
     _network(network) {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();

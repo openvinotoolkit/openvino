@@ -60,6 +60,9 @@ class Deconvolution(Op):
         if not node.has_valid('dilation'):
             node['dilation'] = np.full([len(output_shape)], 1, dtype=np.int64)
 
+        if node.has_valid('get_group'):
+            node['group'] = node.get_group(node)
+
         spatial_dims = node.spatial_dims
         output_spatial = shape_array(output_shape[spatial_dims])
         stride_spatial = shape_array(node.stride[spatial_dims])

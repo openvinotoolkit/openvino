@@ -20,13 +20,14 @@ namespace ngraph {
  * preserved property definition.
  *
  * For more details about the attribute, refer to
- * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved) page in the Inference Engine Developer Guide.
+ * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
     void merge(std::vector<ov::Any>& attributes);
+    bool is_skipped() const;
     std::string to_string() const override;
 };
 

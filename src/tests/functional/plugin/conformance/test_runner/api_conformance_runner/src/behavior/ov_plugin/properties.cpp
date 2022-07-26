@@ -19,31 +19,31 @@ const std::vector<ov::AnyMap> auto_batch_inproperties = {
         {{ov::auto_batch_timeout(-1)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::conformance::targetDevice),
                                 ::testing::ValuesIn(inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Hetero, OVPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(inproperties)),
+                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_HETERO, inproperties))),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Multi, OVPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(inproperties)),
-                        OVPropertiesIncorrectTests::getTestCaseName);
+                                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_MULTI, inproperties))),
+OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Auto, OVPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, auto_batch_inproperties))),
+                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, inproperties))),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVPropertiesIncorrectTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
@@ -60,31 +60,31 @@ const std::vector<ov::AnyMap> auto_batch_properties = {
         {{ov::auto_batch_timeout(10)}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(ov::test::conformance::targetDevice),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Hetero, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_HETERO, default_properties))),
         OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Multi, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_MULTI, default_properties))),
         OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_Auto, OVPropertiesTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_AUTO, default_properties))),
                          OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVPropertiesTests,
+INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),

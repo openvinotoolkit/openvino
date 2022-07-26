@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -5,7 +6,9 @@ import os
 import pytest
 import numpy as np
 
-from ..conftest import model_path, read_image, get_model_with_template_extension
+# TODO: refactor into absolute paths
+from ..conftest import model_path, get_model_with_template_extension
+from ..test_utils.test_utils import generate_image
 from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor
@@ -50,10 +53,10 @@ def test_export_import():
 
     new_compiled = core.import_model(user_stream, "CPU")
 
-    img = read_image()
+    img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+    assert np.argmax(res[new_compiled.outputs[0]]) == 9
 
 
 def test_export_import_advanced():
@@ -69,20 +72,20 @@ def test_export_import_advanced():
 
     new_compiled = core.import_model(user_stream, "CPU")
 
-    img = read_image()
+    img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 2
+    assert np.argmax(res[new_compiled.outputs[0]]) == 9
 
 
 def test_get_input_i(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input(0)
-    input_node = input.get_node()
+    net_input = exec_net.input(0)
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -90,10 +93,10 @@ def test_get_input_tensor_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input("data")
-    input_node = input.get_node()
+    net_input = exec_net.input("data")
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -101,10 +104,10 @@ def test_get_input(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input()
-    input_node = input.get_node()
+    net_input = exec_net.input()
+    input_node = net_input.get_node()
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "data"
 
 
@@ -128,11 +131,11 @@ def test_input_set_friendly_name(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input("data")
-    input_node = input.get_node()
+    net_input = exec_net.input("data")
+    input_node = net_input.get_node()
     input_node.set_friendly_name("input_1")
     name = input_node.friendly_name
-    assert isinstance(input, ConstOutput)
+    assert isinstance(net_input, ConstOutput)
     assert name == "input_1"
 
 
@@ -187,9 +190,9 @@ def test_input_get_index(device):
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, device)
-    input = exec_net.input(0)
+    net_input = exec_net.input(0)
     expected_idx = 0
-    assert input.get_index() == expected_idx
+    assert net_input.get_index() == expected_idx
 
 
 def test_inputs(device):
@@ -245,99 +248,99 @@ def test_inputs_docs(device):
 def test_infer_new_request_numpy(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_tensor_numpy_shared_memory(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 2
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == 9
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
 def test_infer_new_request_wrong_port_name(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
-    with pytest.raises(KeyError) as e:
+    with pytest.raises(RuntimeError) as e:
         exec_net.infer_new_request({"_data_": tensor})
-    assert "Port for tensor _data_ was not found!" in str(e.value)
+    assert "Check" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
     ie = Core()
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    img = read_image()
+    img = generate_image()
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
-    assert "Incompatible key type for tensor: 0." in str(e.value)
+    assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
 def test_infer_numpy_model_from_buffer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    func = core.read_model(model=xml, weights=weights)
+    img = generate_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_infer_tensor_model_from_buffer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    func = core.read_model(model=xml, weights=weights)
+    img = generate_image()
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res[list(res)[0]]) == 2
+    assert np.argmax(res[list(res)[0]]) == 9
 
 
 def test_direct_infer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
-        bin = f.read()
+        weights = f.read()
     with open(test_net_xml, "rb") as f:
         xml = f.read()
-    model = core.read_model(model=xml, weights=bin)
-    img = read_image()
+    model = core.read_model(model=xml, weights=weights)
+    img = generate_image()
     tensor = Tensor(img)
     comp_model = core.compile_model(model, device)
     res = comp_model({"data": tensor})
-    assert np.argmax(res[comp_model.outputs[0]]) == 2
+    assert np.argmax(res[comp_model.outputs[0]]) == 9
     ref = comp_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
 

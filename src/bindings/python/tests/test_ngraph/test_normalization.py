@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -49,7 +50,7 @@ def test_lrn_factory():
     bias = 2.0
     nsize = 3
     axis = np.array([1], dtype=np.int32)
-    x = np.array(
+    inputs = np.array(
         [
             [
                 [
@@ -62,7 +63,7 @@ def test_lrn_factory():
                     [-0.10769883, 0.75242394, -0.2507971, 1.0447186],
                     [-1.4777364, 0.19993274, 0.925649, -2.282516],
                 ],
-            ]
+            ],
         ],
         dtype=np.float32,
     )
@@ -79,11 +80,11 @@ def test_lrn_factory():
                     [-0.07615435, 0.53203356, -0.17733987, 0.7387126],
                     [-1.0448756, 0.14137045, 0.6544598, -1.6138376],
                 ],
-            ]
+            ],
         ],
         dtype=np.float32,
     )
-    result = run_op_node([x], ov.lrn, axis, alpha, beta, bias, nsize)
+    result = run_op_node([inputs], ov.lrn, axis, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 

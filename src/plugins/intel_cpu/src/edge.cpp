@@ -8,7 +8,7 @@
 #include <blob_factory.hpp>
 #include "nodes/input.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 
@@ -66,53 +66,95 @@ void Edge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
+void Edge::collectConsumers(std::vector<NodePtr>& result) const {
+    if (this->inPlace(LOOK_DOWN)) {
+        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+            auto peerOutputNum = this->getOutputNum();
+            auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
+            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
+            for (auto childEdge : vecChildEdges) {
+                childEdge->collectConsumers(result);
+            }
+        }
+    } else {
+        result.push_back(this->getChild());
+    }
+}
+
 bool Edge::enforceReorder() {
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
-    auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
+    auto childNode = getChild();
+    auto childSPD = childNode->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)
         IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
 
-    int outNumber = getOutputNum();
-    int inNumber = getInputNum();
-    bool in_place = inPlace();
-    bool childCanChangeMem = childSPD->getConfig().outConfs.empty();
-    for (const auto& conf : childSPD->getConfig().outConfs) {
-        if (conf.inPlace() == outNumber && outNumber >= 0)
-            childCanChangeMem = true;
-    }
+    auto childCanChangeMem = [](const Edge& edge) {
+        bool result = false;
+        int outNumber = edge.getOutputNum();
+        if (auto childSPD = edge.getChild()->getSelectedPrimitiveDescriptor()) {
+            result = childSPD->getConfig().outConfs.empty();
+            for (const auto& conf : childSPD->getConfig().outConfs) {
+                if (conf.inPlace() == outNumber && outNumber >= 0)
+                    result = true;
+            }
+        }
+        return result;
+    };
 
-    const auto& detectInPlaceChildrenNum = [](const std::vector<EdgePtr>& edges) -> size_t {
+    const auto& detectInPlaceChildrenNum = [&childCanChangeMem](const std::vector<EdgePtr>& edges) -> size_t {
         size_t count = 0;
         for (const auto& edge : edges) {
-            auto childSPD = edge->getChild()->getSelectedPrimitiveDescriptor();
-            int outNumber = edge->getOutputNum();
-            if (childSPD->getConfig().outConfs.empty())
+            if (childCanChangeMem(*edge)) {
                 count++;
-            for (const auto& conf : childSPD->getConfig().outConfs) {
-                if (conf.inPlace() == outNumber)
-                    count++;
             }
         }
         return count;
     };
 
+    bool in_place = inPlace();
+    int inNumber = getInputNum();
+
     const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
-    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildrenNum(portChildEdges) > 1)
-        canBeInPlaceConflicts = true;
+    if (childCanChangeMem(*this) && portChildEdges.size() > 1) {
+        if (childNode->getType() == Type::Convolution) {
+            auto execIndex = childNode->getExecIndex();
+            for (auto pEdgePeer : portChildEdges) {
+                if (pEdgePeer.get() == this)
+                    continue;
+                std::vector<NodePtr> vecConsumers;
+                pEdgePeer->collectConsumers(vecConsumers);
+
+                for (auto node : vecConsumers) {
+                    if (node->getExecIndex() >= execIndex) {
+                        canBeInPlaceConflicts = true;
+                        break;
+                    }
+                }
+                if (canBeInPlaceConflicts) break;
+            }
+        } else if (in_place && detectInPlaceChildrenNum(portChildEdges) > 1) {
+            canBeInPlaceConflicts = true;
+        }
+    }
+
     if (!canBeInPlaceConflicts && in_place && !parentNode->getChildEdges().empty()) {
-        for (auto &p_edge_peer : portChildEdges) {
+        for (auto& p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
-            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN))
+            if (p_edge_peer->getChild()->getType() != Type::Reorder && p_edge_peer->inPlace(LOOK_DOWN)) {
                 canBeInPlaceConflicts = true;
+                break;
+            }
         }
     }
 
     if (in_place) {
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 &&
-            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
+        int outNumber = getOutputNum();
+        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
+            parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
+            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
             canBeInPlaceConflicts = true;
     }
 
@@ -248,6 +290,8 @@ void Edge::reuse(MemoryPtr ptr) {
         return;
     memoryPtr = ptr;
     status = Status::Allocated;
+
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
 }
 
 int Edge::getInputNum() const {
@@ -258,7 +302,7 @@ int Edge::getOutputNum() const {
     return child_port;
 }
 
-void Edge::allocate(const void* mem_ptr) {
+void Edge::allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate) {
     if (status != Status::NeedAllocation)
         return;
 
@@ -273,8 +317,29 @@ void Edge::allocate(const void* mem_ptr) {
     auto parentPtr = getParent();
     memoryPtr.reset(new Memory(parentPtr->getEngine()));
 
-    memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    allocate(memoryPtr, inputDesc);
+    DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
     status = Status::Allocated;
+}
+
+void Edge::allocate(const void* mem_ptr) {
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, mem_ptr, false);  // no pads zeroing
+    };
+
+    allocateCommon(allocateFunc);
+}
+
+void Edge::allocate(DnnlMemoryMngrPtr memMngr) {
+    if (!memMngr) {
+        IE_THROW(Unexpected) << "Memory manager ptr is NULL";
+    }
+
+    auto allocateFunc = [=](const MemoryPtr& memoryPtr, const MemoryDesc& inputDesc) {
+        memoryPtr->Create(inputDesc, memMngr);
+    };
+
+    allocateCommon(allocateFunc);
 }
 
 std::string Edge::name() const {
@@ -289,34 +354,10 @@ std::string Edge::name() const {
 }
 
 void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
-    auto isInPlace = [](const NodePtr node, int port) -> bool {
-        const auto& selected_pd = node->getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-
-        const auto& config = selected_pd->getConfig();
-
-        for (const auto& in : config.inConfs) {
-            if (in.inPlace() == port) {
-                return true;
-            }
-        }
-        for (const auto& out : config.outConfs) {
-            if (out.inPlace() == port) {
-                return true;
-            }
-        }
-
-        return false;
-    };
-
     if (status != Status::NeedAllocation)
         return;
 
-    bool isTheOnlyChildEdgeAtPort = getParent()->getChildEdgesAtPort(getInputNum()).size() == 1;
-    bool isConcurrentUpdatePossible = isInPlace(getParent(), getInputNum()) || isInPlace(getChild(), getOutputNum()) || !isTheOnlyChildEdgeAtPort;
-
-    if (weightsCache && !isConcurrentUpdatePossible) {
+    if (weightsCache) {
         auto alloc = [this] () {
             allocate();
             return memoryPtr;
@@ -324,6 +365,7 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
         auto ptr = weightsCache->findOrCreate(name(), alloc, false);
         memoryPtr = *ptr;
+        DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
         status = Status::Allocated;
     } else {
@@ -432,8 +474,10 @@ MemoryPtr &Edge::getMemoryPtr() {
         auto sharedEdgeParent = sharedEdge->getParent();
         if (sharedEdgeParent->isConstant()) {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->GetData());
+            DEBUG_LOG(*this, " const sharedEdge with ", *sharedEdge);
         } else {
             memoryPtr->Create(desc, sharedEdge->getMemoryPtr()->getDnnlMemoryMngr());
+            DEBUG_LOG(*this, " sharedEdge with ", *sharedEdge);
         }
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
@@ -444,6 +488,7 @@ MemoryPtr &Edge::getMemoryPtr() {
 
 void Edge::sharedMemFrom(const EdgePtr &edge) {
     memoryFromEdge = edge;
+    DEBUG_LOG(*this, " sharedMemFrom ", *edge);
     status = Status::NotAllocated;
 }
 
@@ -475,12 +520,15 @@ EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
 void Edge::init() {
     if (status != Status::NeedAllocation && status != Status::Uninitialized)
         return;
+    DEBUG_LOG(*this);
     EdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
+        DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
     } else {
         if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
+            DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
             return;
         }
         sharedMemFrom(edgePtr);
@@ -516,8 +564,21 @@ EdgePtr Edge::getBaseEdge(int look) {
     int outputNum = getOutputNum();
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
-        inputNum = getInputNum();
-        return getParent()->getChildEdgeAt(inputNum);
+        // in case of parentConfig requiring upstream-inplace and childConfig supports downstream-inplace
+        // must further check whether childConfig also supports upstream inplace,
+        // if so, we can safely inplace as upstream
+        auto down_stream_inplace = childConfig.inConfs[outputNum].inPlace();
+        int up_stream_inplace = -1;
+        if (down_stream_inplace >= 0)
+            up_stream_inplace = childConfig.outConfs[down_stream_inplace].inPlace();
+
+        if ((up_stream_inplace >= 0) && (look & LOOK_UP)) {
+            look = LOOK_UP;
+        } else {
+            DEBUG_LOG(*this, " Danger: Inplace assumption will be broken!");
+            inputNum = getInputNum();
+            return getParent()->getChildEdgeAt(inputNum);
+        }
     }
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {
@@ -560,7 +621,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     return edges_for_same_port[0];
 }
 
-bool Edge::inPlace(LOOK look) {
+bool Edge::inPlace(LOOK look) const {
     auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -91,8 +92,8 @@ def test_fake_quantize():
                         [11.33333301, 11.33333301, 11.33333301, 11.33333301],
                         [16.0, 16.0, 16.0, 16.0],
                     ],
-                ]
-            ]
+                ],
+            ],
         ],
         dtype=np.float32,
     )
@@ -109,7 +110,7 @@ def test_depth_to_space():
                 [[6, 7, 8], [9, 10, 11]],
                 [[12, 13, 14], [15, 16, 17]],
                 [[18, 19, 20], [21, 22, 23]],
-            ]
+            ],
         ],
         dtype=np.float32,
     )
@@ -305,7 +306,7 @@ def test_shuffle_channels_operator():
                 [[32.0, 33.0], [34.0, 35.0]],
                 [[44.0, 45.0], [46.0, 47.0]],
                 [[56.0, 57.0], [58.0, 59.0]],
-            ]
+            ],
         ],
         dtype=np.float32,
     )
@@ -354,7 +355,7 @@ def test_grn_operator():
                     [0.9593655, 0.9486833, 0.9383431, 0.9284767],
                     [0.91914505, 0.9103665, 0.9021342, 0.8944272],
                 ],
-            ]
+            ],
         ],
         dtype=np.float32,
     )
@@ -386,7 +387,7 @@ def test_selu_operator():
 
     data_shape = [4, 2, 3, 1]
 
-    data = np.arange(start=1.0, stop=25.0, dtype=np.float32).reshape(data_shape)
+    data = np.arange(start=-1.0, stop=23.0, dtype=np.float32).reshape(data_shape)
     alpha = np.array(1.6733, dtype=np.float32)
     lambda_value = np.array(1.0507, dtype=np.float32)
 
@@ -395,7 +396,8 @@ def test_selu_operator():
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data)
-    expected = lambda_value * ((data > 0) * data + (data <= 0) * (alpha * np.exp(data) - alpha))
+    mask = (data > 0) * data + (data <= 0) * (alpha * np.exp(data) - alpha)
+    expected = mask * lambda_value
     assert np.allclose(result, expected)
 
 
@@ -539,25 +541,25 @@ def test_space_to_depth_operator():
     input_size = 3
     hidden_size = 3
 
-    X_shape = [batch_size, input_size]
-    H_t_shape = [batch_size, hidden_size]
-    W_shape = [hidden_size, input_size]
-    R_shape = [hidden_size, hidden_size]
-    B_shape = [hidden_size]
+    x_shape = [batch_size, input_size]
+    h_t_shape = [batch_size, hidden_size]
+    w_shape = [hidden_size, input_size]
+    r_shape = [hidden_size, hidden_size]
+    b_shape = [hidden_size]
 
-    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_x = ov.parameter(x_shape, name="X", dtype=np.float32)
+    parameter_h_t = ov.parameter(h_t_shape, name="H_t", dtype=np.float32)
+    parameter_w = ov.parameter(w_shape, name="W", dtype=np.float32)
+    parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
+    parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
-    X_value = np.array(
-        [0.3432185, 0.612268, 0.20272376, 0.9513413, 0.30585995, 0.7265472], dtype=np.float32
-    ).reshape(X_shape)
-    H_t_value = np.array(
-        [0.12444675, 0.52055854, 0.46489045, 0.4983964, 0.7730452, 0.28439692], dtype=np.float32
-    ).reshape(H_t_shape)
-    W_value = np.array(
+    x_value = np.array(
+        [0.3432185, 0.612268, 0.20272376, 0.9513413, 0.30585995, 0.7265472], dtype=np.float32,
+    ).reshape(x_shape)
+    h_t_value = np.array(
+        [0.12444675, 0.52055854, 0.46489045, 0.4983964, 0.7730452, 0.28439692], dtype=np.float32,
+    ).reshape(h_t_shape)
+    w_value = np.array(
         [
             0.41930267,
             0.7872176,
@@ -570,8 +572,8 @@ def test_space_to_depth_operator():
             0.4559603,
         ],
         dtype=np.float32,
-    ).reshape(W_shape)
-    R_value = np.array(
+    ).reshape(w_shape)
+    r_value = np.array(
         [
             0.8374871,
             0.86660194,
@@ -584,19 +586,19 @@ def test_space_to_depth_operator():
             0.85531586,
         ],
         dtype=np.float32,
-    ).reshape(R_shape)
-    B_value = np.array([1.0289404, 1.6362579, 0.4370661], dtype=np.float32).reshape(B_shape)
+    ).reshape(r_shape)
+    b_value = np.array([1.0289404, 1.6362579, 0.4370661], dtype=np.float32).reshape(b_shape)
     activations = ["sigmoid"]
     activation_alpha = []
     activation_beta = []
     clip = 2.88
 
     model = ov.rnn_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
+        parameter_x,
+        parameter_h_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
         hidden_size,
         activations,
         activation_alpha,
@@ -604,12 +606,12 @@ def test_space_to_depth_operator():
         clip,
     )
     computation = runtime.computation(
-        model, parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B
+        model, parameter_x, parameter_h_t, parameter_w, parameter_r, parameter_b,
     )
 
-    result = computation(X_value, H_t_value, W_value, R_value, B_value)
+    result = computation(x_value, h_t_value, w_value, r_value, b_value)
     expected = np.array(
-        [0.94126844, 0.9036043, 0.841243, 0.9468489, 0.934215, 0.873708], dtype=np.float32
+        [0.94126844, 0.9036043, 0.841243, 0.9468489, 0.934215, 0.873708], dtype=np.float32,
     ).reshape(batch_size, hidden_size)
 
     assert np.allclose(result, expected)
@@ -654,7 +656,7 @@ def test_group_convolution_backprop_data():
     data_node = ov.parameter(data_shape, name="Data", dtype=np.float32)
     filters_node = ov.parameter(filters_shape, name="Filters", dtype=np.float32)
     model = ov.group_convolution_backprop_data(
-        data_node, filters_node, strides, None, pads_begin, pads_end, output_padding=output_padding
+        data_node, filters_node, strides, None, pads_begin, pads_end, output_padding=output_padding,
     )
 
     data_value = np.array(
@@ -747,11 +749,11 @@ def test_group_convolution_backprop_data_output_shape():
     output_shape_node = ov.constant(np.array([1, 14], dtype=np.int64))
 
     model = ov.group_convolution_backprop_data(
-        data_node, filters_node, strides, output_shape_node, auto_pad="same_upper"
+        data_node, filters_node, strides, output_shape_node, auto_pad="same_upper",
     )
 
     data_value = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], dtype=np.float32).reshape(
-        data_shape
+        data_shape,
     )
 
     filters_value = np.array([1.0, 2.0, 3.0, 2.0, 1.0], dtype=np.float32).reshape(filters_shape)

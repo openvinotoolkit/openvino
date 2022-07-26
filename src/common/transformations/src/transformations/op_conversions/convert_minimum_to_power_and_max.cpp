@@ -44,6 +44,7 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
         neg_2->set_friendly_name(minimum->get_friendly_name());
         ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});
         ngraph::replace_node(minimum, neg_2);
+        MATCHER_SCOPE_ENABLE(ConvertMinimum);
         return true;
     };
 

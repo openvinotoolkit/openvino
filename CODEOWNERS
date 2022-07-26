@@ -30,7 +30,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
-/src/common/transformations/  @GlebKazantaev @ilyachur
+/src/common/transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/common/legacy/  @openvinotoolkit/openvino-ngraph-maintainers
 /src/common/  @openvinotoolkit/openvino-ie-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
@@ -39,7 +39,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # IE CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
-/src/plugins/intel_cpu/thirdparty/mkl-dnn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/plugins/intel_cpu/thirdparty/onednn/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 
 #IE LPT
 /src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers

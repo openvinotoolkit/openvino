@@ -18,14 +18,14 @@ list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
-message("")
+message(" ")
 foreach(option IN LISTS ie_options)
     if(NOT DEFINED "${option}")
         load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
     endif()
     message("    ${option}: ${${option}}")
 endforeach()
-message("")
+message(" ")
 
 # for samples in 3rd party projects
 set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
@@ -49,11 +49,6 @@ find_dependency(ngraph
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
-find_dependency(OpenVINODeveloperPackage
-                PATHS "${CMAKE_CURRENT_LIST_DIR}"
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
-
 if(TARGET openvino::runtime AND NOT TARGET IE::runtime)
     add_library(IE::runtime INTERFACE IMPORTED)
     set_target_properties(IE::runtime PROPERTIES
@@ -70,6 +65,18 @@ endif()
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
 endforeach()
+
+if(TARGET IE::ov_core_dev AND NOT TARGET openvino::core::dev)
+    add_library(openvino::core::dev INTERFACE IMPORTED)
+    set_target_properties(openvino::core::dev PROPERTIES
+        INTERFACE_LINK_LIBRARIES IE::ov_core_dev)
+endif()
+
+if(TARGET IE::runtime::dev AND NOT TARGET openvino::runtime::dev)
+    add_library(openvino::runtime::dev INTERFACE IMPORTED)
+    set_target_properties(openvino::runtime::dev PROPERTIES
+        INTERFACE_LINK_LIBRARIES IE::runtime::dev)
+endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
     find_dependency(PugiXML)

@@ -20,10 +20,10 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
+using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_nms_args, field)
@@ -46,7 +46,7 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     void generate() override {
         load_emitter.reset(new jit_load_emitter(this, isa));
         store_emitter.reset(new jit_store_emitter(this, isa));
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();
 
@@ -71,7 +71,7 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 
         // could use rcx(reg_table) and rdi(reg_temp) now as abi parse finished
         mov(reg_table, l_table_constant);
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             kmovw(k_mask_one, word[reg_table + vlen]);
         }
         uni_vbroadcastss(vmm_iou_threshold, ptr[reg_iou_threshold]);
@@ -377,7 +377,7 @@ private:
     }
 
     inline void suppressed_by_iou(bool is_scalar) {
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             vcmpps(k_mask, vmm_temp3, vmm_iou_threshold, 0x0D); // _CMP_GE_OS. vcmpps w/ kmask only on V5
             if (is_scalar)
                 kandw(k_mask, k_mask, k_mask_one);
@@ -394,7 +394,7 @@ private:
         } else {
             // pure sse path, make sure don't spoil vmm_temp3, which may used in after soft-suppression
             uni_vmovups(vmm_temp4, vmm_temp3);
-            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for unorders
+            cmpps(vmm_temp4, vmm_iou_threshold, 0x07);  // order compare, 0 for at least one is NaN
 
             uni_vmovups(vmm_temp2, vmm_temp3);
             cmpps(vmm_temp2, vmm_iou_threshold, 0x05);   // _CMP_GE_US on sse, no direct _CMP_GE_OS supported.
@@ -410,7 +410,7 @@ private:
     }
 
     inline void suppressed_by_score() {
-        if (mayiuse(cpu::x64::avx512_common)) {
+        if (mayiuse(cpu::x64::avx512_core)) {
             vcmpps(k_mask, vmm_temp3, vmm_score_threshold, 0x02); // vcmpps w/ kmask only on V5, w/o kmask version N/A on V5
             kandw(k_mask, k_mask, k_mask_one);
             kortestw(k_mask, k_mask);    // bitwise check if all zero
@@ -552,16 +552,16 @@ private:
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
-        if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
+        using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
+        if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
                     ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
-            errorMessage = "Only NonMaxSuppression v5 and NonMaxSuppressionIEInternal are supported";
+            errorMessage = "Only NonMaxSuppression v9 and NonMaxSuppressionIEInternal are supported";
             return false;
         }
 
-        if (const auto nms5 = std::dynamic_pointer_cast<const NonMaxSuppressionV5>(op)) {
-            const auto boxEncoding = nms5->get_box_encoding();
-            if (!one_of(boxEncoding, NonMaxSuppressionV5::BoxEncodingType::CENTER, NonMaxSuppressionV5::BoxEncodingType::CORNER)) {
+        if (const auto nms9 = std::dynamic_pointer_cast<const NonMaxSuppressionV9>(op)) {
+            const auto boxEncoding = nms9->get_box_encoding();
+            if (!one_of(boxEncoding, NonMaxSuppressionV9::BoxEncodingType::CENTER, NonMaxSuppressionV9::BoxEncodingType::CORNER)) {
                 errorMessage = "Supports only CENTER and CORNER box encoding type";
                 return false;
             }
@@ -572,8 +572,8 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(true) {
+NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(false) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;
@@ -587,9 +587,9 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
         if (getOriginalOutputsNumber() != 3)
             IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-        if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
-            boxEncodingType = static_cast<NMSBoxEncodeType>(nms5->get_box_encoding());
-            sortResultDescending = nms5->get_sort_result_descending();
+        if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
+            boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
+            sortResultDescending = nms9->get_sort_result_descending();
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
@@ -657,7 +657,7 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -701,8 +701,8 @@ void NonMaxSuppression::createJitKernel() {
     jcp.box_encode_type = boxEncodingType;
     jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_common>(jcp));
+    if (mayiuse(cpu::x64::avx512_core)) {
+        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
         nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx2>(jcp));
     } else if (mayiuse(cpu::x64::sse41)) {
@@ -713,7 +713,7 @@ void NonMaxSuppression::createJitKernel() {
         nms_kernel->create_ker();
 }
 
-void NonMaxSuppression::executeDynamicImpl(mkldnn::stream strm) {
+void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
             reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
@@ -723,7 +723,7 @@ void NonMaxSuppression::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(mkldnn::stream strm) {
+void NonMaxSuppression::execute(dnnl::stream strm) {
     const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 

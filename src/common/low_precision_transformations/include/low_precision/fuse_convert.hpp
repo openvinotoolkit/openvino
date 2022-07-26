@@ -17,7 +17,7 @@ namespace low_precision {
  * @brief FuseConvertTransformation fuses Convert operation with Multiply, Subtract or Add operations.
  *
  * For more details about the transformation, refer to
- * [FuseConvertTransformation](@ref openvino_docs_IE_DG_lpt_FuseConvertTransformation) page
+ * [FuseConvertTransformation](@ref openvino_docs_OV_UG_lpt_FuseConvertTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FuseConvertTransformation : public LayerTransformation {

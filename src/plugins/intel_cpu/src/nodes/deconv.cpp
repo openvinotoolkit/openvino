@@ -6,10 +6,8 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "input.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
 #include <dnnl_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
@@ -24,13 +22,88 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "convolution_shape_inference.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+using DefaultDeconvDescs = std::pair<std::shared_ptr<dnnl::convolution_backward_data::desc>,
+                                         std::shared_ptr<dnnl::convolution_forward::primitive_desc>>;
+using Int8DeconvDesc = std::shared_ptr<dnnl::deconvolution_forward::desc>;
+
+namespace {
+
+struct DeconvKey {
+    DnnlMemoryDescCPtr inp0;
+    DnnlMemoryDescCPtr inp1;
+    DnnlMemoryDescCPtr out;
+
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> dilation;
+    ov::CoordinateDiff paddingL;
+    ov::CoordinateDiff paddingR;
+
+    bool isInt8;
+
+    dnnl::primitive_attr attr;
+    impl_desc_type implType;
+
+    size_t hash() const;
+    bool operator==(const DeconvKey& rhs) const;
+};
+
+size_t DeconvKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    for (const auto& ptr : {inp0, inp1, out}) {
+        if (ptr) {
+            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+        }
+    }
+
+    seed = get_vector_hash(seed, stride);
+    seed = get_vector_hash(seed, dilation);
+    seed = get_vector_hash(seed, paddingL);
+    seed = get_vector_hash(seed, paddingR);
+
+    seed = hash_combine(seed, isInt8);
+
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    seed = hash_combine(seed, implType);
+    return seed;
+}
+
+bool DeconvKey::operator==(const DeconvKey &rhs) const {
+    bool retVal = true;
+    if (inp0 != rhs.inp0) {
+        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
+    }
+    if (inp1 != rhs.inp1) {
+        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
+    }
+    if (out != rhs.out) {
+        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
+    }
+
+    retVal = retVal && stride == rhs.stride;
+    retVal = retVal && dilation == rhs.dilation;
+    retVal = retVal && paddingL == rhs.paddingL;
+    retVal = retVal && paddingR == rhs.paddingR;
+
+    retVal = retVal && isInt8 == rhs.isInt8;
+
+    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
+    return retVal;
+}
+
+} // namespace
 
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -55,10 +128,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 }
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
-                                                 const mkldnn::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
-    internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> DnnlMemoryDescPtr {
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.weights_desc(0));
-    });
+                                                 const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Deconvolution node with name '" + getName() + "'";
@@ -130,7 +200,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    attr = std::make_shared<mkldnn::primitive_attr>();
+    attr = std::make_shared<dnnl::primitive_attr>();
 }
 
 InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::SizeVector dims) {
@@ -182,7 +252,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
 
     if (!withGroups && stride.back() > 3)
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
             return false;
@@ -203,11 +273,11 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) ? 16
+    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
             : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) ? 8 : 4;
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0))
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common) && stride.back() > 3)
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && stride.back() > 3)
         return false;
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
@@ -270,6 +340,25 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
         paddingR = shapeInference->get_pads_end();
     }
     return {inShape.getStaticDims(), outShape.getStaticDims()};
+}
+
+std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape &dims) const {
+    if (dims.getRank() == 0)
+        return {memory::format_tag::x};
+    else if (dims.getRank() == 1)
+        return {memory::format_tag::x};
+    else if (dims.getRank() == 2)
+        return {memory::format_tag::nc};
+    else if (dims.getRank() == 3)
+        return {memory::format_tag::tnc, memory::format_tag::ntc,
+                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
+    else if (dims.getRank() == 4)
+        return {memory::format_tag::nchw, memory::format_tag::nChw8c,
+                memory::format_tag::nChw16c, memory::format_tag::nhwc };
+    else if (dims.getRank() == 5)
+        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
+                memory::format_tag::nCdhw16c, dnnl::memory::format_tag::ndhwc };
+    return {memory::format_tag::any};
 }
 
 void Deconvolution::getSupportedDescriptors() {
@@ -341,8 +430,8 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
     }
 }
 
-void Deconvolution::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims) {
-    mkldnn::post_ops ops;
+void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims) {
+    dnnl::post_ops ops;
 
     auto getBinPostOpShape = [&](){
         const auto outShapeRank = getOutputShapeAtPort(0).getRank();
@@ -387,16 +476,16 @@ void Deconvolution::filterSupportedDescriptors() {
                     auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::deconvolution_forward::desc>(*itd)->data.src_desc);
                     isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
                 } else {
-                    auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_src_desc);
+                    auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::convolution_backward_data::desc>(*itd)->data.diff_src_desc);
                     isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
                 }
             }
             if (!outputMemoryFormatsFilter.empty()) {
                 if (isInt8) {
-                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc>(*itd)->data.dst_desc);
+                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::deconvolution_forward::desc>(*itd)->data.dst_desc);
                     isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
                 } else {
-                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.diff_dst_desc);
+                    auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::convolution_backward_data::desc>(*itd)->data.diff_dst_desc);
                     isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
                 }
             }
@@ -469,21 +558,7 @@ void Deconvolution::setDynamicBatchLim(int lim) {
     Node::setDynamicBatchLim(lim);
 }
 
-void Deconvolution::cleanup() {
-    if (!isDynamicNode()) {
-        internalBlobs.clear();
-    }
-
-    for (auto it : fusedWith) {
-        it->cleanup();
-    }
-
-    for (auto it : mergedWith) {
-        it->cleanup();
-    }
-}
-
-void Deconvolution::execute(mkldnn::stream strm) {
+void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
     }
@@ -494,88 +569,91 @@ void Deconvolution::execute(mkldnn::stream strm) {
     }
 }
 
-std::shared_ptr<DnnlDesriptor> Deconvolution::createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                            const mkldnn::memory::desc& wghDesc,
-                                                                            const mkldnn::memory::desc& dstDesc,
-                                                                            bool isWinograd) const {
-    mkldnn::algorithm alg = isWinograd ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
+namespace {
+DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
+                                                   const dnnl::memory::desc& wgh_candidate,
+                                                   const dnnl::memory::desc& out_candidate,
+                                                   dnnl::algorithm alg,
+                                                   const std::vector<ptrdiff_t>& stride,
+                                                   const std::vector<ptrdiff_t>& dilation,
+                                                   const ov::CoordinateDiff& paddingL,
+                                                   const ov::CoordinateDiff& paddingR,
+                                                   const dnnl::engine& engine) {
+    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+
+    std::shared_ptr<dnnl::convolution_forward::desc> conv_desc;
+    conv_desc = std::make_shared<convolution_forward::desc>(prop_kind::forward_inference, alg,
+                                                            out_candidate, wgh_candidate, in_candidate,
+                                                            convertDims(stride),
+                                                            convertDims(dilation),
+                                                            convertDims(paddingL),
+                                                            convertDims(paddingR));
+
+    std::shared_ptr<dnnl::convolution_backward_data::desc> deconv_desc;
+    deconv_desc = std::make_shared<convolution_backward_data::desc>(alg, out_candidate, wgh_candidate,
+                                                                    in_candidate,
+                                                                    convertDims(stride),
+                                                                    convertDims(dilation),
+                                                                    convertDims(paddingL),
+                                                                    convertDims(paddingR));
+
+    auto fwd_conv_pd = std::make_shared<convolution_forward::primitive_desc>(*conv_desc, engine, true);
+
+    return {deconv_desc, fwd_conv_pd};
+}
+
+Int8DeconvDesc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
+                                            const dnnl::memory::desc& wgh_candidate,
+                                            const dnnl::memory::desc& out_candidate,
+                                            const std::vector<ptrdiff_t>& stride,
+                                            const std::vector<ptrdiff_t>& dilation,
+                                            const ov::CoordinateDiff& paddingL,
+                                            const ov::CoordinateDiff& paddingR) {
+    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+
+    Int8DeconvDesc deconv_desc = std::make_shared<dnnl::deconvolution_forward::desc>(prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
+                                                                                       in_candidate, wgh_candidate, out_candidate,
+                                                                                       convertDims(stride), convertDims(dilation),
+                                                                                       convertDims(paddingL), convertDims(paddingR));
+    return deconv_desc;
+}
+
+std::shared_ptr<DnnlDesriptor> createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                                const dnnl::memory::desc& wghDesc,
+                                                                const dnnl::memory::desc& dstDesc,
+                                                                bool isWinograd,
+                                                                const std::vector<ptrdiff_t>& stride,
+                                                                const std::vector<ptrdiff_t>& dilation,
+                                                                const ov::CoordinateDiff& paddingL,
+                                                                const ov::CoordinateDiff& paddingR,
+                                                                const dnnl::engine& engine) {
+    dnnl::algorithm alg = isWinograd ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
     std::shared_ptr<convolution_backward_data::desc> deconv_desc;
     std::shared_ptr<convolution_forward::primitive_desc> fwd_conv_pd;
-    std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg);
+    std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, engine);
     if (fwd_conv_pd->get(true) == nullptr) {
-        IE_THROW() << "Forward convolution primitive descriptor is nullable for node with name: " << getName();
+        IE_THROW() << "Forward convolution primitive descriptor is nullable";
     }
     return std::make_shared<DnnlDesriptor>(deconv_desc, fwd_conv_pd);
 }
 
-std::shared_ptr<DnnlDesriptor> Deconvolution::createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                                         const mkldnn::memory::desc& wghDesc,
-                                                                         const mkldnn::memory::desc& dstDesc) const {
-    return std::make_shared<DnnlDesriptor>(createDescriptorInternalInt8(srcDesc, wghDesc, dstDesc));
+std::shared_ptr<DnnlDesriptor> createInt8MkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                             const dnnl::memory::desc& wghDesc,
+                                                             const dnnl::memory::desc& dstDesc,
+                                                             const std::vector<ptrdiff_t>& stride,
+                                                             const std::vector<ptrdiff_t>& dilation,
+                                                             const ov::CoordinateDiff& paddingL,
+                                                             const ov::CoordinateDiff& paddingR) {
+    return std::make_shared<DnnlDesriptor>(createDescriptorInternalInt8(srcDesc, wghDesc, dstDesc, stride, dilation, paddingL, paddingR));
 }
-
-void Deconvolution::createDeconvPrim(std::shared_ptr<DnnlDesriptor> desc,
-                                     MemoryPtr srcMemPtr,
-                                     MemoryPtr wghMemPtr,
-                                     MemoryPtr dstMemPtr,
-                                     AttrPtr attr,
-                                     impl_desc_type selectedImpl) {
-    auto itpd = desc->createPrimitiveDescriptorIterator(getEngine(), *attr);
-
-    while (static_cast<bool>(itpd)) {
-        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-        if (impl_type == selectedImpl) {
-            if (isInt8) {
-                if (internalBlobMemory.empty()) {
-                    prepareMemory(itpd);
-                }
-                auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc,
-                                                               srcMemPtr->GetPrimitive().get_desc(),
-                                                               internalBlobMemory.front()->GetPrimitive().get_desc(),
-                                                               dstMemPtr->GetPrimitive().get_desc(),
-                                                               getEngine());
-            } else {
-                auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
-                                                                  srcMemPtr->GetPrimitive().get_desc(),
-                                                                  wghMemPtr->GetPrimitive().get_desc(),
-                                                                  dstMemPtr->GetPrimitive().get_desc(),
-                                                                  getEngine());
-            }
-            return;
-        }
-
-        if (!itpd.next_impl()) {
-            auto inDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(srcMemPtr->getStaticDims()),
-                                                                                       memory::data_type::f32,
-                                                                                       memory::format_tag::any);
-            auto wghDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(wghMemPtr->getStaticDims()),
-                                                                                        memory::data_type::f32,
-                                                                                        memory::format_tag::any);
-            auto outDesc = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dstMemPtr->getStaticDims()),
-                                                                                        memory::data_type::f32,
-                                                                                        memory::format_tag::any);
-
-            std::shared_ptr<DnnlDesriptor> anyDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, false);
-            auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(getEngine(), *attr);
-            if (static_cast<bool>(anyDeconvItpd)) {
-                auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
-                execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
-                                                                  srcMemPtr->GetPrimitive().get_desc(),
-                                                                  wghMemPtr->GetPrimitive().get_desc(),
-                                                                  dstMemPtr->GetPrimitive().get_desc(),
-                                                                  getEngine());
-                return;
-            }
-        }
-    }
-    IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-}
+} // namespace
 
 Node::AttrPtr Deconvolution::makePrimitiveAttr(const VectorDims &dims) {
-    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
 
     setPostOps(*attr, dims);
 
@@ -584,6 +662,63 @@ Node::AttrPtr Deconvolution::makePrimitiveAttr(const VectorDims &dims) {
 
 Node::AttrPtr Deconvolution::initPrimitiveAttr() {
     return attr;
+}
+
+void Deconvolution::createPrimitive() {
+    if (isInt8) {
+        VectorDims inDims, outDims;
+        DnnlMemoryDescPtr inDesc;
+        auto wgh_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
+        DnnlMemoryDescPtr outDesc;
+
+        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+        if (selected_pd == nullptr) {
+            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        }
+
+        const auto selectedImpl = selected_pd->getImplementationType();
+        if (isDynamicNode()) {
+            std::tie(inDims, outDims) = makeDummyInOutShape();
+            initPaddingR(Shape(inDims), Shape(outDims));
+
+            auto inDummyDsc = getBaseMemDescAtInputPort(0)->cloneWithNewDims(inDims);
+            auto outDummyDsc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(outDims);
+            inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDummyDsc);
+            outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outDummyDsc);
+        } else {
+            inDims = getInputShapeAtPort(0).getStaticDims();
+            outDims = getOutputShapeAtPort(0).getStaticDims();
+
+            inDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+            outDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        }
+
+        auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, outDesc->getDnnlDesc(),
+                                               stride, dilation, paddingL, paddingR);
+        AttrPtr pAttr = makePrimitiveAttr(outDims);
+        auto itpd = desc->createPrimitiveDescriptorIterator(getEngine(), *pAttr);
+
+        while (static_cast<bool>(itpd)) {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            if (impl_type == selectedImpl) {
+                prepareMemory({DnnlExtensionUtils::makeDescriptor(itpd.weights_desc(0))});
+                break;
+            }
+
+            if (!itpd.next_impl()) {
+                prepareMemory({std::make_shared<DnnlBlockedMemoryDesc>(
+                    MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs.front()->getTensorDesc()))});
+                break;
+            }
+        }
+    }
+
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 void Deconvolution::prepareParams() {
@@ -618,92 +753,128 @@ void Deconvolution::prepareParams() {
         pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
     }
 
-    const auto in_candidate = inMemoryDesc->getDnnlDesc();
-    const auto out_candidate = outMemoryDesc->getDnnlDesc();
-
-    mkldnn::memory::desc wgh_candidate;
+    DnnlMemoryDescCPtr wghDesc;
     if (isInt8) {
-        if (internalBlobMemory.empty()) {
-            wgh_candidate = mkldnn::memory::desc(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
+        wghDesc = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>();
+    } else {
+        wghDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    }
+
+    DeconvKey key = {inMemoryDesc,
+                     wghDesc,
+                     outMemoryDesc,
+                     stride,
+                     dilation,
+                     paddingL,
+                     paddingR,
+                     isInt8,
+                     *pAttrLocal,
+                     selected_pd->getImplementationType()};
+
+    auto engine = getEngine();
+    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
+        std::shared_ptr<DnnlDesriptor> desc;
+        if (key.isInt8) {
+            desc = createInt8MkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
+                                              key.stride, key.dilation, key.paddingL, key.paddingR);
         } else {
-            wgh_candidate = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+            desc = createDefaultMkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
+                                                 (key.implType & impl_desc_type::winograd),
+                                                 key.stride, key.dilation, key.paddingL, key.paddingR, engine);
         }
-    } else {
-        wgh_candidate = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    }
 
-    std::shared_ptr<DnnlDesriptor> desc;
-    if (isInt8) {
-        desc = createInt8MkldnnDeconvDesc(in_candidate, wgh_candidate, out_candidate);
-    } else {
-        desc = createDefaultMkldnnDeconvDesc(in_candidate, wgh_candidate, out_candidate,
-                                             selected_pd->getImplementationType() == impl_desc_type::jit_avx512_winograd);
-    }
+        auto itpd = desc->createPrimitiveDescriptorIterator(engine, key.attr);
 
-    createDeconvPrim(desc, srcMemPtr, wghMemPtr, dstMemPtr, pAttrLocal, selected_pd->getImplementationType());
+        executorPtr execPtr = nullptr;
+        while (static_cast<bool>(itpd)) {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-    if (std::dynamic_pointer_cast<DeconvExecutorInt8>(execPtr)) {
-        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()},
-                    {DNNL_ARG_WEIGHTS, internalBlobMemory.front()->GetPrimitive()},
-                    {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
-    } else {
-        primArgs = {{DNNL_ARG_DIFF_DST, srcMemPtr->GetPrimitive()},
-                    {DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive()},
-                    {DNNL_ARG_DIFF_SRC, dstMemPtr->GetPrimitive()}};
-    }
-    Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
-}
+            if (impl_type == key.implType) {
+                if (key.isInt8) {
+                    auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
+                    execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc,
+                                                                   key.inp0->getDnnlDesc(),
+                                                                   key.inp1->getDnnlDesc(),
+                                                                   key.out->getDnnlDesc(),
+                                                                   engine);
+                } else {
+                    auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
+                    execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
+                                                                      key.inp0->getDnnlDesc(),
+                                                                      key.inp1->getDnnlDesc(),
+                                                                      key.out->getDnnlDesc(),
+                                                                      engine);
+                }
+                break;
+            }
 
-void Deconvolution::createPrimitive() {
-    if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
-        updateLastInputDims();
-    }
-}
+            if (!itpd.next_impl()) {
+                break;
+            }
+        }
 
-Deconvolution::DefaultDeconvDescs Deconvolution::createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
-                                                                                                     const mkldnn::memory::desc& wgh_candidate,
-                                                                                                     const mkldnn::memory::desc& out_candidate,
-                                                                                                     mkldnn::algorithm alg) const {
-    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
-        return memory::dims(orig_dims.begin(), orig_dims.end());
+        if (!execPtr) {
+            auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
+                                                                                       key.inp0->getDataType(),
+                                                                                       memory::format_tag::any);
+            auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                                                                                        key.inp1->getDataType(),
+                                                                                        memory::format_tag::any);
+            auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
+                                                                                        key.out->getDataType(),
+                                                                                        memory::format_tag::any);
+
+            std::shared_ptr<DnnlDesriptor> anyDeconvDesc;
+            if (key.isInt8) {
+                anyDeconvDesc = createInt8MkldnnDeconvDesc(inDesc, wghDesc, outDesc,
+                                                           key.stride, key.dilation, key.paddingL, key.paddingR);
+            } else {
+                anyDeconvDesc = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, (key.implType & impl_desc_type::winograd),
+                                                              key.stride, key.dilation, key.paddingL, key.paddingR, engine);
+            }
+            auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
+            if (static_cast<bool>(anyDeconvItpd)) {
+                if (key.isInt8) {
+                    auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
+                    execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc,
+                                                                   key.inp0->getDnnlDesc(),
+                                                                   key.inp1->getDnnlDesc(),
+                                                                   key.out->getDnnlDesc(),
+                                                                   engine);
+                } else {
+                    auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
+                    execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
+                                                                      key.inp0->getDnnlDesc(),
+                                                                      key.inp1->getDnnlDesc(),
+                                                                      key.out->getDnnlDesc(),
+                                                                      engine);
+                }
+            }
+        }
+
+        return execPtr;
     };
 
-    std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
-    conv_desc = std::make_shared<convolution_forward::desc>(prop_kind::forward_inference, alg,
-                                                            out_candidate, wgh_candidate, in_candidate,
-                                                            convertDims(stride),
-                                                            convertDims(dilation),
-                                                            convertDims(paddingL),
-                                                            convertDims(paddingR));
+    execPtr = nullptr;
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
 
-    std::shared_ptr<mkldnn::convolution_backward_data::desc> deconv_desc;
-    deconv_desc = std::make_shared<convolution_backward_data::desc>(alg, out_candidate, wgh_candidate,
-                                                                    in_candidate,
-                                                                    convertDims(stride),
-                                                                    convertDims(dilation),
-                                                                    convertDims(paddingL),
-                                                                    convertDims(paddingR));
+    execPtr = result.first;
 
-    auto fwd_conv_pd = std::make_shared<convolution_forward::primitive_desc>(*conv_desc, getEngine(), true);
-
-    return {deconv_desc, fwd_conv_pd};
-}
-
-Deconvolution::Int8DeconvDesc Deconvolution::createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
-                                                                                                   const mkldnn::memory::desc& wgh_candidate,
-                                                                                                   const mkldnn::memory::desc& out_candidate) const {
-    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
-        return memory::dims(orig_dims.begin(), orig_dims.end());
-    };
-
-    Deconvolution::Int8DeconvDesc deconv_desc;
-    deconv_desc = std::make_shared<mkldnn::deconvolution_forward::desc>(prop_kind::forward_inference, mkldnn::algorithm::deconvolution_direct,
-                                                                        in_candidate, wgh_candidate, out_candidate,
-                                                                        convertDims(stride), convertDims(dilation),
-                                                                        convertDims(paddingL), convertDims(paddingR));
-    return deconv_desc;
+    if (execPtr) {
+        if (key.isInt8) {
+            primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = internalBlobMemory.front()->GetPrimitive();
+            primArgs[DNNL_ARG_DST]=  dstMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_DIFF_DST] = srcMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_DIFF_SRC] = dstMemPtr->GetPrimitive();
+        }
+        Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
+    } else {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
 }
 
 void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
@@ -725,15 +896,16 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         return;
 
     if (isInt8) {
-        mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
-        descs.emplace_back(createDescriptorInternalInt8(in_candidate, wgh_candidate, out_candidate));
+        dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
+        descs.emplace_back(createDescriptorInternalInt8(in_candidate, wgh_candidate, out_candidate, stride, dilation, paddingL, paddingR));
     } else {
-        mkldnn::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getWeightDims()),
+        dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getWeightDims()),
                                            dnnlInDesc.getDataType(), memory::format_tag::any);
-        for (auto alg : {mkldnn::algorithm::convolution_winograd, mkldnn::algorithm::convolution_direct}) {
+        for (auto alg : {dnnl::algorithm::convolution_winograd, dnnl::algorithm::convolution_direct}) {
             std::shared_ptr<convolution_backward_data::desc> deconv_desc;
             std::shared_ptr<convolution_forward::primitive_desc> fwd_conv_pd;
-            std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, alg);
+            std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, alg,
+                                                                                 stride, dilation, paddingL, paddingR, getEngine());
             if (fwd_conv_pd->get(true) == nullptr)
                 continue;
             descs.emplace_back(deconv_desc, fwd_conv_pd);
@@ -741,7 +913,7 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
     }
 }
 
-std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx == 2) {
         return std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, Shape(getInputShapeAtPort(2).getStaticDims()));
     } else if (idx > 0 && isInt8) {
@@ -757,7 +929,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(mkldnn::primitive_desc_
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc =  isInt8 ? primitive_desc_it.dst_desc(idx) : primitive_desc_it.diff_src_desc(idx);
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
@@ -779,12 +951,12 @@ InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
-                                                                      const mkldnn::memory::desc& inMemDesc,
-                                                                      const mkldnn::memory::desc& weightMemDesc,
-                                                                      const mkldnn::memory::desc& outMemDesc,
-                                                                      const mkldnn::engine& engine) {
-    execPrim.reset(new mkldnn::convolution_backward_data(pd));
+Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
+                                                                      const dnnl::memory::desc& inMemDesc,
+                                                                      const dnnl::memory::desc& weightMemDesc,
+                                                                      const dnnl::memory::desc& outMemDesc,
+                                                                      const dnnl::engine& engine) {
+    execPrim.reset(new dnnl::convolution_backward_data(pd));
 
     if (inMemDesc != pd.diff_dst_desc()) {
         inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
@@ -799,12 +971,12 @@ Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const mkldnn::convol
     }
 }
 
-Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
-                                                                const mkldnn::memory::desc& inMemDesc,
-                                                                const mkldnn::memory::desc& weightMemDesc,
-                                                                const mkldnn::memory::desc& outMemDesc,
-                                                                const mkldnn::engine& engine) {
-    execPrim.reset(new mkldnn::deconvolution_forward(pd));
+Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+                                                                const dnnl::memory::desc& inMemDesc,
+                                                                const dnnl::memory::desc& weightMemDesc,
+                                                                const dnnl::memory::desc& outMemDesc,
+                                                                const dnnl::engine& engine) {
+    execPrim.reset(new dnnl::deconvolution_forward(pd));
 
     if (inMemDesc != pd.src_desc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});

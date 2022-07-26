@@ -50,7 +50,7 @@
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -60,7 +60,11 @@ namespace intel_cpu {
 typedef std::unordered_set<EdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
-mkldnn::engine Graph::eng(mkldnn::engine::kind::cpu, 0);
+dnnl::engine Graph::eng(dnnl::engine::kind::cpu, 0);
+
+Graph::~Graph() {
+    CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+}
 
 template<typename NET>
 void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
@@ -430,6 +434,14 @@ void Graph::InitDescriptors() {
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         node->filterSupportedPrimitiveDescriptors();
+
+#ifdef CPU_DEBUG_CAPS
+        DEBUG_LOG("==================");
+        for (auto & pd : node->getSupportedPrimitiveDescriptors())
+            DEBUG_LOG("#", node->getExecIndex(),
+                      " ", node->getName(),
+                      "  SupportedPrimitiveDescriptor:\n", pd);
+#endif
     }
 
     for (auto &node : graphNodes) {
@@ -443,6 +455,7 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
         node->initOptimalPrimitiveDescriptor();
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n", *node->getSelectedPrimitiveDescriptor());
     }
 }
 
@@ -464,7 +477,7 @@ void Graph::ExtractConstantAndExecutableNodes() {
 
 void Graph::ExecuteConstantNodesOnly() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExecuteConstantNodesOnly");
-    mkldnn::stream stream(eng);
+    dnnl::stream stream(eng);
 
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
@@ -506,23 +519,23 @@ void Graph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const mkldnn::engine& eng) {
+static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc, const dnnl::engine& eng) {
     auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
     memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
 
     auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
     memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, &srcMemDesc.data, eng.get(), &dstMemDesc.data, eng.get(),
                                                      attr.get());
     if (result) {
-        mkldnn_primitive_desc_destroy(result);
+        dnnl_primitive_desc_destroy(result);
     }
 
-    return mkldnn_success == status;
+    return dnnl_success == status;
 }
 
 void Graph::InitEdges() {
@@ -560,6 +573,7 @@ void Graph::InitEdges() {
     for (auto i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
+        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", static_cast<int>(reorderStatus));
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
@@ -606,35 +620,23 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
     edge_cluster_idx_map_t edge_cluster_indices;
 
     for (auto &edge : graphEdges) {
-        if (!edge->hasDefinedMaxSize())
-            continue;
-
         auto edge_it = edge_cluster_indices.find(edge);
-
         if (edge_it != edge_cluster_indices.end())
             continue;   // edge is visited
 
         size_t cluster_idx = edge_clusters.size();
         EdgePtr last_shared_edge = nullptr;
-        //has_defined_max_path means all the edges on path from current to the actual shared edge
-        //have defined max memory size so they can be added to the clusters and resolved by mem solver
-        bool has_defined_max_path = true;
 
         // find cluster index
         for (auto shared_edge = edge->getSharedEdge(std::nothrow);
             shared_edge;
             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            has_defined_max_path = has_defined_max_path && shared_edge->hasDefinedMaxSize();
             auto shared_edge_it = edge_cluster_indices.find(shared_edge);
             if (shared_edge_it != edge_cluster_indices.end()) {
                 cluster_idx = shared_edge_it->second;
                 last_shared_edge = shared_edge;
                 break;
             }
-        }
-
-        if (!has_defined_max_path) {
-            continue;
         }
 
         // add shared edges to cluster
@@ -689,22 +691,24 @@ void Graph::AllocateWithReuse() {
 
     const int64_t alignment = 32;  // 32 bytes
 
-    std::vector<MemorySolver::Box> boxes(edge_clusters.size());
+    std::vector<MemorySolver::Box> definedBoxes;
+    std::vector<MemorySolver::Box> undefinedBoxes;
     for (int i = 0; i < edge_clusters.size(); i++) {
-        MemorySolver::Box &box = boxes[i];
-        box = { std::numeric_limits<int>::max(), 0, 0, i };
+        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+        int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            if (!edge->hasDefinedMaxSize()) {
-                IE_THROW() << "Can not allocate memory since the size is undefined.";
+            if (boxSize != -1 && edge->getDesc().hasDefinedMaxSize()) {
+                int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
+                boxSize = std::max(e_size, boxSize);
+            } else {
+                boxSize = -1;
             }
 
-            int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
-            box.size =  std::max(e_size, box.size);
         }
 
         // Constant data are filled once on load.
@@ -727,11 +731,17 @@ void Graph::AllocateWithReuse() {
             }
         }
 
-        box.size = div_up(box.size, alignment);
+        if (boxSize != -1) {
+            box.size = div_up(boxSize, alignment);
+            definedBoxes.push_back(box);
+        } else {
+            box.size = boxSize;
+            undefinedBoxes.push_back(box);
+        }
     }
 
-    MemorySolver memSolver(boxes);
-    size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
+    MemorySolver staticMemSolver(definedBoxes);
+    size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<Memory>(eng);
     memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
@@ -741,11 +751,11 @@ void Graph::AllocateWithReuse() {
 
     auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->GetData());
 
-    for (int i = 0; i < edge_clusters.size(); i++) {
+    for (auto& box : definedBoxes) {
         int count = 0;
-        for (auto &edge : edge_clusters[i]) {
+        for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = memSolver.getOffset(i);
+                int64_t offset = staticMemSolver.getOffset(box.id);
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
@@ -761,6 +771,40 @@ void Graph::AllocateWithReuse() {
         }
         IE_ASSERT(count == 1);
     }
+
+    if (!undefinedBoxes.empty()) {
+        MemorySolver::normalizeBoxes(undefinedBoxes);
+
+        std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        groups.push_back({undefinedBoxes.front()});
+        for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
+            const auto& box = undefinedBoxes[i];
+            bool groupFound = false;
+            for (auto& group : groups) {
+                const auto& lastBox = group.back();
+                if (lastBox.start > box.finish || lastBox.finish < box.start) {
+                    group.push_back(box);
+                    groupFound = true;
+                    break;
+                }
+            }
+
+            if (!groupFound) {
+                groups.push_back({box});
+            }
+        }
+        for (auto& group : groups) {
+            auto grpMemMngr =
+                std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse()));
+            for (auto& box : group) {
+                for (auto& edge : edge_clusters[box.id]) {
+                    if (edge->getStatus() == Edge::Status::NeedAllocation) {
+                        edge->allocate(grpMemMngr);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Graph::Allocate() {
@@ -774,9 +818,6 @@ void Graph::Allocate() {
     // Allocate memory space for all edges marked with NeedAllocation
     AllocateWithReuse();
 
-    // Create dummy memory with undefined desc for edges that are need allocation but has not been allocated withing mem solver
-    for (auto& edge : graphEdges) edge->allocate();
-
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& node : graphNodes) node->resolveInPlaceEdges();
 
@@ -788,6 +829,7 @@ void Graph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::CreatePrimitives");
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
+        DEBUG_LOG(*node);
         node->createPrimitive();
     }
 }
@@ -853,7 +895,7 @@ void Graph::PullOutputData(BlobMap &out) {
         const auto ext_blob_map = out.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == out.end()) {
-            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
+            IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
@@ -942,7 +984,7 @@ void Graph::PullOutputData(BlobMap &out) {
     }
 }
 
-inline void Graph::ExecuteNode(const NodePtr& node, const mkldnn::stream& stream) const {
+inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
     DUMP(node, config, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
@@ -951,6 +993,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const mkldnn::stream& stream
     } else {
         node->execute(stream);
     }
+    DEBUG_LOG(*node);
 }
 
 void Graph::Infer(InferRequestBase* request) {
@@ -958,7 +1001,7 @@ void Graph::Infer(InferRequestBase* request) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }
 
-    mkldnn::stream stream(eng);
+    dnnl::stream stream(eng);
 
     for (const auto& node : executableGraphNodes) {
         VERBOSE(node, config.verbose);
@@ -1252,7 +1295,7 @@ void Graph::RemoveDroppedEdges() {
 }
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
-                                         bool isOptimized) {
+                                         bool isOptimized, const std::vector<int> & src_perm) {
     NodePtr newReorder(new node::Reorder(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
     if (reorderPtr == nullptr) {
@@ -1260,6 +1303,11 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->setOptimized(isOptimized);
+    reorderPtr->setSrcPermutation(src_perm);
+
+    DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
+    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().name(), " ", inDesc.serializeFormat());
+    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().name(), " ", outDesc.serializeFormat());
 
     InsertNode(edge, newReorder, true);
 

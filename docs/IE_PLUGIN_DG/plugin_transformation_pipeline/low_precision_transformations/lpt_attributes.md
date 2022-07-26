@@ -1,4 +1,4 @@
-# Attributes {#openvino_docs_IE_DG_lpt_attributes}
+# Attributes {#openvino_docs_OV_UG_lpt_attributes}
 
 @sphinxdirective
 
@@ -7,30 +7,31 @@
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <openvino_docs_IE_DG_lpt_IntervalsAlignment>
-   PerTensorQuantization <openvino_docs_IE_DG_lpt_PerTensorQuantization>
-   PrecisionPreserved <openvino_docs_IE_DG_lpt_PrecisionPreserved>
-   Precisions <openvino_docs_IE_DG_lpt_Precisions>
-   QuantizationAlignment <openvino_docs_IE_DG_lpt_QuantizationAlignment>
+   AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>
+   IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>   
+   PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>
+   Precisions <openvino_docs_OV_UG_lpt_Precisions>
+   QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
+   QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>
 
 @endsphinxdirective
 
 ## Introduction
 
-| Name                                                                                | Target                 | Required | Mutable |
-|-------------------------------------------------------------------------------------|------------------------|----------|---------|
-| [AvgPoolPrecisionPreserved](@ref openvino_docs_IE_DG_lpt_AvgPoolPrecisionPreserved) | Precision              | No       | Yes     |
-| [IntervalsAlignment](@ref openvino_docs_IE_DG_lpt_IntervalsAlignment)               | Quantization interval  | Yes      | Yes     |
-| [PerTensorQuantization](@ref openvino_docs_IE_DG_lpt_PerTensorQuantization)         | Precision              | Yes      | No      |
-| [PrecisionPreserved](@ref openvino_docs_IE_DG_lpt_PrecisionPreserved)               | Precision              | Yes      | Yes     |
-| [Precisions](@ref openvino_docs_IE_DG_lpt_Precisions)                               | Precision              | Yes      | Yes     |
-| [QuantizationAlignment](@ref openvino_docs_IE_DG_lpt_QuantizationAlignment)         | Quantization alignment | Yes      | Yes     |
+| Name                                                                                | Target                   | Required | Mutable |
+|-------------------------------------------------------------------------------------|--------------------------|----------|---------|
+| [AvgPoolPrecisionPreserved](@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved) | Precision                | No       | Yes     |
+| [IntervalsAlignment](@ref openvino_docs_OV_UG_lpt_IntervalsAlignment)               | Quantization interval    | Yes      | Yes     |
+| [PrecisionPreserved](@ref openvino_docs_OV_UG_lpt_PrecisionPreserved)               | Precision                | Yes      | Yes     |
+| [Precisions](@ref openvino_docs_OV_UG_lpt_Precisions)                               | Precision                | Yes      | Yes     |
+| [QuantizationAlignment](@ref openvino_docs_OV_UG_lpt_QuantizationAlignment)         | Quantization granularity | Yes      | Yes     |
+| [QuantizationGranularity](@ref openvino_docs_OV_UG_lpt_QuantizationGranularity)     | Quantization granularity | Yes      | No      |
 
 > `Target` attribute group defines attribute usage during model transformation for the best performance:
 >  - `Precision` - the attribute defines the most optimal output port precision.
 >  - `Quantization interval` - the attribute defines quantization interval.
->  - `Quantization alignment` - the attribute defines quantization alignment: per-channel or per-tensor quantization.
+>  - `Quantization alignment` - the attribute defines quantization granularity in runtime: per-channel or per-tensor quantization.
+>  - `Quantization granularity` - the attribute is set by plugin to define quantization granularity: per-channel or per-tensor quantization.
 >
 > `Required` attribute group defines if attribute usage is required to get an optimal model during transformation:
 >  - `Yes` - the attribute is used by all OpenVINO plugins for low-precision optimization.

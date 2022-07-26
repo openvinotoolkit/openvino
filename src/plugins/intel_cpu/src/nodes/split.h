@@ -14,13 +14,13 @@ namespace node {
 
 class Split : public Node {
 public:
-    Split(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool isOptimized() const;
@@ -32,11 +32,11 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
     std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                           const Dim origBatch, const Dim perInferBatch) = 0;
         virtual ~SplitExecutor() = default;
     };
@@ -45,7 +45,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                       const Dim origBatch, const Dim perInferBatch) override;
 
         private:
@@ -56,11 +56,12 @@ private:
     };
 
     void optimizedNspc2Ncsp(size_t MB);
+    std::vector<uint8_t*> getRawDstMemPtrs() const;
 
     bool canUseOptimizedNspc2Ncsp = false;
 
     size_t axis = 1;
-    std::vector<std::pair<size_t, uint8_t*>> dstMemPtrs;
+    std::vector<std::pair<size_t, MemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
 };

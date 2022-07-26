@@ -47,9 +47,9 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
             CLDNN_ERROR_LESS_THAN(arg.id(),
                                   "Slope layout size count",
-                                  slope_layout.size.count(),
-                                  "output_layout.size.feature[0] * params_num",
-                                  static_cast<size_t>(output_layout.size.feature[0] * params_num),
+                                  slope_layout.count(),
+                                  "output_layout.feature() * params_num",
+                                  static_cast<size_t>(output_layout.feature() * params_num),
                                   "Error - not enough data inside additional params buffer");
 
             activation_params.inputActivationParams.push_back(convert_data_tensor(slope_layout));

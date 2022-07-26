@@ -48,7 +48,7 @@ ov::intel_cpu::ReshapePRelu::ReshapePRelu() {
         ngraph::replace_node(prelu, new_prelu);
         new_prelu->set_friendly_name(prelu->get_friendly_name());
         ngraph::copy_runtime_info(prelu, new_prelu);
-
+        MATCHER_SCOPE_ENABLE(ReshapeFullyConnectedFusion);
         return true;
     };
 

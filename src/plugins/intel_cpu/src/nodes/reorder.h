@@ -17,12 +17,12 @@ namespace node {
 
 class Reorder : public Node {
 public:
-    Reorder(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
-    Reorder(const std::string& name, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
@@ -34,7 +34,7 @@ public:
 
     void prepareParams() override;
 
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();
@@ -44,6 +44,10 @@ public:
         this->output = output.clone();
         outputShapes.clear();
         outputShapes.push_back(this->output->getShape());
+    }
+
+    void setSrcPermutation(const std::vector<int> & src_perm) {
+        this->src_permutation = src_perm;
     }
 
     void setOptimized(bool isOptimized) {
@@ -67,6 +71,8 @@ private:
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
 
+    std::vector<int> src_permutation;
+
     MemoryPtr dst_blocked;
     MemoryPtr src_blocked;
 
@@ -79,7 +85,7 @@ private:
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
-    void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
+    void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
 };
 
 }   // namespace node

@@ -32,7 +32,7 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
         WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -97,7 +97,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherElements::executeDynamicImpl(mkldnn::stream strm) {
+void GatherElements::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -134,7 +134,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(mkldnn::stream strm) {
+void GatherElements::execute(dnnl::stream strm) {
     switch (dataTypeSize_) {
         case sizeof(PrecisionTrait<Precision::I32>::value_type):
             return directExecution<PrecisionTrait<Precision::I32>::value_type>();

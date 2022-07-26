@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <low_precision/avg_pool.hpp>
-#include <low_precision/common/operation_precision_restriction.hpp>
+#include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/low_precision.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -88,8 +88,8 @@ public:
             fakeQuantizeOnData.actual,
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, { ngraph::element::f32, defaultPrecisions });

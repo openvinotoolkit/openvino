@@ -36,11 +36,11 @@ struct PortMap {
 class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
-    virtual void execute(mkldnn::stream strm, int n_iter = -1) = 0;
+    virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
 protected:
-    mkldnn::reorder reorder;
-    mkldnn::memory mem_holder_src;
-    mkldnn::memory mem_holder_dst;
+    dnnl::reorder reorder;
+    dnnl::memory mem_holder_src;
+    dnnl::memory mem_holder_dst;
 };
 
 
@@ -54,7 +54,7 @@ public:
     virtual ~PortChecker() = default;
     virtual int getStatus() = 0;
 protected:
-    mkldnn::memory mem_holder;
+    dnnl::memory mem_holder;
 };
 
 
@@ -67,19 +67,19 @@ public:
     DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr> &to_, const PortMap &map_rule_);
     ~DynamicBuffer() = default;
 
-    void execute(const mkldnn::engine& eng, const int iter);
+    void execute(const dnnl::engine& eng, const int iter);
     void transfer(const Node* node);
 
 private:
-    void init(const mkldnn::engine& eng);
+    void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    std::shared_ptr<mkldnn::memory> create_buffer(const mkldnn::engine& eng);
-    void move_buffer(std::shared_ptr<mkldnn::memory> new_buffer);
+    std::shared_ptr<dnnl::memory> create_buffer(const dnnl::engine& eng);
+    void move_buffer(std::shared_ptr<dnnl::memory> new_buffer);
     void move_data();
 
     static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
-    static uint8_t* get_ptr(mkldnn::memory& prim);
+    static uint8_t* get_ptr(dnnl::memory& prim);
 
     size_t len = 1lu;
     size_t count = 1lu;
@@ -91,19 +91,19 @@ private:
     std::vector<MemoryPtr> to;
     PortMap map_rule;
 
-    std::shared_ptr<mkldnn::memory> mem_holder_buffer;
+    std::shared_ptr<dnnl::memory> mem_holder_buffer;
 };
 
 class TensorIterator : public Node {
 public:
-    TensorIterator(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
 
     void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
@@ -115,7 +115,7 @@ protected:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void prepareInputPorts();
@@ -130,7 +130,7 @@ private:
 
     /* Dynamic support */
     void reshapeSubgraphInput();
-    void reshapeAndFillOutput(mkldnn::stream strm);
+    void reshapeAndFillOutput(dnnl::stream strm);
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
     ExtensionManager::Ptr ext_mng;

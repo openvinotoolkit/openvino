@@ -18,7 +18,7 @@
 #define THROW_ERROR IE_THROW() << "DepthToSpace layer with name '" << getName() << "' "
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
+using namespace dnnl::impl;
 
 namespace ov {
 namespace intel_cpu {
@@ -67,7 +67,7 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -116,7 +116,7 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    if (cpu::x64::mayiuse(cpu::x64::avx512_common)) {
+    if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
@@ -299,7 +299,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& d
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void DepthToSpace::execute(mkldnn::stream strm) {
+void DepthToSpace::execute(dnnl::stream strm) {
     if (!execPtr) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
@@ -308,7 +308,7 @@ void DepthToSpace::execute(mkldnn::stream strm) {
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 
-void DepthToSpace::executeDynamicImpl(mkldnn::stream strm) {
+void DepthToSpace::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

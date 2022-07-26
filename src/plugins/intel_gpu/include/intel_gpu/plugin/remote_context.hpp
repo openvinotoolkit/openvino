@@ -30,7 +30,6 @@
 #include <atomic>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 class RemoteAllocator;
 
@@ -112,12 +111,13 @@ public:
                              cldnn::shared_surface surf = 0,
                              uint32_t plane = 0,
                              RemoteBlobImpl::BlobType mem_type = RemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
-        : _impl(context, stream, layout, mem, surf, plane, mem_type)
-        , TpublicAPI(desc) {}
+        : TpublicAPI(desc)
+        , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
         try {
-            _impl.allocate();
+            if (!_impl.is_allocated())
+                _impl.allocate();
         } catch (...) {}
     }
     bool deallocate() noexcept override { return _impl.deallocate(); }
@@ -263,6 +263,9 @@ public:
             InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
             _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
             _usm_host_blob->allocate();
+            if (!getBlobImpl(_usm_host_blob.get())->is_allocated()) {
+                return nullptr;
+            }
             return _usm_host_blob->get();
         } catch (...) {
             return nullptr;
@@ -582,5 +585,4 @@ inline ExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

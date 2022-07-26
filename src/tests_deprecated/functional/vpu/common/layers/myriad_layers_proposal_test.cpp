@@ -29,7 +29,7 @@ protected:
 
 
  /**
-  * to generate reference mkldnn-can be used, but even in hetero cpu,cpu it cannot handle fp16 input
+  * to generate reference CPU plugin-can be used, but even in hetero cpu,cpu it cannot handle fp16 input
   */
  Precision precision = Precision::FP16; // (or FP32)
 
@@ -318,7 +318,7 @@ TEST_F(myriadLayersTestsProposal_smoke, CaffeNoClipBeforeNms) {
         0, -107.360f, 52.610f,  326.355f, 222.650f,
         0, -223.833f, 21.986f,  428.385f, 299.044f,
 
-        // swapped on mkldnn
+        // swapped on CPU plugin
         0, 13.290f,   76.607f,  69.404f,  171.320f,
         0, 12.085f,   71.267f,  54.660f,  162.396f,
 

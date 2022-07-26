@@ -41,7 +41,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad() {
                     }
                 }
             }
-
+            MATCHER_SCOPE_ENABLE(InsertLoad);
             return rewritten;
         });
 }
@@ -64,6 +64,7 @@ ngraph::snippets::pass::InsertStore::InsertStore() {
             auto store = std::make_shared<ngraph::snippets::op::Store> (root->input_value(0));
             ngraph::copy_runtime_info(root, store);
             root->set_argument(0, store);
+            MATCHER_SCOPE_ENABLE(InsertStore);
             return true;
         });
 }

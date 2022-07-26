@@ -425,12 +425,12 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         const int num_of_images = static_cast<int>(locations.size());
         mem_lock<dtype, mem_lock_type::read> lock{input_location, stream};
         auto location_data = lock.begin();
-        assert(num_of_priors * num_loc_classes * PRIOR_BOX_SIZE == input_location->get_layout().size.feature[0]);
+        assert(num_of_priors * num_loc_classes * PRIOR_BOX_SIZE == input_location->get_layout().feature());
 
-        const auto& input_buffer_size = location_layout.get_buffer_size();
-        const int input_buffer_size_x = input_buffer_size.spatial[0];
-        const int input_buffer_size_y = input_buffer_size.spatial[1];
-        const int input_buffer_size_f = input_buffer_size.feature[0];
+        const auto& input_buffer_size = location_layout.get_padded_dims();
+        const int input_buffer_size_x = input_buffer_size[3];
+        const int input_buffer_size_y = input_buffer_size[2];
+        const int input_buffer_size_f = input_buffer_size[1];
         const auto& input_padding = location_layout.data_padding;
         const int input_padding_lower_x = input_padding.lower_size().spatial[0];
         const int input_padding_lower_y = input_padding.lower_size().spatial[1];
@@ -526,7 +526,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         mem_lock<dtype, mem_lock_type::read> lock{input_confidence, stream};
         auto confidence_data = lock.begin();
 
-        assert(num_of_priors * num_classes == input_confidence->get_layout().size.feature[0]);
+        assert(num_of_priors * num_classes == input_confidence->get_layout().feature());
 
         const auto& input_buffer_size = input_confidence->get_layout().get_buffer_size();
         const int input_buffer_size_x = input_buffer_size.spatial[0];
@@ -618,7 +618,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         mem_lock<dtype, mem_lock_type::read> lock{input_confidence, stream};
         auto confidence_data = lock.begin();
 
-        assert(num_of_priors * num_classes == confidence_layout.size.feature[0]);
+        assert(num_of_priors * num_classes == confidence_layout.feature());
 
         const auto& input_buffer_size = confidence_layout.get_buffer_size();
         const int input_buffer_size_x = input_buffer_size.spatial[0];
@@ -707,14 +707,22 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                 scoreIndexPairs.push_back(score_index_per_prior);
             } else {
                 for (int prior = 0; prior < num_of_priors; ++prior) {
-                    for (int cls = 0; cls < num_classes; ++cls) {
+                    int idx_start = (background_label_id == 0 ? 1 : 0);
+                    float max_score = 0;
+                    int max_cls = 0;
+                    for (int cls = idx_start; cls < num_classes; ++cls) {
                         float score = static_cast<float>(confidence_data[idx]);
                         if (score > confidence_threshold) {
                             label_to_scores[cls].emplace_back(score, prior);
+                            if ((cls == idx_start) || score > max_score) {
+                                max_score = score; max_cls = cls;
+                            }
                         }
                         idx += stride;
                     }
+                    score_index_per_prior.emplace_back(std::make_pair(max_score, std::make_pair(max_cls, prior)));
                 }
+                scoreIndexPairs.push_back(score_index_per_prior);
             }
         }
     }
@@ -731,7 +739,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         auto priors_layout = instance.prior_box_memory()->get_layout();
 
         const int num_of_images = static_cast<int>(bboxes.size());
-        const int num_of_priors = priors_layout.size.spatial[1] / args.prior_info_size;
+        const int num_of_priors = priors_layout.spatial(1) / args.prior_info_size;
         const int num_loc_classes = args.share_location ? 1 : args.num_classes;
 
         // Extract locations per image.
@@ -739,7 +747,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             num_of_images);  // Per image : label -> bounding boxes.
         extract_locations_per_image<dtype>(stream, instance, locations, num_of_priors, num_loc_classes);
 
-        int32_t batches_in_prior_boxes = priors_layout.size.batch[0];
+        int32_t batches_in_prior_boxes = priors_layout.batch();
         std::vector<bounding_box> prior_bboxes(batches_in_prior_boxes *
                                                num_of_priors);  // Prior-Boxes (identical for all images since we assume
                                                                 // all images in a batch are of same dimension).
@@ -804,7 +812,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         auto& stream = instance.get_network().get_stream();
 
         auto ev = stream.create_user_event(false);
-        const int num_of_images = instance.location_memory()->get_layout().size.batch[0];  // batch size
+        const int num_of_images = instance.location_memory()->get_layout().batch();  // batch size
         // Per image : label -> decoded bounding boxes.
         std::vector<std::vector<std::vector<bounding_box>>> bboxes(num_of_images);
         // Per image : class -> confidences per bounding box.

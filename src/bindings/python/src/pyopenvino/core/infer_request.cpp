@@ -18,6 +18,16 @@ PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
 
 namespace py = pybind11;
 
+py::dict run_sync_infer(InferRequestWrapper& self) {
+    {
+        py::gil_scoped_release release;
+        self._start_time = Time::now();
+        self._request.infer();
+        self._end_time = Time::now();
+    }
+    return Common::outputs_to_dict(self._outputs, self._request);
+}
+
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
@@ -158,19 +168,40 @@ void regclass_InferRequest(py::module m) {
                             Total size of tensors needs to match with input's size.
         )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
+    cls.def(
+        "infer",
+        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+            self._request.set_input_tensor(inputs);
+            return run_sync_infer(self);
+        },
+        py::arg("inputs"),
+        R"(
+            Infers specified input(s) in synchronous mode.
+            Blocks all methods of InferRequest while request is running.
+            Calling any method will lead to throwing exceptions.
+
+            GIL is released while running the inference.
+
+            :param inputs: Data to set on single input tensor.
+            :type inputs: openvino.runtime.Tensor
+            :return: Dictionary of results from output tensors with ports as keys.
+            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
         [](InferRequestWrapper& self, const py::dict& inputs) {
             // Update inputs if there are any
             Common::set_request_tensors(self._request, inputs);
             // Call Infer function
-            {
-                py::gil_scoped_release release;
-                self._start_time = Time::now();
-                self._request.infer();
-                self._end_time = Time::now();
-            }
-            return Common::outputs_to_dict(self._outputs, self._request);
+            return run_sync_infer(self);
         },
         py::arg("inputs"),
         R"(
@@ -186,6 +217,46 @@ void regclass_InferRequest(py::module m) {
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         )");
 
+    // Overload for single input, it will throw error if a model has more than one input.
+    cls.def(
+        "start_async",
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, py::object& userdata) {
+            // Update inputs if there are any
+            self._request.set_input_tensor(inputs);
+            if (!userdata.is(py::none())) {
+                if (self.user_callback_defined) {
+                    self.userdata = userdata;
+                } else {
+                    PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
+                }
+            }
+            py::gil_scoped_release release;
+            self._start_time = Time::now();
+            self._request.start_async();
+        },
+        py::arg("inputs"),
+        py::arg("userdata"),
+        R"(
+            Starts inference of specified input(s) in asynchronous mode.
+            Returns immediately. Inference starts also immediately.
+
+            GIL is released while running the inference.
+
+            Calling any method on this InferRequest while the request is
+            running will lead to throwing exceptions.
+
+            :param inputs: Data to set on single input tensors.
+            :type inputs: openvino.runtime.Tensor
+            :param userdata: Any data that will be passed inside callback call.
+            :type userdata: Any
+        )");
+
+    // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
+    // Where keys types are:
+    // * ov::Output<const ov::Node>
+    // * py::str (std::string)
+    // * py::int_ (size_t)
+    // and values are always of type: ov::Tensor.
     cls.def(
         "start_async",
         [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {

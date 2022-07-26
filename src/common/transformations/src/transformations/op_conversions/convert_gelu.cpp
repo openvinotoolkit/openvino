@@ -36,6 +36,7 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
         res->set_friendly_name(gelu->get_friendly_name());
         ngraph::copy_runtime_info(gelu, {mul, sq2, div, erf, add, res});
         ngraph::replace_node(gelu, res);
+        MATCHER_SCOPE_ENABLE(ConvertGELU);
         return true;
     };
 

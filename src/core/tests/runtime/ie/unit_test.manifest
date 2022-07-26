@@ -123,7 +123,6 @@ onnx_model_erf_int32
 onnx_model_conv_with_dynamic_batch
 
 # Segmentation fault
-bool_init_and
 onnx_model_fake_quantize_nonconst_inputs_infer
 onnx_model_quantize_linear_const_scale_const_zero_p
 
@@ -430,8 +429,6 @@ onnx_model_max_pool_4d_ceil_strides
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
-# Unsupported primitive of type: ROIAlign
-IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
@@ -834,7 +831,7 @@ non_zero_all_1s
 non_zero_all_0s
 
 # NormalizeL2 - output mismatch,
-# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# dnnl_normalize_nchw applies eps after sqrt for across_spatial
 # Issue: 59586
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add
@@ -1551,6 +1548,9 @@ onnx_model_skip_layer_normalization_dynamic_shapes
 onnx_model_embed_layer_normalization_dynamic_shapes
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_attention_dynamic_shapes
+
+# CPU plug-in doesn't support Parameter operation with dynamic rank
+IE_CPU.onnx_scan15_dyn_rank_vals
 
 # z node not found in graph cache ticket: 81976
 IE_CPU.onnx_expand_context_dependent_function

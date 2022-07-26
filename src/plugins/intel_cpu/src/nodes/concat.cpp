@@ -9,8 +9,8 @@
 #include <vector>
 #include <dnnl_extension_utils.h>
 
-#include "mkldnn.hpp"
-#include "mkldnn/iml_type_mapper.h"
+#include <onednn/dnnl.h>
+#include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>
 #include "ie_parallel.hpp"
@@ -23,7 +23,7 @@
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -50,7 +50,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -488,7 +488,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
     canOptimizeNspc = axis == channelAxis && getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
 
-void Concat::execute(mkldnn::stream strm) {
+void Concat::execute(dnnl::stream strm) {
     if (isOptimized()) {
         return;
     }

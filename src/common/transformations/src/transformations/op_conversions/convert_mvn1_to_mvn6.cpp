@@ -43,6 +43,7 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
         ngraph::copy_runtime_info(mvn_node, mvn6_node);
         ngraph::replace_node(mvn_node, mvn6_node);
+        MATCHER_SCOPE_ENABLE(ConvertMVN1ToMVN6);
         return true;
     };
 

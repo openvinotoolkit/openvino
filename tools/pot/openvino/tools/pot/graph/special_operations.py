@@ -66,6 +66,11 @@ DETECTION_OUTPUT_FINAL_TYPES = [
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']
 
+ELTWISE_ADD_SUB = [
+    {'type': 'Add'},
+    {'type': 'Subtract'}
+]
+
 
 def is_eltwise(node):
     return node.type in ELTWISE_TYPES

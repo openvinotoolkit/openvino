@@ -77,6 +77,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         replace_node(reshape_node, new_fq_node);
         new_fq_node->set_friendly_name(reshape_node->get_friendly_name());
         copy_runtime_info({fq_node, reshape_node}, new_fq_node);
+        MATCHER_SCOPE_ENABLE(FakeQuantizeReshapeFusion)
         return true;
     };
 

@@ -23,8 +23,8 @@ enum ReduceLayoutType {
 struct jit_reduce_config_params {
     ReduceLayoutType layout;
     Algorithm reduce_mode;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    dnnl::memory::data_type src_dt;
+    dnnl::memory::data_type dst_dt;
     int src_data_size;
     int dst_data_size;
 };
@@ -74,27 +74,28 @@ struct jit_uni_reduce_post_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_reduce_post_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_reduce_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+    int getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
@@ -120,7 +121,7 @@ private:
     inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
     void nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
     void blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
     void setJITBeyond5D();
     std::vector<int> update_src_dims();
     bool canApplyJIT(const InferenceEngine::Precision &input_prec, const InferenceEngine::Precision &output_prec) const;
@@ -148,11 +149,11 @@ private:
 
     jit_reduce_config_params jcp;
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     std::vector<const void*> postOpsDataPtrs;
 
-    std::shared_ptr<mkldnn::memory> prc_mem;
+    std::shared_ptr<dnnl::memory> prc_mem;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;

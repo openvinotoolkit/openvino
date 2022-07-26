@@ -7,7 +7,7 @@ set(TARGET_NAME "test_builtin_extensions_1")
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-set(DEPENDENCIES nlohmann_json openvino::runtime::dev offline_transformations)
+set(DEPENDENCIES openvino::runtime::dev offline_transformations)
 set(DEFINITIONS)
 
 if (ENABLE_OV_ONNX_FRONTEND)

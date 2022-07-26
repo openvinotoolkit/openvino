@@ -125,7 +125,7 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
             }
         }
-
+        MATCHER_SCOPE_ENABLE(PullTransposeThroughDequantization);
         return true;
     };
 
