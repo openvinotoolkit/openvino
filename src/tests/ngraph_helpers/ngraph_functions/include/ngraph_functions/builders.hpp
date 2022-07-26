@@ -592,11 +592,10 @@ std::shared_ptr<ngraph::Node> makeRoll(const ngraph::Output<Node>& dataNode,
                                        const ngraph::Output<Node>& shiftNode,
                                        const ngraph::Output<Node>& axesNode);
 
-std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node>& dataNode,
-                                      const std::vector<int64_t>& axes,
-                                      const std::vector<int64_t>& signalSize,
-                                      const ngraph::helpers::DFTOpType opType,
-                                      const ngraph::helpers::DFTOpMode opMode);
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType);
 
 std::shared_ptr<ngraph::Node> makeRDFT(const ngraph::Output<Node> &dataNode,
                                       const std::vector<int64_t> &axes,

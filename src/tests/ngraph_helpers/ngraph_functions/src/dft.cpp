@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <vector>
+#include <memory>
 
 #include "ngraph_functions/builders.hpp"
 
@@ -11,37 +11,30 @@ namespace ngraph {
 namespace builder {
 
 namespace {
-template <typename... Args>
-std::shared_ptr<Node> CallDftCtorWithArgs(const helpers::DFTOpType opType,
-                                          const helpers::DFTOpMode opMode,
-                                          Args&&... args) {
-    if (opType == helpers::DFTOpType::FORWARD && opMode == helpers::DFTOpMode::COMPLEX) {
-        return std::make_shared<op::v7::DFT>(std::forward<Args>(args)...);
-    } else if (opType == helpers::DFTOpType::INVERSE && opMode == helpers::DFTOpMode::COMPLEX) {
-        return std::make_shared<op::v7::IDFT>(std::forward<Args>(args)...);
-    } else if (opType == helpers::DFTOpType::FORWARD && opMode == helpers::DFTOpMode::REAL) {
-        return std::make_shared<op::v9::RDFT>(std::forward<Args>(args)...);
-    } else if (opType == helpers::DFTOpType::INVERSE && opMode == helpers::DFTOpMode::REAL) {
-        return std::make_shared<op::v9::IRDFT>(std::forward<Args>(args)...);
-    } else {
-        throw std::logic_error("Unsupported DFT operation.");
+template <typename ...Args>
+std::shared_ptr<ngraph::Node> CallDftCtorWithArgs(const ngraph::helpers::DFTOpType opType, Args&&... args) {
+    switch (opType) {
+    case ngraph::helpers::DFTOpType::FORWARD:
+        return std::make_shared<ngraph::op::v7::DFT>(std::forward<Args>(args)...);
+    case ngraph::helpers::DFTOpType::INVERSE:
+        return std::make_shared<ngraph::op::v7::IDFT>(std::forward<Args>(args)...);
+    default:
+        throw std::logic_error("Unsupported operation type");
     }
 }
-}  // namespace
+} // namespace
 
-std::shared_ptr<Node> makeDFT(const Output<Node>& dataNode,
-                              const std::vector<int64_t>& axes,
-                              const std::vector<int64_t>& signalSize,
-                              const helpers::DFTOpType opType,
-                              const helpers::DFTOpMode opMode) {
-    auto axesNode = std::make_shared<op::Constant>(element::Type_t::i64, Shape{axes.size()}, axes)->output(0);
+std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,
+                                      const std::vector<int64_t> &axes,
+                                      const std::vector<int64_t> &signalSize,
+                                      const ngraph::helpers::DFTOpType opType) {
+    auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
     if (!signalSize.empty()) {
-        auto signalSizeNode =
-            std::make_shared<op::Constant>(element::Type_t::i64, Shape{signalSize.size()}, signalSize)->output(0);
-        return CallDftCtorWithArgs(opType, opMode, dataNode, axesNode, signalSizeNode);
+        auto signalSizeNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{signalSize.size()}, signalSize)->output(0);
+        return CallDftCtorWithArgs(opType, dataNode, axesNode, signalSizeNode);
     }
-    return CallDftCtorWithArgs(opType, opMode, dataNode, axesNode);
+    return CallDftCtorWithArgs(opType, dataNode, axesNode);
 }
-}  // namespace builder
-}  // namespace ngraph
+} // namespace builder
+} // namespace ngraph

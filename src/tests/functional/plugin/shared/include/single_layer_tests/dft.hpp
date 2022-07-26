@@ -12,8 +12,4 @@ TEST_P(DFTLayerTest, CompareWithRefs) {
     Run();
 };
 
-TEST_P(DFT9LayerTest, CompareWithRefs) {
-    Run();
-};
-
 }  // namespace LayerTestsDefinitions

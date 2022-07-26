@@ -192,11 +192,6 @@ enum class DFTOpType {
     INVERSE,
 };
 
-enum class DFTOpMode {
-    COMPLEX,
-    REAL,
-};
-
 enum class InputLayerType {
     CONSTANT,
     PARAMETER,
