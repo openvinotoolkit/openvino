@@ -58,7 +58,7 @@ public:
         for (size_t i = 0; i < ew_params.inputs.size(); i++) {
             if (!ew_params.inputs[i].SameDims(ew_params.outputs[0])) {
                 std::vector<int32_t> input_size = impl_param->input_layouts[i].get_tensor().raw.vector();
-                std::vector<int32_t> output_size = impl_param->output_layout.size.raw.vector();
+                std::vector<int32_t> output_size = impl_param->output_layout.get_tensor().raw.vector();
                 bool broadcast = false;
                 for (size_t d = 0; d < output_size.size(); d++) {
                     if (output_size[d] != 1 && input_size[d] == 1)

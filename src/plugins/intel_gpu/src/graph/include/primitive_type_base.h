@@ -46,7 +46,7 @@ struct primitive_type_base : primitive_type {
             throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
         auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type());
         auto impl = std::unique_ptr<primitive_impl>(factory(node, runtime_params));
-        return std::move(impl);
+        return impl;
     }
 
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {

@@ -876,7 +876,7 @@ void program_node::init_onednn_primitive_attributes() {
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
-                int oc_dim = desc.output_layout.size.feature.size();
+                int oc_dim = desc.output_layout.get_tensor().feature.size();
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
