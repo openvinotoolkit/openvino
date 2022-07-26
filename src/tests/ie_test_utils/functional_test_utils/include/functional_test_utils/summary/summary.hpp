@@ -10,6 +10,7 @@
 #include "ngraph/ngraph.hpp"
 
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -61,6 +62,7 @@ protected:
     std::string deviceName;
     const char* reportFilename;
     bool isReported = false;
+    std::string ts = CommonTestUtils::GetTimestamp();
 
     static size_t saveReportTimeout;
     static bool isCrashReported;

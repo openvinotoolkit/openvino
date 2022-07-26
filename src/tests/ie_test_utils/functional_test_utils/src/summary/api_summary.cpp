@@ -135,7 +135,7 @@ void ApiSummary::saveReport() {
     std::string filename = reportFilename;
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());
-        filename += "_" + processId + "_" + std::string(CommonTestUtils::GetTimestamp());
+        filename += "_" + processId + "_" + ts;
     }
     filename += CommonTestUtils::REPORT_EXTENSION;
 
