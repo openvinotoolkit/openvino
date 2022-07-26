@@ -398,7 +398,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->stride,
                                                                      desc->pad,
                                                                      desc->dilation,
-                                                                     conv.get_output_layout().size,
+                                                                     conv.get_output_layout().get_tensor(),
                                                                      conv.get_output_layout().data_type,
                                                                      desc->grouped_weights_shape);
 
@@ -435,7 +435,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
-                                                                         deconv.get_output_layout().size,
+                                                                         deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
@@ -486,7 +486,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
-            auto in_size = node.get_dependency(0).get_output_layout().size;
+            auto in_size = node.get_dependency(0).get_output_layout().get_tensor();
             return (node.get_split() > 1 && node.get_split() != in_size.feature[0]) ||
                    (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_size.feature[0]));
         };
@@ -624,7 +624,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
                 (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
-                node.input().get_output_layout().feature() > 16)))
+                node.input().get_output_layout().feature() > 16) ||
+                (node.get_output_layout().count() > 256)))
                 return false;
 
             if (keep_dims)
@@ -634,12 +635,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
-                auto out_layout = node.get_output_layout();
-                if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                    return false;
-                }
+            auto out_layout = node.get_output_layout();
+            if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                return false;
             }
             return true;
         };
@@ -977,7 +976,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<gather>()) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||
-                                      (parents[i]->is_type<activation>());
+                                      (parents[i]->is_type<lrn>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -988,8 +987,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            auto p1_raw_size = parent1->get_output_layout().size.sizes();
-            auto p2_raw_size = parent2->get_output_layout().size.sizes();
+            auto p1_raw_size = parent1->get_output_layout().get_tensor().sizes();
+            auto p2_raw_size = parent2->get_output_layout().get_tensor().sizes();
             for (unsigned k = 0; k < p1_raw_size.size(); k++) {
                 if (p1_raw_size[k] < p2_raw_size[k]) {
                     if (p1_raw_size[k] != 1)

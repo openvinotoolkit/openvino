@@ -44,4 +44,4 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # install
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

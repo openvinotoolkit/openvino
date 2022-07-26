@@ -21,7 +21,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
@@ -130,7 +129,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ngraph::Shape slope_shape(input_shape.size(), 1);
-                for (int j = 1; j <= constDims.size(); j++)
+                for (size_t j = 1; j <= constDims.size(); j++)
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
@@ -238,5 +237,4 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 REGISTER_FACTORY_IMPL(v0, Constant);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
