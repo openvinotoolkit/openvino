@@ -1,6 +1,6 @@
 # Hello NV12 Input Classification C++ Sample {#openvino_inference_engine_samples_hello_nv12_input_classification_README}
 
-This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API.
+This sample demonstrates how to execute inference of image classification models with images in NV12 color format using Synchronous Inference Request API. Source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp/hello_nv12_input_classification).
 
 The following C++ API is used in the application:
 
@@ -61,7 +61,7 @@ ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+>   [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.

@@ -6,37 +6,28 @@
    :maxdepth: 1
    :hidden:
    
-   Simplified mode <pot_docs_simplified_mode>
-   End-to-end CLI example <pot_configs_examples_README>
+   Simplified Mode <pot_docs_simplified_mode>
+   pot_configs_README
 
 @endsphinxdirective
 
-POT command-line interface (CLI) is designed to optimize models that are supported by the [Accuracy Checker Tool](@ref omz_tools_accuracy_checker) used for accuracy measurement. 
-If your model is exactly from the OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or it is similar to one of 
-its models then you can employ POT CLI to optimize your model.
-In other cases, you should consider using POT [API](@ref pot_compression_api_README). To start with POT CLI please refer to the
-following [example](@ref pot_configs_examples_README).
+## Introduction
 
-Note: There is also the so-called [**Simplified mode**](@ref pot_docs_simplified_mode) that is basically aimed at INT8 quantization if the model is from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for 
-optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the 
-optimization methods choice since the accuracy measurement is not available.
+POT command-line interface (CLI) is aimed at optimizing models that are similar to the models from OpenVINO&trade; [Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) or if there is a valid [AccuracyChecker Tool](@ref omz_tools_accuracy_checker) configuration file for the model. Examples of AccuracyChecker configuration files can be found on [GitHub](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public). Each model folder contains YAML configuration file that can be used with POT as is.
+
+> **NOTE**: There is also the so-called [Simplified mode](@ref pot_docs_simplified_mode) aimed at optimizatoin of models from the Computer Vision domain and has a simple dataset preprocessing, like image resize and crop. In this case, you can also use POT CLI for optimization. However, the accuracy results are not guaranteed in this case. Moreover, you are also limited in the optimization methods choice since the accuracy measurement is not available.
  
-
-
-## Prerequisites
-1. Install POT following the [Installation Guide](@ref pot_InstallationGuide).
-2. Convert your model from the framework representation into the OpenVINO&trade; IR format with the 
-[Model Optimizer](@ref openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide).
-3. Prepare the Accuracy Checker configuration file and make sure that the model can be successfully inferred and achieves 
-similar accuracy numbers as the reference model from the original framework. 
-4. Activate the Python environment in the command-line shell where the POT and the Accuracy Checker were installed.
 
 ## Run POT CLI 
 There are two ways how to run POT via command line:
 
-- **Basic usage**. In this case you can run POT with basic setting just specifying all the options via command line:
+- **Basic usage for DefaultQuantization**. In this case you can run POT with basic setting just specifying all the options via command line. `-q default` stands for [DefaultQuantization](../openvino/tools/pot/algorithms/quantization/default/README.md) algorithm:
    ```sh
    pot -q default -m <path_to_xml> -w <path_to_bin> --ac-config <path_to_AC_config_yml>
+   ```
+- **Basic usage for AccuracyAwareQauntization**. You can also run [AccuracyAwareQuantization](../openvino/tools/pot/algorithms/quantization/accuracy_aware/README.md) method with basic options. `--max-drop 0.01` option defines maximum accuracy deviation to 1 absolute percent from the original model:
+   ```sh
+   pot -q accuracy_aware -m <path_to_xml> -w <path_to_bin> --ac-config <path_to_AC_config_yml> --max-drop 0.01
    ```
 - **Advanced usage**. In this case you should prepare a configuration file for the POT where you can specify advanced options for the optimization
 methods available. See [POT configuration file description](@ref pot_configs_README) for more details. 

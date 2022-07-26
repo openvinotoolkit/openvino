@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise hyperbolic tangent operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Tanh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Tanh", "opset1", op::util::UnaryElementwiseArithmetic);

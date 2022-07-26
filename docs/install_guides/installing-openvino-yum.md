@@ -14,6 +14,12 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 - Red Hat Enterprise Linux 8, 64-bit
 
+**Software**
+
+- [CMake 3.13 or higher, 64-bit](https://cmake.org/download/)
+- GCC 8.2.0
+- [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
+
 ## Install OpenVINO Runtime
 
 ### Step 1: Set Up the Repository
@@ -42,9 +48,14 @@ The complete list of supported hardware is available in the [Release Notes](http
 
 
 To list available OpenVINO packages, use the following command:
-```
-yum list 'openvino*'
-```
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list 'openvino*'
+
+@endsphinxdirective
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
@@ -76,9 +87,14 @@ sudo yum install openvino-2022.1.0
 #### To Check for Installed Packages and Version
 
 Run the following command:
-```sh
-yum list installed 'openvino*'
-```
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list installed 'openvino*'
+
+@endsphinxdirective
 
 #### To Uninstall the Latest Version
 

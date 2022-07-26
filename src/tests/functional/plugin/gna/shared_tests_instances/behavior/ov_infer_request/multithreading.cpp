@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_infer_request/multithreading.hpp"
+#include "gna/gna_config.hpp"
 
 using namespace ov::test::behavior;
 namespace {

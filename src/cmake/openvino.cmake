@@ -88,8 +88,7 @@ ov_install_static_lib(${TARGET_NAME}_dev core)
 
 # Install OpenVINO runtime
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
-                      "IE_PARALLEL_CMAKE")
+list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
@@ -118,10 +117,10 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
+# Build tree
+
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/src/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -133,24 +132,24 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                               PATH_VARS ${PATH_VARS})
 
-set(IE_INCLUDE_DIR "include/ie")
-set(OV_CORE_DIR ".")
+# Install tree
+
+set(IE_INCLUDE_DIR "runtime/include/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
-set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")
-set(GNA_PATH "../${IE_CPACK_RUNTIME_PATH}")
+set(GNA_PATH "${IE_CPACK_RUNTIME_PATH}")
 if(WIN32)
-    set(GNA_PATH "../${IE_CPACK_LIBRARY_PATH}/../Release")
+    set(GNA_PATH "${IE_CPACK_LIBRARY_PATH}/../Release")
 endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-                              INSTALL_DESTINATION cmake
+                              INSTALL_DESTINATION runtime/cmake
                               PATH_VARS ${PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
-                              INSTALL_DESTINATION share
+                              INSTALL_DESTINATION runtime/cmake
                               PATH_VARS ${PATH_VARS})
 
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"

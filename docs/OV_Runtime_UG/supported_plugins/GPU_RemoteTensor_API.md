@@ -1,18 +1,17 @@
-Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
-================================
+# Remote Tensor API of GPU Plugin {#openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API}
 
 The GPU plugin implementation of the `ov::RemoteContext` and `ov::RemoteTensor` interfaces supports GPU
-pipeline developers who need video memory sharing and interoperability with existing native APIs
-such as OpenCL\*, Microsoft DirectX\*, or VAAPI\*.
-Using of these interfaces allows you to avoid any memory copy overhead when plugging the OpenVINO™ inference
+pipeline developers who need video memory sharing and interoperability with existing native APIs, 
+such as OpenCL, Microsoft DirectX, or VAAPI.
+Using these interfaces allows you to avoid any memory copy overhead when plugging OpenVINO™ inference
 into an existing GPU pipeline. It also enables OpenCL kernels participating in the pipeline to become
 native buffer consumers or producers of the OpenVINO™ inference.
 
 There are two interoperability scenarios supported by the Remote Tensor API:
 
-* GPU plugin context and memory objects can be constructed from low-level device, display, or memory
+* The GPU plugin context and memory objects can be constructed from low-level device, display, or memory
 handles and used to create the OpenVINO™ `ov::CompiledModel` or `ov::Tensor` objects.
-* OpenCL context or buffer handles can be obtained from existing GPU plugin objects, and used in OpenCL processing on the application side.
+* The OpenCL context or buffer handles can be obtained from existing GPU plugin objects, and used in OpenCL processing on the application side.
 
 Class and function declarations for the API are defined in the following files:
 * Windows\*: `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
@@ -26,8 +25,8 @@ and functions that consume or produce native handles directly.
 GPU plugin classes that implement the `ov::RemoteContext` interface are responsible for context sharing.
 Obtaining a context object is the first step of sharing pipeline objects.
 The context object of the GPU plugin directly wraps OpenCL context, setting a scope for sharing
-`ov::CompiledModel` and `ov::RemoteTensor` objects. `ov::RemoteContext` object can be either created on top ov
-existing handle from native api or retrieved from GPU plugin.
+`ov::CompiledModel` and `ov::RemoteTensor` objects. `ov::RemoteContext` object can be either created on top of
+an existing handle from native api or retrieved from the GPU plugin.
 
 Once you obtain the context, you can use it to compile a new `ov::CompiledModel` or create `ov::RemoteTensor`
 objects.
@@ -38,49 +37,59 @@ additional parameter.
 To create `ov::RemoteContext` object for user context, explicitly provide the context to the plugin using constructor for one
 of `ov::RemoteContext` derived classes.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Linux
+@sphinxtab{Linux}
 
-    .. tab:: Create from cl_context
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_context]
+@sphinxtab{Create from cl_context}
 
-    .. tab:: Create from cl_queue
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_context
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_queue]
+@endsphinxtab
 
-    .. tab:: Create from VADisplay
+@sphinxtab{Create from cl_queue}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_va_display]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_queue
 
-.. tab:: Windows
+@endsphinxtab
 
-    .. tab:: Create from cl_context
+@sphinxtab{Create from VADisplay}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_context]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_va_display
 
-    .. tab:: Create from cl_queue
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_cl_queue]
+@endsphinxtabset
 
-    .. tab:: Create from ID3D11Device
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [context_from_d3d_device]
+@sphinxtab{Windows}
 
-@endsphinxdirective
+@sphinxtabset
+
+@sphinxtab{Create from cl_context}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_context
+
+@endsphinxtab
+
+@sphinxtab{Create from cl_queue}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_cl_queue
+
+@endsphinxtab
+
+@sphinxtab{Create from ID3D11Device}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp context_from_d3d_device
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtabset
 
 
 ### Getting RemoteContext from the plugin
@@ -91,22 +100,21 @@ Once the plugin options are changed, the internal context is replaced by the new
 
 To request the current default context of the plugin use one of the following methods:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Get context from Core
+@sphinxtab{Get context from Core}
 
-    .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_core]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp default_context_from_core
 
-.. tab:: Get context from CompiledModel
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_model]
+@sphinxtab{Bacthing via throughput hint}
 
+@snippet docs/snippets/gpu/remote_objects_creation.cpp default_context_from_model
 
-@endsphinxdirective
+@endsphinxtab
+
+@endsphinxtabset
 
 ## Memory sharing between application and GPU plugin
 
@@ -118,109 +126,120 @@ of the `ov::RemoteContext` sub-classes.
 `ov::intel_gpu::ocl::ClContext` has multiple overloads of `create_tensor` methods which allow to wrap pre-allocated native handles with `ov::RemoteTensor`
 object or request plugin to allocate specific device memory. See code snippets below for more details.
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Wrap native handles
+@sphinxtab{Wrap native handles}
 
-    .. tab:: USM pointer
+@sphinxtabset
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_usm_pointer]
+@sphinxtab{USM pointer}
 
-    .. tab:: cl_mem
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_usm_pointer
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_mem]
+@endsphinxtab
 
-    .. tab:: cl::Buffer
+@sphinxtab{cl_mem}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_buffer]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_mem
 
-    .. tab:: cl::Image2D
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_cl_image]
+@sphinxtab{cl::Buffer}
 
-    .. tab:: biplanar NV12 surface
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_buffer
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [wrap_nv12_surface]
+@endsphinxtab
 
-.. tab:: Allocate device memory
+@sphinxtab{cl::Image2D}
 
-    .. tab:: USM host memory
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_cl_image
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_usm_host]
+@endsphinxtab
 
-    .. tab:: USM device memory
+@sphinxtab{biplanar NV12 surface}
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_usm_device]
+@snippet docs/snippets/gpu/remote_objects_creation.cpp wrap_nv12_surface
 
-    .. tab:: cl::Buffer
+@endsphinxtab
 
-        .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-          :language: cpp
-          :fragment: [allocate_cl_buffer]
+@endsphinxtabset
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Allocate device memory}
+
+@sphinxtabset
+
+@sphinxtab{USM host memory}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_usm_host
+
+@endsphinxtab
+
+@sphinxtab{USM device memory}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_usm_device
+
+@endsphinxtab
+
+@sphinxtab{cl::Buffer}
+
+@snippet docs/snippets/gpu/remote_objects_creation.cpp allocate_cl_buffer
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@endsphinxtabset
 
 `ov::intel_gpu::ocl::D3DContext` and `ov::intel_gpu::ocl::VAContext` classes are derived from `ov::intel_gpu::ocl::ClContext`,
-thus they provide functionality described above and extends it
+thus they provide the functionality described above and extend it
 to allow creation of `ov::RemoteTensor` objects from `ID3D11Buffer`, `ID3D11Texture2D` pointers or the `VASurfaceID` handle respectively.
 
 ## Direct NV12 video surface input
 
-To support the direct consumption of a hardware video decoder output, plugin accepts two-plane video
+To support the direct consumption of a hardware video decoder output, the plugin accepts two-plane video
 surfaces as arguments for the `create_tensor_nv12()` function, which creates a pair or `ov::RemoteTensor`
-objects which represents Y and UV planes.
+objects which represent the Y and UV planes.
 
 To ensure that the plugin generates the correct execution graph for the NV12 dual-plane input, static preprocessing
 should be added before model compilation:
 
 @snippet snippets/gpu/preprocessing.cpp init_preproc
 
-Since `ov::intel_gpu::ocl::ClImage2DTensor` (and derived classes) doesn't support batched surfaces, in cases when batching and surface sharing are required
-at the same time, user need to set inputs via `ov::InferRequest::set_tensors` method with vector of shared surfaces for each plane:
+Since `ov::intel_gpu::ocl::ClImage2DTensor` (and derived classes) doesn't support batched surfaces, if batching and surface sharing are required
+at the same time, inputs need to be set via the `ov::InferRequest::set_tensors` method with vector of shared surfaces for each plane:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: Single batch
+@sphinxtab{Single batch}
 
-    .. doxygensnippet:: docs/snippets/gpu/preprocessing.cpp
-        :language: cpp
-        :fragment: [single_batch]
+@snippet docs/snippets/gpu/preprocessing.cpp single_batch
 
-.. tab:: Multiple batches
+@endsphinxtab
 
-    .. doxygensnippet:: docs/snippets/gpu/preprocessing.cpp
-        :language: cpp
-        :fragment: [batched_case]
+@sphinxtab{Multiple batches}
+
+@snippet docs/snippets/gpu/preprocessing.cpp batched_case
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
-@endsphinxdirective
-
-I420 color format can be processed in similar way
+I420 color format can be processed in a similar way
 
 ## Context & queue sharing
 
-GPU plugin supports creation of shared context from `cl_command_queue` handle. In that case
-opencl context handle is extracted from given queue via OpenCL™ API, and the queue itself is used inside
-the plugin for further execution of inference primitives. Sharing of the queue changes behavior of `ov::InferRequest::start_async()`
-method to guarantee that submission of inference primitives into given queue is finished before
-returning of control back to calling thread.
+The GPU plugin supports creation of shared context from `cl_command_queue` handle. In that case
+opencl context handle is extracted from the given queue via OpenCL™ API, and the queue itself is used inside
+the plugin for further execution of inference primitives. Sharing the queue changes the behavior of the `ov::InferRequest::start_async()`
+method to guarantee that submission of inference primitives into the given queue is finished before
+returning control back to the calling thread.
 
-This sharing mechanism allows to do pipeline synchronization on app side and avoid blocking of host thread
-on waiting for completion of inference. Pseudocode may look as follows:
+This sharing mechanism allows to do pipeline synchronization on the app side and avoid blocking the host thread
+on waiting for the completion of inference. The pseudo-code may look as follows:
 
 @sphinxdirective
 .. raw:: html
@@ -240,16 +259,16 @@ on waiting for completion of inference. Pseudocode may look as follows:
 
 ### Limitations
 
- - Some primitives in GPU plugin may block host thread on waiting for previous primitives before adding its kernels
-   to the command queue. In such cases `ov::InferRequest::start_async()` call takes much more time to return control to the calling thread
-   as internally it waits for partial or full network completion.
+ - Some primitives in the GPU plugin may block the host thread on waiting for the previous primitives before adding its kernels
+   to the command queue. In such cases the `ov::InferRequest::start_async()` call takes much more time to return control to the calling thread
+   as internally it waits for a partial or full network completion.
    Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
- - Synchronization of pre/post processing jobs and inference pipeline inside shared queue is the user responsibility
- - Throughput mode is not available when queue sharing is used, i.e. only single stream can be used for each compiled model.
+ - Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility
+ - Throughput mode is not available when queue sharing is used, i.e. only a single stream can be used for each compiled model.
 
 ## Low-Level Methods for RemoteContext and RemoteTensor creation
 
-The high-level wrappers above bring a direct dependency on native APIs to the user program.
+The high-level wrappers mentioned above bring a direct dependency on native APIs to the user program.
 If you want to avoid the dependency, you still can directly use the `ov::Core::create_context()`,
 `ov::RemoteContext::create_tensor()`, and `ov::RemoteContext::get_params()` methods.
 On this level, native handles are re-interpreted as void pointers and all arguments are passed
@@ -273,7 +292,7 @@ Refer to the sections below to see pseudo-code of usage examples.
 
 @endsphinxdirective
 
-This example uses the OpenCL context obtained from an compiled model object.
+This example uses the OpenCL context obtained from a compiled model object.
 
 @snippet snippets/gpu/context_sharing.cpp context_sharing_get_from_ov
 

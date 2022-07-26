@@ -31,7 +31,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  *    3) precision preserved operations by PrecisionPreservedAttribute attribute.
  *
  * For more details about the transformation, refer to
- * [MarkupPrecisions](@ref openvino_docs_IE_DG_lpt_MarkupPrecisions) page
+ * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {

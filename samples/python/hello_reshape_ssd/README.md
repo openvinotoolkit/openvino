@@ -1,7 +1,7 @@
 # Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
 This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
-Models with only 1 input and output are supported.
+Models with only one input and output are supported. Source code for this example is also available [on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd).
 
 The following Python API is used in the application:
 
@@ -38,7 +38,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](@ref openvino_docs_MO_DG_Additional_Optimization_Use_Cases).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >

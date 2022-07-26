@@ -32,13 +32,13 @@
 using namespace ov::preprocess;
 
 /**
- * @brief The entry point for inference engine automatic speech recognition sample
+ * @brief The entry point for OpenVINO Runtime automatic speech recognition sample
  * @file speech_sample/main.cpp
  * @example speech_sample/main.cpp
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get Inference Engine version ----------------------------------------------
+        // ------------------------------ Get OpenVINO Runtime version ----------------------------------------------
         slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
         }
         size_t numInputFiles(inputFiles.size());
 
-        // --------------------------- Step 1. Initialize inference engine core and read model
+        // --------------------------- Step 1. Initialize OpenVINO Runtime core and read model
         // -------------------------------------
         ov::Core core;
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;

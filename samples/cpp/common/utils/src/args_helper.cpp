@@ -199,55 +199,6 @@ ov::element::Type getType(const std::string& value) {
     return getType(value, supported_types);
 }
 
-namespace {
-using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
-using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
-
-InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& supported_layouts) {
-    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-
-    const auto layout = supported_layouts.find(value);
-    if (layout == supported_layouts.end()) {
-        throw std::logic_error("\"" + value + "\"" + " is not a valid layout");
-    }
-
-    return layout->second;
-}
-
-InferenceEngine::Layout getLayout(const std::string& value) {
-    static const supported_layouts_t supported_layouts = {
-        {"NCDHW", InferenceEngine::Layout::NCDHW},
-        {"NDHWC", InferenceEngine::Layout::NDHWC},
-        {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NHWC", InferenceEngine::Layout::NHWC},
-        {"CHW", InferenceEngine::Layout::CHW},
-        {"HWC", InferenceEngine::Layout::HWC},
-        {"NC", InferenceEngine::Layout::NC},
-        {"C", InferenceEngine::Layout::C},
-    };
-
-    return getLayout(value, supported_layouts);
-}
-
-bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
-    static const matchLayoutToDims_t matchLayoutToDims = {{static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
-                                                          {static_cast<size_t>(InferenceEngine::Layout::C), 1}};
-
-    const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
-    if (dims == matchLayoutToDims.end()) {
-        throw std::logic_error("Layout is not valid.");
-    }
-
-    return dimension == dims->second;
-}
-
-}  // namespace
-
 void printInputAndOutputsInfoShort(const ov::Model& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& input : network.inputs()) {

@@ -16,7 +16,10 @@
 #include "openvino/core/node.hpp"
 
 namespace ov {
-/// \brief Run-time opset information
+/**
+ * @brief Run-time opset information
+ * @ingroup ov_opset_cpp_api
+ */
 class OPENVINO_API OpSet {
     static std::mutex& get_mutex();
 
@@ -128,12 +131,44 @@ protected:
     }
 };
 
+/**
+ * @brief Returns opset1
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset1();
+/**
+ * @brief Returns opset2
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset2();
+/**
+ * @brief Returns opset3
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset3();
+/**
+ * @brief Returns opset4
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset4();
+/**
+ * @brief Returns opset5
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset5();
+/**
+ * @brief Returns opset6
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset6();
+/**
+ * @brief Returns opset7
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset7();
+/**
+ * @brief Returns opset8
+ * @ingroup ov_opset_cpp_api
+ */
 const OPENVINO_API OpSet& get_opset8();
 }  // namespace ov

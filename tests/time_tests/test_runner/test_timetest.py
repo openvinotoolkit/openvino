@@ -35,7 +35,7 @@ REFS_FACTOR = 1.2      # 120%
 
 
 def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
-                  test_info, temp_dir, validate_test_case, prepare_db_info):
+                  test_info, temp_dir, validate_test_case, prepare_db_info, config_message):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
@@ -50,6 +50,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled
     :param prepare_db_info: custom pytest fixture. Should be declared as test argument to be enabled
+    :param config_message: path to a config file (same format as config file of compile_tool)
     """
     # Prepare model to get model_path
     model_path = instance["model"].get("path")
@@ -68,6 +69,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
         "device": instance["device"]["name"],
         "niter": niter,
         "model_cache": model_cache,
+        "config_message": Path(config_message) if config_message else None
     }
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)

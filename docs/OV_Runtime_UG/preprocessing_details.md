@@ -1,4 +1,4 @@
-# Preprocessing API - details {#openvino_docs_OV_Runtime_UG_Preprocessing_Details}
+# Preprocessing API - details {#openvino_docs_OV_UG_Preprocessing_Details}
 
 ## Preprocessing capabilities
 
@@ -6,58 +6,59 @@
 
 If your model has only one input, then simple <code>ov::preprocess::PrePostProcessor::input()</code> will get a reference to preprocessing builder for this input (tensor, steps, model):
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:input_1]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:input_1
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:input_1]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:input_1
+
+@endsphinxtab
+
+@endsphinxtabset
+
 
 In general, when model has multiple inputs/outputs, each one can be addressed by tensor name
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:input_name]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:input_name
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:input_name]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:input_name
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 Or by it's index
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:input_index]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:input_index
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:input_index]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:input_index
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
   * <code>ov::preprocess::InputTensorInfo</code>
@@ -74,40 +75,39 @@ C++ references:
 
 Typical data normalization includes 2 operations for each data item: subtract mean value and divide to standard deviation. This can be done with the following code:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:mean_scale]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:mean_scale
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:mean_scale]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:mean_scale
 
+@endsphinxtab
+
+@endsphinxtabset
 
 In Computer Vision area normalization is usually done separately for R, G, B values. To do this, [layout with 'C' dimension](./layout_overview.md) shall be defined. Example:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:mean_scale_array]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:mean_scale_array
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:mean_scale_array]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:mean_scale_array
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
 * <code>ov::preprocess::PreProcessSteps::mean()</code>
@@ -120,21 +120,21 @@ In Computer Vision, image is represented by array of unsigned 8-but integer valu
 
 To integrate precision conversion into execution graph as a preprocessing step, just do:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:convert_element_type]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:convert_element_type
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:convert_element_type]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:convert_element_type
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
   * <code>ov::preprocess::InputTensorInfo::set_element_type()</code>
@@ -147,39 +147,40 @@ Transposing of matrices/tensors is a typical operation in Deep Learning - you ma
 
 Using [layout](./layout_overview.md) of user's tensor and layout of original model conversion can be done implicitly
 
-@sphinxdirective
-.. tab:: C++
+@sphinxtabset
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:convert_layout]
+@sphinxtab{C++}
 
-.. tab:: Python
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:convert_layout
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:convert_layout]
+@endsphinxtab
 
-@endsphinxdirective
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:convert_layout
+
+@endsphinxtab
+
+@endsphinxtabset
 
 
 Or if you prefer manual transpose of axes without usage of [layout](./layout_overview.md) in your code, just do:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:convert_layout_2]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:convert_layout_2
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:convert_layout_2]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:convert_layout_2
+
+@endsphinxtab
+
+@endsphinxtabset
 
 It performs the same transpose, but we believe that approach using source and destination layout can be easier to read and understand
 
@@ -195,39 +196,39 @@ Resizing of image is a typical preprocessing step for computer vision tasks. Wit
 
 To resize the input image, it is needed to define `H` and `W` dimensions of [layout](./layout_overview.md)
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:resize_1]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:resize_1
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:resize_1]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:resize_1
+
+@endsphinxtab
+
+@endsphinxtabset
 
 Or in case if original model has known spatial dimensions (widht+height), target width/height can be omitted
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:resize_2]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:resize_2
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:resize_2]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:resize_2
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
 * <code>ov::preprocess::PreProcessSteps::resize()</code>
@@ -238,41 +239,41 @@ C++ references:
 
 Typical use case is to reverse color channels from RGB to BGR and wise versa. To do this, specify source color format in `tensor` section and perform `convert_color` preprocessing operation. In example below, user has `BGR` image and needs to convert it to `RGB` as required for model's input
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:convert_color_1]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:convert_color_1
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:convert_color_1]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:convert_color_1
+
+@endsphinxtab
+
+@endsphinxtabset
 
 #### Color conversion - NV12/I420
 Preprocessing also support YUV-family source color formats, i.e. NV12 and I420.
 In advanced cases such YUV images can be splitted into separate planes, e.g. for NV12 images Y-component may come from one source and UV-component comes from another source. Concatenating such components in user's application manually is not a perfect solution from performance and device utilization perspectives, so there is a way to use Preprocessing API. For such cases there is `NV12_TWO_PLANES` and `I420_THREE_PLANES` source color formats, which will split original `input` to 2 or 3 inputs
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:convert_color_2]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:convert_color_2
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:convert_color_2]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:convert_color_2
+
+@endsphinxtab
+
+@endsphinxtabset
 
 In this example, original `input` is being split to `input/y` and `input/uv` inputs. You can fill `input/y` from one source, and `input/uv` from another source. Color conversion to `RGB` will be performed using these sources, it is more optimal as there will be no additional copies of NV12 buffers.
 
@@ -289,21 +290,21 @@ Preprocessing API also allows adding custom preprocessing steps into execution g
 
 If there is a need to insert some additional operations to execution graph right after input, like some specific crops and/or resizes - Preprocessing API can be a good choice to implement this
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:custom]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:custom
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:custom]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:custom
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
 * <code>ov::preprocess::PreProcessSteps::custom()</code>
@@ -324,21 +325,21 @@ Comparing to preprocessing, there is not so much operations needed to do in post
 
 Usage of these operations is similar to Preprocessing. Some example is shown below:
 
-@sphinxdirective
+@sphinxtabset
 
-.. tab:: C++
+@sphinxtab{C++}
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: [ov:preprocess:postprocess]
+@snippet docs/snippets/ov_preprocessing.cpp ov:preprocess:postprocess
 
-.. tab:: Python
+@endsphinxtab
 
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.py
-         :language: python
-         :fragment: [ov:preprocess:postprocess]
+@sphinxtab{Python}
 
-@endsphinxdirective
+@snippet docs/snippets/ov_preprocessing.py ov:preprocess:postprocess
+
+@endsphinxtab
+
+@endsphinxtabset
 
 C++ references:
 * <code>ov::preprocess::PostProcessSteps</code>

@@ -13,7 +13,7 @@ file (GLOB HELPERS_INCLUDES
        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
       )
 
-## Enable Models multiple search pathes
+## Enable Models multiple search paths
 message("configuring file: ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.h")
 
 function(add_helpers target_name)

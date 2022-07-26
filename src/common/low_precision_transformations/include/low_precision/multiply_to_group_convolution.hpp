@@ -18,7 +18,7 @@ namespace low_precision {
  * @brief MultiplyToGroupConvolutionTransformation replace quantized Multiply operations to GroupConvolution to speed up inference.
  *
  * For more details about the transformation, refer to
- * [MultiplyToGroupConvolutionTransformation](@ref openvino_docs_IE_DG_lpt_MultiplyToGroupConvolutionTransformation) page
+ * [MultiplyToGroupConvolutionTransformation](@ref openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {

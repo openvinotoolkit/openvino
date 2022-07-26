@@ -64,6 +64,12 @@ def pytest_addoption(parser):
         action='store_true',
         help="Enable model cache usage",
     )
+    test_args_parser.addoption(
+        "--config_message",
+        type=Path,
+        help="(Optional) Path to a config file",
+        default=None
+    )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -123,6 +129,12 @@ def niter(request):
 def model_cache(request):
     """Fixture function for command-line option."""
     return request.config.getoption('model_cache')
+
+
+@pytest.fixture(scope="session")
+def config_message(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('config_message')
 
 
 # -------------------- CLI options --------------------

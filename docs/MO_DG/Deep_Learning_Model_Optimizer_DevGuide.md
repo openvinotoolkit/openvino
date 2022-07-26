@@ -1,4 +1,4 @@
-# Model Optimizer User Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Convert model with Model Optimizer {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -42,7 +42,7 @@ The IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-> **NOTE**: The generated IR can be additionally optimized for inference by [Post-training Optimization tool](../../tools/pot/README.md)
+> **NOTE**: The generated IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
 > that applies post-training quantization methods.
 
 > **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).

@@ -70,13 +70,16 @@ if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
-    target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
-        PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/src
-        $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME}_obj
+        PRIVATE
+            $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
@@ -85,8 +88,7 @@ if(BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
         USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
         $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>
-        )
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
 
     set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
