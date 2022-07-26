@@ -1,2 +1,0 @@
-# Place from TensorPlace cannot be nullptr for tensorflow.
-Tensorflow/FrontendLibCloseTest.testPlaceFromPlaceIsLastDeletedObject/tf
