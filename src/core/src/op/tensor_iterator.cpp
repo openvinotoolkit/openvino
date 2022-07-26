@@ -71,6 +71,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                           "Number of inputs must be the same as number of input descriptions");
 
     std::vector<std::shared_ptr<Node>> ends;
+    m_num_iterations = -1;  // should be recalculated each shape inference from the scratch
 
     auto make_positive = [](int64_t value, uint64_t dim_size) -> int64_t {
         if (value < 0) {
@@ -78,7 +79,6 @@ void op::v0::TensorIterator::validate_and_infer_types() {
         }
         return value;
     };
-
     auto body = get_function();
     // Input
     for (const auto& input_description : m_input_descriptions[0]) {

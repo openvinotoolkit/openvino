@@ -30,7 +30,8 @@ layout activation_inst::calc_output_layout(activation_node const& node) {
         activation_func::floor,
         activation_func::clamp };
 
-    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::i32) {
+    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
+        input_node_layout.data_type == data_types::i32) {
         if (std::find(activations_int8.begin(), activations_int8.end(), func) == activations_int8.end())
             CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type.");
     }
@@ -74,7 +75,7 @@ activation_inst::typed_primitive_inst(network& network, activation_node const& n
     if (is_parameterized()) {
         /// Slope input x dimension should be equal to input feature size (one slope per channel).
         auto slope_layout = node.slope_input().get_output_layout();
-        auto slope_input_size = slope_layout.size;
+        auto slope_input_size = slope_layout.get_tensor();
         auto input_feature_size = input_layout.feature();
 
         CLDNN_ERROR_LESS_THAN(node.id(),
