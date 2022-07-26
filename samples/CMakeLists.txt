@@ -20,7 +20,9 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reade
 
 # install C++ samples
 
-ie_cpack_add_component(${OV_CPACK_COMP_CPP_SAMPLES} DEPENDS ${OV_CPACK_COMP_CORE_DEV})
+ie_cpack_add_component(${OV_CPACK_COMP_CPP_SAMPLES}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE_DEV})
 
 if(UNIX)
     install(DIRECTORY cpp/
@@ -40,7 +42,9 @@ endif()
 
 # install C samples
 
-ie_cpack_add_component(${OV_CPACK_COMP_C_SAMPLES} DEPENDS ${OV_CPACK_COMP_CORE_C})
+ie_cpack_add_component(${OV_CPACK_COMP_C_SAMPLES}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE_C_DEV})
 
 if(UNIX)
     install(PROGRAMS cpp/build_samples.sh
@@ -64,7 +68,7 @@ install(FILES cpp/CMakeLists.txt
 
 # install Python samples
 
-ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES})
+ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES} HIDDEN)
 
 install(DIRECTORY python/
         DESTINATION ${OV_CPACK_SAMPLESDIR}/python

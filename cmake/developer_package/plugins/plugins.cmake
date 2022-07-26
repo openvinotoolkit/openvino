@@ -20,6 +20,7 @@ endif()
 #
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
+#               [PSEUDO_DEVICE]
 #               [PSEUDO_PLUGIN_FOR <actual_device>]
 #               [AS_EXTENSION]
 #               [DEFAULT_CONFIG <key:value;...>]
@@ -32,7 +33,7 @@ endif()
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -135,14 +136,20 @@ function(ie_add_plugin)
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
+
+            if(IE_PLUGIN_PSEUDO_DEVICE)
+                set(plugin_hidden HIDDEN)
+            endif()
             ie_cpack_add_component(${install_component} 
-                                   DISPLAY_NAME "???"
-                                   DESCRIPTION "????"
-                                   REQUIRED
-                                   GROUP "???"
-                                   DEPENDS core)
+                                   DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   ${plugin_hidden}
+                                   DEPENDS ${OV_CPACK_COMP_CORE})
 
             if(BUILD_SHARED_LIBS)
+                install(TARGETS ${IE_PLUGIN_NAME}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
+                        COMPONENT ${install_component})
                 install(TARGETS ${IE_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
