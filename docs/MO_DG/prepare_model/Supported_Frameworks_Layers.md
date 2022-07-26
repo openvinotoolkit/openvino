@@ -1,8 +1,5 @@
 # Supported Framework Layers {#openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers}
 
-
-In this article, you can find lists of supported framework layers, divided by frameworks.
-
 ## Caffe Supported Layers
 
 
@@ -19,7 +16,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | Crop |  |
 | Deconvolution |  |
 | DetectionOutput |  |
-| Dropout | Not needed for inference. |
+| Dropout | Not needed for inference |
 | Eltwise |  |
 | Flatten |  |
 | GlobalInput |  |
@@ -27,7 +24,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | Input |  |
 | LRN |  |
 | Normalize |  |
-| Python | Supported only for the Python Proposal operation. |
+| Python | Supported only for the Python Proposal operation |
 | Permute |  |
 | Pooling |  |
 | Power |  |
@@ -50,10 +47,10 @@ In this article, you can find lists of supported framework layers, divided by fr
 | Tile |  |
 
 
-## MXNet Supported Symbols
+## Apache MXNet Supported Symbols
 
 
-| Symbol Name in MXNet| Limitations|
+| Symbol Name in Apache MXNet| Limitations|
 | :----------| :----------|
 | _Plus |  |
 | _contrib_arange_like |  |
@@ -61,7 +58,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | _contrib_DeformableConvolution |  |
 | _contrib_DeformablePSROIPooling |  |
 | _contrib_div_sqrt_dim |  |
-| _contrib_MultiBoxDetection | `force_suppress` = 1 is not supported, non-default variances are not supported. |
+| _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
 | _copy | Not needed for inference |
@@ -73,7 +70,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | _random_uniform | Operation provides sequence from uniform distribution, but exact values won't match. |
 | _rnn_param_concat |  |
 | _arange |  |
-| _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings. |
+| _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
 | _maximum |  |
 | _minimum |  |
 | _np_roll |  |
@@ -99,8 +96,8 @@ In this article, you can find lists of supported framework layers, divided by fr
 | greater_scalar |  |
 | max |  |
 | minus_scalar |  |
-| null | Not needed for inference. |
-| LayerNorm | `output_mean_var` = True is not supported. |
+| null | Not needed for inference |
+| LayerNorm | "output_mean_var" = True is not supported |
 | repeat |  |
 | rnn |  |
 | rnn_param_concat |  |
@@ -117,24 +114,24 @@ In this article, you can find lists of supported framework layers, divided by fr
 | tile |  |
 | transpose |  |
 | zeros |  |
-| Activation | Supported `act_type` = `relu`, `sigmoid`, `softrelu` or `tanh`. |
+| Activation | supported "act_type" = "relu", "sigmoid", "softrelu" or "tanh" |
 | BatchNorm |  |
 | Concat |  |
 | Convolution |  |
-| Crop | `center_crop` = 1 is not supported. |
-| Custom | See [Custom Layers in Model Optimizer].(customize_model_optimizer/Customize_Model_Optimizer.md) |
+| Crop | "center_crop" = 1 is not supported |
+| Custom | [Custom Layers in Model Optimizer](customize_model_optimizer/Customize_Model_Optimizer.md) |
 | Deconvolution |  |
 | DeformableConvolution |  |
 | DeformablePSROIPooling |  |
-| Dropout | Not needed for inference. |
+| Dropout | Not needed for inference |
 | ElementWiseSum |  |
 | Embedding |  |
 | Flatten |  |
 | FullyConnected |  |
 | InstanceNorm |  |
-| L2Normalization | Only 4D input is supported. |
+| L2Normalization | only 4D input is supported |
 | LRN |  |
-| LeakyReLU | Supported `act_type` = `prelu`, `elu`, `leaky`, `gelu`. |
+| LeakyReLU | supported "act_type" = "prelu", "elu", "leaky", "gelu" |
 | ones_like |  |
 | Pad |  |
 | Pooling |  |
@@ -145,7 +142,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 | SoftmaxActivation |  |
 | SoftmaxOutput |  |
 | SoftSign |  |
-| Take | The attribute `mode` is not supported. |
+| Take | The attribute 'mode' is not supported |
 | Tile |  |
 | UpSampling |  |
 | Where |  |
@@ -154,7 +151,7 @@ In this article, you can find lists of supported framework layers, divided by fr
 
 ## TensorFlow Supported Operations
 
-Some of TensorFlow operations do not match any OpenVINO operations. Yet, they are still supported by Model Optimizer and can be used on constant propagation path. These layers are labeled with `Constant propagation` in the table below:
+Some TensorFlow operations do not match to any OpenVINO operation, but are still supported by the Model Optimizer and can be used on constant propagation path. These layers are labeled 'Constant propagation' in the table.
 
 
 | Operation Name in TensorFlow | Limitations|
@@ -168,19 +165,19 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | ArgMax |  |
 | ArgMin |  |
 | Asinh |  |
-| Assert | Not needed for inference. |
-| Assign | Not needed for inference. |
-| AssignSub | Not needed for inference. |
+| Assert | Not needed for inference |
+| Assign | Not needed for inference |
+| AssignSub | Not needed for inference |
 | Atanh |  |
 | AvgPool |  |
-| AvgPoolV2 | Supported only for constant-foldable `kernel_size` and strides inputs. |
+| AvgPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | AvgPool3D |  |
 | BatchMatMul |  |
 | BatchMatMulV2 |  |
 | BatchToSpaceND |  |
 | BiasAdd |  |
 | BlockLSTM |  |
-| Bucketize | CPU only. |
+| Bucketize | CPU only |
 | BroadcastTo |  |
 | Cast |  |
 | Ceil |  |
@@ -194,30 +191,30 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Conv3DBackpropInputV2 |  |
 | Cos |  |
 | Cosh |  |
-| CropAndResize |  `method` = `bilinear` only. |
-| CTCGreedyDecoder | Supported only with decoded indices output in a dense format. |
-| CTCLoss | Supported only with decoded indices input in a dense format. |
+| CropAndResize | "method" = "bilinear" only |
+| CTCGreedyDecoder | Supported only with decoded indices output in a dense format |
+| CTCLoss | Supported only with decoded indices input in a dense format |
 | CumSum |  |
 | DepthToSpace|  |
 | DepthwiseConv2dNative|  |
-| Einsum | Supported only with equation that does not contain repeated labels within a subscript. |
+| Einsum | Supported only with equation that does not contain repeated labels within a subscript |
 | Elu |  |
-| EmptyTensorList | Supported only when it is part of a sub-graph of the special form. |
-| Enter | Supported only when it is fused to the TensorIterator layer. |
+| EmptyTensorList | Supported only when it is part of a sub-graph of the special form |
+| Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal |  |
 | Erf |  |
-| Exit | Supported only when it is fused to the TensorIterator layer. |
+| Exit | Supported only when it is fused to the TensorIterator layer |
 | Exp |  |
 | ExpandDims |  |
-| ExperimentalSparseWeightedSum | CPU only. |
+| ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches |  |
 | EuclideanNorm |  |
 | FakeQuantWithMinMaxVars |  |
 | FakeQuantWithMinMaxVarsPerChannel |  |
-| FFT | Supported only when it is part of a sub-graph of the special form. |
-| FFT2D | Supported only when it is part of a sub-graph of the special form. |
-| FFT3D | Supported only when it is part of a sub-graph of the special form. |
-| FIFOQueueV2 | Supported only when it is part of a sub-graph of the special form. |
+| FFT | Supported only when it is part of a sub-graph of the special form |
+| FFT2D | Supported only when it is part of a sub-graph of the special form |
+| FFT3D | Supported only when it is part of a sub-graph of the special form |
+| FIFOQueueV2 | Supported only when it is part of a sub-graph of the special form |
 | Fill |  |
 | Floor |  |
 | FloorDiv |  |
@@ -231,12 +228,12 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | GatherV2 |  |
 | Greater |  |
 | GreaterEqual |  |
-| Identity | Not needed for shape inference. |
+| Identity | Not needed for shape inference |
 | IdentityN |  |
-| IFFT | Supported only when it is part of a sub-graph of the special form. |
-| IFFT2D | Supported only when it is part of a sub-graph of the special form. |
-| IFFT3D | Supported only when it is part of a sub-graph of the special form. |
-| IteratorGetNext | Supported only when it is part of a sub-graph of the special form. |
+| IFFT | Supported only when it is part of a sub-graph of the special form |
+| IFFT2D | Supported only when it is part of a sub-graph of the special form |
+| IFFT3D | Supported only when it is part of a sub-graph of the special form |
+| IteratorGetNext | Supported only when it is part of a sub-graph of the special form |
 | LRN |  |
 | LeakyRelu |  |
 | Less |  |
@@ -247,23 +244,23 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | LogicalOr |  |
 | LogicalNot |  |
 | LogSoftmax |  |
-| LookupTableInsertV2 | Supported only when it is part of a sub-graph of the special form. |
-| LoopCond | Supported only when it is fused to the TensorIterator layer. |
+| LookupTableInsertV2 | Supported only when it is part of a sub-graph of the special form |
+| LoopCond | Supported only when it is fused to the TensorIterator layer |
 | MatMul |  |
 | Max |  |
 | MaxPool |  |
-| MaxPoolV2 | Supported only for constant-foldable `kernel_size` and strides inputs. |
+| MaxPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | MaxPool3D |  |
 | Maximum |  |
 | Mean |  |
-| Merge | Supported only when it is fused to the TensorIterator layer. |
+| Merge | Supported only when it is fused to the TensorIterator layer |
 | Min |  |
 | Minimum |  |
 | MirrorPad |  |
 | Mod |  |
 | Mul |  |
 | Neg |  |
-| NextIteration | Supported only when it is fused to the TensorIterator layer. |
+| NextIteration | Supported only when it is fused to the TensorIterator layer |
 | NonMaxSuppressionV2 |  |
 | NonMaxSuppressionV3 |  |
 | NonMaxSuppressionV4 |  |
@@ -277,9 +274,9 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Placeholder |  |
 | PlaceholderWithDefault |  |
 | Prod |  |
-| QueueDequeue | Supported only when it is part of a sub-graph of the special form. |
-| QueueDequeueUpToV2 | Supported only when it is part of a sub-graph of the special form. |
-| QueueDequeueV2 | Supported only when it is part of a sub-graph of the special form. |
+| QueueDequeue | Supported only when it is part of a sub-graph of the special form |
+| QueueDequeueUpToV2 | Supported only when it is part of a sub-graph of the special form |
+| QueueDequeueV2 | Supported only when it is part of a sub-graph of the special form |
 | RandomUniform |  |
 | RandomUniformInt |  |
 | Range |  |
@@ -293,7 +290,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | ResizeNearestNeighbor |  |
 | ResourceGather|  |
 | ReverseSequence |  |
-| ReverseV2 | Supported only when it can be converted to the ReverseSequence operation. |
+| ReverseV2 | Supported only when it can be converted to the ReverseSequence operation |
 | Roll |  |
 | Round |  |
 | Pow |  |
@@ -312,10 +309,10 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Softsign |  |
 | SpaceToBatchND |  |
 | SpaceToDepth |  |
-| SparseFillEmptyRows | Supported only when it is part of a sub-graph of the special form. |
-| SparseReshape | Supported only when it is part of a sub-graph of the special form. |
-| SparseSegmentSum | Supported only when it is part of a sub-graph of the special form. |
-| SparseSegmentMean | Supported only when it is part of a sub-graph of the special form. |
+| SparseFillEmptyRows | Supported only when it is part of a sub-graph of the special form |
+| SparseReshape | Supported only when it is part of a sub-graph of the special form |
+| SparseSegmentSum | Supported only when it is part of a sub-graph of the special form |
+| SparseSegmentMean | Supported only when it is part of a sub-graph of the special form |
 | SparseToDense | CPU only |
 | Split |  |
 | SplitV |  |
@@ -323,31 +320,31 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Square |  |
 | SquaredDifference |  |
 | Square|  |
-| Squeeze | Cases in which squeeze axis is not specified are not supported. |
+| Squeeze | The case when squeeze axis is not specified is not supported |
 | StatelessWhile |  |
-| StopGradient | Not needed for shape inference. |
-| StridedSlice | Supported only for constant-foldable `begin`, `end`, and `strides` inputs. |
+| StopGradient | Not needed for shape inference |
+| StridedSlice | Supported only for constant-foldable begin, end, and strides inputs |
 | Sub |  |
 | Sum |  |
 | Swish |  |
 | swish_f32 |  |
-| Switch | Control flow propagation. |
+| Switch | Control flow propagation |
 | Tan |  |
 | Tanh |  |
-| TensorArrayGatherV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorArrayReadV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorArrayScatterV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorArraySizeV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorArrayV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorArrayWriteV3 | Supported only when it is fused to the TensorIterator layer. |
-| TensorListPushBack | Supported only when it is part of a sub-graph of the special form. |
+| TensorArrayGatherV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorArrayReadV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorArrayScatterV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorArraySizeV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorArrayV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorArrayWriteV3 | Supported only when it is fused to the TensorIterator layer |
+| TensorListPushBack | Supported only when it is part of a sub-graph of the special form |
 | Tile |  |
 | TopkV2 |  |
 | Transpose |  |
 | Unpack |  |
 | Variable |  |
 | VariableV2 |  |
-| Where | Supported only when it is part of a sub-graph of the special form. |
+| Where | Supported only when it is part of a sub-graph of the special form |
 | ZerosLike |  |
 
 
@@ -369,7 +366,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Bidirectional |  |
 | Concatenate |  |
 | Conv1D |  |
-| Conv1DTranspose | Not supported if `dilation` is not equal to 1. |
+| Conv1DTranspose | Not supported if dilation is not equal to 1 |
 | Conv2D |  |
 | Conv2DTranspose |  |
 | Conv3D |  |
@@ -378,7 +375,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Cropping2D |  |
 | Cropping3D |  |
 | Dense |  |
-| DenseFeatures | Not supported for categorical and crossed features. |
+| DenseFeatures | Not supported for categorical and crossed features |
 | DepthwiseConv2D |  |
 | Dot |  |
 | Dropout |  |
@@ -410,7 +407,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Multiply |  |
 | PReLU |  |
 | Permute |  |
-| RNN | Not supported for some custom cells. |
+| RNN | Not supported for some custom cells |
 | ReLU |  |
 | RepeatVector |  |
 | Reshape |  |
@@ -445,7 +442,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | affinetransform |  |
 | backproptruncationcomponent |  |
 | batchnormcomponent |  |
-| clipgradientcomponent | Not needed for inference. |
+| clipgradientcomponent | Not needed for inference |
 | concat |  |
 | convolutional1dcomponent |  |
 | convolutionalcomponent |  |
@@ -455,7 +452,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | fixedaffinecomponent |  |
 | fixedbiascomponent |  |
 | fixedscalecomponent |  |
-| generaldropoutcomponent| Not needed for inference. |
+| generaldropoutcomponent| Not needed for inference |
 | linearcomponent |  |
 | logsoftmaxcomponent |  |
 | lstmnonlinearitycomponent |  |
@@ -464,7 +461,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | maxpoolingcomponent |  |
 | naturalgradientaffinecomponent |  |
 | naturalgradientperelementscalecomponent |  |
-| noopcomponent | Not needed for inference. |
+| noopcomponent | Not needed for inference |
 | normalizecomponent |  |
 | parallelcomponent |  |
 | pnormcomponent |  |
@@ -474,7 +471,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | sigmoidcomponent |  |
 | softmax |  |
 | softmaxComponent |  |
-| specaugmenttimemaskcomponent | Not needed for inference. |
+| specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent |  |
 | tanhcomponent |  |
 | tdnncomponent |  |
@@ -670,18 +667,18 @@ paddlepaddle>=2.1
 
 | Operator Name in PaddlePaddle| Limitations|
 | :----------| :----------|
-| adpative_pool2d | The `NHWC` data_layout is not supported. |
-| arg_max | The `int32` output data_type is not supported. |
+| adpative_pool2d | 'NHWC' data_layout is not supported |
+| arg_max | 'int32' output data_type is not supported |
 | assign_value |  |
 | batch_norm |  |
-| bilinear_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
-| bilinear_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
+| bilinear_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| bilinear_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
 | bmm |  |
 | cast |  |
 | clip |  |
 | concat |  |
-| conv2d | `NHWC` data_layout is not supported. |
-| depthwise_conv2d | `NHWC` data_layout is not supported. |
+| conv2d | 'NHWC' data_layout is not supported |
+| depthwise_conv2d | 'NHWC' data_layout is not supported |
 | deformable_conv |  |
 | elementwise_add |  |
 | elementwise_div |  |
@@ -708,21 +705,21 @@ paddlepaddle>=2.1
 | lookup_table_v2 |  |
 | matmul |  |
 | matmul_v2 |  |
-| matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
+| matrix_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(e.g.: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
 | max_pool2d_with_index |  |
 | mul |  |
-| multiclass_nms3 | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
-| nearest_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
-| nearest_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
-| pad3d | `Circular` mode is not supported. |
+| multiclass_nms3 | Only supports IE CPU plugin with 'number of selected boxes' static shape(e.g.: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| nearest_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| nearest_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| pad3d | 'Circular' mode is not supported |
 | pow |  |
-| pool2d | `NHWC` data_layout is not supported. |
+| pool2d | 'NHWC' data_layout is not supported |
 | prior_box |  |
 | range |  |
 | relu |  |
 | relu6 |  |
 | reshape2 |  |
-| rnn | `SimpleRNN` and `GRU` modes are not supported. |
+| rnn | 'SimpleRNN' and 'GRU' modes are not supported |
 | scale |  |
 | shape |  |
 | slice |  |

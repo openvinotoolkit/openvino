@@ -1,11 +1,11 @@
-# Converting a TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
+# Convert TensorFlow BERT Model {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow}
 
-Pretrained models for BERT (Bidirectional Encoder Representations from Transformers) are
+Pre-trained models for BERT (Bidirectional Encoder Representations from Transformers) are
 [publicly available](https://github.com/google-research/bert).
 
 ## <a name="supported_models"></a>Supported Models
 
-The following models from the pretrained [BERT model list](https://github.com/google-research/bert#pre-trained-models) are currently supported:
+Currently, the following models from the [pre-trained BERT model list](https://github.com/google-research/bert#pre-trained-models) are supported:
 
 * `BERT-Base, Cased`
 * `BERT-Base, Uncased`
@@ -15,7 +15,7 @@ The following models from the pretrained [BERT model list](https://github.com/go
 * `BERT-Large, Cased`
 * `BERT-Large, Uncased`
 
-## Downloading the Pretrained BERT Model
+## Download the Pre-Trained BERT Model
 
 Download and unzip an archive with the [BERT-Base, Multilingual Uncased Model](https://storage.googleapis.com/bert_models/2018_11_03/multilingual_L-12_H-768_A-12.zip).
 
@@ -26,11 +26,11 @@ After the archive is unzipped, the directory `uncased_L-12_H-768_A-12` is create
 * `bert_model.ckpt.meta`
 * `vocab.txt`
 
-Pretrained model meta-graph files are `bert_model.ckpt.*`.
+Pre-trained model meta-graph files are `bert_model.ckpt.*`.
 
-## Converting a TensorFlow BERT Model to IR
+## Convert TensorFlow BERT Model to IR
 
-To generate the BERT Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
+To generate the BERT Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
 ```sh
  mo \
 --input_meta_graph uncased_L-12_H-768_A-12/bert_model.ckpt.meta \
@@ -38,12 +38,12 @@ To generate the BERT Intermediate Representation (IR) of the model, run Model Op
 --input Placeholder{i32},Placeholder_1{i32},Placeholder_2{i32}
 ```
 
-Pretrained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
+Pre-trained models are not suitable for batch reshaping out-of-the-box because of multiple hardcoded shapes in the model.
 
-# Converting a Reshapable TensorFlow BERT Model to OpenVINO IR
+# Convert Reshape-able TensorFlow* BERT Model to the Intermediate Representation
 
-Follow these steps to make a pretrained TensorFlow BERT model reshapable over batch dimension:
-1. Download a pretrained BERT model you want to use from the <a href="#supported_models">Supported Models list</a>
+Follow these steps to make pre-trained TensorFlow BERT model reshape-able over batch dimension:
+1. Download pre-trained BERT model you would like to use from the <a href="#supported_models">Supported Models list</a>
 2. Clone google-research/bert git repository:
 ```sh
 https://github.com/google-research/bert.git
@@ -57,11 +57,11 @@ cd bert
 git checkout eedf5716c
 ```
 5. Download script to load GLUE data:
-    * For UNIX-like systems, run the following command:
+    * For UNIX*-like systems, run the following command:
 ```sh
 wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
 ```
-    * For Windows systems:<br>
+    * For Windows* systems:<br>
         Download the [Python script](https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py) to the current working directory.
 6. Download GLUE data by running:
 ```sh
@@ -108,12 +108,12 @@ python3 run_classifier.py \
     --output_dir=./
 ```
 
-Run Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
+Run the Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 ```sh
  mo \
 --input_model inference_graph.pb \
 --input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]"
 ```
-For other applicable parameters, refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide.
+For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
-For more information about reshape abilities, refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) guide.
+For more information about reshape abilities, refer to [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md).
