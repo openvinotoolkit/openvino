@@ -50,5 +50,5 @@ void regmodule_pyngraph_util(py::module m) {
         return ngraph::op::util::get_ie_output_name(output);
     });
 
-    mod.def("shutdown", &ov::openvino_shutdown);
+    mod.def("shutdown", &ov::shutdown);
 }

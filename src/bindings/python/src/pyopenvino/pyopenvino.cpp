@@ -96,7 +96,7 @@ PYBIND11_MODULE(pyopenvino, m) {
         py::arg("model"),
         py::arg("batch_size") = -1);
 
-    m.def("shutdown", &ov::openvino_shutdown, R"(Shutdown openvino runtime by try unload libraries)");
+    m.def("shutdown", &ov::shutdown, R"(Shutdown openvino runtime by try unload libraries)");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
