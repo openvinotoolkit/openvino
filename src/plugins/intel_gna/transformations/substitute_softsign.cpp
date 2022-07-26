@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ops/softsign.hpp>
 
 using namespace GNAPluginNS;
 
@@ -22,7 +21,7 @@ using Node = std::shared_ptr<ngraph::Node>;
 namespace {
 
 void DoTransformation(Node start_node, Node last_node) {
-    auto activation = std::make_shared<ov::intel_gna::op::SoftSign>(start_node);
+    auto activation = std::make_shared<ov::op::v9::SoftSign>(start_node);
     activation->set_friendly_name(last_node->get_friendly_name());
     ngraph::copy_runtime_info(last_node, activation);
     ngraph::replace_node(last_node, activation);

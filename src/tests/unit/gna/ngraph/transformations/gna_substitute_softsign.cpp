@@ -11,8 +11,6 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ops/softsign.hpp>
-
 namespace testing {
 
 namespace {
@@ -21,7 +19,7 @@ std::shared_ptr<ngraph::Function> createSoftSignFunction() {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32,
                                                                     ngraph::Shape{ 1, 1, 1, 64 });
 
-    auto softsign = std::make_shared<ov::intel_gna::op::SoftSign>(input_params);
+    auto softsign = std::make_shared<ov::op::v9::SoftSign>(input_params);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(softsign) };
 
