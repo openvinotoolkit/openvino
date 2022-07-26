@@ -20,7 +20,7 @@ nncf_config = register_default_init_args(nncf_config, train_dataset, batch_size=
 #! [nncf_congig]
 
 #! [wrap_model]
-model = KerasModel() # instance of the tensorflow.python.keras.models.Model
+model = KerasModel() # instance of the tensorflow.keras.Model   
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 

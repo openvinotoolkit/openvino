@@ -6,7 +6,7 @@ Quantization-aware Training is a popular method that allows quantizing a model a
 ## Using NNCF QAT
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with PyTorch or TensorFlow 2:
 
-> **NOTE**: Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model).
+> **NOTE**: Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras [Sequesntial API](https://www.tensorflow.org/guide/keras/sequential_model) or [Functional API](https://www.tensorflow.org/guide/keras/functional).
 
 ### 1. Import NNCF API
 In this step, you add NNCF-related imports in the beginning of the training script:
