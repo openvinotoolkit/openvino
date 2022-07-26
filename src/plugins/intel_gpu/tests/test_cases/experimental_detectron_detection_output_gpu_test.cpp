@@ -148,7 +148,7 @@ public:
         const auto& expected_boxes = param.expected_boxes;
         const auto& expected_classes = param.expected_classes;
         const auto& expected_scores = param.expected_scores;
-        for (size_t i = 0; i < param.max_detections_per_image; ++i) {
+        for (int i = 0; i < param.max_detections_per_image; ++i) {
             EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
             for (size_t coord = 0; coord < 4; ++coord) {
                 const auto roi_idx = i * 4 + coord;
