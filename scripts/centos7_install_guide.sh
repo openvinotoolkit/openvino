@@ -36,8 +36,7 @@ if command -v $benchmark_appPath; then
   echo "$benchmark_appPath exists"
   $benchmark_appPath -m ~/ov_models/public/$model/FP32/$model.xml -d CPU 
 else
-  echo "not find $benchmark_appPath"
-  exit 1
+  echo "not find $benchmark_appPath" && exit 1
  fi
 }
 
@@ -55,8 +54,7 @@ cd $ovDir/openvino
 if [ -f /etc/redhat-release ]; then
   echo "Demo to install and evaluate OV on centos7.x"
 else 
-  echo "This script is only for centos7"
-  exit 1
+  echo "This script is only for centos7" && exit 1
 fi
 
 echo "current openvino(tag): $(git describe --tags)"
@@ -87,22 +85,19 @@ done
 
 # if no arg, show the usage
 if [ $OPTIND -eq 1 ]; then
-    usage
-    exit 1
+    usage && exit 1
 fi 
 # check gccSet pySet
 if [ $gccSet -eq 7 -o  $gccSet -eq 8 ]; then
   echo "set gcc version: $gccSet";
 else    
-  usage
-  exit 1
+  usage && exit 1
 fi 
 # check py
 if [ $pySet -eq 6 -o $pySet -eq 7 -o $pySet -eq 8 -o  $pySet -eq 9 ]; then
   echo "set python version: 3.$pySet";
 else    
-  usage
-  exit 1
+  usage && exit 1
 fi 
 echo "cmake Dir: $cmakeDir"
 echo "evaluation model: $model"
@@ -114,7 +109,7 @@ echo "use benchmark_app c++: $benchmarkCpp"
 echo "############################################################"
 echo ">>> 0.system dependency and environment"
 echo "install yum, gcc, dnf, centos-release-scl, git" 
-sudo yum update
+sudo yum -y update
 sudo yum -y install gcc dnf centos-release-scl git
 echo ">>> install anaconda3"
 
@@ -128,6 +123,7 @@ if [ ! -d ~/anaconda3 ]; then
   source ~/.bashrc
   conda config --set auto_activate_base false
   conda deactivate # base env
+  rm -f ./Anaconda3-2020.11-Linux-x86_64.sh
 else 
   echo "anaconda3 exists"
 fi
@@ -141,7 +137,7 @@ echo ">>> 1.Download CMake 3.18.4"
 cmakeVersion=cmake-3.18.4-Linux-x86_64
 
 if [ ! -d $cmakeDir/$cmakeVersion ]; then
-   echo "$cmakeVersion not exit, now download"
+   echo "download $cmakeVersion"
    wget https://cmake.org/files/v3.18/$cmakeVersion.tar.gz \
    --directory-prefix $cmakeDir
    tar -xvf $cmakeDir/$cmakeVersion.tar.gz -C $cmakeDir
@@ -156,7 +152,6 @@ echo "############################################################"
 echo ">>> 2.Install devtoolset-$gccSet and setup environment"
 
 if [ ! -d /opt/rh/devtoolset-$gccSet ]; then
-  echo "devtoolset-$gccSet not exists, now download"
   sudo yum -y install devtoolset-$gccSet
 else 
   echo "devtoolset-$gccSet exists"
@@ -171,14 +166,13 @@ echo ">>> 2.1 Enable devtoolset-$gccSet"
 # instead $scl enable devtoolset-8 bash, no need to exit
 source /opt/rh/devtoolset-$gccSet/enable
 gccVersion=$(gcc --version | grep gcc | awk '{print $3}')
-echo "use devtoolset, now gcc version is $gccVersion."
+echo "use devtoolset, gcc version is $gccVersion."
 
 echo "############################################################"
 echo ">>> 2.2 use anaconda3 to create py3$pySet env"
 pyPath=~/anaconda3/envs/py3$pySet
 if [ ! -d $pyPath ]; then
-  echo "$pyPath not exists, now conda create"
-  conda create -n py3$pySet python=3.$pySet
+  conda create -n py3$pySet python=3.$pySet -y
 else
   echo "$pyPath exists."
 fi
@@ -188,10 +182,9 @@ source ~/anaconda3/bin/activate py3$pySet
 pyVersion=$(python --version 2>&1| awk '{print $2}')
 
 if [ ${pyVersion:2:1} -eq $pySet ]; then
-  echo "conda activate correctly, now python version is $pyVersion."
+  echo "conda activate correctly, python version is $pyVersion."
 else    
-  echo "conda error, now python version is $pyVersion."
-  exit 1
+  echo "conda error, python version is $pyVersion." && exit 1
 fi 
 
 ############################################################
@@ -231,11 +224,7 @@ pathDPYTHON_EXECUTABLE=$pyPath/bin/python
 pathDPYTHON_LIBRARY=$(find $pyPath/lib -maxdepth 1 -name libpython3.$pySet*.so)
 pathDPYTHON_INCLUDE_DIR=$(find $pyPath/include -maxdepth 1 -name python3.$pySet*)
 
-if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ] ; then
-  echo "whls not exist"
-fi
-echo "cmake now"
-# will download prebuild TBB instead of using system's 
+# download prebuild TBB instead of using system's 
 cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON \
 -DCMAKE_INSTALL_PREFIX=../$installDir -DENABLE_SYSTEM_TBB=OFF -DENABLE_OPENCV=OFF \
 -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DTREAT_WARNING_AS_ERROR=OFF \
@@ -248,12 +237,11 @@ make --jobs=$(nproc --all)
 make install
 
 if [ ! -f $ovDir/openvino/$installDir/tools/openvino-2022*.whl ] ; then
-  echo "whls not exist, cmake fails"
-  exit 1
+  echo "whls not exist, cmake fails" && exit 1
 else
   cd $ovDir/openvino/$installDir/tools/
-  echo openvino-2022*.whl exits
-  echo openvino_dev-2022*.whl exits
+  echo openvino-2022*.whl exists
+  echo openvino_dev-2022*.whl exists
 fi
 
 
@@ -262,10 +250,6 @@ fi
 ############################################################
 echo "############################################################"
 echo ">>> 4.Install python wheel"
-
-if [ ! $(command -v mo) ] ; then
-  echo "now mo not exists"
-fi 
 
 cd $ovDir/openvino/$installDir/tools
 echo install openvino-2022*.whl openvino_dev-2022*.whl
@@ -285,10 +269,7 @@ echo ">>> 5.$model evaluation with benchmark_app"
 ############################################################
 mkdir -p ~/ov_models
 
-if [ ! -d ~/ov_models/public/$model ]; then
-  echo "$model not exists"
-fi
-echo "now install onnx, pytorch, omz_downloader and omz_converter"
+echo "install onnx, pytorch, omz_downloader and omz_converter"
 pip install protobuf==3.16.0 
 pip install onnx==1.11.0 # python3.6 not support ONNX 1.12
 pip install openvino-dev[pytorch] # install ONNX's dependency
