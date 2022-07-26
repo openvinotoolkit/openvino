@@ -22,7 +22,7 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
 
     const auto conv = std::static_pointer_cast<const convolution>(node.get_primitive());
     auto weights_node_ptr = p.get_node_ptr(conv->weights[0]);
-    auto filter_size = weights_node_ptr->get_output_layout().size;
+    auto filter_size = weights_node_ptr->get_output_layout().get_tensor();
     // make sure this is conv 1x1
     if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
         auto deps = node.get_dependencies();
@@ -37,8 +37,8 @@ void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, c
         c->with_output_size = false;
         node.recalc_output_layout(true);
     } else {
-        bool can_shrink_x = (filter_size.spatial[0] >= (conv->stride[1] + (tensor.spatial[0] - 1)));
-        bool can_shrink_y = (filter_size.spatial[1] >= (conv->stride[0] + (tensor.spatial[1] - 1)));
+        bool can_shrink_x = (filter_size.spatial[0] >= (static_cast<int64_t>(conv->stride[1]) + (tensor.spatial[0] - 1)));
+        bool can_shrink_y = (filter_size.spatial[1] >= (static_cast<int64_t>(conv->stride[0]) + (tensor.spatial[1] - 1)));
         if (can_shrink_x && can_shrink_y) {
             auto c = const_cast<convolution*>(&(*conv));
             c->stride[1] += tensor.spatial[0] - 1;
