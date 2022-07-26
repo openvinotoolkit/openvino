@@ -5,7 +5,7 @@
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-all -Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-strict-aliasing -Wno-missing-declarations)
     ie_add_compiler_flags(-msse4.1 -msse4.2)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)

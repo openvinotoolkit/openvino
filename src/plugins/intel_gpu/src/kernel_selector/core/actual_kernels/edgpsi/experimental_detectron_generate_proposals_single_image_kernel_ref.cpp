@@ -27,8 +27,8 @@ KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernels
 }
 
 bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE
-        || o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
+    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE ||
+        o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
         return false;
     }
     return true;
