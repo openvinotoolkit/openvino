@@ -575,7 +575,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         inputModel = FE->load(params);
     }
     if (inputModel) {
-        // Test commit
         auto ngFunc = FE->convert(inputModel);
         return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
