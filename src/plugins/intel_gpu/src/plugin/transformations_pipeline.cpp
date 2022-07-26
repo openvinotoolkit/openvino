@@ -74,6 +74,7 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
+#include <transformations/op_conversions/convert_softmax_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -321,6 +322,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ngraph::pass::ConvertBroadcast3>();
         pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
         pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        pass_config->disable<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
         if (!config.enable_loop_unrolling) {
