@@ -28,7 +28,7 @@ std::string EltwiseTwoResults::getTestCaseName(testing::TestParamInfo<ov::test::
 void EltwiseTwoResults::SetUp() {
     ov::Shape inputShape0, inputShape1;
     std::tie(inputShape0, inputShape1, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{{}, {inputShape0, }}, {{}, {inputShape1, }}});
+    init_input_shapes(static_shapes_to_test_representation({inputShape0, inputShape1}));
 
     auto f = ov::test::snippets::EltwiseTwoResultsFunction({inputShape0, inputShape1});
     function = f.getOriginal();
