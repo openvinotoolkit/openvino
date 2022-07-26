@@ -62,6 +62,5 @@ if (ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
-add_subdirectory(lib)
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} paddle_fe_standalone_build_test)

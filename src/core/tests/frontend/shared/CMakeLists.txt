@@ -9,7 +9,6 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
-add_subdirectory(gtest_main_manifest)
 add_subdirectory(test_builtin_extensions_1)
 add_subdirectory(test_builtin_extensions_2)
 
