@@ -21,7 +21,7 @@ layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& no
     auto input_layout = node.input(0).get_output_layout();
     auto input_format = input_layout.format;
 
-    return layout{input_layout.data_type, input_format, input_layout.size};
+    return layout{input_layout.data_type, input_format, input_layout.get_tensor()};
 }
 
 std::string reverse_sequence_inst::to_string(reverse_sequence_node const& node) {

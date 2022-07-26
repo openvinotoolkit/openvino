@@ -78,7 +78,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     for (const auto& i : node.get_dependencies()) {
         auto input_i_layout = i->get_output_layout();
         auto input_mem_size = input_i_layout.get_dims();
-        for (int64_t dim = 0; dim < output_layout.get_rank(); ++dim) {
+        for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
             if (dim == node.get_primitive()->axis) {
                 concat_count += input_mem_size[dim];
             } else {
@@ -92,7 +92,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
         }
     }
 
-    for (int64_t dim = 0; dim < output_layout.get_rank(); ++dim) {
+    for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
         if (dim == node.get_primitive()->axis) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Concat count",
