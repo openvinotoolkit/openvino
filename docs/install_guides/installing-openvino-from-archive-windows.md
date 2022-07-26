@@ -63,11 +63,13 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
    
-3. Open a command prompt terminal window, and verify the package by using the `.sha256` file:
+3. Open a command prompt terminal window, and run the following command with the `.zip` file:
    ```sh
-   CertUtil -hashfile <archive name>.zip.sha256 SHA256
+   CertUtil -hashfile <archive name>.zip SHA256
    ```
-   If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
+   Compare the returned value in the output with what's in the `<archive name>.zip.sha256` file:
+   * If the values are the same, you have downloaded the correct file successfully.
+   * If not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
 4. Unzip the `<archive name>.zip` file using your preferred archive tool. 
  

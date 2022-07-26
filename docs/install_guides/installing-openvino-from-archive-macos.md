@@ -48,9 +48,9 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 2. Locate the downloaded files in your system. This document assumes the files are in your `Downloads` directory. 
 
-3. (Optional) Open a command prompt terminal window, and verify the checksum of the `sha256` file by using the following command:
+3. Open a command prompt terminal window, and verify the checksum of the `sha256` file by using the following command:
    ```sh
-   shasum -a 256 <archive name>.tgz.sha256
+   shasum -c -a 256 <archive name>.tgz.sha256
    ```
    If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
 

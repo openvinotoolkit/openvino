@@ -69,7 +69,7 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
    ```
 4. To verify the package by using the `.sha256` file:
    ```sh
-   sha256sum <archive name>.tgz.sha256
+   sha256sum -с <archive name>.tgz.sha256
    ```
    If any error message appears, check your network connections, re-download the correct files, and make sure the download process completes successfully.
 5. Extract OpenVINO files from the `.tgz` file:
