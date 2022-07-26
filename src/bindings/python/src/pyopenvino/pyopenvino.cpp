@@ -96,7 +96,8 @@ PYBIND11_MODULE(pyopenvino, m) {
         py::arg("model"),
         py::arg("batch_size") = -1);
 
-    m.def("shutdown", &ov::shutdown,
+    m.def("shutdown",
+          &ov::shutdown,
           R"(
                     Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
                     dependent resources
