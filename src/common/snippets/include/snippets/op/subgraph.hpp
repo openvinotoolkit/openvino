@@ -107,6 +107,7 @@ public:
     void serialize() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<Subgraph>;
+    static void copy_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
 private:
     void convert_to_snippet_dialect();
