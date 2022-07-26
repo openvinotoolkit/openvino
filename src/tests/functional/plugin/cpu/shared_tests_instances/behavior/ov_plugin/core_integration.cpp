@@ -7,6 +7,7 @@
 #include "ie_system_conf.h"
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;

@@ -4,6 +4,7 @@
 
 #include "behavior/ov_executable_network/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
 
 using namespace ov::test::behavior;
