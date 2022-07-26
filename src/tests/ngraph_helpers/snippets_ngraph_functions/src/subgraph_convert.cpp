@@ -122,10 +122,9 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initOriginal(
     auto add = std::make_shared<op::v1::Add>(convert0, convert1);
     auto relu = std::make_shared<op::v0::Relu>(add);
     auto sub = std::make_shared<op::v1::Subtract>(relu, stub2);
-    auto unsqueeze_axes = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int>{1});
-    auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(sub, unsqueeze_axes);
+    auto stub3 = createRollAsStub(sub);
     auto convert2 = std::make_shared<op::v0::Convert>(relu, outTypes[1]);
-    return std::make_shared<ov::Model>(NodeVector{convert2, unsqueeze}, ParameterVector{data0, data1, data2});
+    return std::make_shared<ov::Model>(NodeVector{convert2, stub3}, ParameterVector{data0, data1, data2});
 }
 std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(inTypes[0], input_shapes[0]);
