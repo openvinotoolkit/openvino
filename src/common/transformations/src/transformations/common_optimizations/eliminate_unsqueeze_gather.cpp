@@ -56,7 +56,7 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, "EliminateUnsqueezeGather");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -89,6 +89,6 @@ ngraph::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze_label, "EliminateGatherUnsqueeze");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze_label, matcher_name);
     register_matcher(m, callback);
 }

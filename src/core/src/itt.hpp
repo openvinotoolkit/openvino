@@ -28,7 +28,7 @@ OV_ITT_DOMAIN(SIMPLE_ov_pass);
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define NGRAPH_OP_SCOPE(region) OV_SCOPE(ngraph_op, region)
-#    define OV_PASS_CALLBACK(matcher)                               \
+#    define OV_PASS_CALLBACK(matcher)                                   \
         openvino::itt::handle_t m_callback_handle;                      \
         m_callback_handle = openvino::itt::handle(matcher->get_name()); \
         OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
