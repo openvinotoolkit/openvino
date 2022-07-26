@@ -324,7 +324,7 @@ private:
 struct layout {
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type), format(fmt), size(size), data_padding(apadding) {}
+        : data_type(data_type), format(fmt), data_padding(apadding), size(size) {}
 
     layout(const layout& other) = default;
 
@@ -357,139 +357,28 @@ struct layout {
     }
 
     /// Number of elements to be stored in this memory layout
-    size_t count() const { return size.count(); }
+    size_t count() const;
 
     /// Layout size with padding included
-    tensor get_buffer_size() const {
-        return size.add(data_padding.lower_size()).add(data_padding.upper_size());
-    }
+    tensor get_buffer_size() const;
 
-    tensor get_pitches() const {
-        auto sizes = get_buffer_size().sizes(format);
-
-        std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
-        std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
-        return {format, pitches};
-    }
+    tensor get_pitches() const;
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
-    size_t get_linear_offset(tensor element = tensor(0)) const {
-        auto l_padd = data_padding.lower_size();
-        auto u_padd = data_padding.upper_size();
-
-        if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
-            (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
-            (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
-            (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
-            (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
-            (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
-            (element.batch[0] >= size.batch[0] + u_padd.batch[0]) ||
-            (element.feature[0] >= size.feature[0] + u_padd.feature[0]) ||
-            (element.spatial[0] >= size.spatial[0] + u_padd.spatial[0]) ||
-            (element.spatial[1] >= size.spatial[1] + u_padd.spatial[1]) ||
-            (element.spatial[2] >= size.spatial[2] + u_padd.spatial[2]) ||
-            (element.spatial[3] >= size.spatial[3] + u_padd.spatial[3]))
-            throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
-
-        auto padded_size = size + l_padd + u_padd;
-        auto padded_element = element + l_padd;
-
-        return padded_size.get_linear_offset(padded_element, format);
-    }
+    size_t get_linear_offset(tensor element = tensor(0)) const;
 
     /// @brief Get aligned linear size calculated as multiplication of all elements.
-    size_t get_linear_size() const {
-        auto sizes = get_buffer_size().sizes();
-
-        std::set<size_t> processed_dims;
-        const auto& blocks = format.block_sizes();
-        for (size_t i = 0; i < blocks.size(); i++) {
-            if (processed_dims.count(blocks[i].first))
-                continue;
-
-            auto block_axis = blocks[i].first;
-            auto block_size = blocks[i].second;
-
-            for (size_t j = i + 1; j < blocks.size(); j++) {
-                if (blocks[j].first != block_axis)
-                    continue;
-
-                block_size *= blocks[j].second;
-            }
-
-            sizes[block_axis] = align_to(sizes[block_axis], block_size);
-            processed_dims.insert(block_axis);
-        }
-
-        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 8);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 16);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4 || this->format == cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4) {
-            sizes[1] = align_to(sizes[1], 4);
-            sizes[0] = align_to(sizes[0], 8);
-            sizes[2] = align_to(sizes[2], 8);
-        } else if (this->format == cldnn::format::b_fs_yx_32fp) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::image_2d_rgba) {
-            sizes[1] = 4;
-        } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
-                   this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
-                   this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 4);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
-                    this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
-                    this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
-                    this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[3] = align_to(sizes[2] * sizes[3], 2);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 2);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 4);
-            sizes[2] = 1;
-        }
-        size_t total = std::accumulate(
-            sizes.begin(),
-            sizes.end(),
-            static_cast<size_t>(1),
-            std::multiplies<size_t>());
-
-        return (this->data_type == data_types::bin) ? ceil_div(total, 32) : total;
-    }
+    size_t get_linear_size() const;
 
     /// Modify padding in layout
-    layout with_padding(padding const& padd) const {
-        layout ret = *this;
-        ret.data_padding = padd;
-        return ret;
-    }
+    layout with_padding(padding const& padd) const;
 
     /// Data type stored in @ref memory (see. @ref data_types)
     data_types data_type;
 
     /// Format stored in @ref memory (see. @ref format)
     cldnn::format format;
-
-    /// The size of the @ref memory (excluding padding)
-    tensor size;
 
     /// Explicit padding of the @ref memory
     padding data_padding;
@@ -526,6 +415,18 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
+
+    bool is_dynamic() const;
+
+    bool is_static() const;
+
+    tensor get_tensor() const;
+
+    void set_tensor(const tensor& size);
+
+private:
+    /// The size of the @ref memory (excluding padding)
+    tensor size;
 };
 
 /// @}

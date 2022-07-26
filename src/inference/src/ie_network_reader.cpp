@@ -440,6 +440,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+ov::frontend::FrontEndManager& get_frontend_manager() {
+    static ov::frontend::FrontEndManager manager;
+    return manager;
+}
+
 std::vector<ov::Extension::Ptr> wrap_old_extensions(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
     std::vector<ov::Extension::Ptr> extensions;
     for (const auto& ext : exts) {
@@ -459,6 +464,42 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
+    // Fix unicode name
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
+#else
+    std::string model_path = modelPath;
+#endif
+
+    // Try to load with FrontEndManager
+    auto& manager = get_frontend_manager();
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
+
+    ov::AnyVector params{model_path};
+
+    if (!binPath.empty()) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
+#else
+        const std::string& weights_path = binPath;
+#endif
+        params.emplace_back(weights_path);
+    }
+
+    FE = manager.load_by_model(params);
+    if (FE) {
+        FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
+        inputModel = FE->load(params);
+    }
+
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
+    }
+
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -475,46 +516,11 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
 #endif  // ENABLE_IR_V7_READER
 
-    // Fix unicode name
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
-#else
-    std::string model_path = modelPath;
-#endif
-
-    // Try to load with FrontEndManager
-    auto manager = ov::frontend::get_frontend_manager();
-    ov::frontend::FrontEnd::Ptr FE;
-    ov::frontend::InputModel::Ptr inputModel;
-
-    ov::AnyVector params{model_path};
-
-    if (!binPath.empty()) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
-#else
-        const std::string& weights_path = binPath;
-#endif
-        params.emplace_back(weights_path);
-    }
-
-    FE = manager->load_by_model(params);
-    if (FE) {
-        FE->add_extension(ov_exts);
-        if (!exts.empty())
-            FE->add_extension(wrap_old_extensions(exts));
-        inputModel = FE->load(params);
-    }
-
-    if (inputModel) {
-        auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
-    }
-
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     std::string FEs;
-    for (const auto& fe_name : manager->get_available_front_ends())
+    for (const auto& fe_name : manager.get_available_front_ends())
         FEs += fe_name + " ";
+
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
                              << " is supported and the model is correct."
@@ -529,6 +535,31 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
+
+    // Try to load with FrontEndManager
+    auto& manager = get_frontend_manager();
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
+
+    ov::AnyVector params{&modelStream};
+    if (weights) {
+        char* data = weights->cbuffer().as<char*>();
+        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
+            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
+        params.emplace_back(weights_buffer);
+    }
+
+    FE = manager.load_by_model(params);
+    if (FE) {
+        FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
+        inputModel = FE->load(params);
+    }
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
+    }
 
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
@@ -548,31 +579,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         }
     }
 #endif  // ENABLE_IR_V7_READER
-
-    // Try to load with FrontEndManager
-    auto manager = ov::frontend::get_frontend_manager();
-    ov::frontend::FrontEnd::Ptr FE;
-    ov::frontend::InputModel::Ptr inputModel;
-
-    ov::AnyVector params{&modelStream};
-    if (weights) {
-        char* data = weights->cbuffer().as<char*>();
-        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
-            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
-        params.emplace_back(weights_buffer);
-    }
-
-    FE = manager->load_by_model(params);
-    if (FE) {
-        FE->add_extension(ov_exts);
-        if (!exts.empty())
-            FE->add_extension(wrap_old_extensions(exts));
-        inputModel = FE->load(params);
-    }
-    if (inputModel) {
-        auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
-    }
 
     IE_THROW(NetworkNotRead)
         << "Unable to read the model. Please check if the model format is supported and model is correct.";

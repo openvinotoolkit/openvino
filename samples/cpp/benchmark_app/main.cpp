@@ -378,10 +378,6 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
-            if (isFlagSetInCommandLine("dopt")) {
-                device_config.emplace(ov::denormals_optimization(true));
-            }
-
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
                 if (!isFlagSetInCommandLine("pin")) {
