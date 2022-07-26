@@ -8,6 +8,7 @@
 #include <openvino/core/version.hpp>
 #include <string>
 
+#include "openvino/runtime/core.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
@@ -94,6 +95,18 @@ PYBIND11_MODULE(pyopenvino, m) {
         },
         py::arg("model"),
         py::arg("batch_size") = -1);
+
+    m.def("shutdown",
+          &ov::shutdown,
+          R"(
+                    Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+                    dependent resources
+                    
+                    This function should be used by advanced user to control unload the resources.
+                    
+                    You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+                    resources after itself when the library is unloaded.
+                )");
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);

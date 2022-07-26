@@ -17,7 +17,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API If : public util::MultiSubGraphOp {
 public:
-    OPENVINO_OP("If", "opset8", MultiSubGraphOp);
+    OPENVINO_OP("If", "opset8", util::MultiSubGraphOp);
     BWDCMP_RTTI_DECLARATION;
 
     enum BodyIndexes { THEN_BODY_INDEX = 0, ELSE_BODY_INDEX = 1 };
