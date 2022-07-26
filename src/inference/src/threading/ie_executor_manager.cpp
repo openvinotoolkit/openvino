@@ -65,7 +65,7 @@ void ExecutorManagerImpl::setTbbFlag(bool flag) {
 #    if (TBB_INTERFACE_VERSION < 12000)
             tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
 #    elif (TBB_INTERFACE_VERSION < 12060)
-            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>();
+            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(oneapi::tbb::task_scheduler_handle::get());
 #    else
             tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
 #    endif
