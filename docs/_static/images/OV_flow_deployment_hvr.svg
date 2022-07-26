@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="100%" height="100%" viewBox="0 0 301 500" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-    <g transform="matrix(1,0,0,1,-1304,-1386.47)">
+    <g transform="matrix(1,0,0,1,-1634.11,-1386.47)">
         <g id="Artboard3" transform="matrix(1.2405,0,0,1,-4217.7,1302.18)">
             <rect x="3400" y="0" width="1650" height="1199.97" style="fill:none;"/>
-            <g transform="matrix(0.635691,0,0,2.23727,4371.46,-3971.85)">
+            <g transform="matrix(0.635691,0,0,2.23727,4637.58,-3971.85)">
                 <rect x="125.413" y="1812.98" width="380.444" height="223.486" style="fill:white;"/>
             </g>
-            <g id="C--btm" serif:id="C -btm">
-            </g>
-            <g id="C--btm1" serif:id="C -btm" transform="matrix(0.806126,0,0,1,845.212,48.5296)">
+            <g id="C--btm" serif:id="C -btm" transform="matrix(0.806126,0,0,1,1111.33,48.5296)">
                 <g transform="matrix(0.313433,0,0,0.919528,4387.4,165.56)">
                     <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
                 </g>
@@ -45,15 +43,20 @@
                     <path d="M71.526,170.644L71.526,194.149C71.526,195.463 70.511,196.654 68.934,197.191C67.357,197.727 65.512,197.509 64.224,196.633C52.154,188.426 28.469,172.322 19.381,166.143C18.447,165.508 17.913,164.601 17.913,163.648C17.913,162.695 18.447,161.787 19.381,161.152C28.469,154.973 52.154,138.87 64.224,130.663C65.512,129.787 67.357,129.569 68.934,130.105C70.511,130.642 71.526,131.833 71.526,133.146L71.526,156.652L149.412,156.652C151.832,156.652 153.794,158.143 153.794,159.983C153.794,162.199 153.794,165.097 153.794,167.312C153.794,169.152 151.832,170.644 149.412,170.644C123.816,170.644 71.526,170.644 71.526,170.644Z" style="fill:rgb(0,104,181);"/>
                 </g>
             </g>
-            <g id="C-onhover" serif:id="C onhover">
+            <g id="C--btm1" serif:id="C -btm">
             </g>
-            <g id="C-norm" serif:id="C norm" transform="matrix(0.809463,0,0,1,829.701,48.5296)">
-                <g transform="matrix(1.1674,0,0,0.77827,363.448,-0.00974012)">
-                    <rect x="3521.05" y="45.956" width="255.921" height="255.921" style="fill:rgb(0,104,181);"/>
+            <g id="C-onhover" serif:id="C onhover" transform="matrix(0.809463,0,0,1,1095.79,-545.897)">
+                <g transform="matrix(0.389867,0,0,1.1485,4367.23,307.748)">
+                    <rect x="273.804" y="280.744" width="12.871" height="4.375" style="fill:rgb(0,163,246);"/>
                 </g>
-                <g transform="matrix(1.84054,0,0,1.84815,3904.95,-508.736)">
-                    <text x="336.983px" y="353.991px" style="font-family:'IntelOneDisplay-Regular', 'IntelOne Display', sans-serif;font-size:15.691px;fill:white;">DEPL<tspan x="376.823px 388.184px " y="353.991px 353.991px ">OY</tspan>MENT</text>
+                <g transform="matrix(1,0,0,1,4197.19,-1302.18)">
+                    <path d="M281.783,1939.9L281.783,2126.54C320.467,2126.54 570.546,2126.54 570.546,2126.54L570.546,1937.37L284.31,1937.37L284.31,1932.37L575.546,1932.37L575.546,2131.54L276.783,2131.54L276.783,1939.9L281.783,1939.9Z" style="fill:rgb(0,104,181);"/>
                 </g>
+                <g transform="matrix(1.84054,0,0,1.84815,3904.98,85.6903)">
+                    <text x="335.051px" y="353.991px" style="font-family:'IntelOneDisplay-Bold', 'IntelOne Display', sans-serif;font-weight:700;font-size:15.691px;fill:rgb(0,104,181);">DEPL<tspan x="375.958px 387.256px " y="353.991px 353.991px ">OY</tspan>MENT</text>
+                </g>
+            </g>
+            <g id="C-norm" serif:id="C norm">
             </g>
             <g id="B--btm" serif:id="B -btm">
             </g>
