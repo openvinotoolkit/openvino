@@ -17,7 +17,7 @@
 #include <sstream>
 #include <iomanip>
 
-#ifndef __clang__
+#ifdef _WIN32
 #pragma warning( disable : 4503 )
 #endif
 

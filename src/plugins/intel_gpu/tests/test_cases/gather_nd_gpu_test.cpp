@@ -47,7 +47,7 @@ inline void DoTestBase(engine& engine,
 
     // Compare output shape
     auto output_format = output->get_layout().format;
-    auto output_shape = output->get_layout().size;
+    auto output_shape = output->get_layout().get_tensor();
 
     EXPECT_EQ(fmt, output_format);
 
