@@ -119,7 +119,6 @@ struct kernel_impl_params {
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
-    //optional_layout weights_layout = layout(data_types::f32, format::any, tensor());
     optional_layout weights_layout;
 
     optional_layout bias_layout;

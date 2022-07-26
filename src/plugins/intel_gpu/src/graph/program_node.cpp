@@ -870,7 +870,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
-        //auto node = cldnn_post_ops[idx].node;
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();;

@@ -106,32 +106,24 @@ public:
             }
         }
 
-        auto get_second_output_node_idx = [&] {
+        auto get_additional_output_node_idx = [&] (bool is_third) {
             size_t offset = 2;
             offset += arg.has_num_select_per_class();
             offset += arg.has_iou_threshold();
             offset += arg.has_score_threshold();
             offset += arg.has_soft_nms_sigma();
-            return offset;
-        };
-
-        auto get_third_output_node_idx = [&] {
-            size_t offset = 2;
-            offset += arg.has_num_select_per_class();
-            offset += arg.has_iou_threshold();
-            offset += arg.has_score_threshold();
-            offset += arg.has_soft_nms_sigma();
-            offset += arg.has_second_output();
+            if (is_third)
+                offset += arg.has_second_output();
             return offset;
         };
 
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[get_second_output_node_idx()]));
+            params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[get_additional_output_node_idx(false)]));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[get_third_output_node_idx()]));
+            params.inputs.push_back(convert_data_tensor(impl_param->input_layouts[get_additional_output_node_idx(true)]));
             params.has_third_output = true;
         }
 
