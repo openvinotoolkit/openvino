@@ -31,6 +31,10 @@ std::string softmax_inst::to_string(softmax_node const& node) {
 
     std::stringstream primitive_description;
 
+    json_composite softmax_info;
+    softmax_info.add("dimension", desc->dimension);
+
+    node_info->add("softmax_info", softmax_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

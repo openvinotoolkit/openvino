@@ -22,7 +22,7 @@ struct softmax_test_params {
     tensor in_shape;
     data_types data_type;
     format input_format;
-    softmax::dimension_t dimension;
+    int64_t dimension;
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
@@ -65,13 +65,11 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- SoftMax cases ---------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-#define CASE_SOFTMAX_FP32_1 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_f, data_types::f32, format::bfyx
-#define CASE_SOFTMAX_FP32_2 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_x, data_types::f32, format::bfyx
-#define CASE_SOFTMAX_FP32_3 {1, 15, 4, 5}, data_types::f32, format::bfyx, softmax::dimension_t::normalize_fyx, data_types::f32, format::bfyx
+#define CASE_SOFTMAX_FP32_1 {1, 15, 4, 5}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
+#define CASE_SOFTMAX_FP32_2 {1, 15, 4, 5}, data_types::f32, format::bfyx, 3, data_types::f32, format::bfyx
 
-#define CASE_SOFTMAX_FP16_1 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_f, data_types::f16, format::bfyx
-#define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_x, data_types::f16, format::bfyx
-#define CASE_SOFTMAX_FP16_3 {1, 15, 4, 5}, data_types::f16, format::bfyx, softmax::dimension_t::normalize_fyx, data_types::f16, format::bfyx
+#define CASE_SOFTMAX_FP16_1 {1, 15, 4, 5}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
+#define CASE_SOFTMAX_FP16_2 {1, 15, 4, 5}, data_types::f16, format::bfyx, 3, data_types::f16, format::bfyx
 
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
@@ -94,11 +92,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP32_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP32_3, 3, 3 },
 
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
 }));
 
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};

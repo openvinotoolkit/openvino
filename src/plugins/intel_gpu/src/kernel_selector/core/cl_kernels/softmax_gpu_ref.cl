@@ -41,7 +41,7 @@ KERNEL(softmax)(
     ACCUMULATOR_TYPE denominator = 0.0;
     for (uint cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
     {
-        data[cls] = native_exp(data[cls] - max_value);;
+        data[cls] = native_exp(data[cls] - max_value);
         denominator += data[cls];
     }
 

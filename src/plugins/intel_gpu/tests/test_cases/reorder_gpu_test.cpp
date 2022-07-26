@@ -1536,7 +1536,7 @@ TEST(reorder_gpu_opt, mean_mul)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1571,7 +1571,7 @@ TEST(reorder_gpu_opt, mean_div)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 
 }
 
@@ -1602,7 +1602,7 @@ TEST(reorder_gpu_opt, mean_mul_val)
     cldnn::mem_lock<float> ptr(output, get_test_stream());
     float* a_ptr = answers;
     for (auto& val : ptr)
-        EXPECT_FLOAT_EQ(*(a_ptr++), val);;
+        EXPECT_FLOAT_EQ(*(a_ptr++), val);
 }
 
 TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
