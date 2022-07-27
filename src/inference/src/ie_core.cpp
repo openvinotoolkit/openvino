@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "any_copy.hpp"
@@ -160,6 +161,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
                 config.erase(it);
             }
+
+            it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
+                executorManager()->setTbbFlag(flag);
+                config.erase(it);
+            }
         }
 
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
@@ -204,6 +212,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     };
 
+    ExecutorManager::Ptr executorManagerPtr;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
@@ -372,7 +381,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl(bool _newAPI) : newAPI(_newAPI) {
+    CoreImpl(bool _newAPI) : executorManagerPtr(executorManager()), newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -798,6 +807,10 @@ public:
                         "You can only get_config of the AUTO itself (without devices). "
                         "get_config is also possible for the individual devices before creating the AUTO on top.");
 
+        if (name == ov::force_tbb_terminate.name()) {
+            const auto flag = executorManager()->getTbbFlag();
+            return decltype(ov::force_tbb_terminate)::value_type(flag);
+        }
         auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
         return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
@@ -1046,6 +1059,9 @@ public:
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
+        if (config.empty()) {
+            return;
+        }
 
         InferenceEngine::DeviceIDParser parser(deviceName);
         std::string clearDeviceName = parser.getDeviceName();
@@ -1597,6 +1613,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
             IE_THROW() << "You can only GetConfig of the AUTO itself (without devices). "
                           "GetConfig is also possible for the individual devices before creating the AUTO on top.";
         }
+    }
+
+    if (name == CONFIG_KEY(FORCE_TBB_TERMINATE)) {
+        const auto flag = executorManager()->getTbbFlag();
+        return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
