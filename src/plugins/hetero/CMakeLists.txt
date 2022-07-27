@@ -9,6 +9,7 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
+              PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR plugin.cpp
               ADD_CLANG_FORMAT)

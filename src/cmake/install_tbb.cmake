@@ -46,7 +46,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBB AND TBB MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
-    ie_cpack_add_component(tbb REQUIRED)
+    ie_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
 
     if(TBB MATCHES ${TEMP})
@@ -131,7 +131,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         # install development files
 
-        ie_cpack_add_component(tbb_dev REQUIRED)
+        ie_cpack_add_component(tbb_dev
+                               HIDDEN
+                               DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
         install(FILES "${TBB}/cmake/TBBConfig.cmake"

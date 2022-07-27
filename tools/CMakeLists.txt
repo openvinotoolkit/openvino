@@ -17,7 +17,7 @@ endif()
 
 # install deployment_manager
 
-ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} REQUIRED)
+ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} HIDDEN)
 
 install(DIRECTORY deployment_manager
         DESTINATION ${OV_CPACK_TOOLSDIR}
@@ -25,6 +25,9 @@ install(DIRECTORY deployment_manager
         USE_SOURCE_PERMISSIONS)
 
 # outbound requirements.txt files for openvino-dev package
+
+ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
+
 if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT $ENV{CI_BUILD_DEV_TAG} STREQUAL "")
     set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}")
 else()
@@ -33,7 +36,6 @@ endif()
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
-ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES})
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
     if(EXTRAS STREQUAL "_")
