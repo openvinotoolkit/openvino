@@ -521,8 +521,12 @@ def serialize_network(graph, net_element, unsupported):
                                            "has no output data node.".format(output_name)
 
         # After port renumbering port/connection API is not applicable, and output port numbering
-        # starts from len(node.in_nodes()).
-        data_node = node.out_node(len(node.in_nodes()))
+        # starts from len(node.in_nodes()). But it not applicable to Constant operations, they have only one output
+        # port with number 0.
+        if node.type == 'Const':
+            data_node = node.out_node(0)
+        else:
+            data_node = node.out_node(len(node.in_nodes()))
 
         found_result = False
         for op_node in data_node.out_nodes():
