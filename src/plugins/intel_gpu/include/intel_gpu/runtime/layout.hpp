@@ -68,6 +68,7 @@ private:
     storage_type storage;
 };
 
+
 /// Converts C++ type to @ref data_types .
 template <typename T>
 struct type_to_data_type;
@@ -427,6 +428,38 @@ struct layout {
 private:
     /// The size of the @ref memory (excluding padding)
     tensor size;
+};
+
+class optional_layout {
+public:
+    optional_layout() {}
+    optional_layout(const layout& lay) {
+        this->opt_layout_ptr = make_unique<layout>(lay);
+    }
+
+    optional_layout(const optional_layout& new_opt_lay) {
+        if (new_opt_lay) {
+            layout copied_lay = *new_opt_lay;
+            this->opt_layout_ptr = make_unique<layout>(copied_lay);
+        }
+    }
+
+    operator bool() const {
+        return this->opt_layout_ptr != nullptr;
+    }
+
+    layout operator*() const {
+        if (opt_layout_ptr == nullptr)
+            throw std::runtime_error("Attempt to access uninitialized optional layout!");
+        return *this->opt_layout_ptr;
+    }
+
+    std::unique_ptr<layout>& get_layout_ptr() {
+        return opt_layout_ptr;
+    }
+
+private:
+    std::unique_ptr<layout> opt_layout_ptr = nullptr;
 };
 
 /// @}

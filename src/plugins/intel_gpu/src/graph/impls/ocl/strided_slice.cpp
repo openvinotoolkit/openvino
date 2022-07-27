@@ -26,8 +26,9 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg) {
-        auto params = get_default_params<kernel_selector::strided_slice_params>(arg);
+    static primitive_impl* create(const strided_slice_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto params = get_default_params<kernel_selector::strided_slice_params>(*impl_param);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
@@ -52,10 +53,10 @@ public:
             params.striding_params.push_back(sizes);
         }
 
-        auto begin_mask_ = arg.get_primitive()->begin_mask;
-        auto end_mask_ = arg.get_primitive()->end_mask;
-        auto new_axis_mask_ = arg.get_primitive()->new_axis_mask;
-        auto shrink_axis_mask_ = arg.get_primitive()->shrink_axis_mask;
+        auto begin_mask_ = prim->begin_mask;
+        auto end_mask_ = prim->end_mask;
+        auto new_axis_mask_ = prim->new_axis_mask;
+        auto shrink_axis_mask_ = prim->shrink_axis_mask;
 
         std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
         std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
@@ -72,6 +73,7 @@ public:
         pad_vector_to_size(params.end_mask, dims_num, 1);
         params.begin_mask = begin_mask;
         pad_vector_to_size(params.begin_mask, dims_num, 1);
+
         params.new_axis_mask = new_axis_mask;
         params.shrink_axis_mask = shrink_axis_mask;
         pad_vector_to_size(params.shrink_axis_mask, dims_num, 0);
