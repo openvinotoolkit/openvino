@@ -4603,6 +4603,65 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
     }
 }
 
+TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
+    /*Test get_output_shape of a matmul op during masks initialization pass:
+        * First matmul has 2 outputs
+        * left/right matmuls have 0 outputs
+    */
+    auto inputShapes = PartialShape{1, 3};
+    auto firstMatmulShape = Shape{3, 12};
+    auto secondMatmulShape = Shape{12, 2};
+
+    auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+
+    auto first_matmul_weights = create_constant_with_zeros(firstMatmulShape, {{}, {1, 2}});
+    auto first_matmul = std::make_shared<opset5::MatMul>(input, first_matmul_weights);
+
+    auto left_matmul_weights = create_constant_with_zeros(secondMatmulShape, {{}, {}});
+    auto left_matmul = std::make_shared<opset5::MatMul>(first_matmul, left_matmul_weights);
+
+    auto right_matmul_weights = create_constant_with_zeros(secondMatmulShape, {{}, {}});
+    auto right_matmul = std::make_shared<opset5::MatMul>(first_matmul, right_matmul_weights);
+
+    function = std::make_shared<ngraph::Function>(OutputVector{left_matmul, right_matmul}, ParameterVector{input});
+    {
+        auto input = std::make_shared<opset5::Parameter>(element::f32, inputShapes);
+
+        auto first_matmul_weights = create_constant_with_zeros({firstMatmulShape[0], firstMatmulShape[1] - 2},
+                                                                {{}, {}});
+        auto first_matmul = std::make_shared<opset5::MatMul>(input, first_matmul_weights);
+
+        auto left_matmul_weights = create_constant_with_zeros({secondMatmulShape[0] - 2, secondMatmulShape[1]},
+                                                               {{}, {}});
+        auto left_matmul = std::make_shared<opset5::MatMul>(first_matmul, left_matmul_weights);
+
+        auto right_matmul_weights = create_constant_with_zeros({secondMatmulShape[0] - 2, secondMatmulShape[1]},
+                                                               {{}, {}});
+        auto right_matmul = std::make_shared<opset5::MatMul>(first_matmul, right_matmul_weights);
+
+        function_ref = std::make_shared<ngraph::Function>(OutputVector{left_matmul, right_matmul}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationMatMulWithSeveralOutputs.svg").run_on_function(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+
+    compare_masks(*getMask(first_matmul_weights), Mask{{}, {1, 2}});
+    compare_masks(*getMask(first_matmul), Mask{{}, {1, 2}});
+    compare_masks(*getMask(left_matmul_weights), Mask{{1, 2}, {}});
+    compare_masks(*getMask(left_matmul), Mask{{}, {}});
+    compare_masks(*getMask(right_matmul_weights), Mask{{1, 2}, {}});
+    compare_masks(*getMask(right_matmul), Mask{{}, {}});
+
+    manager.register_pass<pass::ShrinkWeights>();
+    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
 INSTANTIATE_TEST_CASE_P(
         TransformationTestsBoolParam,
         TransformationTestsBoolParamF,
