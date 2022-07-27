@@ -46,14 +46,12 @@ TEST_P(FrontendLibCloseTest, testPlaceIsLastDeletedObject) {
         place = model->get_place_by_tensor_name(exp_name);
     }
 
-    ov::shutdown();
-
     ASSERT_NE(place, nullptr);
     EXPECT_EQ(place->get_names().at(0), exp_name);
 }
 
-/** \brief Frontend library must close after object deletion, otherwise segfault can occur. */
-TEST_P(FrontendLibCloseTest, testPlaceIsLastDeletedObject2) {
+/** \brief Frontend library unload before object deletion, expecting segfault. */
+TEST_P(FrontendLibCloseTest, testUnloadLibBeforeDeletingDependentObject) {
     EXPECT_DEATH(
         {
             Place::Ptr place;
@@ -67,7 +65,6 @@ TEST_P(FrontendLibCloseTest, testPlaceIsLastDeletedObject2) {
             ov::shutdown();
 
             ASSERT_NE(place, nullptr);
-            EXPECT_EQ(place->get_names().at(0), exp_name);
         },
         ".*");
 }
@@ -82,8 +79,6 @@ TEST_P(FrontendLibCloseTest, testPlaceFromPlaceIsLastDeletedObject) {
         auto tensor_place = model->get_place_by_tensor_name(exp_name);
         port_place = tensor_place->get_producing_port();
     }
-
-    // ov::shutdown();
 
     ASSERT_NE(port_place, nullptr);
     ASSERT_EQ(port_place->get_producing_port(), nullptr);

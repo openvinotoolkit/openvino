@@ -27,41 +27,39 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRN
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'tensorflow' installed to check code style
-if(tensorflow_FOUND)
-        set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
+if (tensorflow_FOUND)
+    set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
 
-        file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
-        file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
-        set(OUT_FILES "")
-
-        foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
-                get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-                set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
-                set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
-                add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                        COMMAND ${PYTHON_EXECUTABLE}
-                        ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-                        ${GEN_SCRIPT}
-                        ${TEST_TENSORFLOW_MODELS}
-                        ${OUT_DONE_FILE}
-                        JOB_POOL four_jobs
-                        DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
+    file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
+    file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                ${GEN_SCRIPT}
+                ${TEST_TENSORFLOW_MODELS}
+                ${OUT_DONE_FILE}
+                JOB_POOL four_jobs
+                DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
                 )
-        endforeach()
+    endforeach()
+    add_custom_target(tensorflow_test_models DEPENDS ${OUT_FILES})
 
-        add_custom_target(tensorflow_test_models DEPENDS ${OUT_FILES})
-
-        install(DIRECTORY ${TEST_TENSORFLOW_MODELS}
-                DESTINATION tests/${TEST_TENSORFLOW_MODELS_DIRNAME}
-                COMPONENT tests
-                EXCLUDE_FROM_ALL)
+    install(DIRECTORY ${TEST_TENSORFLOW_MODELS}
+            DESTINATION tests/${TEST_TENSORFLOW_MODELS_DIRNAME}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 else()
-        # Produce warning message at build time as well
-        add_custom_command(OUTPUT unable_build_tensorflow_models.txt
-                COMMAND ${CMAKE_COMMAND}
-                -E cmake_echo_color --red "Warning: Unable to generate tensorflow test models. Running '${TARGET_NAME}' will likely fail"
-        )
-        add_custom_target(tensorflow_test_models DEPENDS unable_build_tensorflow_models.txt)
+    # Produce warning message at build time as well
+    add_custom_command(OUTPUT unable_build_tensorflow_models.txt
+            COMMAND ${CMAKE_COMMAND}
+            -E cmake_echo_color --red "Warning: Unable to generate tensorflow test models. Running '${TARGET_NAME}' will likely fail"
+            )
+    add_custom_target(tensorflow_test_models DEPENDS unable_build_tensorflow_models.txt)
 endif()
 
 add_dependencies(${TARGET_NAME} tensorflow_test_models)
