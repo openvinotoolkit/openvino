@@ -127,7 +127,6 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
     // TODO: check input sizes
     auto input_id = node.input().id();
     auto input_layout = node.input().get_output_layout();
-    auto input_tensor = input_layout.size;
     auto hidden_size = input_layout.spatial(0) / 4;
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",

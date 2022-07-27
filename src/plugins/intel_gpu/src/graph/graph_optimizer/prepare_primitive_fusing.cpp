@@ -398,7 +398,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->stride,
                                                                      desc->pad,
                                                                      desc->dilation,
-                                                                     conv.get_output_layout().size,
+                                                                     conv.get_output_layout().get_tensor(),
                                                                      conv.get_output_layout().data_type,
                                                                      desc->grouped_weights_shape);
 
@@ -435,7 +435,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
-                                                                         deconv.get_output_layout().size,
+                                                                         deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
@@ -486,7 +486,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
-            auto in_size = node.get_dependency(0).get_output_layout().size;
+            auto in_size = node.get_dependency(0).get_output_layout().get_tensor();
             return (node.get_split() > 1 && node.get_split() != in_size.feature[0]) ||
                    (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_size.feature[0]));
         };
@@ -925,7 +925,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<scale>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<softmax>() &&
-                           input_data.as<softmax>().get_primitive()->dimension == softmax::dimension_t::normalize_f &&
+                           input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            per_tensor_values;
 
 
@@ -987,8 +987,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            auto p1_raw_size = parent1->get_output_layout().size.sizes();
-            auto p2_raw_size = parent2->get_output_layout().size.sizes();
+            auto p1_raw_size = parent1->get_output_layout().get_tensor().sizes();
+            auto p2_raw_size = parent2->get_output_layout().get_tensor().sizes();
             for (unsigned k = 0; k < p1_raw_size.size(); k++) {
                 if (p1_raw_size[k] < p2_raw_size[k]) {
                     if (p1_raw_size[k] != 1)

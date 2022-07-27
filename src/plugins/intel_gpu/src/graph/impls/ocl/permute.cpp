@@ -34,7 +34,7 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     }
 
     // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
+    for (int i = 0; i < (static_cast<int>(cldnn_order.size()) - 2) / 2; i++) {
         std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
     }
 
