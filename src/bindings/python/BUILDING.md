@@ -88,7 +88,7 @@ You can now install the wheel in your Python environment:
 
 ### Prerequisites
 
-In order to build OpenVINO™ and the Python wheel on Windows, you need to install Microsoft Visual Studio* and Python.
+In order to build OpenVINO™ and its Python wheel on Windows, you need to install Microsoft Visual Studio* and Python.
 
 Once Python is installed, you also need to install Cython using `pip install cython`.
 
@@ -147,7 +147,7 @@ Build the Python wheel package:
 
 The final wheel should be located in the `bindings\python\dist` directory.
 
-    dir openvino\bindings\python\dist\     
+    dir openvino\bindings\python\dist\
     10/09/2020  04:06 PM         4,010,943 openvino-0.0.0.dev0-cp38-cp38-win_amd64.whl
 
 ## Run Tests
