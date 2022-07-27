@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#include "transformations/common_optimizations/optimize_gather_nd.hpp"
 #include "transformations/op_conversions/gathernd_decomposition.hpp"
 
 #include <memory>
