@@ -165,4 +165,41 @@ struct surfaces_lock {
     static std::unique_ptr<surfaces_lock> create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream);
 };
 
+template<typename T>
+inline std::vector<T> read_vector(cldnn::memory::ptr mem, cldnn::stream& stream) {
+    std::vector<T> out_vecs;
+    if (mem->get_allocation_type() == allocation_type::usm_host || mem->get_allocation_type() == allocation_type::usm_shared) {
+        switch (mem->get_layout().data_type) {
+            case data_types::i32: {
+                auto p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
+                for (size_t i = 0; i < mem->count(); i++) {
+                    out_vecs.push_back(static_cast<T>(p_mem[i]));
+                }
+                break;
+            }
+            case data_types::i64: {
+                auto p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
+                for (size_t i = 0; i < mem->count(); i++) {
+                    out_vecs.push_back(static_cast<T>(p_mem[i]));
+                }
+                break;
+            }
+            default: throw ov::Exception("[GPU] read_vector: unsupported data type");
+        }
+    } else {
+        switch (mem->get_layout().data_type) {
+            case data_types::i32: {
+                mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
+                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            }
+            case data_types::i64: {
+                mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
+                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            }
+            default: throw ov::Exception("[GPU] read_vector: unsupported data type");
+        }
+    }
+    return out_vecs;
+}
+
 }  // namespace cldnn
