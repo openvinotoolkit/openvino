@@ -119,7 +119,7 @@ bool directory_exists(const std::string& path);
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const char* path) {
+inline int64_t file_size(const char* path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
