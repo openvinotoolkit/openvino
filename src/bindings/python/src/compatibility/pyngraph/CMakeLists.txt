@@ -72,7 +72,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION})
+    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION} HIDDEN)
 
     install(TARGETS _${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}

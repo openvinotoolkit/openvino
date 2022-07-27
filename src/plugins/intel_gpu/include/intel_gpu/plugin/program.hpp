@@ -59,8 +59,12 @@ struct PerfCounter {
     std::string parentPrimitive;
 
 public:
-    PerfCounter() : realTime_uSec(0), cpu_uSec(0), num(0),
-                    status(InferenceEngine::InferenceEngineProfileInfo::NOT_RUN), isCPU(false) {}
+    PerfCounter()
+    : status(InferenceEngine::InferenceEngineProfileInfo::NOT_RUN)
+    , isCPU(false)
+    , realTime_uSec(0)
+    , cpu_uSec(0)
+    , num(0) {}
 
     long long realTime_avg() const { return (num == 0) ? 0 : realTime_uSec / num; }
     long long cpu_avg() const { return (num == 0) ? 0 : cpu_uSec / num; }
@@ -70,9 +74,18 @@ class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
             bool createTopologyOnly = false, bool partialBuild = false);
-    Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
-            m_curBatch(-1), queryMode(false), m_max_batch(1) {}
-    Program() : m_config(), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
+    Program(std::shared_ptr<cldnn::engine> engine, const Config& config)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {}
+    Program()
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config()
+        , m_engine(nullptr)
+        , queryMode(false) {}
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_meanValuesTag;
@@ -159,8 +172,8 @@ public:
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    std::shared_ptr<cldnn::engine> m_engine;
     Config m_config;
+    std::shared_ptr<cldnn::engine> m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;
