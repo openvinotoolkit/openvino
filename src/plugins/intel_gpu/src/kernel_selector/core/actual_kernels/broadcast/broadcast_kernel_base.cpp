@@ -31,6 +31,29 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
     return dispatchData;
 }
 
+static std::string GetInputBlockND(const broadcast_params& params, int num) {
+    const auto& input = params.inputs[num];
+    auto input_dims = input.LogicalDims();
+    std::reverse(input_dims.begin(), input_dims.end());
+    const int rank = static_cast<int>(input_dims.size());
+    std::vector<size_t> block_nd(rank + 1);
+    block_nd[rank] = 1;
+    for (int idx = (rank - 1); idx >= 0; idx--) {
+        block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
+    }
+
+    std::stringstream s;
+    for (int i = 0; i < (rank + 1); i++) {
+        if (i < rank) {
+            s << block_nd[i] << ",";
+        } else {
+            s << block_nd[i];
+        }
+    }
+    auto str_result = s.str();
+    return str_result;
+}
+
 KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
                                                       const optional_params& options) const {
     assert(params.GetType() == KernelType::BROADCAST);
@@ -42,6 +65,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<broadcast_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
+    cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params, 0)));
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

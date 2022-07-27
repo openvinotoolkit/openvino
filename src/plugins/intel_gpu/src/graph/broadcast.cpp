@@ -69,7 +69,7 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     size_t index = 0;
     size_t input_index = broadcast_axes_size;
 
-    if (format == format::bfzyx) {
+    if (format == format::bfzyx || format == format::b_fs_zyx_fsv16 || format == format::b_fs_zyx_fsv32 || format == format::bs_fs_zyx_bsv16_fsv16) {
         if (broadcast_axes_size > 5) {
             CLDNN_ERROR_MESSAGE(node.id(),
                                 "Incorrect parameters configuration: broadcast_axes size should be less or equal 5.");
