@@ -155,10 +155,10 @@ class ExecutorManagerHolder {
     std::mutex _mutex;
     std::weak_ptr<ExecutorManager> _manager;
 
+public:
     ExecutorManagerHolder(const ExecutorManagerHolder&) = delete;
     ExecutorManagerHolder& operator=(const ExecutorManagerHolder&) = delete;
 
-public:
     ExecutorManagerHolder() = default;
 
     ExecutorManager::Ptr get() {
