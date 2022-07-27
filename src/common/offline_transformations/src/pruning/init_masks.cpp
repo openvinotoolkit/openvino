@@ -77,10 +77,9 @@ public:
             auto cur_node = matmul->get_input_node_shared_ptr(1);
 
             if (cur_node->get_output_partial_shape(0).is_dynamic()) return false;
-            auto dim_order = std::vector<int64_t>();
             const auto input_size = cur_node->get_output_shape(0).size();
-            for (int64_t idx = 0; idx < input_size; ++idx)
-                dim_order.push_back(idx);
+            auto dim_order = std::vector<int64_t>(input_size);
+            std::iota(dim_order.begin(), dim_order.end(), 0);
 
             while (!ngraph::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
@@ -89,11 +88,9 @@ public:
                     if (!forward_order) return false;
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();
                     if (forward_order_vec.size() != input_size) return false;
-                    auto new_order = std::vector<int64_t>();
+                    auto new_order = std::vector<int64_t>(forward_order_vec.size());
                     for (size_t i = 0; i < forward_order_vec.size(); ++i) {
-                        const auto dim = std::find(forward_order_vec.begin(), forward_order_vec.end(), i) - forward_order_vec.begin();
-                        // Dim should be valid because of transpose operation input_order input restrictions
-                        new_order.push_back(dim_order[dim]);
+                        new_order[forward_order_vec[i]] = dim_order[i];
                     }
                     dim_order = new_order;
                 } else {
