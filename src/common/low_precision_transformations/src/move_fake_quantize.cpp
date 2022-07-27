@@ -4,11 +4,13 @@
 
 #include "low_precision/move_fake_quantize.hpp"
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/opsets/opset1.hpp>
+
 #include <memory>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
@@ -20,23 +22,29 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MoveFakeQuantize, "MoveFakeQuantize", 0);
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
-    MATCHER_SCOPE(MoveFakeQuantize);
     const auto concat = ngraph::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
-    const auto operation = ngraph::pattern::wrap_type<opset1::Relu>({concat});
+    const auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
     const auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     const auto input_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     const auto output_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     const auto output_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    const auto fq_with_operation =
-        ngraph::pattern::wrap_type<opset1::FakeQuantize>({operation, input_low, input_high, output_low, output_high});
-    const auto fq =
-        ngraph::pattern::wrap_type<opset1::FakeQuantize>({concat, input_low, input_high, output_low, output_high});
+    const auto fq_with_operation = ngraph::pattern::wrap_type<opset1::FakeQuantize>({ operation,
+        input_low,
+        input_high,
+        output_low,
+        output_high});
+    const auto fq = ngraph::pattern::wrap_type<opset1::FakeQuantize>({ concat,
+        input_low,
+        input_high,
+        output_low,
+        output_high });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
+
         return transform(*context, m);
     };
 
@@ -78,8 +86,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concat_node->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && curr_constants[i]->get_shape().size() > concat_axis &&
-            curr_constants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && curr_constants[i]->get_shape().size() > concat_axis && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
     }
@@ -111,17 +118,17 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
             parent_output = fq_input->output(0);
         }
 
-        const std::shared_ptr<ngraph::Node> new_fq =
-            multi_chanels ? fq->clone_with_new_inputs({parent_output,
-                                                       new_constants[0][new_constants[0].size() == 1 ? 0 : i],
-                                                       new_constants[1][new_constants[1].size() == 1 ? 0 : i],
-                                                       new_constants[2][new_constants[2].size() == 1 ? 0 : i],
-                                                       new_constants[3][new_constants[3].size() == 1 ? 0 : i]})
-                          : fq->clone_with_new_inputs({parent_output,
-                                                       fq->get_input_node_ptr(1)->clone_with_new_inputs({}),
-                                                       fq->get_input_node_ptr(2)->clone_with_new_inputs({}),
-                                                       fq->get_input_node_ptr(3)->clone_with_new_inputs({}),
-                                                       fq->get_input_node_ptr(4)->clone_with_new_inputs({})});
+        const std::shared_ptr<ngraph::Node> new_fq = multi_chanels ?
+            fq->clone_with_new_inputs({parent_output,
+                new_constants[0][new_constants[0].size() == 1 ? 0 : i],
+                new_constants[1][new_constants[1].size() == 1 ? 0 : i],
+                new_constants[2][new_constants[2].size() == 1 ? 0 : i],
+                new_constants[3][new_constants[3].size() == 1 ? 0 : i] }) :
+            fq->clone_with_new_inputs({parent_output,
+                fq->get_input_node_ptr(1)->clone_with_new_inputs({}),
+                fq->get_input_node_ptr(2)->clone_with_new_inputs({}),
+                fq->get_input_node_ptr(3)->clone_with_new_inputs({}),
+                fq->get_input_node_ptr(4)->clone_with_new_inputs({}) });
 
         ngraph::copy_runtime_info(fq, new_fq);
         new_fq->set_friendly_name(fq_original_name + "_" + std::to_string(i + 1));
@@ -188,6 +195,6 @@ bool MoveFakeQuantize::isPrecisionPreserved(std::shared_ptr<Node>) const noexcep
     return true;
 }
 
-}  // namespace low_precision
-}  // namespace pass
-}  // namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
