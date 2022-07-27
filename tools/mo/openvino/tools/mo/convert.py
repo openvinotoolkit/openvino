@@ -568,7 +568,7 @@ def transformations_config_to_str(value):
 
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
-        return None
+        return [import_extensions.default_path()]
     if isinstance(extensions, str):
         return extensions.split(',')
     if isinstance(extensions, list):

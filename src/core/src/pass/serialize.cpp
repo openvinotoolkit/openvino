@@ -18,6 +18,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -1021,6 +1022,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_or
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
+        ov::util::create_directory_recursive(ov::util::get_directory(m_xmlPath));
+
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
         NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 

@@ -15,8 +15,8 @@ from openvino.tools.mo.utils.cli_parser import get_model_name
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
+from openvino.runtime import serialize
 from convert import convert
-from serialize import serialize
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
@@ -93,7 +93,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
     model_path = os.path.normpath(os.path.join(output_dir, model_name + '.xml'))
 
-    serialize(ngraph_function, model_path, argv)
+    serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
