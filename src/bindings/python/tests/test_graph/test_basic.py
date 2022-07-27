@@ -18,10 +18,10 @@ from openvino.pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
 from openvino.runtime.utils.types import get_dtype
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 
-def test_ngraph_function_api():
+def test_graph_function_api():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=Type.f32, name="B")

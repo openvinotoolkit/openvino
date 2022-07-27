@@ -9,11 +9,11 @@ from openvino.runtime import PartialShape, Dimension
 import openvino.runtime.opset9 as ov
 from openvino.runtime.utils.types import make_constant_node
 from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_max, np.max, np.array([0, 1, 2, 3])),
         (ov.reduce_min, np.min, np.array([0, 1, 2, 3])),
@@ -29,18 +29,18 @@ from tests.test_ngraph.util import run_op_node
         (ov.reduce_prod, np.prod, np.array([0, 2])),
     ],
 )
-def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
+def test_reduction_ops(graph_api_helper, numpy_function, reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], ng_api_helper, reduction_axes)
+    result = run_op_node([input_data], graph_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_logical_and, np.logical_and.reduce, np.array([0])),
         (ov.reduce_logical_or, np.logical_or.reduce, np.array([0])),
@@ -50,13 +50,13 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
         (ov.reduce_logical_or, np.logical_or.reduce, np.array([0, 1, 2, 3])),
     ],
 )
-def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
+def test_reduction_logical_ops(graph_api_helper, numpy_function, reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
     input_data = np.random.randn(*shape).astype(np.bool)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], ng_api_helper, reduction_axes)
+    result = run_op_node([input_data], graph_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 
@@ -73,20 +73,20 @@ def test_topk():
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function", "reduction_axes"),
+    ("graph_api_helper", "numpy_function", "reduction_axes"),
     [
         (ov.reduce_mean, np.mean, np.array([0, 1, 2, 3])),
         (ov.reduce_mean, np.mean, np.array([0])),
         (ov.reduce_mean, np.mean, np.array([0, 2])),
     ],
 )
-def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
+def test_reduce_mean_op(graph_api_helper, numpy_function, reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
     input_data = np.random.randn(*shape).astype(np.float32)
 
     expected = numpy_function(input_data, axis=tuple(reduction_axes))
-    result = run_op_node([input_data], ng_api_helper, reduction_axes)
+    result = run_op_node([input_data], graph_api_helper, reduction_axes)
     assert np.allclose(result, expected)
 
 

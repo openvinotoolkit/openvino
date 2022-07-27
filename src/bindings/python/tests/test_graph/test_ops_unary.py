@@ -8,13 +8,13 @@ import pytest
 import openvino.runtime.opset9 as ov
 from openvino.runtime import Shape, Type
 from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 R_TOLERANCE = 1e-6  # global relative tolerance
 
 
 @pytest.mark.parametrize(
-    ("ng_api_fn", "numpy_fn", "range_start", "range_end"),
+    ("graph_api_fn", "numpy_fn", "range_start", "range_end"),
     [
         (ov.absolute, np.abs, -1, 1),
         (ov.abs, np.abs, -1, 1),
@@ -40,17 +40,17 @@ R_TOLERANCE = 1e-6  # global relative tolerance
         (ov.tanh, np.tanh, -100.0, 100.0),
     ],
 )
-def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
+def test_unary_op_array(graph_api_fn, numpy_fn, range_start, range_end):
     np.random.seed(133391)
     input_data = (range_start + np.random.rand(2, 3, 4) * (range_end - range_start)).astype(np.float32)
     expected = numpy_fn(input_data)
 
-    result = run_op_node([input_data], ng_api_fn)
+    result = run_op_node([input_data], graph_api_fn)
     assert np.allclose(result, expected, rtol=0.001)
 
 
 @pytest.mark.parametrize(
-    ("ng_api_fn", "numpy_fn", "input_data"),
+    ("graph_api_fn", "numpy_fn", "input_data"),
     [
         pytest.param(ov.absolute, np.abs, np.float32(-3)),
         pytest.param(ov.abs, np.abs, np.float32(-3)),
@@ -73,10 +73,10 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ov.tanh, np.tanh, np.float32(0.1234)),
     ],
 )
-def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
+def test_unary_op_scalar(graph_api_fn, numpy_fn, input_data):
     expected = numpy_fn(input_data)
 
-    result = run_op_node([input_data], ng_api_fn)
+    result = run_op_node([input_data], graph_api_fn)
     assert np.allclose(result, expected)
 
 

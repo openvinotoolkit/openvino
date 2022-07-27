@@ -12,26 +12,26 @@ import pytest
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model, PartialShape, Shape
 from openvino.runtime.passes import Manager
-from tests.test_ngraph.util import count_ops_of_type
+from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
 
 def test_constant_folding():
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
-    func = Model(node_ceil, [], "TestFunction")
+    model = Model(node_ceil, [], "TestFunction")
 
-    assert count_ops_of_type(func, node_ceil) == 1
-    assert count_ops_of_type(func, node_constant) == 1
+    assert count_ops_of_type(model, node_ceil) == 1
+    assert count_ops_of_type(model, node_constant) == 1
 
     pass_manager = Manager()
     pass_manager.register_pass("ConstantFolding")
-    pass_manager.run_passes(func)
+    pass_manager.run_passes(model)
 
-    assert count_ops_of_type(func, node_ceil) == 0
-    assert count_ops_of_type(func, node_constant) == 1
+    assert count_ops_of_type(model, node_ceil) == 0
+    assert count_ops_of_type(model, node_constant) == 1
 
-    new_const = func.get_results()[0].input(0).get_source_output().get_node()
+    new_const = model.get_results()[0].input(0).get_source_output().get_node()
     values_out = new_const.get_vector()
     values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
 
@@ -53,10 +53,10 @@ def test_serialize_seperate_paths_kwargs():
     pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -77,10 +77,10 @@ def test_serialize_seperate_paths_args():
     pass_manager.register_pass("Serialize", xml_path, bin_path)
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -100,10 +100,10 @@ def test_serialize_pass_mixed_args_kwargs():
     pass_manager.register_pass("Serialize", xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -124,10 +124,10 @@ def test_serialize_pass_mixed_args_kwargs_v2():
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -155,9 +155,9 @@ def test_serialize_results():
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
     const = func.get_results()[0].input(0).get_source_output().get_node()
-    new_const = res_func.get_results()[0].input(0).get_source_output().get_node()
+    new_const = res_model.get_results()[0].input(0).get_source_output().get_node()
 
     assert const == new_const
 
@@ -180,10 +180,10 @@ def test_serialize_pass_tuple():
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -204,10 +204,10 @@ def test_default_version():
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -228,10 +228,10 @@ def test_default_version_IR_V11_tuple():
     pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -252,10 +252,10 @@ def test_default_version_IR_V11_seperate_paths():
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path, version="IR_V11")
     pass_manager.run_passes(func)
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert func.get_parameters() == res_model.get_parameters()
+    assert func.get_ordered_ops() == res_model.get_ordered_ops()
 
     os.remove(xml_path)
     os.remove(bin_path)

@@ -9,11 +9,11 @@ import pytest
 
 import openvino.runtime.opset8 as ov
 from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function"),
+    ("graph_api_helper", "numpy_function"),
     [
         (ov.add, np.add),
         (ov.divide, np.divide),
@@ -30,14 +30,14 @@ from tests.test_ngraph.util import run_op_node
         (ov.less_equal, np.less_equal),
     ],
 )
-def test_binary_op(ng_api_helper, numpy_function):
+def test_binary_op(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
     parameter_b = ov.parameter(shape, name="B", dtype=np.float32)
 
-    model = ng_api_helper(parameter_a, parameter_b)
+    model = graph_api_helper(parameter_a, parameter_b)
     computation = runtime.computation(model, parameter_a, parameter_b)
 
     value_a = np.array([[1, 2], [3, 4]], dtype=np.float32)
@@ -49,7 +49,7 @@ def test_binary_op(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function"),
+    ("graph_api_helper", "numpy_function"),
     [
         (ov.add, np.add),
         (ov.divide, np.divide),
@@ -66,7 +66,7 @@ def test_binary_op(ng_api_helper, numpy_function):
         (ov.less_equal, np.less_equal),
     ],
 )
-def test_binary_op_with_scalar(ng_api_helper, numpy_function):
+def test_binary_op_with_scalar(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
     value_a = np.array([[1, 2], [3, 4]], dtype=np.float32)
@@ -75,7 +75,7 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
 
-    model = ng_api_helper(parameter_a, value_b)
+    model = graph_api_helper(parameter_a, value_b)
     computation = runtime.computation(model, parameter_a)
 
     result = computation(value_a)
@@ -84,17 +84,17 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function"),
+    ("graph_api_helper", "numpy_function"),
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],
 )
-def test_binary_logical_op(ng_api_helper, numpy_function):
+def test_binary_logical_op(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.bool)
     parameter_b = ov.parameter(shape, name="B", dtype=np.bool)
 
-    model = ng_api_helper(parameter_a, parameter_b)
+    model = graph_api_helper(parameter_a, parameter_b)
     computation = runtime.computation(model, parameter_a, parameter_b)
 
     value_a = np.array([[True, False], [False, True]], dtype=np.bool)
@@ -106,10 +106,10 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
 
 
 @pytest.mark.parametrize(
-    ("ng_api_helper", "numpy_function"),
+    ("graph_api_helper", "numpy_function"),
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],
 )
-def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
+def test_binary_logical_op_with_scalar(graph_api_helper, numpy_function):
     runtime = get_runtime()
 
     value_a = np.array([[True, False], [False, True]], dtype=np.bool)
@@ -118,7 +118,7 @@ def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.bool)
 
-    model = ng_api_helper(parameter_a, value_b)
+    model = graph_api_helper(parameter_a, value_b)
     computation = runtime.computation(model, parameter_a)
 
     result = computation(value_a)

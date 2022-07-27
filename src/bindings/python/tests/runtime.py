@@ -34,31 +34,31 @@ def get_runtime():
 
 
 class Runtime(object):
-    """Represents an nGraph runtime environment."""
+    """Represents a graph runtime environment."""
 
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
-        log.debug(f"Creating Inference Engine for {backend_name}")
+        log.debug(f"Creating runtime for {backend_name}")
         self.backend = Core()
         assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
 
     def set_config(self, config: Dict[str, str]) -> None:
-        """Set the inference engine configuration."""
+        """Set the runtime configuration."""
         self.backend.set_property(device_name=self.backend_name, properties=config)
 
-    def computation(self, node_or_function: Union[Node, Model], *inputs: Node) -> "Computation":
+    def computation(self, node_or_model: Union[Node, Model], *inputs: Node) -> "Computation":
         """Return a callable Computation object."""
-        if isinstance(node_or_function, Node):
-            ng_function = Model(node_or_function, inputs, node_or_function.name)
-            return Computation(self, ng_function)
-        elif isinstance(node_or_function, Model):
-            return Computation(self, node_or_function)
+        if isinstance(node_or_model, Node):
+            model = Model(node_or_model, inputs, node_or_model.name)
+            return Computation(self, model)
+        elif isinstance(node_or_model, Model):
+            return Computation(self, node_or_model)
         else:
             raise TypeError(
                 "Runtime.computation must be called with an OpenVINO Model object "
                 "or an OpenVINO node object an optionally Parameter node objects. "
                 "Called with: %s",
-                node_or_function,
+                node_or_model,
             )
 
     def __repr__(self) -> str:
@@ -66,13 +66,13 @@ class Runtime(object):
 
 
 class Computation(object):
-    """nGraph callable computation object."""
+    """Graph callable computation object."""
 
-    def __init__(self, runtime: Runtime, ng_function: Model) -> None:
+    def __init__(self, runtime: Runtime, model: Model) -> None:
         self.runtime = runtime
-        self.function = ng_function
-        self.parameters = ng_function.get_parameters()
-        self.results = ng_function.get_results()
+        self.model = model
+        self.parameters = model.get_parameters()
+        self.results = model.get_results()
         self.network_cache = {}
 
     def convert_buffers(self, source_buffers, target_dtypes):
@@ -101,7 +101,7 @@ class Computation(object):
 
     def __repr__(self) -> str:
         params_string = ", ".join([param.name for param in self.parameters])
-        return f"<Computation: {self.function.get_name()}({params_string})>"
+        return f"<Computation: {self.model.get_name()}({params_string})>"
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
@@ -116,12 +116,12 @@ class Computation(object):
         param_names = [param.friendly_name for param in self.parameters]
         input_shapes = [get_shape(input_value) for input_value in input_values]
         if self.network_cache.get(str(input_shapes)) is None:
-            function = self.function
-            self.network_cache[str(input_shapes)] = function
+            model = self.model
+            self.network_cache[str(input_shapes)] = model
         else:
-            function = self.network_cache[str(input_shapes)]
+            model = self.network_cache[str(input_shapes)]
 
-        compiled_model = self.runtime.backend.compile_model(function, self.runtime.backend_name)
+        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         if is_bfloat16:
             input_values = self.convert_to_tensors(input_values)

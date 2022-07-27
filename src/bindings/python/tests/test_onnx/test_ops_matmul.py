@@ -32,8 +32,8 @@ def import_and_compute_matmul(input_left, input_right):
     input_data_right = np.array(input_right).astype(np.float32)
     onnx_model = make_onnx_model_for_matmul_op(input_data_left, input_data_right)
     transformer = get_runtime()
-    ng_model_function = import_onnx_model(onnx_model)
-    computation = transformer.computation(ng_model_function)
+    model = import_onnx_model(onnx_model)
+    computation = transformer.computation(model)
     return computation(input_data_left, input_data_right)[0]
 
 
@@ -89,8 +89,8 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 
     onnx_model = make_onnx_model_for_gemm_op(input_a, input_b, input_c, **kwargs)
     transformer = get_runtime()
-    ng_model_function = import_onnx_model(onnx_model)
-    computation = transformer.computation(ng_model_function)
+    model = import_onnx_model(onnx_model)
+    computation = transformer.computation(model)
     return computation(input_a, input_b, input_c)[0]
 
 

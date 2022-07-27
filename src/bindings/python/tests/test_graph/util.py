@@ -22,7 +22,7 @@ def run_op_node(input_data, op_fun, *args):
 
     `op_fun` has to accept a node as an argument.
 
-    This function converts passed raw input data to nGraph Constant Node and that form is passed
+    This function converts passed raw input data to graph Constant Node and that form is passed
     to `op_fun`.
 
     :param input_data: The input data for performed computation.
@@ -59,7 +59,7 @@ def run_op_numeric_data(input_data, op_fun, *args):
 
     This function passess input data AS IS. This mean that in case they're a scalar (integral,
     or floating point value) or a NumPy's ndarray object they will be automatically converted
-    to nGraph's Constant Nodes.
+    to graph's Constant Nodes.
 
     :param input_data: The input data for performed computation.
     :param op_fun: The function handler for operation we want to carry out.

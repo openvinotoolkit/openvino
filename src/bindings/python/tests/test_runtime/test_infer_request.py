@@ -39,8 +39,8 @@ def create_simple_request_and_inputs(device):
     model = Model(ops.add(param_a, param_b), [param_a, param_b])
 
     core = Core()
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model, device)
+    request = compiled_model.create_infer_request()
 
     arr_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
     arr_2 = np.array([[3, 4], [1, 2]], dtype=np.float32)
@@ -60,8 +60,8 @@ def concat_model_with_data(device, ov_type, numpy_dtype):
 
     model = Model(ops.concat(params, 0), params)
     core = Core()
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model, device)
+    request = compiled_model.create_infer_request()
     tensor1 = Tensor(ov_type, input_shape)
     tensor1.data[:] = np.array([6, 7, 8, 9, 0])
     array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
@@ -90,10 +90,10 @@ def test_get_profiling_info(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
     core.set_property(device, {"PERF_COUNT": "YES"})
-    compiled = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
     img = generate_image()
-    request = compiled.create_infer_request()
-    tensor_name = compiled.input("data").any_name
+    request = compiled_model.create_infer_request()
+    tensor_name = compiled_model.input("data").any_name
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
@@ -152,7 +152,7 @@ def test_tensor_setter(device):
 def test_set_tensors(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
     tensor1 = Tensor(data1)
@@ -163,7 +163,7 @@ def test_set_tensors(device):
     data4 = np.zeros(shape=(1, 10), dtype=np.float32)
     tensor4 = Tensor(data4)
 
-    request = compiled.create_infer_request()
+    request = compiled_model.create_infer_request()
     request.set_tensors({"data": tensor1, "fc_out": tensor2})
     t1 = request.get_tensor("data")
     t2 = request.get_tensor("fc_out")
@@ -171,16 +171,16 @@ def test_set_tensors(device):
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensors({0: tensor2})
-    output_node = compiled.outputs[0]
+    output_node = compiled_model.outputs[0]
     t3 = request.get_tensor(output_node)
     assert np.allclose(tensor2.data, t3.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensors({0: tensor1})
-    output_node = compiled.inputs[0]
+    output_node = compiled_model.inputs[0]
     t4 = request.get_tensor(output_node)
     assert np.allclose(tensor1.data, t4.data, atol=1e-2, rtol=1e-2)
 
-    output_node = compiled.inputs[0]
+    output_node = compiled_model.inputs[0]
     request.set_tensor(output_node, tensor3)
     t5 = request.get_tensor(output_node)
     assert np.allclose(tensor3.data, t5.data, atol=1e-2, rtol=1e-2)
@@ -230,9 +230,9 @@ def test_batched_tensors(device):
 
     model = Model([res1], [data1])
 
-    compiled = core.compile_model(model, "TEMPLATE")
+    compiled_model = core.compile_model(model, "TEMPLATE")
 
-    req = compiled.create_infer_request()
+    req = compiled_model.create_infer_request()
 
     # Allocate 8 chunks, set 'user tensors' to 0, 2, 4, 6 chunks
     buffer = np.zeros([batch * 2, *batch_shape[1:]], dtype=np.float32)
@@ -269,8 +269,8 @@ def test_inputs_outputs_property(device):
     params = [ops.parameter(input_shape, np.uint8) for _ in range(num_inputs)]
     model = Model(ops.split(ops.concat(params, 0), 0, num_inputs), params)
     core = Core()
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model, device)
+    request = compiled_model.create_infer_request()
     data = [np.atleast_1d(i) for i in range(num_inputs)]
     results = request.infer(data).values()
     for result, output_tensor in zip(results, request.outputs):
@@ -282,9 +282,9 @@ def test_inputs_outputs_property(device):
 def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
     img = generate_image()
-    request = compiled.create_infer_request()
+    request = compiled_model.create_infer_request()
 
     request.start_async({0: img})
     request.cancel()
@@ -302,12 +302,12 @@ def test_cancel(device):
 def test_start_async(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
     img = generate_image()
     jobs = 3
     requests = []
     for _ in range(jobs):
-        requests.append(compiled.create_infer_request())
+        requests.append(compiled_model.create_infer_request())
 
     def callback(callbacks_info):
         time.sleep(0.01)
@@ -387,7 +387,6 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype):
 
     request.infer([tensor1, array1])
 
-    print(request.outputs[0].data)
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
@@ -412,7 +411,6 @@ def test_async_mixed_values(device, ov_type, numpy_dtype):
     request.start_async([tensor1, array1])
     request.wait()
 
-    print(request.outputs[0].data)
     assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
 
 
@@ -465,8 +463,8 @@ def test_infer_queue(device):
     num_request = 4
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled, num_request)
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
     def callback(request, job_id):
@@ -486,8 +484,8 @@ def test_infer_queue_is_ready(device):
     core = Core()
     param = ops.parameter([10])
     model = Model(ops.relu(param), [param])
-    compiled = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled, 1)
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
 
     def callback(request, _):
         time.sleep(0.001)
@@ -504,8 +502,8 @@ def test_infer_queue_fail_on_cpp_model(device):
     num_request = 4
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled, num_request)
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
 
     def callback(request, _):
         request.get_tensor("Unknown")
@@ -526,8 +524,8 @@ def test_infer_queue_fail_on_py_model(device):
     num_request = 1
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled, num_request)
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
 
     def callback(request, _):
         request = request + 21
@@ -547,8 +545,8 @@ def test_infer_queue_get_idle_handle(device):
     param = ops.parameter([10])
     model = Model(ops.relu(param), [param])
     core = Core()
-    compiled = core.compile_model(model, device)
-    queue = AsyncInferQueue(compiled, 2)
+    compiled_model = core.compile_model(model, device)
+    queue = AsyncInferQueue(compiled_model, 2)
     niter = 10
 
     for _ in range(len(queue)):
@@ -585,8 +583,8 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     from openvino.runtime.utils.types import get_dtype
 
     model = create_model_with_memory(input_shape, data_type)
-    compiled = core.compile_model(model=model, device_name=device)
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model=model, device_name=device)
+    request = compiled_model.create_infer_request()
     mem_states = request.query_state()
     mem_state = mem_states[0]
 
@@ -622,11 +620,11 @@ def test_get_results(device):
     core = Core()
     data = ops.parameter([10], np.float64)
     model = Model(ops.split(data, 0, 5), [data])
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
-    inputs = [np.random.normal(size=list(compiled.input().shape))]
+    compiled_model = core.compile_model(model, device)
+    request = compiled_model.create_infer_request()
+    inputs = [np.random.normal(size=list(compiled_model.input().shape))]
     results = request.infer(inputs)
-    for output in compiled.outputs:
+    for output in compiled_model.outputs:
         assert np.array_equal(results[output], request.results[output])
 
 
@@ -635,8 +633,8 @@ def test_results_async_infer(device):
     num_request = 4
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
-    compiled = core.compile_model(model, device)
-    infer_queue = AsyncInferQueue(compiled, num_request)
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
 
     def callback(request, job_id):
@@ -649,7 +647,7 @@ def test_results_async_infer(device):
         infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
 
-    request = compiled.create_infer_request()
+    request = compiled_model.create_infer_request()
     outputs = request.infer({0: img})
 
     for i in range(num_request):
@@ -732,9 +730,9 @@ def test_infer_float16(device):
     ppp.output(0).postprocess().convert_element_type(Type.f16)
 
     model = ppp.build()
-    compiled = core.compile_model(model, device)
+    compiled_model = core.compile_model(model, device)
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
-    request = compiled.create_infer_request()
+    request = compiled_model.create_infer_request()
     outputs = request.infer({0: input_data, 1: input_data})
     assert np.allclose(list(outputs.values()), list(request.results.values()))
     assert np.allclose(list(outputs.values()), input_data + input_data)
@@ -747,8 +745,8 @@ def test_ports_as_inputs(device):
     model = Model(ops.add(param_a, param_b), [param_a, param_b])
 
     core = Core()
-    compiled = core.compile_model(model, device)
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model, device)
+    request = compiled_model.create_infer_request()
 
     arr_1 = np.array([[1, 2], [3, 4]], dtype=np.float32)
     arr_2 = np.array([[3, 4], [1, 2]], dtype=np.float32)
@@ -756,8 +754,8 @@ def test_ports_as_inputs(device):
     tensor1 = Tensor(arr_1)
     tensor2 = Tensor(arr_2)
 
-    res = request.infer({compiled.inputs[0]: tensor1, compiled.inputs[1]: tensor2})
-    assert np.array_equal(res[compiled.outputs[0]], tensor1.data + tensor2.data)
+    res = request.infer({compiled_model.inputs[0]: tensor1, compiled_model.inputs[1]: tensor2})
+    assert np.array_equal(res[compiled_model.outputs[0]], tensor1.data + tensor2.data)
 
     res = request.infer({request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2})
     assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
@@ -813,9 +811,9 @@ def test_infer_dynamic_model(device):
     core = Core()
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])
-    compiled = core.compile_model(model, device)
-    assert compiled.input().partial_shape.is_dynamic
-    request = compiled.create_infer_request()
+    compiled_model = core.compile_model(model, device)
+    assert compiled_model.input().partial_shape.is_dynamic
+    request = compiled_model.create_infer_request()
 
     shape1 = [1, 28]
     request.infer([np.random.normal(size=shape1)])

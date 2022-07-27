@@ -24,17 +24,17 @@ pytest tests/
 
 Test framework *pytest* allows to filter tests with `-k` flag.
 ```shell
-pytest tests/test_inference_engine/test_core.py -k "test_available_devices"
+pytest tests/test_runtime/test_core.py -k "test_available_devices"
 ```
 
 Alternatively, the full name and path to the test case could be passed.
 ```shell
-pytest tests/test_inference_engine/test_core.py::test_available_devices
+pytest tests/test_runtime/test_core.py::test_available_devices
 ```
 
 To print test names and increase verbosity, use `-v` flag.
 ```shell
-pytest tests/test_inference_engine/test_core.py -v
+pytest tests/test_runtime/test_core.py -v
 ```
 *Tip: look at pytest's documentation for more useful tricks: https://docs.pytest.org/en/latest/*
 
@@ -52,7 +52,7 @@ Let's add a new test for OpenVINO:tm: Python API.
 
 First, the test should confirm that the new pybind11-based class of `MyTensor` is behaving correctly. Navigate to tests folder and create a new file that describes tests within it. It should be along the lines of:
 
-    tests/test_inference_engine/test_mytensor.py
+    tests/test_runtime/test_mytensor.py
 
 
 **Don't forget to include license on the top of each new file!**
@@ -60,7 +60,7 @@ First, the test should confirm that the new pybind11-based class of `MyTensor` i
 Note that name of the file is connected to the class/module to be tested. This is exactly why tests are structured in folders that are describing what tests are supposed to be there. Always add tests to correct places, new folders and files should be created only when necessary. Quick overview of the structure:
 
     tests/test_frontend           <-- frontend manager and extensions
-    tests/test_inference_engine   <-- runtime classes such as Core and Tensor
+    tests/test_runtime            <-- runtime classes such as Core and Tensor
     tests/test_graph              <-- operators and their implementation
     tests/test_onnx               <-- ONNX Frontend tests and validation
     tests/test_transformations    <-- optimization passes for OV Models 
@@ -80,7 +80,7 @@ def test_mytensor_creation():
 
 Rebuilding step is not necessary here as long as there are no updates to codebase itself. Run the test with:
 ```shell
-pytest tests/test_inference_engine/test_mytensor.py -v
+pytest tests/test_runtime/test_mytensor.py -v
 ```
 
 In actual tests it is a good pratice to parametrize them, thus making tests compact and reducing number of handwritten test cases. Additionally, adding checks for shared functions to the basic tests is a common technique. Let's replace the test with:
@@ -98,8 +98,8 @@ def test_mytensor_creation(source):
 
 Run the tests, output should be similar to:
 ```shell
-tests/test_inference_engine/test_mytensor.py::test_mytensor_creation[source0] PASSED                                                                                                                                    [ 50%]
-tests/test_inference_engine/test_mytensor.py::test_mytensor_creation[source1] PASSED                                                                                                                                    [100%]
+tests/test_runtime/test_mytensor.py::test_mytensor_creation[source0] PASSED                                                                                                                                    [ 50%]
+tests/test_runtime/test_mytensor.py::test_mytensor_creation[source1] PASSED                                                                                                                                    [100%]
 ```
 
 Notice that the test name is shared between cases. In a real-life pull request, all of the functionalities should be tested to ensure the quality of the solution. Always focus on general usage and edge-case scenarios. On the other hand, remember that excessive testing is not advised as it may result in duplicate test cases and impact validation pipelines. A good "rule-of-thumb" list of practices while adding tests to the project is:

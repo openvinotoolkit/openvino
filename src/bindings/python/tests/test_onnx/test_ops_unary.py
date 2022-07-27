@@ -24,8 +24,8 @@ from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, 
 def test_abs(input_data):
     expected_output = np.abs(input_data)
     node = onnx.helper.make_node("Abs", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.array_equal(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -40,8 +40,8 @@ def test_sqrt(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.sqrt(input_data)
     node = onnx.helper.make_node("Sqrt", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.allclose(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.allclose(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -56,8 +56,8 @@ def test_exp(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.exp(input_data)
     node = onnx.helper.make_node("Exp", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.allclose(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.allclose(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -72,8 +72,8 @@ def test_log(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.log(input_data)
     node = onnx.helper.make_node("Log", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.allclose(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.allclose(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -87,8 +87,8 @@ def test_log(input_data):
 def test_neg(input_data):
     expected_output = np.negative(input_data)
     node = onnx.helper.make_node("Neg", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.array_equal(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -103,8 +103,8 @@ def test_floor(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.floor(input_data)
     node = onnx.helper.make_node("Floor", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.array_equal(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -119,8 +119,8 @@ def test_ceil(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.ceil(input_data)
     node = onnx.helper.make_node("Ceil", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.array_equal(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(
@@ -163,8 +163,8 @@ def test_reciprocal(input_data):
     input_data = input_data.astype(np.float32)
     expected_output = np.reciprocal(input_data)
     node = onnx.helper.make_node("Reciprocal", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [input_data])
-    assert np.allclose(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.allclose(graph_results, [expected_output])
 
 
 @pytest.mark.parametrize(("axis", "dim1", "dim2"), [(0, 1, 60), (1, 3, 20), (2, 12, 5)])
@@ -176,8 +176,8 @@ def test_hardmax(axis, dim1, dim2):
     data = np.random.rand(3, 4, 5).astype(np.float32)
     expected = hardmax_2d(data.reshape(dim1, dim2)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=axis)
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
 
 def test_hardmax_special_cases():
@@ -190,25 +190,25 @@ def test_hardmax_special_cases():
     # default axis=1
     expected = hardmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     expected = hardmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=-1)
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"], axis=3)
     with pytest.raises(RuntimeError):
-        ng_results = run_node(node, [data], opset_version=12)
+        graph_results = run_node(node, [data], opset_version=12)
 
     # For multiple occurrences of the maximal values, the first occurrence is selected
     # for one-hot output
     data = np.array([[3, 3, 3, 1]]).astype(np.float32)
     expected = np.array([[1, 0, 0, 0]]).astype(np.float32)
     node = onnx.helper.make_node("Hardmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
 
 def test_hardsigmoid():
@@ -222,13 +222,13 @@ def test_hardsigmoid():
 
     expected = hardsigmoid(data, alpha, beta)
     node = onnx.helper.make_node("HardSigmoid", inputs=["x"], outputs=["y"], alpha=alpha, beta=beta)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data])
+    assert np.allclose(graph_results, [expected])
 
     expected = hardsigmoid(data)
     node = onnx.helper.make_node("HardSigmoid", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data])
+    assert np.allclose(graph_results, [expected])
 
 
 def test_logsoftmax():
@@ -242,27 +242,27 @@ def test_logsoftmax():
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=0)
     expected = logsoftmax_2d(data.reshape(1, 60)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=1)
     expected = logsoftmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     # default axis is 1
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
     expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data], opset_version=12)
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data], opset_version=12)
+    assert np.allclose(graph_results, [expected])
 
     node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=3)
     with pytest.raises(RuntimeError):
-        ng_results = run_node(node, [data], opset_version=12)
+        graph_results = run_node(node, [data], opset_version=12)
 
 
 def test_softplus():
@@ -274,8 +274,8 @@ def test_softplus():
 
     node = onnx.helper.make_node("Softplus", inputs=["x"], outputs=["y"])
     expected = softplus(data)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data])
+    assert np.allclose(graph_results, [expected])
 
 
 def test_softsign():
@@ -287,8 +287,8 @@ def test_softsign():
 
     node = onnx.helper.make_node("Softsign", inputs=["x"], outputs=["y"])
     expected = softsign(data)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
+    graph_results = run_node(node, [data])
+    assert np.allclose(graph_results, [expected])
 
 
 def test_identity():
@@ -297,8 +297,8 @@ def test_identity():
     input_data = np.random.randn(*shape).astype(np.float32)
 
     identity_node = make_node("Identity", inputs=["x"], outputs=["y"])
-    ng_results = run_node(identity_node, [input_data])
-    assert np.array_equal(ng_results, [input_data])
+    graph_results = run_node(identity_node, [input_data])
+    assert np.array_equal(graph_results, [input_data])
 
     node1 = make_node("Add", inputs=["A", "B"], outputs=["add1"], name="add_node1")
     node2 = make_node("Identity", inputs=["add1"], outputs=["identity1"], name="identity_node1")
@@ -314,13 +314,13 @@ def test_identity():
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, shape)],
     )
     model = make_model(graph, producer_name="ngraph ONNX Importer")
-    ng_model_function = import_onnx_model(model)
+    graph_model = import_onnx_model(model)
     runtime = get_runtime()
-    computation = runtime.computation(ng_model_function)
-    ng_results = computation(input_data, input_data)
+    computation = runtime.computation(graph_model)
+    graph_results = computation(input_data, input_data)
     expected_result = np.abs(input_data + input_data)
 
-    assert np.array_equal(ng_results[0], expected_result)
+    assert np.array_equal(graph_results[0], expected_result)
 
 
 @pytest.mark.parametrize(("val_type", "input_data"), [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
@@ -455,8 +455,8 @@ def test_constant(value_type):
         ),
     )
 
-    ng_results = run_node(node, [])
-    assert np.allclose(ng_results, [values])
+    graph_results = run_node(node, [])
+    assert np.allclose(graph_results, [values])
 
 
 def test_constant_err():
@@ -473,8 +473,8 @@ def test_constant_err():
         ),
     )
 
-    ng_results = run_node(node, [])
-    assert np.allclose(ng_results, [values])
+    graph_results = run_node(node, [])
+    assert np.allclose(graph_results, [values])
 
 
 @pytest.mark.parametrize(

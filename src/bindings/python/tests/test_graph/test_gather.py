@@ -5,7 +5,7 @@
 import openvino.runtime.opset8 as ov
 import numpy as np
 
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 
 def test_gather():

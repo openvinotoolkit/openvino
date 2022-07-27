@@ -21,12 +21,12 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_te
 
 
 class OpenVinoOnnxBackendRep(BackendRep):
-    def __init__(self, ng_model_function, device="CPU"):  # type: (List[Model], str) -> None
+    def __init__(self, graph_model, device="CPU"):  # type: (List[Model], str) -> None
         super().__init__()
         self.device = device
-        self.ng_model_function = ng_model_function
+        self.graph_model = graph_model
         self.runtime = get_runtime()
-        self.computation = self.runtime.computation(ng_model_function)
+        self.computation = self.runtime.computation(graph_model)
 
     def run(self, inputs, **kwargs):  # type: (Any, **Any) -> Tuple[Any, ...]
         """Run computation on model."""
@@ -56,8 +56,8 @@ class OpenVinoOnnxBackend(Backend):
         **kwargs,  # type: Any
     ):  # type: (...) -> OpenVinoOnnxBackendRep
         super().prepare(onnx_model, device, **kwargs)
-        ng_model_function = import_onnx_model(onnx_model)
-        return OpenVinoOnnxBackendRep(ng_model_function, device)
+        graph_model = import_onnx_model(onnx_model)
+        return OpenVinoOnnxBackendRep(graph_model, device)
 
     @classmethod
     def run_model(

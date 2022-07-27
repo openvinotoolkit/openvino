@@ -13,7 +13,7 @@ from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout,
 from openvino.preprocess import PrePostProcessor
 
 
-# check if func releases the GIL and doens't increment reference counters of args while GIL is released
+# check if func releases the GIL and doesn't increment reference counters of args while GIL is released
 def check_gil_released_safe(func, args=[]):  # noqa: B006
     global gil_released
     gil_released = False
@@ -38,8 +38,8 @@ core = Core()
 core.set_property({"PERF_COUNT": "YES"})
 param = ops.parameter([224, 224])
 model = Model(ops.relu(param), [param])
-compiled = core.compile_model(model, device)
-infer_queue = AsyncInferQueue(compiled, 1)
+compiled_model = core.compile_model(model, device)
+infer_queue = AsyncInferQueue(compiled_model, 1)
 user_stream = io.BytesIO()
 
 
@@ -68,23 +68,23 @@ def test_gil_released_async_infer_queue_get_idle_request_id():
 # CompiledModel
 
 def test_gil_released_create_infer_request():
-    check_gil_released_safe(compiled.create_infer_request)
+    check_gil_released_safe(compiled_model.create_infer_request)
 
 
 def test_gil_released_infer_new_request():
-    check_gil_released_safe(compiled)
+    check_gil_released_safe(compiled_model)
 
 
 def test_gil_released_export():
-    check_gil_released_safe(compiled.export_model)
+    check_gil_released_safe(compiled_model.export_model)
 
 
 def test_gil_released_export_advanced():
-    check_gil_released_safe(compiled.export_model, [user_stream])
+    check_gil_released_safe(compiled_model.export_model, [user_stream])
 
 
 def test_gil_released_get_runtime_model():
-    check_gil_released_safe(compiled.get_runtime_model)
+    check_gil_released_safe(compiled_model.get_runtime_model)
 
 
 # Core
@@ -94,7 +94,7 @@ def test_compile_model(device):
 
 
 def test_read_model_from_bytes():
-    ir = bytes(b"""<net name="relu_model" version="11">
+    bytes_model = bytes(b"""<net name="relu_model" version="11">
     <layers>
         <layer id="0" name="x" type="Parameter" version="opset1">
             <data element_type="f32" shape="10"/>
@@ -129,7 +129,7 @@ def test_read_model_from_bytes():
         <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
     </edges>
 </net>""")
-    check_gil_released_safe(core.read_model, [ir])
+    check_gil_released_safe(core.read_model, [bytes_model])
 
 
 def test_read_model_from_path():
@@ -156,28 +156,28 @@ def test_get_available_devices(device):
 
 # InferRequest
 
-request = compiled.create_infer_request()
+request = compiled_model.create_infer_request()
 
 
 def test_infer():
-    data = [np.random.normal(size=list(compiled.input().shape))]
+    data = [np.random.normal(size=list(compiled_model.input().shape))]
     check_gil_released_safe(request.infer, [data])
 
 
 def test_start_async():
-    data = [np.random.normal(size=list(compiled.input().shape))]
+    data = [np.random.normal(size=list(compiled_model.input().shape))]
     check_gil_released_safe(request.start_async, [data])
     request.wait()
 
 
 def test_wait():
-    data = [np.random.normal(size=list(compiled.input().shape))]
+    data = [np.random.normal(size=list(compiled_model.input().shape))]
     request.start_async(data)
     check_gil_released_safe(request.wait)
 
 
 def test_wait_for():
-    data = [np.random.normal(size=list(compiled.input().shape))]
+    data = [np.random.normal(size=list(compiled_model.input().shape))]
     request.start_async(data)
     check_gil_released_safe(request.wait_for, [1])
     request.wait()

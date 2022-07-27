@@ -289,10 +289,10 @@ def test_get_batch_chwn():
     param3 = ops.parameter(Shape([3, 1, 3, 4]), dtype=np.float32, name="data3")
     add = ops.add(param1, param2)
     add2 = ops.add(add, param3)
-    func = Model(add2, [param1, param2, param3], "TestFunction")
-    param = func.get_parameters()[0]
+    model = Model(add2, [param1, param2, param3], "TestFunction")
+    param = model.get_parameters()[0]
     param.set_layout(Layout("CHWN"))
-    assert get_batch(func) == 4
+    assert get_batch(model) == 4
 
 
 def test_set_batch_dimension():
@@ -368,8 +368,8 @@ def test_reshape(device):
     ref_shape[0] = 3
     model.reshape(ref_shape)
     core = Core()
-    compiled = core.compile_model(model, device)
-    assert compiled.input().partial_shape == ref_shape
+    compiled_model = core.compile_model(model, device)
+    assert compiled_model.input().partial_shape == ref_shape
 
 
 def test_reshape_with_python_types(device):
