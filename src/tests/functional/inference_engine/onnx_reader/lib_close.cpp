@@ -5,7 +5,6 @@
 
 #include <gtest/gtest.h>
 
-#include "onnx_utils.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
@@ -13,7 +12,7 @@ using namespace ov::util;
 
 INSTANTIATE_TEST_SUITE_P(ONNX,
                          FrontendLibCloseTest,
-                         Values(std::make_tuple(ONNX_FE,
+                         Values(std::make_tuple("onnx",
                                                 path_join({std::string(TEST_ONNX_MODELS_DIRNAME),
                                                            std::string("external_data/external_data.onnx")}),
                                                 "Y")),

@@ -6,14 +6,13 @@
 #include <gtest/gtest.h>
 
 #include "openvino/util/file_util.hpp"
-#include "paddle_utils.hpp"
 
 using namespace testing;
 using namespace ov::util;
 
 INSTANTIATE_TEST_SUITE_P(Paddle,
                          FrontendLibCloseTest,
-                         Values(std::make_tuple(PADDLE_FE,
+                         Values(std::make_tuple("paddle",
                                                 path_join({std::string(TEST_PADDLE_MODELS_DIRNAME),
                                                            std::string("conv2d_relu/conv2d_relu.pdmodel")}),
                                                 "conv2d_0.tmp_0")),
