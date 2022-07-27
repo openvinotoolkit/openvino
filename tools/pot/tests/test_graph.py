@@ -280,7 +280,7 @@ def test_lstm_ends(tmp_path, models):
 
 
 TEST_MODELS_WITHOUT_FQ_MOVING = [
-    ('test_multibranch_propogation_with_fq_moving', 'pytorch', )
+    ('test_multibranch_propogation_with_fq_moving', 'pytorch')
 ]
 
 

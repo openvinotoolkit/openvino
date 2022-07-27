@@ -166,8 +166,8 @@ def test_weights_scales(tmp_path, models):
         ref_min, ref_max = ref_weights[fq_name]['low_level'], ref_weights[fq_name]['high_level']
         assert_flag = False
 
-        if np.allclose(ref_min, item_min, atol=EPS) and \
-                np.allclose(ref_max, item_max, atol=EPS):
+        if np.max(np.abs(ref_min - item_min)) < EPS and \
+                np.max(np.abs(ref_max - item_max)) < EPS:
             assert_flag = True
 
         if not assert_flag:
