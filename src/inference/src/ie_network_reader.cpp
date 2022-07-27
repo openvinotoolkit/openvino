@@ -464,6 +464,22 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
+#ifdef ENABLE_IR_V7_READER
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
+        auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
+            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+            return cnnnetwork;
+        }
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
+#endif  // ENABLE_IR_V7_READER
+
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
@@ -500,27 +516,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
-#ifdef ENABLE_IR_V7_READER
-    // IR v7 obsolete code
-    {
-        // Register readers if it is needed
-        registerReaders();
-        auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
-            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-            return cnnnetwork;
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-#endif  // ENABLE_IR_V7_READER
-
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     std::string FEs;
     for (const auto& fe_name : manager.get_available_front_ends())
         FEs += fe_name + " ";
-
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
                              << " is supported and the model is correct."
@@ -535,6 +534,25 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
+
+#ifdef ENABLE_IR_V7_READER
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
+        assertIfIRv7LikeModel(modelStream);
+
+        for (auto it = readers.begin(); it != readers.end(); it++) {
+            auto reader = it->second;
+            if (reader->supportModel(modelStream)) {
+                OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+                if (weights)
+                    return reader->read(modelStream, weights, exts);
+                return reader->read(modelStream, exts);
+            }
+        }
+    }
+#endif  // ENABLE_IR_V7_READER
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
@@ -560,25 +578,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         auto ngFunc = FE->convert(inputModel);
         return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
-
-#ifdef ENABLE_IR_V7_READER
-    // IR v7 obsolete code
-    {
-        // Register readers if it is needed
-        registerReaders();
-        assertIfIRv7LikeModel(modelStream);
-
-        for (auto it = readers.begin(); it != readers.end(); it++) {
-            auto reader = it->second;
-            if (reader->supportModel(modelStream)) {
-                OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-                if (weights)
-                    return reader->read(modelStream, weights, exts);
-                return reader->read(modelStream, exts);
-            }
-        }
-    }
-#endif  // ENABLE_IR_V7_READER
 
     IE_THROW(NetworkNotRead)
         << "Unable to read the model. Please check if the model format is supported and model is correct.";

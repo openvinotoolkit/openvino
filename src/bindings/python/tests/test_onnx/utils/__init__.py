@@ -17,7 +17,7 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 def run_node(onnx_node, data_inputs, **kwargs):
     # type: (onnx.NodeProto, List[np.ndarray], Dict[Text, Any]) -> List[np.ndarray]
-    """Convert ONNX node to ngraph node and perform computation on input data.
+    """Convert ONNX node to a graph node and perform computation on input data.
 
     :param onnx_node: ONNX NodeProto describing a computation node
     :param data_inputs: list of numpy ndarrays with input data
@@ -29,15 +29,15 @@ def run_node(onnx_node, data_inputs, **kwargs):
 
 def run_model(onnx_model, data_inputs):
     # type: (onnx.ModelProto, List[np.ndarray]) -> List[np.ndarray]
-    """Convert ONNX model to an ngraph model and perform computation on input data.
+    """Convert ONNX model to a graph model and perform computation on input data.
 
     :param onnx_model: ONNX ModelProto describing an ONNX model
     :param data_inputs: list of numpy ndarrays with input data
     :return: list of numpy ndarrays with computed output
     """
-    ng_model_function = import_onnx_model(onnx_model)
+    graph_model = import_onnx_model(onnx_model)
     runtime = get_runtime()
-    computation = runtime.computation(ng_model_function)
+    computation = runtime.computation(graph_model)
     return computation(*data_inputs)
 
 

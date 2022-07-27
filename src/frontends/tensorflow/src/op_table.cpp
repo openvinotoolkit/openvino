@@ -25,8 +25,9 @@ OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_avg_pool_op);
-OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_nd_and_space_nd_op);
+OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_cast_op);
 OP_CONVERTER(translate_concat_op);
 OP_CONVERTER(translate_const_op);
@@ -51,6 +52,7 @@ OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_l2_loss_op);
+OP_CONVERTER(translate_linspace_op);
 OP_CONVERTER(translate_leaky_relu_op);
 OP_CONVERTER(translate_log_softmax_op);
 OP_CONVERTER(translate_log_1p_op);
@@ -160,6 +162,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ArgMin", translate_arg_min_op},
         {"AvgPool", translate_avg_pool_op},
         {"AvgPool3D", translate_avg_pool_op},
+        {"BatchMatMul", translate_batch_mat_mul_op},
+        {"BatchMatMulV2", translate_batch_mat_mul_op},
         {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
@@ -190,6 +194,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"IsFinite", translate_is_finite_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
+        {"LinSpace", translate_linspace_op},
         {"LogSoftmax", translate_log_softmax_op},
         {"Log1p", translate_log_1p_op},
         {"LRN", translate_lrn_op},

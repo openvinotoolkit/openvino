@@ -925,7 +925,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<scale>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<softmax>() &&
-                           input_data.as<softmax>().get_primitive()->dimension == softmax::dimension_t::normalize_f &&
+                           input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            per_tensor_values;
 
 

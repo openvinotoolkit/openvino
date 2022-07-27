@@ -148,9 +148,9 @@ To avoid such issues you can also disable globbing for PIP commands by defining 
 alias pip='noglob pip'
 ```
 
-### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
+### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
+On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 ### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
 
