@@ -32,16 +32,6 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt = ifmt;
     }
 
-    if (node.is_valid_output_layout() && input_layout.feature() <= 4) {
-        auto users = node.get_users();
-        if (users.size() > 0 && users.front()->is_type<convolution>()) {
-            auto expected_fmt = node.get_output_layout().format;
-            if (expected_fmt == format::b_fs_zyx_fsv2 || expected_fmt == format::bs_fs_zyx_bsv8_fsv2) {
-                ofmt = expected_fmt;
-            }
-        }
-    }
-
     if (ifmt.is_nv12()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };
@@ -51,11 +41,11 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         CLDNN_ERROR_MESSAGE(node.id(), "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
-            return layout(odt, ofmt, input_layout.size, op);
+            return layout(odt, ofmt, input_layout.get_tensor(), op);
 
         CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return layout(data_types::f16, format::bfyx, input_layout.size, op);
+        return layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
     }
 
     // transformation of data from standard to winograd
@@ -167,12 +157,12 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
-        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.size, op);
+        return layout(odt, ofmt, input_layout.get_tensor(), op);
     }
 }
 
@@ -207,16 +197,16 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                           "Input dimension size",
-                          input_layout.size.raw.size(),
+                          input_layout.get_tensor().raw.size(),
                           "ouput dimension size",
-                          output_layout.size.raw.size(),
+                          output_layout.get_tensor().raw.size(),
                           "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
                           "(reorder) or when input > output (flatten).");
 
     if (!argument.subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
-                                 input_layout.size.feature.size(),
+                                 input_layout.get_tensor().feature.size(),
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");

@@ -84,10 +84,7 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     }
 
     auto out_l = fc_params.outputs[0].GetLayout();
-    auto if_num = in.Feature().v;
     if (out_l == DataLayout::bfyx) {
-        if_num = in.Y().v;
-
         // We don't support 4d output
         if (in.X().v > 1)
             return false;

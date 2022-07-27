@@ -26,7 +26,7 @@ layout normalize_inst::calc_output_layout(normalize_node const& node) {
         output_type = data_types::f32;
     }
 
-    return layout(output_type, input_node_layout.format, input_node_layout.size);
+    return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }
 
 std::string normalize_inst::to_string(normalize_node const& node) {
@@ -54,7 +54,7 @@ std::string normalize_inst::to_string(normalize_node const& node) {
 normalize_inst::typed_primitive_inst(network& network, normalize_node const& node) : parent(network, node) {
     /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
     auto scale_layout = node.scale().get_output_layout();
-    auto scale_size = scale_layout.size;
+    auto scale_size = scale_layout.get_tensor();
     auto scale_feature_size = scale_size.feature[0];
     auto input_layout = node.input().get_output_layout();
     auto input_feature_size = input_layout.feature();

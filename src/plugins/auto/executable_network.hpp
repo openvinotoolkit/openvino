@@ -26,6 +26,8 @@ public:
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     ~ExecutableNetwork() override;
 
+protected:
+    std::string GetLogTag() const noexcept;
 private:
     Schedule::Ptr        _schedule;
     ScheduleContext::Ptr _sContext;

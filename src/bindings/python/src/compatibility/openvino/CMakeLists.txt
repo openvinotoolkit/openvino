@@ -14,7 +14,7 @@ endif()
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
-set(PYTHON_BRIDGE_CPACK_PATH "python")
+set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
@@ -34,6 +34,7 @@ endif()
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
 if(ENABLE_CONDA_FOLDER)
+    # set(PYTHON_COMPONENT conda_${OV_CPACK_COMP_PYTHON_IE_API}_${PYTHON_VERSION})
     set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${PYTHON_VERSION}/openvino)
@@ -41,6 +42,7 @@ if(ENABLE_CONDA_FOLDER)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${PYTHON_VERSION}/openvino)
     endif()
 else()
+    # set(PYTHON_COMPONENT ${OV_CPACK_COMP_PYTHON_IE_API}_${PYTHON_VERSION})
     set(PYTHON_COMPONENT ${PYTHON_VERSION})
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
