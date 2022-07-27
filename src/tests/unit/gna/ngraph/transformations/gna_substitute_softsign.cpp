@@ -8,6 +8,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>

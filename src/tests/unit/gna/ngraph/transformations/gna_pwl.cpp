@@ -87,8 +87,8 @@ TEST(GnaPwlTest, Exp) {
 
 TEST(GnaPwlTest, SoftSign) {
     RunTest(
-        pwl_test::CreateActivationFunction<ov::op::v9::SoftSign>({1, 32}),
-        pwl_test::CreateActivationFunction<ov::op::v9::SoftSign>({1, 32}),
+        pwl_test::CreateActivationFunction<ngraph::opset9::SoftSign>({1, 32}),
+        pwl_test::CreateActivationFunction<ngraph::opset9::SoftSign>({1, 32}),
         -10,
         10);
 }
