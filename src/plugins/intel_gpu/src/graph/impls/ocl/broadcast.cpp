@@ -82,7 +82,7 @@ attach_broadcast_impl::attach_broadcast_impl() {
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
-        
+
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
