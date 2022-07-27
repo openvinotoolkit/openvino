@@ -346,11 +346,8 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                 IE_THROW() << "Attribute and shape size are inconsistent for " << type << " op!";
 
             char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer =
-                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                    data,
-                    size,
-                    m_weights);
+            auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(size);
+            std::memcpy(buffer->get_ptr(), data, size);
             a->set(buffer);
         }
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
