@@ -4,7 +4,6 @@
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -17,7 +16,7 @@ NamedOutputs tile(const NodeContext& node) {
         repeats = node.get_input("RepeatTimes");
     } else {
         std::vector<int32_t> repeats_vector = node.get_attribute<std::vector<int32_t>>("repeat_times", {});
-        repeats = ov::opset6::Constant::create(ov::element::i32, Shape{repeats_vector.size()}, repeats_vector);
+        repeats = default_opset::Constant::create(ov::element::i32, Shape{repeats_vector.size()}, repeats_vector);
     }
 
     return node.default_single_output_mapping({std::make_shared<default_opset::Tile>(x, repeats)}, {"Out"});
