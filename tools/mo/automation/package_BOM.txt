@@ -1027,7 +1027,6 @@ openvino/tools/mo/ops/upsample.py
 openvino/tools/mo/pipeline/__init__.py
 openvino/tools/mo/pipeline/common.py
 openvino/tools/mo/pipeline/unified.py
-openvino/tools/mo/serialize.py
 openvino/tools/mo/subprocess_main.py
 openvino/tools/mo/utils/__init__.py
 openvino/tools/mo/utils/broadcasting.py
