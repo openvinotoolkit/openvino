@@ -13,6 +13,8 @@ from openvino.pyopenvino import get_version
 
 __version__ = get_version()
 
+add_openvino_libs_to_path()
+
 # main classes
 from openvino.pyopenvino.preprocess import InputInfo
 from openvino.pyopenvino.preprocess import OutputInfo
