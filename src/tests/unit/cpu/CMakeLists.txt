@@ -14,6 +14,9 @@ addIeTargetTest(
         INCLUDES
             PUBLIC
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
+                $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/nodes
+                $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn
+                $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include

@@ -53,4 +53,4 @@ class TestReverseV2Ops(CommonTFLayerTest):
     def test_reversev2_precommit(self, params, keep_dims, ie_device, precision, ir_version,
                                  temp_dir, api_2):
         self._test(*self.create_reversev2_net(**params, keep_dims=keep_dims, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2, use_new_frontend=False)

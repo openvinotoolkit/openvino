@@ -1,4 +1,4 @@
-# How to Implement Custom Layers for VPU (Intel® Neural Compute Stick 2) {#openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel}
+# How to Implement Custom Layers for VPU (Intel® Neural Compute Stick 2) {#openvino_docs_Extensibility_UG_VPU_Kernel}
 
 To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for one the VPU, the Intel® Neural Compute Stick 2 device, which uses the MYRIAD device plugin.
 

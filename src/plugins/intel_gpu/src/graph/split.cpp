@@ -21,7 +21,7 @@ layout split_inst::calc_output_layout(split_node const& node) {
     auto output_ids = node.get_primitive()->output_ids;
     auto output_offsets = node.get_primitive()->output_offsets;
     auto param_num = output_ids.size();
-    auto input_sizes = node.get_dependency(0).get_non_padded_output_layout().size;
+    auto input_sizes = node.get_dependency(0).get_non_padded_output_layout().get_tensor();
     tensor null_tensor { 0, 0, 0, 0 };
 
     // check if output_ids count equals output_offsets count

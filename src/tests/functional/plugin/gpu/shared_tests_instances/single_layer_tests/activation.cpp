@@ -59,7 +59,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {RoundHalfToEven,       {}},
         {RoundHalfAwayFromZero, {}},
         {GeluErf,               {}},
-        {GeluTanh,              {}}
+        {GeluTanh,              {}},
+        {SoftSign,              {}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {

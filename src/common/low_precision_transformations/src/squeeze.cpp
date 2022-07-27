@@ -26,6 +26,7 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(SqueezeTransformation);
         return transform(*context, m);
     };
 

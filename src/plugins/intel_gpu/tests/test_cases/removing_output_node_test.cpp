@@ -72,7 +72,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().size == after_reshape);
+    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);
@@ -82,7 +82,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output2 = outputs.at("strided_slice").get_memory();
     cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
 
-    ASSERT_TRUE(output2->get_layout().size == after_strided_slice);
+    ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr2[i], out_vec[i]);

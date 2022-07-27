@@ -117,6 +117,8 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::v7::Gelu>(in, ngraph::op::GeluApproximationMode::ERF);
         case ngraph::helpers::ActivationTypes::GeluTanh:
             return std::make_shared<ngraph::op::v7::Gelu>(in, ngraph::op::GeluApproximationMode::TANH);
+        case ngraph::helpers::ActivationTypes::SoftSign:
+            return std::make_shared<ngraph::op::v9::SoftSign>(in);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

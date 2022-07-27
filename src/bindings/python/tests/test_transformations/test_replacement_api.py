@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -5,7 +6,7 @@ from openvino.runtime import Model, PartialShape, opset8
 from openvino.runtime.utils import replace_node, replace_output_update_name
 
 
-def get_test_function():
+def get_test_model():
     # Parameter->Relu->Result
     param = opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     relu = opset8.relu(param.output(0))
@@ -34,7 +35,8 @@ def test_replace_source_output():
 
     assert len(exp.output(0).get_target_inputs()) == 1
     assert len(relu.output(0).get_target_inputs()) == 0
-    assert next(iter(exp.output(0).get_target_inputs())).get_node() == res
+    target_inputs = exp.output(0).get_target_inputs()
+    assert next(iter(target_inputs)).get_node() == res
 
 
 def test_replace_node():

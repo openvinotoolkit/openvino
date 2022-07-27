@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("CPU"));
+        ::testing::Values("CPU", "MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,

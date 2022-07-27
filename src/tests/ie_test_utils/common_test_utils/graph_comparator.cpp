@@ -313,7 +313,30 @@ public:
               m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
+        if (m_parameter->get_element_type() != m_result->output(0).get_element_type()) {
+            return false;
+        }
+        const auto& param_shape = m_parameter->get_partial_shape();
+        const auto& result_shape = m_result->output(0).get_partial_shape();
+        const auto& param_rank = param_shape.rank();
+        const auto& result_rank = result_shape.rank();
+        if (!param_rank.compatible(result_rank)) {
+            return false;
+        }
+        if (param_rank.is_static() && result_rank.is_static()) {
+            if (param_rank.get_length() != result_rank.get_length()) {
+                return false;
+            }
+            for (int i=0; i < param_rank.get_length(); ++i) {
+                if (param_shape[i].is_static() && param_shape[i].get_length() == 0) {
+                    continue; // zero-dim-shape is acceptable for subgraph op param and can be not compatible with a result shape
+                }
+                if (!param_shape[i].compatible(result_shape[i])) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     friend bool operator==(const BackEdge& lhs, const BackEdge& rhs) {

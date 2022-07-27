@@ -21,7 +21,7 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
         scalar->set_friendly_name(constant->get_friendly_name());
         ngraph::copy_runtime_info(constant, scalar);
         ngraph::replace_node(constant, scalar);
-
+        MATCHER_SCOPE_ENABLE(ConvertConstantsToScalars);
         return true;
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants), callback);

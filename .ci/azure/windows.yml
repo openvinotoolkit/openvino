@@ -32,7 +32,7 @@ jobs:
     maxParallel: 2
 
   # About 150% of total time
-  timeoutInMinutes: 180
+  timeoutInMinutes: 270 #Temporary change 
 
   pool:
     name: WIN_VMSS_VENV_D8S_WU2
@@ -211,8 +211,18 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXImportUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-ONNX.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
@@ -273,6 +283,13 @@ jobs:
       set MODELS_PATH=$(MODELS_PATH)
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
+    continueOnError: false
+
+  - script: |
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
     continueOnError: false
 
   - task: PublishTestResults@2

@@ -108,6 +108,7 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         newChild->set_friendly_name(child->get_friendly_name());
 
         ngraph::replace_node(child, newChild);
+        MATCHER_SCOPE_ENABLE(MoveEltwiseUpThroughDataMov);
         return true;
     };
 

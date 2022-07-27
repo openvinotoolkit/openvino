@@ -282,6 +282,18 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
                                  CommonTestUtils::DEVICE_HETERO));
 }
 
+TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    bool value = false;
+    ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}));
+    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_TRUE(value);
+
+    ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(NO)}}));
+    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_FALSE(value);
+}
+
 TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", deviceName}}, CommonTestUtils::DEVICE_HETERO));

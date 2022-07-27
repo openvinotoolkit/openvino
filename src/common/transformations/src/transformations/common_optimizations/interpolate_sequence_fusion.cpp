@@ -225,7 +225,7 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         new_interpolate->set_friendly_name(snd_interpolate->get_friendly_name());
         copy_runtime_info({fst_interpolate, snd_interpolate}, new_subgraph);
         replace_node(snd_interpolate, new_interpolate);
-
+        MATCHER_SCOPE_ENABLE(InterpolateSequenceFusion);
         return true;
     };
 

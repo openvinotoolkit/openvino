@@ -138,13 +138,6 @@ namespace {
 template <typename key_type>
 std::string get_key_name(const key_type &) { return std::string(""); }
 
-template <>
-std::string get_key_name(const int32_t &k) { return std::to_string(k); }
-
-template <>
-std::string get_key_name(const std::tuple<data_types, format::type> &key) {
-    return dt_to_str(std::get<0>(key)) + "/" + fmt_to_str(std::get<1>(key));
-}
 } // namespace
 
 template <typename primitive_kind>
@@ -204,11 +197,27 @@ public:
         return false;
     }
 
+    static void add(impl_types impl_type, factory_type factory,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, factory, combine(types, formats));
+    }
+
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
         if (impl_type == impl_types::any) {
             throw std::runtime_error("[CLDNN] Can't register impl with type any");
         }
         map_type::instance().insert({impl_type, {keys, factory}});
+    }
+
+private:
+    static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        std::set<key_type> keys;
+        for (const auto& type : types) {
+            for (const auto& format : formats) {
+                keys.emplace(type, format);
+            }
+        }
+        return keys;
     }
 };
 }  // namespace cldnn

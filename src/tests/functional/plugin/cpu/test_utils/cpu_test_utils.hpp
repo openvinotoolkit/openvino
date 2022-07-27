@@ -152,8 +152,11 @@ protected:
                                                       ngraph::ParameterVector &params,
                                                       const std::shared_ptr<ngraph::Node> &lastNode);
 
+    virtual bool primTypeCheck(std::string primType) const;
+
 protected:
     std::string getPrimitiveType() const;
+    std::string getISA(bool skip_amx) const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
@@ -162,6 +165,8 @@ protected:
 // common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string> cpuFP32PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 

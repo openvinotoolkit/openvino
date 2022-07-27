@@ -82,7 +82,7 @@ ngraph::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndR
         new_transpose->set_friendly_name(transpose->get_friendly_name());
         ngraph::copy_runtime_info({transpose, gather}, new_transpose);
         ngraph::replace_node(transpose, new_transpose);
-
+        MATCHER_SCOPE_ENABLE(SkipGatherBeforeTransposeAndReshape);
         return false;
     };
 

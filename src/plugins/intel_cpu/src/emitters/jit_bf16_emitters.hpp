@@ -22,7 +22,7 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
         const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
         const emitter_context *emit_context) const override {
-        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_common) {
+        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
             Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
             Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
             Xbyak::Zmm aux = Xbyak::Zmm(aux_vec_idxs[0]);

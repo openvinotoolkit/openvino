@@ -13,7 +13,7 @@ importlib-metadata==3.10.0
 iniconfig==1.1.1
 ipython==7.22.0
 Jinja2==2.11.3
-lxml==4.6.3
+lxml>=4.6.5
 MarkupSafe==1.1.1
 mistune==2.0.0a6
 packaging==20.9

@@ -93,6 +93,7 @@ ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
         reshape_back->set_friendly_name(shuffle_channels->get_friendly_name());
         ::copy_runtime_info(shuffle_channels, new_ops);
         ::replace_node(shuffle_channels, reshape_back);
+        MATCHER_SCOPE_ENABLE(ConvertShuffleChannels3);
         return true;
     };
 
