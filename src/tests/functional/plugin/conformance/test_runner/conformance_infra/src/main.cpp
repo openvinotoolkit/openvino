@@ -85,19 +85,27 @@ int main(int argc, char* argv[]) {
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
 
         // set default handler for crash
+        signal(SIGABRT, SIG_DFL);
+        signal(SIGABRT, SIG_DFL);
+        signal(SIGSEGV, SIG_DFL);
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
 
-        if (errCode == SIGINT || errCode == SIGTERM) {
-            auto& s = ov::test::utils::OpSummary::getInstance();
-            s.saveReport();
+        if (errCode == SIGINT || errCode == SIGTERM || errCode == SIGABRT || errCode == SIGKILL || errCode == SIGSEGV) {
+            auto& op_summary = ov::test::utils::OpSummary::getInstance();
+            auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+            op_summary.saveReport();
+            api_summary.saveReport();
             exit(1);
         }
     };
 
-    // killed by extarnal
+    // killed by external
     signal(SIGINT, exernalSignalHandler);
+    signal(SIGSEGV, exernalSignalHandler);
     signal(SIGTERM , exernalSignalHandler);
+    signal(SIGKILL , exernalSignalHandler);
+    signal(SIGABRT , exernalSignalHandler);
 
     return RUN_ALL_TESTS();
 }

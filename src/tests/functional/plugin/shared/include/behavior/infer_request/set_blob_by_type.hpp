@@ -36,14 +36,14 @@ public:
 
     void SetUp() override {
         std::map<std::string, std::string> config;
-        std::tie(blobType, targetDevice, config) = this->GetParam();
+        std::tie(blobType, target_device, config) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         std::shared_ptr<ngraph::Function> function = ngraph::builder::subgraph::makeConvPoolRelu(
                 {4, 3, 6, 8}, ngraph::element::Type_t::u8);
         InferenceEngine::CNNNetwork cnnNetwork(function);
-        executableNetwork = ie->LoadNetwork(cnnNetwork, targetDevice, config);
+        executableNetwork = ie->LoadNetwork(cnnNetwork, target_device, config);
     }
 
 protected:
@@ -54,18 +54,18 @@ protected:
                 return true;
             case FuncTestUtils::BlobType::Compound:
             case FuncTestUtils::BlobType::I420:
-//            case FuncTestUtils::BlobType::Remote:
+            case FuncTestUtils::BlobType::Remote:
             case FuncTestUtils::BlobType::NV12:
                 return false;
             case FuncTestUtils::BlobType::Batched: {
-                std::vector<std::string> supported_metrics = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
+                std::vector<std::string> supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS));
                 if (std::find(supported_metrics.begin(), supported_metrics.end(),
                               METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
                     return false;
                 }
 
                 std::vector<std::string> optimization_caps =
-                        ie->GetMetric(targetDevice, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                        ie->GetMetric(target_device, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
                 return std::find(optimization_caps.begin(), optimization_caps.end(),
                                  METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
             }
@@ -74,7 +74,6 @@ protected:
         }
     }
 
-    std::string targetDevice;
     FuncTestUtils::BlobType blobType;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

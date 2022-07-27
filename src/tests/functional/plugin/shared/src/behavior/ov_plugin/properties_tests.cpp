@@ -16,6 +16,7 @@ std::string OVEmptyPropertiesTests::getTestCaseName(testing::TestParamInfo<std::
 
 void OVEmptyPropertiesTests::SetUp() {
     target_device = this->GetParam();
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     model = ngraph::builder::subgraph::makeConvPoolRelu();
 }
@@ -34,6 +35,7 @@ std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<Properties
 
 void OVPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     model = ngraph::builder::subgraph::makeConvPoolRelu();
 }

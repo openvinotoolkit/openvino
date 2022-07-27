@@ -34,7 +34,7 @@ inline const std::vector<ov::AnyMap> generate_ov_configs(const std::string& targ
     return resultConfig;
 }
 
-const std::vector<ov::AnyMap> empty_ov_config = {
+const std::vector<ov::AnyMap> ov_config = {
         ov::test::conformance::pluginConfig,
 };
 

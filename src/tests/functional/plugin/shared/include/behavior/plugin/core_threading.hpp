@@ -81,8 +81,21 @@ class CoreThreadingTests : public CoreThreadingTestsBase,
                            public ::testing::TestWithParam<Params> {
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        auto &api_summary = ov::test::utils::ApiSummary::getInstance();
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
         std::tie(deviceName, config) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    }
+
+    void TearDown() override {
+        auto &api_summary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<Params> obj) {

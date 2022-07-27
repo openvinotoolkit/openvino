@@ -138,6 +138,8 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
 }
 
 void CompileModelCacheTestBase::SetUp() {
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    apiSummary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
     ovModelWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
     auto fGen = std::get<0>(funcPair);
@@ -239,6 +241,8 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
 }
 
 void CompiledKernelsCacheTest::SetUp() {
+    auto &api_summary = ov::test::utils::ApiSummary::getInstance();
+    api_summary.updateStat(utils::ov_entity::ov_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
     function = ngraph::builder::subgraph::makeConvPoolRelu();
     std::pair<ov::AnyMap, std::string> userConfig;
     std::tie(targetDevice, userConfig) = GetParam();

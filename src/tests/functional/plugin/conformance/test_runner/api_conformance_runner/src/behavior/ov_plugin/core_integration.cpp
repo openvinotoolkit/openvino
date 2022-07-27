@@ -17,7 +17,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassBasicTestP,
-        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::ValuesIn(generate_all_pairs()));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassNetworkTestP,
@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassImportExportTestP, OVClassImportExportTestP,
-        ::testing::Values(generate_complex_device_name(ov::test::conformance::targetDevice)));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //
 // IE Class GetMetric

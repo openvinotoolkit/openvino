@@ -75,12 +75,22 @@ inline const std::string generate_complex_device_name(const std::string& deviceN
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
-inline const std::vector<std::string> return_all_possible_device_combination() {
+static const std::vector<std::string> return_all_possible_device_combination() {
     std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
                                      CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
         res.emplace_back(generate_complex_device_name(device));
+    }
+    return res;
+}
+
+inline std::vector<std::pair<std::string, std::string>> generate_all_pairs() {
+    std::vector<std::pair<std::string, std::string>> res;
+    for (const auto& device : return_all_possible_device_combination()) {
+        std::string real_device = device.substr(0, device.find(':'));
+        res.push_back(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice),
+                                     real_device));
     }
     return res;
 }
@@ -95,7 +105,7 @@ inline std::map<std::string, std::string> AnyMap2StringMap(const AnyMap& config)
     return result;
 }
 
-const std::vector<std::map<std::string, std::string>> empty_config = {
+const std::vector<std::map<std::string, std::string>> config = {
         AnyMap2StringMap(ov::test::conformance::pluginConfig),
 };
 

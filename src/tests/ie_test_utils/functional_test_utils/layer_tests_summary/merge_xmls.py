@@ -104,6 +104,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             continue
 
         xml_reports = glob.glob(os.path.join(folder_path, 'report*.xml'))
+        print(len(xml_reports))
 
         xml_root = None
         for xml_report in xml_reports:

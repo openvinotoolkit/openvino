@@ -135,6 +135,8 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
     nGraphFunctionWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
     auto fGen = std::get<0>(funcPair);
@@ -159,6 +161,14 @@ void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
+    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+    if (this->HasFailure()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+    } else if (this->IsSkipped()) {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+    } else {
+        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+    }
 }
 
 void LoadNetworkCacheTestBase::Run() {

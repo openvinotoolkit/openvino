@@ -15,6 +15,7 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(const testing::TestP
 }
 
 void OVInferRequestPerfCountersTest::SetUp() {
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(target_device, configuration) = this->GetParam();
     function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);

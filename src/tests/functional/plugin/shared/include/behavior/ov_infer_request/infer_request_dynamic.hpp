@@ -49,8 +49,6 @@ public:
 
 protected:
     void SetUp() override;
-
-    void TearDown() override;
     void set_api_entity() override { api_entity = utils::ov_entity::ov_infer_request; }
     bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
 

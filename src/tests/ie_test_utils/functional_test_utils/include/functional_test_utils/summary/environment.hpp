@@ -18,10 +18,9 @@ namespace utils {
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override {
-#ifdef ENABLE_API_REPORT
         OpSummary::getInstance().saveReport();
-#endif
         ApiSummary::getInstance().saveReport();
+        std::cout << "GLOBAL TEARDOWN" << std::endl;
     };
 };
 

@@ -46,9 +46,6 @@ public:
     void SetUp() override {
         set_api_entity();
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED);
-#ifdef ENABLE_API_REPORT
-        api_summary.saveReport();
-#endif
     }
 
     void TearDown() override {
@@ -107,7 +104,9 @@ public:
     }
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_infer_request; };
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ov_infer_request;
+    };
 
     ov::CompiledModel execNet;
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();

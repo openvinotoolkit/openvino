@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassExecutableNetworkSetConfigTest,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 ////
 //// Hetero Executable Network GetMetric

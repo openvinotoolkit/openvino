@@ -17,8 +17,8 @@ std::string OVHoldersTest::getTestCaseName(testing::TestParamInfo<std::string> o
 
 void OVHoldersTest::SetUp() {
     target_device = this->GetParam();
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     APIBaseTest::SetUp();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
@@ -113,6 +113,7 @@ std::string OVHoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamIn
 
 void OVHoldersTestOnImportedNetwork::SetUp() {
     target_device = this->GetParam();
+    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     deathTestStyle = ::testing::GTEST_FLAG(death_test_style);
     if (deathTestStyle == "fast") {

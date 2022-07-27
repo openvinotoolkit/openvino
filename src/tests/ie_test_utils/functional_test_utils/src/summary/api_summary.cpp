@@ -16,7 +16,7 @@ using namespace ov::test::utils;
 ApiSummary *ApiSummary::p_instance = nullptr;
 ApiSummaryDestroyer ApiSummary::destroyer;
 const std::map<ov_entity, std::string> ApiSummary::apiInfo({
-    { ov_entity::ov_infer_request, "ie_infer_request"},
+    { ov_entity::ov_infer_request, "ov_infer_request"},
     { ov_entity::ov_plugin, "ov_plugin"},
     { ov_entity::ov_compiled_model, "ov_compiled_model"},
     { ov_entity::ie_infer_request, "ie_infer_request"},
