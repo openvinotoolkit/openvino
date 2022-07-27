@@ -21,7 +21,7 @@ nncf_config = register_default_init_args(nncf_config, train_dataset, batch_size=
 
 #! [wrap_model]
 model = KerasModel() # instance of the tensorflow.keras.Model   
-compression_ctrl, model = create_compressed_model(model, nncf_config)
+compression_ctrl, model = create_compressed_model(model, nncf_config) 
 #! [wrap_model]
 
 #! [distributed]
@@ -30,6 +30,7 @@ compression_ctrl.distributed() # call it before the training
 
 #! [tune_model]
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
+
 # tune quantized model for 5 epochs the same way as the baseline
 model.fit(train_dataset, epochs=5)
 #! [tune_model]
@@ -39,7 +40,8 @@ compression_ctrl.export_model("compressed_model.pb", save_format='frozen_graph')
 #! [export] 
 
 #! [save_checkpoint]
-from nncf.tensorflow.utils.state import TFCompressionState
+from nncf.tensorflow.utils.state import TFCompressionState 
+from nncf.tensorflow.callbacks.checkpoint_callback import CheckpointManagerCallback
 
 checkpoint = tf.train.Checkpoint(model=model,
                                  compression_state=TFCompressionState(compression_ctrl),

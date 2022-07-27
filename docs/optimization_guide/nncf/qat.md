@@ -149,13 +149,13 @@ To restore the model from checkpoint you should use the following API:
 
 @sphinxtab{PyTorch}
 
-@snippet docs/optimization_guide/nncf/code/qat_torch.py save_checkpoint
+@snippet docs/optimization_guide/nncf/code/qat_torch.py load_checkpoint
 
 @endsphinxtab
 
 @sphinxtab{TensorFlow 2}
 
-@snippet docs/optimization_guide/nncf/code/qat_tf.py save_checkpoint
+@snippet docs/optimization_guide/nncf/code/qat_tf.py load_checkpoint
 
 @endsphinxtab
 
