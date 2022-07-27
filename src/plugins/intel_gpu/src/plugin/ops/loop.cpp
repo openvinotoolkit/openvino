@@ -49,27 +49,6 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     return md;
 }
 
-static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-                            const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
-    for (auto& back_edge : back_edges) {
-        if (back_edge.from == old_primitive_id) {
-            back_edge.from = new_primitive_id;
-        }
-    }
-}
-
-static std::string GetExternalInputName(const int64_t body_parameter_index,
-                                        const std::shared_ptr<Loop>& op) {
-    const auto& loop_input_descs = op->get_input_descriptions();
-    for (const auto& loop_input_desc : loop_input_descs) {
-        if (loop_input_desc->m_body_parameter_index == body_parameter_index) {
-            auto external_node = op->get_input_node_shared_ptr(loop_input_desc->m_input_index);
-            return layer_type_name_ID(external_node);
-        }
-    }
-    return {""};
-}
-
 static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const std::string layerName = layer_type_name_ID(op);
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
