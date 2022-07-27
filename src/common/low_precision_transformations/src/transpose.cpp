@@ -26,7 +26,6 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(TransposeTransformation);
         return transform(*context, m);
     };
 

@@ -102,7 +102,6 @@ ngraph::pass::TransposeToReshape::TransposeToReshape() {
         reshape_op->set_friendly_name(transpose->get_friendly_name());
         copy_runtime_info(transpose, new_ops);
         replace_node(transpose, reshape_op);
-        MATCHER_SCOPE_ENABLE(TransposeToReshape);
         return true;
     };
 

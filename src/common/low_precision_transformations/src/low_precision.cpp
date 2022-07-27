@@ -127,7 +127,6 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
-        MATCHER_SCOPE_ENABLE(TypeRelaxedReplacer);
         return true;
     };
 

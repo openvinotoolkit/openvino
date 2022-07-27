@@ -55,7 +55,6 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
     MATCHER_SCOPE(ConvertDivide);
-    MATCHER_SCOPE_ENABLE(ConvertDivide);
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -68,7 +67,6 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
 
 ngraph::pass::ConvertDivideWithConstant::ConvertDivideWithConstant() {
     MATCHER_SCOPE(ConvertDivideWithConstant);
-    MATCHER_SCOPE_ENABLE(ConvertDivideWithConstant);
     auto div =
         ngraph::pattern::wrap_type<ngraph::opset1::Divide>({pattern::any_input(), pattern::wrap_type<op::Constant>()});
 

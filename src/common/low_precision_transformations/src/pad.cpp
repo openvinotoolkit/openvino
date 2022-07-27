@@ -28,7 +28,6 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(PadTransformation);
         return transform(*context, m);
     };
 

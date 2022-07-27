@@ -69,7 +69,6 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         new_eltwise->set_friendly_name(squeeze->get_friendly_name());
         ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
         ngraph::replace_node(squeeze, new_eltwise);
-        MATCHER_SCOPE_ENABLE(PullSqueezeThroughEltwise);
         return true;
     };
 

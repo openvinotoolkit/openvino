@@ -25,7 +25,6 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(FoldFakeQuantizeTransformation);
         return transform(*context, m);
     };
 

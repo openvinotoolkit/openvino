@@ -69,7 +69,6 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
-        MATCHER_SCOPE_ENABLE(GeluFusionWithErfOne)
         return true;
     };
 
@@ -129,7 +128,6 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
-        MATCHER_SCOPE_ENABLE(GeluFusionWithErfTwo);
         return true;
     };
 
@@ -189,7 +187,6 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
-        MATCHER_SCOPE_ENABLE(GeluFusionWithErfThree);
         return true;
     };
 
@@ -273,7 +270,6 @@ ngraph::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
-        MATCHER_SCOPE_ENABLE(GeluFusionWithTanh);
         return true;
     };
 

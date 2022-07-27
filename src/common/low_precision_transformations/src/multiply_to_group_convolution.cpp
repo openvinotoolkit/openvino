@@ -24,7 +24,6 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(MultiplyToGroupConvolutionTransformation);
         return transform(*context, m);
     };
 

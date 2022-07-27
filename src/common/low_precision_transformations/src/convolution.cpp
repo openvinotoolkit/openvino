@@ -36,7 +36,6 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(ConvolutionTransformation);
         return transform(*context, m);
     };
 

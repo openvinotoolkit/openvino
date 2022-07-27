@@ -31,7 +31,6 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(MultiplyTransformation);
         return transform(*context, m);
     };
 
