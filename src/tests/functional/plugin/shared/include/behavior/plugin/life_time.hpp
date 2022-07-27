@@ -33,6 +33,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<HoldersParams> obj);
 
     void SetUp() override;
+    void TearDown() override;
 
     std::vector<int> order;
     std::shared_ptr<ngraph::Function> function;
@@ -47,6 +48,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
 
     void SetUp() override;
+    void TearDown() override;
 
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;

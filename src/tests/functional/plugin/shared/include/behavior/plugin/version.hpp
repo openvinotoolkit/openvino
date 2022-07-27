@@ -27,8 +27,21 @@ public:
     }
 
     void SetUp()  override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         targetDevice = this->GetParam();
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    }
+
+    void TearDown() override {
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

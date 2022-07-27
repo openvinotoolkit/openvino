@@ -18,7 +18,7 @@ namespace BehaviorTestsDefinitions {
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!order.empty()) {
-            std::string objects[] = { "core", "exec-net", "request", "state" };
+            std::string objects[] = { "core", "exec-net", "requcest", "state" };
             for (auto &Item : order) {
                 result << objects[Item] << "_";
             }
@@ -27,9 +27,22 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTest::SetUp() {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, order) = this->GetParam();
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
+    }
+
+    void HoldersTest::TearDown() {
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     void release_order_test(std::vector<int> order, const std::string &deviceName,
@@ -105,9 +118,22 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTestOnImportedNetwork::SetUp() {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         targetDevice = this->GetParam();
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    }
+
+    void HoldersTestOnImportedNetwork::TearDown() {
+        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
+        if (this->HasFailure()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
+        } else if (this->IsSkipped()) {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
+        } else {
+            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
+        }
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
