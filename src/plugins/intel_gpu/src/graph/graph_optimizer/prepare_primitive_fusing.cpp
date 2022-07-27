@@ -102,7 +102,6 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
         });
     }
 
-    
     node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
