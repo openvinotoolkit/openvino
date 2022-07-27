@@ -10,8 +10,7 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 # Create library
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json openvino::runtime::dev
-        offline_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev offline_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

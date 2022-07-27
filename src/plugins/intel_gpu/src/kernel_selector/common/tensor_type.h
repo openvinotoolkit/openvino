@@ -32,22 +32,30 @@ enum DataLayout {
     byxf,                   // 3D+batch
     fyxb,                   // 3D+batch
     bfxy,                   // 3D+batch
+    b_fs_yx_fsv2,
+    b_fs_zyx_fsv2,
+    b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
+    b_fs_zyx_fsv4,
     b_fs_yx_fsv16,          // 3D+batch
     b_fs_zyx_fsv16,         // batch, feature, 3D spatial. Blocks of 16 input channels
     b_fs_yx_fsv32,          // 3D+batch
     b_fs_zyx_fsv32,         // 4D+batch
     bs_fs_yx_bsv16_fsv16,   // batch, feature, 2D spatial. Blocks of 16 batch and channels
+    bs_fs_zyx_bsv16_fsv32,  // batch, feature, 3D spatial. Blocks of 16 batch and 32 channels
     bs_fs_zyx_bsv16_fsv16,  // batch, feature, 3D spatial. Blocks of 16 batch and channels
     bs_fs_yx_bsv4_fsv4,     // batch, feature, 2D spatial. Blocks of 4 batch and 4 channels
     bs_fs_yx_bsv8_fsv4,     // batch, feature, 2D spatial. Blocks of 8 batch and 4 channels
     bs_fs_yx_bsv8_fsv2,     // batch, feature, 2D spatial. Blocks of 8 batch and 2 channels
+    bs_fs_zyx_bsv8_fsv4,    // batch, feature, 3D spatial. Blocks of 8 batch and 4 channels
+    bs_fs_zyx_bsv8_fsv2,    // batch, feature, 3D spatial. Blocks of 8 batch and 2 channels
     bs_fs_yx_bsv4_fsv2,     // batch, feature, 2D spatial. Blocks of 4 batch and 2 channels
     bs_fs_yx_bsv32_fsv32,   // batch, feature, 2D spatial. Blocks of 32 batch and 32 channels
     bs_fs_yx_bsv32_fsv16,   // batch, feature, 2D spatial. Blocks of 32 batch and 16 channels
+    bs_fs_zyx_bsv32_fsv32,  // batch, feature, 3D spatial. Blocks of 32 batch and 32 channels
+    bs_fs_zyx_bsv32_fsv16,  // batch, feature, 3D spatial. Blocks of 32 batch and 16 channels
     bs_f_bsv8__af8,         // for optimized FC
     bs_f_bsv16__af8,        // for optimized FC
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
-    b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     bfzyx,                  // batch+feature+3D spatial
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
     b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
@@ -108,6 +116,7 @@ enum WeightsLayout {
     os_is_zyx_isa8_osv16_isv4,               // for fully connected MMAD
     os_is_yx_osa4_isa8_osv8_isv4,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     is_os_yx_isa4_osa8_isv8_osv4,            // for onednn deconvolution
+    is_os_yx_osa4_isa8_osv8_isv4,
     g_os_is_yx_osa2_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv4,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -117,8 +126,13 @@ enum WeightsLayout {
     g_os_is_yx_osa4_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv2,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_yx_osa2_isa8_osv8_isv2,
+    os_is_zyx_osa2_isa8_osv8_isv2,
     os_is_yx_osa2_isa8_osv16_isv4,
     os_is_yx_osa2_isa8_osv16_isv2,
+    os_is_zyx_isa8_osv8_isv2,
+    is_os_zyx_isa8_osv8_isv2,
+    os_is_yx_isa8_osv8_isv2,
+    is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
     g_os_is_yx_osa2_isa8_osv16_isv2,
@@ -135,7 +149,9 @@ enum WeightsLayout {
                                          // 1,5...
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     os_is_yx_osv8_isv4,                      // weights for int8 blocked conv
+    os_is_zyx_osv8_isv4,                     // weights for int8 blocked 3d conv
     os_is_yx_osv8_isv2,                      // weights for int8 blocked conv
+    os_is_zyx_osv8_isv2,                     // weights for int8 blocked 3d conv
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
@@ -154,10 +170,12 @@ enum WeightsLayout {
     gs_oiyx_gsv16,
     gs_oizyx_gsv16,
     gs_oiyx_gsv32,
+    gs_oizyx_gsv32,
     g_os_iyx_osv16_rotate_180,
     gi_yxs_os_yxsv2_osv16,
     g_is_os_zyx_isv16_osv16,
     g_is_os_yx_isv16_osv16,
+    g_os_is_yx_isa8_osv8_isv2,
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
@@ -168,7 +186,8 @@ enum WeightsLayout {
     gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
     gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
     gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
-
+    g_os_is_yx_osv8_isv2,
+    g_os_is_yx_osv8_isv4,
     g_os_is_yx_osv16_isv4,
 
     g_os_zyx_is_osv16_isv4,

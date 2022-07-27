@@ -26,6 +26,7 @@ VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) :
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(VariadicSplitTransformation);
         return transform(*context, m);
     };
 

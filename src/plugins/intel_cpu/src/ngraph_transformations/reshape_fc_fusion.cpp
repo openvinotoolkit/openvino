@@ -81,6 +81,7 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         new_fc->set_friendly_name(fc->get_friendly_name());
         ngraph::copy_runtime_info({reshape, fc}, new_ops);
         ngraph::replace_node(fc, new_fc);
+        MATCHER_SCOPE_ENABLE(ReshapeFullyConnectedFusion);
         return true;
     };
 

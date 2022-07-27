@@ -30,7 +30,7 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
-
+        MATCHER_SCOPE_ENABLE(ConcatTransformation);
         return transform(*context, m);
     };
 

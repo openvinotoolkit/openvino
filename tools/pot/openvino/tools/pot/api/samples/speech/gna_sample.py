@@ -9,6 +9,7 @@ from openvino.tools.pot.utils.logger import init_logger
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 from openvino.tools.pot.api.samples.speech.data_loader import ArkDataLoader
 from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
+from openvino.tools.pot.graph.model_utils import compress_model_weights
 
 
 def parse_args():
@@ -59,6 +60,11 @@ def parse_args():
         help='Subset size for calibration',
         default=2000,
         type=int)
+    parser.add_argument(
+        '-q',
+        '--write_quantized_weights_to_bin_file',
+        help='Write the quantized weights as INT8 to the output IR bin file',
+        action="store_true")
     return parser.parse_args()
 
 
@@ -102,6 +108,14 @@ def get_configs(args):
                             'aggregator': 'max'
                         }
                     }
+                },
+                'outputs': {
+                    'range_estimator': {
+                        'max': {
+                            'type': 'abs_max',
+                            'aggregator': 'max'
+                        }
+                    }
                 }
             }
         }
@@ -127,6 +141,10 @@ def main():
         os.makedirs(out_dir)
     init_logger(level=args.log_level, file_name=os.path.join(out_dir, 'log.txt'))
     compressed_model = optimize_model(args)
+
+    if args.write_quantized_weights_to_bin_file:
+        compress_model_weights(model=compressed_model)
+
     save_model(compressed_model, out_dir)
 
 

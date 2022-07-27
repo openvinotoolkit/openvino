@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <vector>
 
@@ -31,8 +32,10 @@ bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_generate_proposals(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_maxpool(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
@@ -44,6 +47,7 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 template <typename T>
 bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
@@ -256,8 +260,11 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
         {opset3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
         {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
         {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
+        {opset9::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms9},
         {opset8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
         {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
+        {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
+        {opset9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
         {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
@@ -283,6 +290,7 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
 
     static type_to_fuse_map type_to_extend{
         {opset4::Select::get_type_info_static(), extend_select_type},
+        {opset1::Reverse::get_type_info_static(), extend_reverse_type},
     };
 
     bool is_changed = false;
@@ -401,6 +409,33 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
     return true;
 }
 
+bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    auto nms = ov::as_type_ptr<opset9::NonMaxSuppression>(node);
+    if (!nms) {
+        return false;
+    }
+
+    if ((idx == 0 || idx == 2) && (to == element::i32 || to == element::i64)) {
+        nms->set_output_type(to);
+        return true;
+    }
+
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to, idx);
+        return true;
+    }
+
+    element::TypeVector output_types;
+    for (const auto& output : nms->outputs()) {
+        output_types.emplace_back(output.get_element_type());
+    }
+    output_types[idx] = to;
+    auto relaxed_op =
+        std::make_shared<ngraph::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms, element::TypeVector{}, output_types);
+    replace_node(node, relaxed_op);
+    return true;
+}
+
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     auto nms = ov::as_type_ptr<opset8::MatrixNms>(node);
     if (!nms) {
@@ -416,13 +451,32 @@ bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::
 }
 
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    auto nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
+    std::shared_ptr<ov::op::util::MulticlassNmsBase> nms;
+    if (ov::is_type<ov::op::v8::MulticlassNms>(node)) {
+        nms = ov::as_type_ptr<opset8::MulticlassNms>(node);
+    } else {
+        nms = ov::as_type_ptr<opset9::MulticlassNms>(node);
+    }
     if (!nms) {
         return false;
     }
 
     if ((idx == 1 || idx == 2) && (to == element::i32 || to == element::i64)) {
         nms->set_output_type(to);
+        return true;
+    }
+
+    return false;
+}
+
+bool fuse_type_to_generate_proposals(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    auto generate_proposals = ov::as_type_ptr<opset9::GenerateProposals>(node);
+    if (!generate_proposals) {
+        return false;
+    }
+
+    if ((idx == 2) && (to == element::i32 || to == element::i64)) {
+        generate_proposals->set_roi_num_type(to);
         return true;
     }
 
@@ -508,6 +562,20 @@ bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::eleme
                                                                             element::TypeVector{element::boolean},
                                                                             element::TypeVector{});
         replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
+}
+
+bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (const auto casted = std::dynamic_pointer_cast<opset1::Reverse>(node)) {
+        if (casted->get_mode() == ov::op::v1::Reverse::Mode::MASK) {
+            auto relaxed_op = std::make_shared<op::TypeRelaxed<opset1::Reverse>>(
+                *casted,
+                element::TypeVector{casted->get_input_element_type(0), ov::element::boolean},
+                ngraph::element::TypeVector{casted->get_output_element_type(0)});
+            replace_node(node, relaxed_op);
+        }
         return true;
     }
     return false;

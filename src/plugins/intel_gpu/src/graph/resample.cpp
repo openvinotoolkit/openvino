@@ -30,8 +30,8 @@ layout resample_inst::calc_output_layout(resample_node const& node) {
 
     auto result_sizes = desc->output_size;
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.size.batch[0], "output batch size", result_sizes.batch[0], "");
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.size.feature[0], "output feature size", result_sizes.feature[0], "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.batch(), "output batch size", result_sizes.batch[0], "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.feature(), "output feature size", result_sizes.feature[0], "");
 
     auto result = layout({output_type, input_layout.format, result_sizes});
     return result;

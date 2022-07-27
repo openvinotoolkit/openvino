@@ -44,7 +44,7 @@
    DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_8>
-   Discrete Fourier Transformation (DFT)-7 <openvino_docs_ops_signals_DFT_7>
+   DFT-7 <openvino_docs_ops_signals_DFT_7>
    Divide-1 <openvino_docs_ops_arithmetic_Divide_1>
    Einsum-7 <openvino_docs_ops_matrix_Einsum_7>
    Elu-1 <openvino_docs_ops_activation_Elu_1>
@@ -64,6 +64,7 @@
    FakeQuantize-1 <openvino_docs_ops_quantization_FakeQuantize_1>
    FloorMod-1 <openvino_docs_ops_arithmetic_FloorMod_1>
    Floor-1 <openvino_docs_ops_arithmetic_Floor_1>
+   GridSample-9 <openvino_docs_ops_image_GridSample_9>
    GRN-1 <openvino_docs_ops_normalization_GRN_1>
    GRUCell-3 <openvino_docs_ops_sequence_GRUCell_3>
    GRUSequence-5 <openvino_docs_ops_sequence_GRUSequence_5>
@@ -74,8 +75,9 @@
    GatherElements-6 <openvino_docs_ops_movement_GatherElements_6>
    GatherND-5 <openvino_docs_ops_movement_GatherND_5>
    GatherND-8 <openvino_docs_ops_movement_GatherND_8>
-   Gaussian Error Linear Unit (GELU)-2 <openvino_docs_ops_activation_GELU_2>
-   Gaussian Error Linear Unit (GELU)-7 <openvino_docs_ops_activation_GELU_7>
+   GELU-2 <openvino_docs_ops_activation_GELU_2>
+   GELU-7 <openvino_docs_ops_activation_GELU_7>
+   GenerateProposals-9 <openvino_docs_ops_detection_GenerateProposals_9>
    GreaterEqual-1 <openvino_docs_ops_comparison_GreaterEqual_1>
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
@@ -113,12 +115,14 @@
    Mish-4 <openvino_docs_ops_activation_Mish_4>
    Mod-1 <openvino_docs_ops_arithmetic_Mod_1>
    MulticlassNonMaxSuppression-8 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_8>
+   MulticlassNonMaxSuppression-9 <openvino_docs_ops_sort_MulticlassNonMaxSuppression_9>
    Multiply-1 <openvino_docs_ops_arithmetic_Multiply_1>
    Negative-1 <openvino_docs_ops_arithmetic_Negative_1>
    NonMaxSuppression-1 <openvino_docs_ops_sort_NonMaxSuppression_1>
    NonMaxSuppression-3 <openvino_docs_ops_sort_NonMaxSuppression_3>
    NonMaxSuppression-4 <openvino_docs_ops_sort_NonMaxSuppression_4>
    NonMaxSuppression-5 <openvino_docs_ops_sort_NonMaxSuppression_5>
+   NonMaxSuppression-9 <openvino_docs_ops_sort_NonMaxSuppression_9>
    NonZero-3 <openvino_docs_ops_condition_NonZero_3>
    NormalizeL2-1 <openvino_docs_ops_normalization_NormalizeL2_1>
    NotEqual-1 <openvino_docs_ops_comparison_NotEqual_1>
@@ -159,6 +163,7 @@
    RNNCell-3 <openvino_docs_ops_sequence_RNNCell_3>
    RNNSequence-5 <openvino_docs_ops_sequence_RNNSequence_5>
    ROIAlign-3 <openvino_docs_ops_detection_ROIAlign_3>
+   ROIAlign-9 <openvino_docs_ops_detection_ROIAlign_9>
    ROIPooling-1 <openvino_docs_ops_detection_ROIPooling_1>
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>

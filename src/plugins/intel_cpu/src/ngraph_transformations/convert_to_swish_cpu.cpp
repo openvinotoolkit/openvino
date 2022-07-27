@@ -34,6 +34,7 @@ ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
         swish_cpu->set_friendly_name(swish->get_friendly_name());
         ngraph::copy_runtime_info(swish, swish_cpu);
         ngraph::replace_node(swish, swish_cpu);
+        MATCHER_SCOPE_ENABLE(ConvertToSwishCPU);
         return true;
     };
 

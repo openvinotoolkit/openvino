@@ -23,6 +23,7 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
         if (transformation_callback(op)) {
             return false;
         }
+        MATCHER_SCOPE_ENABLE(ReduceMeanTransformation);
         return transform(*context, m);
     };
 

@@ -13,8 +13,8 @@ function(ie_plugin_get_file_name target_name library_name)
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
 
-if(NOT TARGET ie_plugins)
-    add_custom_target(ie_plugins)
+if(NOT TARGET ov_plugins)
+    add_custom_target(ov_plugins)
 endif()
 
 #
@@ -79,7 +79,7 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "OpenVINO Runtime ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
@@ -102,7 +102,7 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
-        add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+        add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
         if(TARGET openvino_gapi_preproc)
             if(BUILD_SHARED_LIBS)
                 add_dependencies(${IE_PLUGIN_NAME} openvino_gapi_preproc)
@@ -139,7 +139,7 @@ function(ie_add_plugin)
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})

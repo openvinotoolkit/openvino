@@ -103,6 +103,7 @@ ngraph::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
                            axes_to_unsqueeze,
                            unsqueeze_range});
         broadcast->input(0).replace_source_output(unsqueeze_range);
+        MATCHER_SCOPE_ENABLE(BroadcastConstRangeReplacement);
         return false;
     };
 

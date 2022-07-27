@@ -4,7 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-# TODO: fix it
+# TODO: fix it, outside of source dir MO cannot find TBB dependency
 set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
@@ -86,7 +86,7 @@ if(THREADING STREQUAL "OMP")
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
-            DESTINATION "runtime/3rdparty/omp/lib"
+            DESTINATION ${OV_CPACK_RUNTIMEDIR}
             COMPONENT omp)
 endif()
 
@@ -151,6 +151,9 @@ function(ov_download_tbb)
     if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
         # oneTBB case
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
+        # oneTBB release package version less than 2021.6.0
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/tbb" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
         # 64-bits oneTBB case
         update_deps_cache(TBB_DIR "${TBBROOT}/lib64/cmake/TBB" "Path to TBB cmake folder")
@@ -278,7 +281,10 @@ if(ENABLE_OPENCV)
             elseif(LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu18")
                 set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
-            elseif((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
+            elseif((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR
+                    LINUX_OS_NAME STREQUAL "Ubuntu 21.10" OR
+                    LINUX_OS_NAME STREQUAL "Ubuntu 22.04" OR
+                    LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
             elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})

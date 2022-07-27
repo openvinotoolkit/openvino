@@ -11,9 +11,15 @@
 IE_SUPPRESS_DEPRECATED_START
 
 namespace {
-
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine::PluginConfigParams;
+
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         DefaultConfigurationTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                            ::testing::Values(DefaultParameter{InferenceEngine::MYRIAD_ENABLE_MX_BOOT,
+                                                                               CONFIG_VALUE(YES)})),
+                         DefaultConfigurationTest::getTestCaseName);
 
 const std::vector<InferenceEngine::Precision>& getPrecisions() {
     static const std::vector<InferenceEngine::Precision> precisions = {
@@ -235,6 +241,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(getCorrectMultiConfigs())),
+                         CorrectConfigTests::getTestCaseName);
+
+const std::vector<std::map<std::string, std::string>> ExcluAsyncReqConfigs = {
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+     {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}},
+    {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+     {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::NO}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ExclusiveAsyncReqTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(ExcluAsyncReqConfigs)),
                          CorrectConfigTests::getTestCaseName);
 
 const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaultEntries() {

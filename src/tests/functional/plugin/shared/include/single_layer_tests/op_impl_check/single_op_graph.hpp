@@ -25,7 +25,8 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     }
 
     for (const auto& type_info : opsInfo) {
-        res.push_back({type_info, opGenerator.find(type_info)->second()});
+        if (opGenerator.find(type_info) != opGenerator.end())
+            res.push_back({type_info, opGenerator.find(type_info)->second()});
     }
     return res;
 }

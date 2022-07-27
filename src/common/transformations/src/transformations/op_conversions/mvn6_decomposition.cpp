@@ -72,6 +72,7 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
             ngraph::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div});
             ngraph::replace_node(mvn_node, div);
         }
+        MATCHER_SCOPE_ENABLE(MVN6Decomposition);
         return true;
     };
 

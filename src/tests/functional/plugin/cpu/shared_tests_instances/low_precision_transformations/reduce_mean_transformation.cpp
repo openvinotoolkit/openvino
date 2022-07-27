@@ -153,8 +153,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMeanTransformation,
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReduceMeanTransformation::getTestCaseName);
-
 }  // namespace
-
-
-

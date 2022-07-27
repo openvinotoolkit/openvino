@@ -1,0 +1,31 @@
+{%- extends "layout.html" %}
+{% set title = _('Search') %}
+{%- block scripts %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ pathto('_static/css/gsearch.css', 1) }}" type="text/css" />
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="{{ pathto('_static/js/gsearch.js', 1) }}"></script>
+{%- endblock %}
+{% block body %}
+  <h1 id="search-documentation">{{ _('Search') }}</h1>
+  <p id="searchinfo">
+    Search Results...
+  </p>
+  <div id="gs-tabs-area"></div>
+  {% block scriptwarning %}
+  <div id="fallback" class="admonition warning">
+  <script>$('#fallback').hide();</script>
+  </div>
+  {% endblock %}
+  {% block searchbox %}
+  <form class="searchForm" action="" method="get">
+    <input id="searchfield" type="text" name="query" aria-labelledby="search-documentation" value="" />
+    <input type="submit" value="{{ _('search') }}" />
+    <span id="search-progress" style="padding-left: 10px"></span>
+  </form>
+  {% endblock %}
+  {% block searchresults %}
+  <div id="gs-tabs-area"></div>
+  <div id="searchresults"></div>
+  {% endblock %}
+{% endblock %}

@@ -33,6 +33,7 @@ pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
         gather_v7_node->set_friendly_name(gather_v1_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v1_node, gather_v7_node);
         ngraph::replace_node(gather_v1_node, gather_v7_node);
+        MATCHER_SCOPE_ENABLE(ConvertGather1ToGather7);
         return true;
     };
 
@@ -58,6 +59,7 @@ pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
         gather_v8_node->set_friendly_name(gather_v7_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v7_node, gather_v8_node);
         ngraph::replace_node(gather_v7_node, gather_v8_node);
+        MATCHER_SCOPE_ENABLE(ConvertGather7ToGather8);
         return true;
     };
 

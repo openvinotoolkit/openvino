@@ -43,6 +43,7 @@ graph {
     input: "X"
     input: "roi"
     input: "scales"
+    input: ""
     output: "Y"
     op_type: "Resize"
     attribute {

@@ -144,7 +144,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool,
-                                        const program_node& _node, bool is_internal);
+                                        const program_node& _node, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 

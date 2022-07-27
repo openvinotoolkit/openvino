@@ -37,7 +37,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util openvino::core::dev)
 set_target_properties(${TARGET_NAME}_obj PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
@@ -72,7 +72,7 @@ openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT core_dev)
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 # Shutdown protobuf library
 if(Protobuf_IN_FRONTEND AND BUILD_SHARED_LIBS)

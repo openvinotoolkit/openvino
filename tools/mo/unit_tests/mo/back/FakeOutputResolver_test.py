@@ -17,6 +17,8 @@ class FakeOutputResolverTest(unittest.TestCase):
             **regular_op_with_empty_data('some_op', {'type': 'SomeOp', 'name': 'some_op_name'}),
             **regular_op_with_empty_data('fake_output',
                                          {'type': None, 'kind': 'op', 'op': 'FakeOutput', 'name': 'my_output_name'}),
+            **valued_const_with_data('const', int64_array(0)),
+            **regular_op_with_empty_data('add', {'type': None, 'kind': 'op', 'op': 'Add', 'name': 'my_output_name'}),
             **result('result'),
         }
         edges = [*connect('input', 'some_op'),
@@ -26,10 +28,12 @@ class FakeOutputResolverTest(unittest.TestCase):
         graph = build_graph(nodes, edges)
 
         edges_ref = [*connect('input', 'some_op'),
-                     *connect('some_op', 'result'),
+                     *connect('some_op', '0:add'),
+                     *connect('const', '1:add'),
+                     *connect('add', 'result'),
                      ]
 
-        graph_ref = build_graph(nodes, edges_ref, {'some_op': {'name': 'my_output_name'}})
+        graph_ref = build_graph(nodes, edges_ref)
 
         FakeOutputResolver().find_and_replace_pattern(graph)
 

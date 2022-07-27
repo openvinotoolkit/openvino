@@ -4,6 +4,7 @@
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+
         if(NOT ENABLE_SYSTEM_TBB)
             set(_find_package_no_args NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_SYSTEM_PATH)
@@ -72,17 +73,21 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
+        set(COMPILE_DEF_TYPE "INTERFACE")
     elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
            target_type STREQUAL "MODULE_LIBRARY")
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
         # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
         # Affected libraries: inference_engine only
         # TODO: why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     else()
         message(WARNING "Unknown target type")
     endif()
@@ -100,11 +105,19 @@ function(set_ie_threading_interface_for TARGET_NAME)
                         if(NOT "${include_directory}" MATCHES "^/usr.*$")
                             target_include_directories(${TARGET_NAME} SYSTEM BEFORE
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        else()
+                            set(_system_library ON)
                         endif()
                     endforeach()
                 endif()
             endif()
         endforeach()
+
+        if(_system_library)
+            # if we deal with system library (e.i. having /usr/include as header paths)
+            # we cannot use SYSTEM key word for such library
+            set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+        endif()
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
@@ -113,6 +126,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
+            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR path.\

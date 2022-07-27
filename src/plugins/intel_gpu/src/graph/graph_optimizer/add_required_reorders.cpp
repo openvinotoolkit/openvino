@@ -110,7 +110,7 @@ void add_required_reorders::run(program& p) {
                     */
                     layout current_layout(original_layout.data_type,
                                           node->get_output_layout().format,
-                                          original_layout.size);
+                                          original_layout.get_tensor());
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -169,6 +169,8 @@ void add_required_reorders::run(program& p) {
             std::vector<cldnn::format> preffered_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
+                if (format::is_weights_format(node->get_output_layout().format))
+                    continue;
                 max_in_dims = std::max(cldnn::format::dimension(node->get_output_layout().format), max_in_dims);
             }
             // This list of preffered layouts has been selected arbitrary due to developers' experience
@@ -194,7 +196,7 @@ void add_required_reorders::run(program& p) {
 
             if (!correct_layout_selected) {
                 for (auto new_layout_format : preffered_layout_formats) {
-                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.size);
+                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.get_tensor());
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -209,7 +211,7 @@ void add_required_reorders::run(program& p) {
                 if (original_layout.data_type == data_types::i64) {
                     layout original_layout_i32(data_types::i32,
                                           original_layout.format,
-                                          original_layout.size);
+                                          original_layout.get_tensor());
 
                     usr->set_output_layout(original_layout_i32, false);
 
@@ -221,7 +223,7 @@ void add_required_reorders::run(program& p) {
                         for (auto new_layout_format : preffered_layout_formats) {
                             layout current_layout_i32(original_layout_i32.data_type,
                                                   new_layout_format,
-                                                  original_layout_i32.size);
+                                                  original_layout_i32.get_tensor());
                             usr->set_output_layout(current_layout_i32, false);
                             if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;

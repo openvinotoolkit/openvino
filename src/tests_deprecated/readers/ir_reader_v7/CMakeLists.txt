@@ -39,8 +39,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
@@ -60,7 +58,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT tests EXCLUDE_FROM_ALL)
 
 # for InferenceEngineUnitTest
 # For public CI
@@ -72,4 +70,4 @@ if(NOT WIN32)
             LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
-ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

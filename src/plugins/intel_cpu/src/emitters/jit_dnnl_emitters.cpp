@@ -38,8 +38,8 @@ void jit_dnnl_emitter::set_injector() {
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx2>>(
                 h, kind, alpha, beta, 1);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        eltwise_injector_avx512_common = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx512_common>>(
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        eltwise_injector_avx512_core = std::make_shared<jit_uni_eltwise_injector_f32<cpu::x64::avx512_core>>(
                 h, kind, alpha, beta, 1);
     } else {
         assert(!"unsupported isa");
@@ -58,10 +58,10 @@ void jit_dnnl_emitter::emit_code(const std::vector<size_t> &in_vec_idxs, const s
         if (out_vec_idxs[0] != in_vec_idxs[0])
             h->uni_vmovups(Ymm(out_vec_idxs[0]), Ymm(in_vec_idxs[0]));
         eltwise_injector_avx2->compute_vector(out_vec_idxs[0]);
-    } else if (host_isa_ == cpu::x64::avx512_common) {
+    } else if (host_isa_ == cpu::x64::avx512_core) {
         if (out_vec_idxs[0] != in_vec_idxs[0])
             h->uni_vmovups(Zmm(out_vec_idxs[0]), Zmm(in_vec_idxs[0]));
-        eltwise_injector_avx512_common->compute_vector(out_vec_idxs[0]);
+        eltwise_injector_avx512_core->compute_vector(out_vec_idxs[0]);
     } else {
         assert(!"unsupported isa");
     }
@@ -72,8 +72,8 @@ void jit_dnnl_emitter::emit_data() const {
         eltwise_injector_sse42->prepare_table();
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2->prepare_table();
-    } else if (host_isa_ == cpu::x64::avx512_common) {
-        eltwise_injector_avx512_common->prepare_table();
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        eltwise_injector_avx512_core->prepare_table();
     } else {
         assert(!"unsupported isa");
     }

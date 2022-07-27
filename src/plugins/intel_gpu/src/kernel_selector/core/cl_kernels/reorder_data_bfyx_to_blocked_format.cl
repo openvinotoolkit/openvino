@@ -64,9 +64,9 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
     const uint f = fsv + fs * FSV_ALIGNMENT;
 
 #if DOUBLE_BLOCKED_FORMAT
-    const uint bs = b / FSV_ALIGNMENT;
-    const uint bsv = b % FSV_ALIGNMENT;
-    const uint x_pitch = FSV_ALIGNMENT * FSV_ALIGNMENT;
+    const uint bs = b / BSV_ALIGNMENT;
+    const uint bsv = b % BSV_ALIGNMENT;
+    const uint x_pitch = BSV_ALIGNMENT * FSV_ALIGNMENT;
 #else
     const uint x_pitch = FSV_ALIGNMENT;
 #endif
@@ -74,7 +74,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 
 #if INPUT0_DIMS == 4
     #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
+        const uint bsv_pitch = BSV_ALIGNMENT;
         const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
         const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);

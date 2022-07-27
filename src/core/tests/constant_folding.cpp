@@ -3372,3 +3372,86 @@ TEST(constant_folding, constant_loop) {
     range_test_check(result_node_0->cast_vector<float>(), expected_0);
     range_test_check(result_node_1->cast_vector<float>(), expected_1);
 }
+
+TEST(constant_folding, disable_constant_folding_for_shapeof) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof = std::make_shared<opset5::ShapeOf>(data);
+    auto reshape = std::make_shared<opset5::Reshape>(data, shapeof, true);
+    auto model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{data});
+
+    ov::disable_constant_folding(shapeof);
+
+    pass::Manager mgr;
+    mgr.register_pass<pass::ConstantFolding>();
+    mgr.run_passes(model);
+
+    ASSERT_EQ(reshape->input_value(1), shapeof->output(0));
+}
+
+TEST(constant_folding, disable_constant_folding_for_squeeze_unsqueeze) {
+    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_axes = op::Constant::create(element::i64, Shape{1}, {0});
+    auto squeeze = std::make_shared<op::v0::Squeeze>(const_data, const_axes);
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(const_data, const_axes);
+    auto consumer1 = std::make_shared<op::Relu>(squeeze);
+    auto consumer2 = std::make_shared<op::Relu>(unsqueeze);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
+
+    ov::disable_constant_folding(squeeze);
+    ov::disable_constant_folding(unsqueeze);
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::Unsqueeze>(model), 1);
+}
+
+TEST(constant_folding, disable_constant_folding_for_convert_like) {
+    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+
+    ov::disable_constant_folding(convert_like);
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 1);
+}
+
+TEST(constant_folding, fold_convert_like_node) {
+    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 0);
+}
+
+TEST(constant_folding, fold_convert_like_but_node_is_not_foldable) {
+    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 64});
+    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
+    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+
+    auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{data});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::ConvertLike>(model), 1);
+}

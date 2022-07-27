@@ -56,6 +56,8 @@ private:
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
+
+    std::shared_ptr<void> specialSetup;
 };
 
 }   // namespace intel_cpu

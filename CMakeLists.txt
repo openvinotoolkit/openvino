@@ -51,6 +51,7 @@ file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
     file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
     unset(${component} CACHE)
 endforeach()
 unset(openvino_export_components CACHE)
@@ -111,5 +112,8 @@ add_subdirectory(licensing)
 #
 # CPack
 #
+
+# provides a callback function to describe each component in repo
+include(cmake/debian.cmake)
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

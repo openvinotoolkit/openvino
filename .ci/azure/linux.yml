@@ -13,11 +13,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: master
 
 jobs:
 - job: Lin
@@ -253,7 +255,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
@@ -268,8 +270,18 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXImportUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend UT'
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
@@ -327,6 +339,13 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
+    continueOnError: false
+
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
     continueOnError: false
 
   - task: CMake@1

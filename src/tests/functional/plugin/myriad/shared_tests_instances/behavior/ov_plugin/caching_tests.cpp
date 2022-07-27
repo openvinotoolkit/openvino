@@ -36,7 +36,8 @@ namespace {
                                     ::testing::ValuesIn(smoke_functions()),
                                     ::testing::ValuesIn(smoke_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, CompileModelCacheTestBase,
@@ -44,6 +45,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 } // namespace
