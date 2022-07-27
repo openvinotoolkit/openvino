@@ -114,7 +114,7 @@ static size_t get_x_pitch(const layout& layout) {
 
 template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
-    auto&& size = mem->get_layout().size;
+    auto&& size = mem->get_layout().get_tensor();
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
@@ -540,7 +540,7 @@ void network::allocate_primitives() {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
