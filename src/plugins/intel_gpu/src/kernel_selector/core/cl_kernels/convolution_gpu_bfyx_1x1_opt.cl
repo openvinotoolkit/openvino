@@ -19,7 +19,7 @@ KERNEL(convolution)(
     const uint group_x = (uint)get_group_id(0) * OUT_BLOCK_WIDTH;
     const uint group_y = (uint)get_group_id(1) * OUT_BLOCK_HEIGHT;
     const uint f = ((uint)get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) % OUTPUT_FEATURE_NUM;
-    const uint b = ((uint)get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) / OUTPUT_FEATURE_NUM;;
+    const uint b = ((uint)get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) / OUTPUT_FEATURE_NUM;
 
     const uint ifm_part = get_sub_group_id();
     uint ifm_offset = ifm_part* OUT_BLOCK_DEPTH/2;
@@ -167,10 +167,10 @@ KERNEL(convolution)(
             dotProd0[2 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += tmp[2];
             dotProd0[3 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += tmp[3];
 
-            dotProd0[0 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[0 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);;
-            dotProd0[1 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[1 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);;
-            dotProd0[2 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[2 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);;
-            dotProd0[3 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[3 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);;
+            dotProd0[0 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[0 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);
+            dotProd0[1 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[1 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);
+            dotProd0[2 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[2 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);
+            dotProd0[3 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[3 + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);
 
             width_offset += 4;
             #endif
@@ -178,7 +178,7 @@ KERNEL(convolution)(
             for(uint bc = width_offset; bc < OUT_BLOCK_WIDTH; bc++)
             {
                 dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += slm_vals[bc + OUT_BLOCK_WIDTH * (get_sub_group_local_id() + SIMD_SIZE * (br + OUT_BLOCK_HEIGHT * (bd + ifm_offset) ))];
-                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);;
+                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS);
             }
         }
     }

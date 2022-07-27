@@ -71,7 +71,7 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-    auto output_size = output_layout.size;
+    auto output_size = output_layout.get_tensor();
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
