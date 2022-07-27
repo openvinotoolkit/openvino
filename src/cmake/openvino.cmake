@@ -113,13 +113,17 @@ if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
 endif()
 
-ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED DEPENDS core ${core_dev_components})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE}
+                       HIDDEN
+                       DEPENDS ${core_components})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION ${OV_CPACK_PLUGINSDIR}
-            COMPONENT core)
+            COMPONENT ${OV_CPACK_COMP_CORE})
 
     # for InferenceEngineUnitTest
     # For public tests

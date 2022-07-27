@@ -160,6 +160,7 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
                 # oneTBB case exposed via export TBBROOT=<custom TBB root>
                 "${ENV_TBBROOT}/lib64/cmake/TBB"
                 "${ENV_TBBROOT}/lib/cmake/TBB"
+                "${ENV_TBBROOT}/lib/cmake/tbb"
                 # "$ENV{TBB_DIR}"
                 # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
                 "${TBBROOT}/cmake"

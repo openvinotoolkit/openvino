@@ -14,7 +14,7 @@ from tests.runtime import get_runtime
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 
 
-def test_ngraph_preprocess_mean():
+def test_graph_preprocess_mean():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -35,7 +35,7 @@ def test_ngraph_preprocess_mean():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_mean_vector():
+def test_graph_preprocess_mean_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -56,7 +56,7 @@ def test_ngraph_preprocess_mean_vector():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_scale_vector():
+def test_graph_preprocess_scale_vector():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -78,7 +78,7 @@ def test_ngraph_preprocess_scale_vector():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_mean_scale_convert():
+def test_graph_preprocess_mean_scale_convert():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
@@ -109,7 +109,7 @@ def test_ngraph_preprocess_mean_scale_convert():
     assert np.equal(output2, expected_output2).all()
 
 
-def test_ngraph_preprocess_input_output_by_name():
+def test_graph_preprocess_input_output_by_name():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
@@ -143,7 +143,7 @@ def test_ngraph_preprocess_input_output_by_name():
     assert np.equal(output2, expected_output2).all()
 
 
-def test_ngraph_preprocess_output_postprocess():
+def test_graph_preprocess_output_postprocess():
     shape = [2, 3]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
@@ -177,7 +177,7 @@ def test_ngraph_preprocess_output_postprocess():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_spatial_static_shape():
+def test_graph_preprocess_spatial_static_shape():
     shape = [2, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
@@ -205,7 +205,7 @@ def test_ngraph_preprocess_spatial_static_shape():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_set_shape():
+def test_graph_preprocess_set_shape():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
@@ -236,7 +236,7 @@ def test_ngraph_preprocess_set_shape():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_set_from_tensor():
+def test_graph_preprocess_set_from_tensor():
     shape = [1, 224, 224, 3]
     inp_shape = [1, 480, 640, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -256,7 +256,7 @@ def test_ngraph_preprocess_set_from_tensor():
     assert function.output().element_type == Type.f32
 
 
-def test_ngraph_preprocess_set_from_np_infer():
+def test_graph_preprocess_set_from_np_infer():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -290,7 +290,7 @@ def test_ngraph_preprocess_set_from_np_infer():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_set_memory_type():
+def test_graph_preprocess_set_memory_type():
     shape = [1, 1, 1]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     op = ops.relu(parameter_a)
@@ -324,7 +324,7 @@ def test_ngraph_preprocess_set_memory_type():
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)])
-def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
+def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -353,7 +353,7 @@ def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_fai
         assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_postprocess_layout():
+def test_graph_preprocess_postprocess_layout():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -378,7 +378,7 @@ def test_ngraph_preprocess_postprocess_layout():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_reverse_channels():
+def test_graph_preprocess_reverse_channels():
     shape = [1, 2, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -400,7 +400,7 @@ def test_ngraph_preprocess_reverse_channels():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_crop():
+def test_graph_preprocess_crop():
     orig_shape = [1, 2, 1, 1]
     tensor_shape = [1, 2, 3, 3]
     parameter_a = ops.parameter(orig_shape, dtype=np.float32, name="A")
@@ -421,7 +421,7 @@ def test_ngraph_preprocess_crop():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_resize_algorithm():
+def test_graph_preprocess_resize_algorithm():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
@@ -444,7 +444,7 @@ def test_ngraph_preprocess_resize_algorithm():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_model():
+def test_graph_preprocess_model():
     model = bytes(b"""<net name="add_model" version="10">
     <layers>
     <layer id="0" name="x" type="Parameter" version="opset1">
@@ -527,7 +527,7 @@ def test_ngraph_preprocess_model():
     assert np.equal(output, expected_output).all()
 
 
-def test_ngraph_preprocess_dump():
+def test_graph_preprocess_dump():
     shape = [1, 3, 224, 224]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
     model = parameter_a
@@ -541,7 +541,6 @@ def test_ngraph_preprocess_dump():
     ppp.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
     ppp.input().model().set_layout(ov.Layout("NCHW"))
     p_str = str(ppp)
-    print(ppp)
     assert "Pre-processing steps (5):" in p_str
     assert "convert type (f32):" in p_str
     assert "reverse channels:" in p_str
