@@ -75,7 +75,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-${cpack_ver_mm}-dev")
     # TODO !!!!!!
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "libopenvino2021.3-dev, libopenvino2021.4-dev")
+    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "libopenvino-2021.3-dev, libopenvino-2021.4-dev")
 
     ov_debian_add_lintian_suppression(core_dev
         # CVS-79409: create man page for compile_tool
@@ -232,7 +232,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "libopenvino-libraries-${cpack_ver_mm}-dev")
     # TODO !!!!!!
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "libopenvino-libraries-dev-2022.1")
+    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_CONFLICTS "libopenvino-libraries-dev-2022.1")
 
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package

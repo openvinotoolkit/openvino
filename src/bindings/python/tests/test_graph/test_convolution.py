@@ -6,8 +6,8 @@ import numpy as np
 
 import openvino.runtime.opset8 as ov
 from tests.runtime import get_runtime
-from tests.test_ngraph.test_ops import convolution2d
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.test_ops import convolution2d
+from tests.test_graph.util import run_op_node
 
 
 def test_convolution_2d():

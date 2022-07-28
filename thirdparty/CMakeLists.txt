@@ -205,10 +205,7 @@ else()
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
-
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            USE_SOURCE_PERMISSIONS
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             REGEX .*json/nlohmann_json/test/.* EXCLUDE)
 endif()
