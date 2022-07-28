@@ -5,6 +5,7 @@
 #include "lib_close.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/core.hpp"
@@ -19,6 +20,7 @@ std::string FrontendLibCloseTest::get_test_case_name(const testing::TestParamInf
 }
 
 void FrontendLibCloseTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(frontend, model_path, exp_name) = GetParam();
     model_path = CommonTestUtils::getModelFromTestModelZoo(model_path);
 }

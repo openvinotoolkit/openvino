@@ -69,6 +69,8 @@ addIeTargetTest(
         IE
 )
 
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_OV_ONNX_FRONTEND)
