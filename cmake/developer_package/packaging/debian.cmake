@@ -143,7 +143,7 @@ function(ov_debian_add_changelog_and_copyright comp)
             COMPONENT ${comp})
 
     # create changelog.gz
-    
+
     find_host_program(gzip_PROGRAM NAMES gzip DOC "Path to gzip tool")
     if(NOT gzip_PROGRAM)
         message(FATAL_ERROR "Failed to find gzip tool")
@@ -152,6 +152,9 @@ function(ov_debian_add_changelog_and_copyright comp)
     set(changelog_src "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog")
     set(package_bin_dir "${OpenVINO_BINARY_DIR}/_CPack_Packages/${package_name}")
     set(changelog_output "${package_bin_dir}/changelog")
+
+    file(REMOVE "${changelog_output}")
+    file(REMOVE "${changelog_output}.gz")
 
     file(MAKE_DIRECTORY "${package_bin_dir}")
     configure_file("${changelog_src}" "${changelog_output}" COPYONLY)

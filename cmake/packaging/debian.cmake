@@ -211,7 +211,7 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
     #
-    # Add virtual packages
+    # Add umbrella packages
     #
 
     # all libraries
@@ -222,7 +222,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_LIBRARIES_DEPENDS "core")
     endif()
     set(CPACK_DEBIAN_LIBRARIES_PACKAGE_NAME "libopenvino-libraries-${cpack_ver_mm}")
-    
+
     ov_debian_add_lintian_suppression(libraries
         # it's umbrella package
         "empty-binary-package")
