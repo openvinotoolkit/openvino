@@ -287,6 +287,11 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
+            } else if (FLAGS_pcsort = pcSort || FLAGS_pcsort = pcNoSort ||
+                       FLAGS_pcSimpleSort) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                           << FLAGS_pcsort << "." << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
                 device_config.emplace(ov::enable_profiling(FLAGS_pc));
@@ -1126,6 +1131,9 @@ int main(int argc, char* argv[]) {
                 if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
+                } else if (FLAGS_pcsort == pcSort || FLAGS_pcsort == pcNoSort || FLAGS_pcsort == pcSimpleSort) {
+                    slog::info << "Peformance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), FLAGS_pcsort, false);
                 }
                 perfCounts.push_back(reqPerfCounts);
             }
