@@ -5,7 +5,7 @@
 /**
  * @brief This is a header file for ov_model C API, which is a C wrapper for ov::Node class.
  *
- * @file ov_model.h
+ * @file ov_node.h
  */
 
 #pragma once

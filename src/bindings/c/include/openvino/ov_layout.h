@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief This is a header file for ov_shape C API
+ * @brief This is a header file for ov_layout C API
  *
- * @file ov_shape.h
+ * @file ov_layout.h
  */
 
 #pragma once

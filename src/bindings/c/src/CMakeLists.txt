@@ -5,7 +5,7 @@
 set(TARGET_NAME openvino_c)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/openvino/*.cpp)
-file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/c_api/*.h ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/*.h)
+file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*)
 
 # create library
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
@@ -14,7 +14,8 @@ add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include/openvino>)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -54,6 +55,6 @@ install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/c_api
     DESTINATION ${OV_CPACK_INCLUDEDIR}/ie
     COMPONENT ${OV_CPACK_COMP_CORE_C_DEV})
 
-install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino
+install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/
     DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino/c
     COMPONENT ${OV_CPACK_COMP_CORE_C_DEV})

@@ -1843,12 +1843,12 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_rank_create(&rank, 4));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 20, 20));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 20));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, 40, 100));
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
     auto tmp = ov_partial_shape_to_string(partial_shape);
@@ -1866,12 +1866,12 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_rank_create(&rank, 4));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, 40, 100));
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
     auto tmp = ov_partial_shape_to_string(partial_shape);
@@ -1889,12 +1889,12 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_mix) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 4, 4));
+    OV_ASSERT_OK(ov_rank_create(&rank, 4));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, 40, 100));
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
     auto tmp = ov_partial_shape_to_string(partial_shape);
@@ -1911,7 +1911,7 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_dynamic_rank) {
     ov_partial_shape_t* partial_shape = nullptr;
 
     ov_rank_t* rank = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, -1, -1));
+    OV_ASSERT_OK(ov_rank_create_dynamic(&rank, -1, -1));
 
     OV_ASSERT_OK(ov_partial_shape_create(&partial_shape, rank, nullptr));
     auto tmp = ov_partial_shape_to_string(partial_shape);
@@ -1927,12 +1927,12 @@ TEST(ov_partial_shape, ov_partial_shape_init_and_parse_invalid) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 3, 3));
+    OV_ASSERT_OK(ov_rank_create(&rank, 3));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 1, 1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 300, 300));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 100));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 1));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 300));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, 40, 100));
 
     OV_EXPECT_NOT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
 
@@ -1946,13 +1946,13 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 5, 5));
+    OV_ASSERT_OK(ov_rank_create(&rank, 5));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 10, 10));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 20, 20));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 30, 30));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 40));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 50, 50));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 10));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 20));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 30));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 50));
     OV_EXPECT_OK(ov_partial_shape_create(&partial_shape, rank, dims));
 
     ov_shape_t shape;
@@ -1975,13 +1975,13 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid) {
 
     ov_rank_t* rank = nullptr;
     ov_dimensions_t* dims = nullptr;
-    OV_ASSERT_OK(ov_rank_create(&rank, 5, 5));
+    OV_ASSERT_OK(ov_rank_create(&rank, 5));
     OV_ASSERT_OK(ov_dimensions_create(&dims));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 10, 10));
-    OV_ASSERT_OK(ov_dimensions_add(dims, -1, -1));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 30, 30));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 40, 40));
-    OV_ASSERT_OK(ov_dimensions_add(dims, 50, 50));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 10));
+    OV_ASSERT_OK(ov_dimensions_add_dynamic(dims, -1, -1));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 30));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 40));
+    OV_ASSERT_OK(ov_dimensions_add(dims, 50));
 
     ov_shape_t shape;
     shape.rank = 0;

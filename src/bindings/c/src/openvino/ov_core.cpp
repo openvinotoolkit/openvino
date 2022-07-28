@@ -7,24 +7,25 @@
 
 /**
  * @variable global value for error info.
+ * Don't change its order.
  */
 char const* error_infos[] = {
-    "no error",
+    "success",
     "general error",
-    "not implement",
-    "network load failed",
+    "it's not implement",
+    "failed to network",
     "input parameter mismatch",
     "cannot find the value",
     "out of bounds",
-    "calloc failure",
-    "invalid parameters",
     "run with unexpected error",
     "request is busy",
     "result is not ready",
-    "not allocated",
+    "it is not allocated",
     "inference start with error",
     "network is not ready",
     "inference is canceled",
+    "calloc failure",
+    "invalid parameters",
     "unknown error",
 };
 

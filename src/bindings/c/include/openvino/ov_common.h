@@ -47,21 +47,30 @@
  */
 typedef enum {
     OK = 0U,
+    /*
+     * @brief map exception to C++ interface
+     */
     GENERAL_ERROR = 1,
     NOT_IMPLEMENTED = 2,
     NETWORK_NOT_LOADED = 3,
     PARAMETER_MISMATCH = 4,
     NOT_FOUND = 5,
     OUT_OF_BOUNDS = 6,
-    CALLOC_FAILED = 7,
-    INVALID_PARAM = 8,
-    UNEXPECTED = 9,
-    REQUEST_BUSY = 10,
-    RESULT_NOT_READY = 11,
-    NOT_ALLOCATED = 12,
-    INFER_NOT_STARTED = 13,
-    NETWORK_NOT_READ = 14,
-    INFER_CANCELLED = 15,
+    /*
+     * @brief exception not of std::exception derived type was thrown
+     */
+    UNEXPECTED = 7,
+    REQUEST_BUSY = 8,
+    RESULT_NOT_READY = 9,
+    NOT_ALLOCATED = 10,
+    INFER_NOT_STARTED = 11,
+    NETWORK_NOT_READ = 12,
+    INFER_CANCELLED = 13,
+    /*
+     * @brief exception in C wrapper
+     */
+    CALLOC_FAILED = 14,
+    INVALID_PARAM = 15,
     UNKNOWN_ERROR = 16,
 } ov_status_e;
 
