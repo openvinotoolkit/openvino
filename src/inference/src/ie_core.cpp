@@ -158,9 +158,11 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::InferencePlugin> plugins;
+    mutable std::mutex global_mutex;
     // to lock parallel access to pluginRegistry and plugins
     mutable std::unordered_map<std::string, std::mutex> dev_mutexes;
     std::mutex& get_mutex(const std::string& dev_name = "") const {
+        std::lock_guard<std::mutex> lock(global_mutex);
         try {
             return dev_mutexes.at(dev_name);
         } catch (const std::out_of_range& ex) {
@@ -168,6 +170,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
     }
     void add_mutex(const std::string& dev_name) {
+        std::lock_guard<std::mutex> lock(global_mutex);
         dev_mutexes[dev_name];
     }
 
