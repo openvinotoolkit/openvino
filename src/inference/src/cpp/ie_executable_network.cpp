@@ -96,11 +96,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), {_so}});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), {_so}});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -243,15 +243,15 @@ Any CompiledModel::get_property(const std::string& name) const {
             }
         }
         try {
-            return {_impl->GetMetric(name), _so};
+            return {_impl->GetMetric(name), {_so}};
         } catch (ie::Exception&) {
-            return {_impl->GetConfig(name), _so};
+            return {_impl->GetConfig(name), {_so}};
         }
     });
 }
 
 RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), _so});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), {_so}});
 }
 
 bool CompiledModel::operator!() const noexcept {

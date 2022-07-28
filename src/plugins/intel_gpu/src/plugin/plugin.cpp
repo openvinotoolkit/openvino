@@ -54,7 +54,6 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -575,7 +574,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = GetCore()->isNewAPI();
+    const bool is_new_api = IsNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -696,7 +695,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     auto iter = device_map.find(device_id);
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
-    bool is_new_api = GetCore()->isNewAPI();
+    bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
@@ -1091,8 +1090,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
