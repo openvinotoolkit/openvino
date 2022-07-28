@@ -1938,14 +1938,6 @@ void Core::set_property(const std::string& device_name, const AnyMap& properties
     OV_CORE_CALL_STATEMENT(return _impl->set_property(device_name, properties););
 }
 
-Any Core::get_property(const std::string& name) const {
-    OV_CORE_CALL_STATEMENT(return _impl->get_property(name, {}));
-}
-
-Any Core::get_property(const std::string& name, const AnyMap& arguments) const {
-    OV_CORE_CALL_STATEMENT(return _impl->get_property(name, arguments));
-}
-
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
     OV_CORE_CALL_STATEMENT(return _impl->get_property(deviceName, name, {}););
 }

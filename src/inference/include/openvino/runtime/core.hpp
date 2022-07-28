@@ -497,27 +497,6 @@ public:
     }
 
     /**
-     * @brief Gets properties related to core behaviour.
-     *
-     * The method extracts information that can be set via the set_property method.
-     *
-     * @param name  Property name.
-     * @return Value of a property corresponding to the property name.
-     */
-    Any get_property(const std::string& name) const;
-
-    /**
-     * @brief Gets properties related to core behaviour.
-     *
-     * The method extracts information that can be set via the set_property method.
-     *
-     * @param name  Property name.
-     * @param arguments  Additional arguments to get a property.
-     * @return Value of a property corresponding to the property name.
-     */
-    Any get_property(const std::string& name, const AnyMap& arguments) const;
-
-    /**
      * @brief Gets properties related to device behaviour.
      *
      * The method extracts information that can be set via the set_property method.
@@ -539,6 +518,31 @@ public:
      * @return Value of a property corresponding to the property name.
      */
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
+
+    /**
+     * @brief Gets properties related to core behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param name  Property name.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& name) const {
+        return get_property(std::string(), name);
+    }
+
+    /**
+     * @brief Gets properties related to core behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param name  Property name.
+     * @param arguments  Additional arguments to get a property.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& name, const AnyMap& arguments) const {
+        return get_property(std::string(), name, arguments);
+    }
 
     /**
      * @brief Gets properties related to device behaviour.
