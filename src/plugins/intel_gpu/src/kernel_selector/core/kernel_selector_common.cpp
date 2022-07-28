@@ -227,18 +227,6 @@ std::string toString(ArgMaxMinAxis mode) {
         case ArgMaxMinAxis::X:       return "X";
         case ArgMaxMinAxis::Y:       return "Y";
         case ArgMaxMinAxis::Z:       return "Z";
-        case ArgMaxMinAxis::XYF:     return "XYF";
-        default: return "";
-    }
-}
-
-std::string toString(LookUpTableAxis mode) {
-    switch (mode) {
-        case LookUpTableAxis::BATCH:   return "BATCH";
-        case LookUpTableAxis::FEATURE: return "FEATURE";
-        case LookUpTableAxis::X:       return "X";
-        case LookUpTableAxis::Y:       return "Y";
-        case LookUpTableAxis::XYF:     return "XYF";
         default: return "";
     }
 }

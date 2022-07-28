@@ -54,7 +54,6 @@ using pool_remainder = kernel_selector::PoolRemainder;
 using argm_axis = kernel_selector::ArgMaxMinAxis;
 using argm_output = kernel_selector::ArgMaxMinOut;
 using argm_sort = kernel_selector::ArgMaxMinSortType;
-using lookt_axis = kernel_selector::LookUpTableAxis;
 using lrn_mode = kernel_selector::LRNMode;
 using normalize_mode = kernel_selector::NormalizeMode;
 using mvn_mode = kernel_selector::MVNMode;
