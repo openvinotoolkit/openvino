@@ -66,6 +66,6 @@ KERNEL (fully_connected_gpu_yxfn)(
 
     output[output_idx] = res;
 #else
-    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);;
+    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);
 #endif
 }

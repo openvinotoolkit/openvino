@@ -16,7 +16,9 @@ TEST(DISABLED_oooq_test, simple)
     engine_configuration cfg{ false, queue_types::out_of_order };
     auto eng = engine::create(engine_types::ocl, runtime_types::ocl, cfg);
 
-    auto input_mem = eng->allocate_memory(layout{ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto in_layout = layout{ data_types::f32, format::bfyx, { 1, 1, 1, 1 } };
+    auto concat_layout = layout{ data_types::f32, format::bfyx, { 1, 1, 1, 2 } };
+    auto input_mem = eng->allocate_memory(in_layout);
     set_values(input_mem, { 50 });
 
     /*                 ---- r1 ---- r3 ----            -- r7 --
@@ -36,13 +38,10 @@ TEST(DISABLED_oooq_test, simple)
     tpl.add(reorder("r5", "r4", input_mem->get_layout(), std::vector<float>{ 5 }));
 
     tpl.add(concatenation("c6", { "r3", "r5" }, 3));
-    layout concat_lay = input_mem->get_layout();
-    concat_lay.size.spatial[0] *= 2;
 
-    tpl.add(reorder("r7", "c6", concat_lay, std::vector<float>{ 7 }));
-    tpl.add(reorder("r8", "c6", concat_lay, std::vector<float>{ 8 }));
+    tpl.add(reorder("r7", "c6", concat_layout, std::vector<float>{ 7 }));
+    tpl.add(reorder("r8", "c6", concat_layout, std::vector<float>{ 8 }));
     tpl.add(concatenation("c9", { "r7", "r8" }, 2));
-    concat_lay.size.spatial[1] *= 2;
 
     build_options options;
     network net{ *eng, tpl, options };

@@ -23,7 +23,7 @@ layout mvn_inst::calc_output_layout(mvn_node const& node) {
         output_type = data_types::f32;
     }
 
-    return layout(output_type, input_node_layout.format, input_node_layout.size);
+    return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }
 
 std::string mvn_inst::to_string(mvn_node const& node) {

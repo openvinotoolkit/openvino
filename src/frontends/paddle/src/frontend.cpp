@@ -272,10 +272,6 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         std::ifstream model_stream;
         std::ifstream weights_stream;
         std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_stream);
-        if (!variants[1].is<std::istream*>() && !variants[1].is<std::string>()) {
-            // If we use read model with a tensor as a second argument
-            return nullptr;
-        }
         std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_stream);
         if (p_model_stream && p_weights_stream) {
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
