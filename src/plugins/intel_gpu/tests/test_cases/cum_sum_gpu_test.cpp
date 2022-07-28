@@ -102,31 +102,6 @@ static std::vector<T1> vectorCast(const std::vector<T2>& vec) {
     return ret;
 }
 
-static cldnn::cum_sum::cum_sum_axis getCumSumAxis(int axis, unsigned sz) {
-    unsigned cldnn_axis = axis;
-    if (axis >= 2) {
-        auto spatial_axis = axis - 2;
-        auto spatial_size = std::max(sz, 4u) - 2;
-        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
-    }
-    switch (cldnn_axis) {
-        case 0:
-            return cldnn::cum_sum::cum_sum_axis::along_b;
-        case 1:
-            return cldnn::cum_sum::cum_sum_axis::along_f;
-        case 2:
-            return cldnn::cum_sum::cum_sum_axis::along_x;
-        case 3:
-            return cldnn::cum_sum::cum_sum_axis::along_y;
-        case 4:
-            return cldnn::cum_sum::cum_sum_axis::along_z;
-        case 5:
-            return cldnn::cum_sum::cum_sum_axis::along_w;
-        default:
-            return cldnn::cum_sum::cum_sum_axis::along_b;
-    }
-}
-
 #define CASE_CUM_SUM_AXIS_0 ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[0]),    \
@@ -196,12 +171,6 @@ public:
         auto exclusive = std::get<8>(p);
         auto reverse = std::get<9>(p);
 
-        auto size = 4;
-        if (in_out_format == format::bfzyx)
-            size = 5;
-        else if (in_out_format == format::bfwzyx)
-            size = 6;
-
         auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
         const int inputSize = b * f * w * z * y * x;
         VF<input_type> inputVals = std::is_same<input_type, FLOAT16>::value ?
@@ -212,7 +181,7 @@ public:
 
         topology topology;
         topology.add(input_layout("Input0", input->get_layout()));
-        topology.add(cum_sum("cum_sum", "Input0", getCumSumAxis(axis, size), exclusive, reverse));
+        topology.add(cum_sum("cum_sum", "Input0", axis, exclusive, reverse));
 
         network network(engine, topology);
 
