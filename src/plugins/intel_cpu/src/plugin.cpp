@@ -86,6 +86,7 @@
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
+#include "ngraph_transformations/mha_fusion.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -598,6 +599,19 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     });
 
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
+    // Snippets may brake MHA patterns so the fusion has to performed before
+    postLPTPassManager.register_pass<MHAFusion>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAFusion>(
+        [](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // TODO: add precision checks
+            return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        });
+    postLPTPassManager.register_pass<MHAQuantFusion>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAQuantFusion>(
+        [](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // TODO: add precision checks
+            return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        });
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (!useLpt && _enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
