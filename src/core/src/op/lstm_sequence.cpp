@@ -308,8 +308,8 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     auto merged_num_directions = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole and initial_cell_state information for further
-    // validation
+    NODE_VALIDATION_CHECK(this, get_input_size() > 0, "The number of inputs of the LSTMSequence op cannot be zero.");
+    // Copy all inputs without peephole and initial_cell_state information for further validation
     for (size_t i = 0; i < get_input_size() - 1; i++) {
         // exclude initial_cell_state from the loop
         if (i != 2) {
