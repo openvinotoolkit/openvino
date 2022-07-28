@@ -190,6 +190,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             fillConfig(_cacheConfigPerDevice[name], dir);
         }
 
+        std::string get_cache_dir() {
+            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+            return _cacheConfig._cacheDir;
+        }
+
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
         CacheConfig getCacheConfigForDevice(const std::string& device_name,
@@ -885,22 +890,32 @@ public:
         SetConfigForPlugins(any_copy(properties), device_name);
     }
 
-    Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
-        OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                        "You can only get_config of the HETERO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the HETERO on top.");
-        OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                        "You can only get_config of the MULTI itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the MULTI on top.");
-        OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                        "You can only get_config of the AUTO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the AUTO on top.");
-
+    Any get_property_for_core(const std::string& name) {
         if (name == ov::force_tbb_terminate.name()) {
             const auto flag = executorManager()->getTbbFlag();
             return decltype(ov::force_tbb_terminate)::value_type(flag);
+        } else if (name == ov::cache_dir.name()) {
+            return ov::Any(coreConfig.get_cache_dir());
         }
-        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
+        return ov::Any();
+    }
+
+    Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override {
+        OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
+                        "You can only get_config of the HETERO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+        OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
+                        "You can only get_config of the MULTI itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+        OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
+                        "You can only get_config of the AUTO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+
+        if (device_name.empty()) {
+            return get_property_for_core(name);
+        }
+
+        auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
         return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
 
@@ -1921,6 +1936,14 @@ void Core::set_property(const AnyMap& properties) {
 
 void Core::set_property(const std::string& device_name, const AnyMap& properties) {
     OV_CORE_CALL_STATEMENT(return _impl->set_property(device_name, properties););
+}
+
+Any Core::get_property(const std::string& name) const {
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(name, {}));
+}
+
+Any Core::get_property(const std::string& name, const AnyMap& arguments) const {
+    OV_CORE_CALL_STATEMENT(return _impl->get_property(name, arguments));
 }
 
 Any Core::get_property(const std::string& deviceName, const std::string& name) const {
