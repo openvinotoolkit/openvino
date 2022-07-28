@@ -34,7 +34,6 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
     auto attrs = op->get_attrs();
     auto inputRank = op->get_input_shape(0).size();
-    // auto outDims = op->get_output_shape(0).size();
     auto outTensor = tensor_from_dims(op->get_output_shape(0));
 
     auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));

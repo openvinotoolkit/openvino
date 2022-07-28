@@ -105,9 +105,5 @@ std::string resample_inst::to_string(resample_node const& node) {
 }
 
 resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
-    // if (node.get_primitive()->operation_type == resample_type::bilinear &&
-    //     node.get_output_layout().format.dimension() > 4) {
-    //     CLDNN_ERROR_MESSAGE(node.id(), "5D not supported for interp resample type.");
-    // }
 }
 }  // namespace cldnn

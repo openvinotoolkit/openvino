@@ -81,7 +81,8 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
         new_pad = std::vector<int32_t>(rank, 0);
     } else {
         new_pad = std::vector<int32_t>(pad.begin(), pad.end());
-        std::reverse(new_pad.begin() + 2, new_pad.end());
+        if (new_pad.size() > 2)
+            std::reverse(new_pad.begin() + 2, new_pad.end());
         for (size_t i = new_pad.size(); i < rank || i < 4; ++i)
             new_pad.push_back(0);
     }
