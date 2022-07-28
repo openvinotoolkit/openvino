@@ -11,7 +11,7 @@ import time
 
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
-from openvino.runtime import Type, PartialShape, Shape, Layout
+from openvino.runtime import Type, PartialShape, Shape, Layout, convert_infer_results
 from openvino.preprocess import PrePostProcessor
 
 # TODO: reformat into absolute paths
@@ -912,3 +912,20 @@ def test_array_like_input_async_infer_queue(device):
     infer_queue_list.wait_all()
     for i in range(jobs):
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
+
+def test_convert_infer_request(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+    inputs = [arr_1, arr_2]
+
+    res = request.infer(inputs)
+    with pytest.raises(TypeError) as e:
+        deepcopy(res)
+    assert "cannot copy 'openvino.pyopenvino.ConstOutput' object. \
+        For workaround, please replace ConstOutput object with \
+        Tensor names using ConstOutput.get_names(), \
+        use str() representation of object or in case of inference result, \
+        refer to openvino.runtime.convert_infer_request function." in str(e)
+    converted_res = convert_infer_results(res)
+    deepcopy(converted_res)
+
+    

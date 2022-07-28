@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from copy import deepcopy
 
 from ..conftest import model_path
 import openvino.runtime.opset8 as ops
@@ -16,6 +17,8 @@ from openvino.runtime import (
     OVAny,
     Core,
 )
+
+import pytest
 
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
@@ -138,3 +141,14 @@ def test_operations():
     assert outputs[0] == split.output(0)
     assert hash(outputs[0]) == hash(split.output(0))
     assert hash(outputs[0]) != hash(outputs[0].node)
+
+def test_deepcopy():
+    node = ops.relu(5)
+    output_node = node.outputs()
+    with pytest.raises(TypeError) as e:
+        copy = deepcopy(output_node)
+    assert "cannot copy 'openvino.pyopenvino.ConstOutput' object. \
+        For workaround, please replace ConstOutput object with \
+        Tensor names using ConstOutput.get_names(), \
+        use str() representation of object or in case of inference result, \
+        refer to openvino.runtime.convert_infer_request function." in str(e)
