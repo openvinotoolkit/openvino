@@ -6,11 +6,11 @@
 # OpenVINO Core components including frontends, plugins, etc
 #
 
-macro(ov_debian_components)
+macro(ov_cpack_settings)
     # fill a list of components which are part of debian
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
     unset(CPACK_COMPONENTS_ALL)
-    foreach(item ${cpack_components_all})
+    foreach(item IN LISTS cpack_components_all)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(# NOT ${item} MATCHES ".*(python).*" AND
            # python wheels are not needed to be wrapped by debian packages
