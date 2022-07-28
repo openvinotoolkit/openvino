@@ -148,28 +148,6 @@ void ParamsKey::EnableLRNMode(LRNMode m) {
     }
 }
 
-void ParamsKey::EnableLookUpTableAxis(LookUpTableAxis m) {
-    switch (m) {
-        case kernel_selector::LookUpTableAxis::BATCH:
-            key.restrict.val.dedicated.lookt.axisBatch = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::FEATURE:
-            key.restrict.val.dedicated.lookt.axisFeature = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::X:
-            key.restrict.val.dedicated.lookt.axisX = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::Y:
-            key.restrict.val.dedicated.lookt.axisY = 1;
-            break;
-        case kernel_selector::LookUpTableAxis::XYF:
-            key.restrict.val.dedicated.lookt.axisXYF = 1;
-            break;
-        default:
-            break;
-    }
-}
-
 void ParamsKey::EnableNormalizeMode(NormalizeMode m) {
     switch (m) {
         case NormalizeMode::ACROSS_SPATIAL:
@@ -350,9 +328,6 @@ void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
         case ArgMaxMinAxis::BATCH:
             key.restrict.val.dedicated.argm.axisBatch = 1;
             break;
-        case ArgMaxMinAxis::XYF:
-            key.restrict.val.dedicated.argm.axisXYF = 1;
-            break;
         default:
             break;
     }
@@ -375,13 +350,6 @@ void ParamsKey::EnableIndexSelectAxis(IndexSelectAxis a) {
         default:
             break;
     }
-}
-
-void ParamsKey::EnableLookUpTableIndicesFormat(Datatype a) {
-    if (a == Datatype::F32)
-        key.restrict.val.dedicated.lookt.indicesF32 = 1;
-    else
-        key.restrict.val.dedicated.lookt.indicesOther = 1;
 }
 
 void ParamsKey::EnableQuantization(QuantizationType q) {

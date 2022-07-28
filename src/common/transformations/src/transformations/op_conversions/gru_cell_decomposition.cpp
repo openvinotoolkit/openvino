@@ -114,7 +114,6 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
                                    mul_2,
                                    out_H});
         ngraph::replace_node(gru_cell, out_H);
-        MATCHER_SCOPE_ENABLE(GRUCellDecomposition);
         return true;
     };
 

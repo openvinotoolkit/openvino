@@ -147,7 +147,7 @@ void handle_reshape::run(program& p) {
 
             auto reshape_layout = node->get_output_layout();
             if (!(node->is_output()) && (reshape_layout.format != cldnn::format::bfyx)) {
-                auto bfyx_layout = layout({reshape_layout.data_type, cldnn::format::bfyx, reshape_layout.size});
+                auto bfyx_layout = layout({reshape_layout.data_type, cldnn::format::bfyx, reshape_layout.get_tensor()});
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
                 if (!program_helpers::are_layouts_identical(reshape_layout, bfyx_layout).second) {

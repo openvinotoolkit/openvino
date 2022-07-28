@@ -32,7 +32,7 @@ void PrintTupleTo(const topology_params& t, ::std::ostream* os)
 
     ss << "Topology test failed: ("
         << cldnn::data_type_traits::name(output_layout.data_type) << " "
-        << tests::test_params::print_tensor(output_layout.size) << ") Generator: [";
+        << tests::test_params::print_tensor(output_layout.get_tensor()) << ") Generator: [";
     for (auto v : generator)
     {
         ss << v << ", ";
@@ -179,7 +179,7 @@ protected:
         {
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts)
             {
-                if (output_layout.size.spatial.size() != 2)
+                if (output_layout.get_spatial_rank() != 2)
                 {
                     return false;
                 }
@@ -251,7 +251,7 @@ protected:
             {
                 // for now using just one set of params
                 // todo: randomize params
-                if (output_layout.format != cldnn::format::bfyx// should be "output_layout.size.format.dimension() < 4" but requires too many case handling since tensor is immutable
+                if (output_layout.format != cldnn::format::bfyx// should be "output_layout.get_tensor().format.dimension() < 4" but requires too many case handling since tensor is immutable
                     || output_layout.feature() < 2)
                 {
                     return false;
@@ -429,7 +429,7 @@ public:
         }
         ss << cldnn::data_type_traits::name(output_layout.data_type) << "_";
         ss << cldnn::format::traits(output_layout.format).order;
-        for (const auto& d : output_layout.size.raw)
+        for (const auto& d : output_layout.get_tensor().raw)
         {
             ss << "_" << d;
         }

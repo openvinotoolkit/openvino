@@ -221,7 +221,6 @@ public:
 
             // Mark-up RIC output
             ric_attr::init(concat, order, concat->get_axis());
-            MATCHER_SCOPE_ENABLE(SplitConcat);
             return true;
         };
 
@@ -278,7 +277,6 @@ public:
                 return false;
             }
             ric_attr::init(output, order_values, axis_value);
-            MATCHER_SCOPE_ENABLE(Gather);
             return true;
         };
 
@@ -385,7 +383,6 @@ public:
             }
 
             ric_attr::set(m.get_match_value(), ric);
-            MATCHER_SCOPE_ENABLE(Binary);
             return true;
         };
 
@@ -440,7 +437,6 @@ public:
             } else {
                 ric_attr::set(conv->input(1), ric);
             }
-            MATCHER_SCOPE_ENABLE(Convolution);
             return true;
         };
 
@@ -516,7 +512,6 @@ public:
 
             ric.set_order(new_order);
             ric_attr::set(conv->output(0), ric);
-            MATCHER_SCOPE_ENABLE(GroupConvolution);
             return true;
         };
 
@@ -533,7 +528,6 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             // Skip propagation for ShapeOf path
-            MATCHER_SCOPE_ENABLE(ShapeOf);
             return true;
         };
 
@@ -554,7 +548,6 @@ public:
             if (!ric_attr::has(root->input_value(0)))
                 return false;
             ric_attr::set(root->output(0), ric_attr::get(root->input_value(0)).propagate());
-            MATCHER_SCOPE_ENABLE(PassThrough);
             return true;
         };
 
@@ -584,7 +577,6 @@ public:
             ric.set_axis(new_axis);
 
             ric_attr::set(m.get_match_value(), ric);
-            MATCHER_SCOPE_ENABLE(Transpose);
             return true;
         };
 
@@ -631,7 +623,6 @@ public:
         MATCHER_SCOPE(InsertReverseInputChannel);
         auto pattern_root = pattern::any_input();
         auto callback = [](pattern::Matcher& m) {
-            MATCHER_SCOPE_ENABLE(InsertReverseInputChannel);
             const auto& node = m.get_match_root();
             for (const auto& input : node->inputs()) {
                 if (!ric_attr::has(input))
@@ -662,7 +653,6 @@ public:
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
             output.replace(input);
-            MATCHER_SCOPE_ENABLE(EraseSplitConcat);
             return true;
         };
 
@@ -679,7 +669,6 @@ public:
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
                                                                need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
-            MATCHER_SCOPE_ENABLE(EraseGather);
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
             auto input = pattern_map.at(input_p);
