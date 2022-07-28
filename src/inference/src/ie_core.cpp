@@ -190,7 +190,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             fillConfig(_cacheConfigPerDevice[name], dir);
         }
 
-        std::string get_cache_dir() {
+        std::string get_cache_dir() const {
             std::lock_guard<std::mutex> lock(_cacheConfigMutex);
             return _cacheConfig._cacheDir;
         }
@@ -890,7 +890,7 @@ public:
         SetConfigForPlugins(any_copy(properties), device_name);
     }
 
-    Any get_property_for_core(const std::string& name) {
+    Any get_property_for_core(const std::string& name) const {
         if (name == ov::force_tbb_terminate.name()) {
             const auto flag = executorManager()->getTbbFlag();
             return decltype(ov::force_tbb_terminate)::value_type(flag);
