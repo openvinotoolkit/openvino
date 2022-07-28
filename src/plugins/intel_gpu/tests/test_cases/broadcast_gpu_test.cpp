@@ -1038,7 +1038,7 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
 }
 
 
-/* BLOCKED FORMAT */
+/* BLOCKED FORMAT TEST CASES */
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x38x1x1_to_1x38x1x5_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {1, 38, 1, 5}, {1, 38, 1, 1}, {0});
 }
@@ -1067,7 +1067,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x38x1x1_to_1x38x1x5_w_b_axes_0) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 38, 1, 5}, {1, 38, 1, 1}, {0});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {4, 5}, {1}, {0, 1});
 }
@@ -1096,7 +1096,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {4, 5}, {1}, {0, 1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1_to_3x4x5_w_b_axes_0x1x2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {3, 4, 5}, {1}, {0, 1, 2});
 }
@@ -1125,7 +1125,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_3x4x5_w_b_axes_0x1x2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {3, 4, 5}, {1}, {0, 1, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
 }
@@ -1154,7 +1154,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_42x36x1x1_to_42x36x1x5_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {42, 36, 1, 5}, {42, 36, 1, 1}, {});
 }
@@ -1183,7 +1183,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x36x1x1_to_42x36x1x5_w_o_b_axes)
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {42, 36, 1, 5}, {42, 36, 1, 1}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
 }
@@ -1212,7 +1212,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_ax
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_42x64x1x1_to_84x128x4x5_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {84, 128, 4, 5}, {42, 64, 1, 1}, {});
 }
@@ -1241,7 +1241,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x64x1x1_to_84x128x4x5_w_o_b_axes
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {84, 128, 4, 5}, {42, 64, 1, 1}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
 }
@@ -1270,7 +1270,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_ax
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_42x2x3x4_to_126x6x6x4_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {126, 6, 6, 4}, {42, 2, 3, 4}, {});
 }
@@ -1299,7 +1299,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x2x3x4_to_126x6x6x4_w_o_b_axes) 
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {126, 6, 6, 4}, {42, 2, 3, 4}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
 }
@@ -1328,7 +1328,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_ax
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x45x1x3_to_1x45x2x3_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {1, 45, 2, 3}, {1, 45, 1, 3}, {0});
 }
@@ -1357,7 +1357,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv166_1x45x1x3_to_1x45x2x3_w_b_axes_0) 
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 45, 2, 3}, {1, 45, 1, 3}, {0});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
 }
@@ -1386,7 +1386,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_2x3_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3}, {2}, {1});
 }
@@ -1415,7 +1415,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3_w_b_axes_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3}, {2}, {1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_6x3_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {6, 3}, {2}, {1});
 }
@@ -1444,7 +1444,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_6x3_w_b_axes_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {6, 3}, {2}, {1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x76x3x4_to_1x152x3x4_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {1, 152, 3, 4}, {1, 76, 3, 4}, {0});
 }
@@ -1473,7 +1473,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x76x3x4_to_1x152x3x4_w_b_axes_0) 
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 152, 3, 4}, {1, 76, 3, 4}, {0});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x4_to_2x3x4_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {2, 4}, {1});
 }
@@ -1502,7 +1502,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4_w_b_axes_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2, 4}, {1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3_to_2x3x4_w_b_axes_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {2, 3}, {2});
 }
@@ -1531,7 +1531,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4_w_b_axes_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2, 3}, {2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_4_to_2x3x4_w_b_axes_0_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {4}, {0, 1});
 }
@@ -1560,7 +1560,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4_w_b_axes_0_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {4}, {0, 1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_3_to_2x3x4_w_b_axes_0_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {3}, {0, 2});
 }
@@ -1589,7 +1589,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4_w_b_axes_0_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {3}, {0, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_2x3x4_w_b_axes_1_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {2}, {1, 2});
 }
@@ -1618,7 +1618,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4_w_b_axes_1_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2}, {1, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x128x4x5_to_2x256x4x5_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 256, 4, 5}, {1, 128, 4, 5}, {0});
 }
@@ -1647,7 +1647,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x128x4x5_to_2x256x4x5_w_b_axes_0)
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 256, 4, 5}, {1, 128, 4, 5}, {0});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 4, 5}, {1});
 }
@@ -1676,7 +1676,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 4, 5}, {1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3x5_to_2x3x4x5_w_b_axes_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 3, 5}, {2});
 }
@@ -1705,7 +1705,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3x5_to_2x3x4x5_w_b_axes_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3, 5}, {2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 3, 4}, {3});
 }
@@ -1734,7 +1734,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3, 4}, {3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_4x5_to_2x3x4x5_w_b_axes_0_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {4, 5}, {0, 1});
 }
@@ -1763,7 +1763,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4x5_to_2x3x4x5_w_b_axes_0_1) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {4, 5}, {0, 1});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {3, 5}, {0, 2});
 }
@@ -1792,7 +1792,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3, 5}, {0, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_3x4_to_2x3x4x5_w_b_axes_0_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {3, 4}, {0, 3});
 }
@@ -1821,7 +1821,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3x4_to_2x3x4x5_w_b_axes_0_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3, 4}, {0, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 5}, {1, 2});
 }
@@ -1850,7 +1850,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 5}, {1, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x4_to_2x3x4x5_w_b_axes_1_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 4}, {1, 3});
 }
@@ -1879,7 +1879,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4x5_w_b_axes_1_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 4}, {1, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 3}, {2, 3});
 }
@@ -1908,7 +1908,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3}, {2, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_5_to_2x3x4x5_w_b_axes_0_1_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {5}, {0, 1, 2});
 }
@@ -1937,7 +1937,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_5_to_2x3x4x5_w_b_axes_0_1_2) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {5}, {0, 1, 2});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {4}, {0, 1, 3});
 }
@@ -1966,7 +1966,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {4}, {0, 1, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_3_to_2x3x4x5_w_b_axes_0_2_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {3}, {0, 2, 3});
 }
@@ -1995,7 +1995,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4x5_w_b_axes_0_2_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3}, {0, 2, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2}, {1, 2, 3});
 }
@@ -2024,7 +2024,7 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
     start_broadcast_test<FLOAT16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2}, {1, 2, 3});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 1, 48, 1, 5 }, { 1, 48, 1, 1 }, { 0 });
 }
@@ -2041,7 +2041,7 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
     start_broadcast_test_5d<FLOAT16>(format::b_fs_zyx_fsv16, data_types::f16, { 1, 48, 1, 5 }, { 1, 48, 1, 1 }, { 0 });
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_64x256x2x1_to_128x256x4x5_w_b_axes_0x1) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 128, 256, 4, 5 }, { 64, 256, 2, 1}, {});
 }
@@ -2058,7 +2058,7 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_64x256x2x1_to_128x256x4x5_w_b_axes_0x1) 
     start_broadcast_test_5d<FLOAT16>(format::b_fs_zyx_fsv16, data_types::f16, { 128, 256, 4, 5 }, { 64, 256, 2, 1}, {});
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 4, 5 }, { 1 }, { 0, 1 });
 }
@@ -2075,7 +2075,7 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test_5d<FLOAT16>(format::b_fs_zyx_fsv16, data_types::f16, { 4, 5 }, { 1 }, { 0, 1 });
 }
 
-/* BLOCKED FORMAT */
+
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 });
 }
