@@ -868,11 +868,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gelu) {
 
     test_case.add_input<float>(Shape{3, 4}, input);
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 =======
 }
 
 >>>>>>> 920c41aa0... Update onnx_import_com_microsoft.in.cpp
+=======
+}
+
+>>>>>>> 55ed63b7918bdbc782c2d415c2d3b746571010f9
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/fusedgemm.onnx"));
@@ -938,7 +943,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     test_case.add_input<float>(Shape{3, 6}, inputA);
     test_case.add_input<float>(Shape{6, 4}, inputB);
     test_case.add_input<float>(Shape{3, 4}, inputC);
+<<<<<<< HEAD
 >>>>>>> b67aeb881... [ONNX] Add operator com.microsoft.Fusedgemm support into frontend/onnx (#11878)
+=======
+>>>>>>> 55ed63b7918bdbc782c2d415c2d3b746571010f9
     test_case.add_expected_output<float>(Shape{3, 4}, output);
     test_case.run_with_tolerance_as_fp(1e-6);
 }

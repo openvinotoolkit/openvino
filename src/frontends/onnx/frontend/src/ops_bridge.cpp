@@ -35,16 +35,8 @@
 #include "op/com.microsoft/attention.hpp"
 #include "op/com.microsoft/bias_gelu.hpp"
 #include "op/com.microsoft/embed_layer_normalization.hpp"
-<<<<<<< HEAD
-<<<<<<< HEAD
-#include "op/com.microsoft/gelu.hpp"
-=======
-#include "op/com.microsoft/fusedgemm.hpp"
->>>>>>> b67aeb881... [ONNX] Add operator com.microsoft.Fusedgemm support into frontend/onnx (#11878)
-=======
 #include "op/com.microsoft/fusedgemm.hpp"
 #include "op/com.microsoft/gelu.hpp"
->>>>>>> 9be6c6de1... clang format
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -511,12 +503,9 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
-<<<<<<< HEAD
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Gelu", 1, gelu);
 
-=======
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
->>>>>>> b67aeb881... [ONNX] Add operator com.microsoft.Fusedgemm support into frontend/onnx (#11878)
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
 }
