@@ -121,6 +121,8 @@ When fine-tuning finishes, the quantized model can be exported to the correspond
 
 @endsphinxtabset
 
+> **NOTE**: The precision of weigths gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation. You can expect the model footprint reduction only for that format.
+
 These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
 ### 7. (Optional) Save checkpoint
