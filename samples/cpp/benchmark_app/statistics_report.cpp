@@ -93,7 +93,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
         total_cpu += layer.cpu_time;
         dumper.endLine();
     }
-
+    
     slog::info << "Total " << total.count() / 1000.0 << slog::endl;
     slog::info << "size count "  << perfCounts.size() << slog::endl;
 
@@ -203,7 +203,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
     } else if (_config.report_type == averageCntReport) {
         dump_performance_counters_request(dumper, get_average_performance_counters(perfCounts));
     } else if (_config.report_type == sortDetailedCntReport) {
-        for (auto& pc: perfCounts) {
+        for (auto& pc : perfCounts) {
             dump_sort_performance_counters_request(dumper, pc);
         }
     } else {
@@ -266,7 +266,7 @@ void StatisticsReportJSON::dump_performance_counters(const std::vector<Performan
         js["avg_performance"] = perf_counters_to_json(get_average_performance_counters(perfCounts));
     } else if (_config.report_type == sortDetailedCntReport) {
         for (auto& pc : perfCounts) {
-            js["detailed_performance"].push_back(sort_perf_counter_to_json(pc));
+            js["detailed_performance"].push_back(sort_perf_counters_to_json(pc));
         }
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");

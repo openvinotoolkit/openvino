@@ -29,7 +29,7 @@
 
 // @brief performance counters sort
 static constexpr char pcSort[] = "sort";
-static constexpr char pcNoSort[] = "no_sort";
+static constexpr char noPcSort[] = "no_sort";
 static constexpr char pcSimpleSort[] = "simple_sort";
 
 #ifndef UNUSED

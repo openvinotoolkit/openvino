@@ -32,7 +32,7 @@
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-bool parse_and_check_command_line(int argc, char* argv[]) {
+bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -56,14 +56,14 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
-        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
+        FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
+                               "`throughput`(tput), `latency' value or 'none'.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
-        FLAGS_report_type != detailedCntReport) {
+        FLAGS_report_type != detailedCntReport && FLAGS_report_type != sortDetailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
-                          std::string(detailedCntReport) +
+                          std::string(detailedCntReport) + "/" + std::string(sortDetailedCntReport) +
                           " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
@@ -88,7 +88,7 @@ static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {
         {1, "Parsing and validating input arguments"},
-        {2, "Loading OpenVINO Runtime"},
+        {2, "Loading Inference Engine"},
         {3, "Setting device configuration"},
         {4, "Reading network files"},
         {5, "Resizing network to match image sizes and given batch"},
@@ -119,9 +119,6 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "latency") {
                 slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
-            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
-                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
-                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
                 slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
@@ -154,7 +151,7 @@ int main(int argc, char* argv[]) {
         // -------------------------------------------------
         next_step();
 
-        if (!parse_and_check_command_line(argc, argv)) {
+        if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
 
@@ -206,16 +203,16 @@ int main(int argc, char* argv[]) {
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
-        // ----------------- 2. Loading the OpenVINO Runtime
+        // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
         next_step();
 
         ov::Core core;
 
-        if (!FLAGS_extensions.empty()) {
-            // Extensions are loaded as a shared library
-            core.add_extension(FLAGS_extensions);
-            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
+        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
+            // CPU (MKLDNN) extensions is loaded as a shared library
+            core.add_extension(FLAGS_l);
+            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -228,7 +225,7 @@ int main(int argc, char* argv[]) {
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
-            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
+            slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
@@ -279,7 +276,8 @@ int main(int argc, char* argv[]) {
                        (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
-            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
@@ -287,9 +285,9 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
-            } else if (FLAGS_pcsort = pcSort || FLAGS_pcsort = pcNoSort ||
-                       FLAGS_pcSimpleSort) {
-                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+            } else if (FLAGS_pcsort == pcSort || FLAGS_pcsort == noPcSort ||
+                       FLAGS_pcsort == pcSimpleSort) {
+                slog::warn << "Turn on performance counters for " << device << " device since pcsort is "
                            << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
@@ -445,9 +443,6 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
-            printInputAndOutputsInfoShort(compiledModel);
-
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -477,9 +472,6 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
-            printInputAndOutputsInfoShort(*model);
-
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -492,12 +484,6 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
-            for (auto& item : model->inputs()) {
-                if (item.get_tensor().get_names().empty()) {
-                    item.get_tensor_ptr()->set_names(
-                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
-                }
-            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
@@ -653,9 +639,6 @@ int main(int argc, char* argv[]) {
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O paramteters:" << slog::endl;
-            printInputAndOutputsInfoShort(compiledModel);
-
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -1112,12 +1095,14 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
-            slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+            slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
+                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
+                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
+                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
@@ -1131,8 +1116,8 @@ int main(int argc, char* argv[]) {
                 if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
-                } else if (FLAGS_pcsort == pcSort || FLAGS_pcsort == pcNoSort || FLAGS_pcsort == pcSimpleSort) {
-                    slog::info << "Peformance counts for " << ireq << "-th infer request:" << slog::endl;
+                } else if (FLAGS_pcsort == pcSort || FLAGS_pcsort == noPcSort || FLAGS_pcsort == pcSimpleSort) {
+                    slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCountsSort(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), FLAGS_pcsort, false);
                 }
                 perfCounts.push_back(reqPerfCounts);
