@@ -62,7 +62,7 @@ GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "ApplyCommonGraphOptimizations", "FuseConvolutionAndBias");
-    FuseConvolutionMatMulAndBias(graph);
+    FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
@@ -173,14 +173,21 @@ void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph &graph) {
     graph.RemoveDroppedEdges();
 }
 
-void GraphOptimizer::FuseConvolutionMatMulAndBias(Graph &graph) {
+void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](const NodePtr& node) {
-        return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
+        const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
+        if (!deconv)
+            return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
+                node->getChildEdges().size() == 1 &&
+                node->getParentEdges().size() == 2 &&
+                node->getFusedWith().empty();
+        else
+            return ((deconv && deconv->canBeExecutedInInt8()) &&
                node->getChildEdges().size() == 1 &&
-               node->getParentEdges().size() == 2 &&
-               node->getFusedWith().empty();
+               (node->getParentEdges().size() == 2 || node->getParentEdges().size() == 3) &&
+               node->getFusedWith().empty());
     };
 
     auto isSuitableChildNode = [&](const NodePtr& parentNode, const NodePtr& childNode) {
