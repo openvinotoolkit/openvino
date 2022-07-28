@@ -21,7 +21,7 @@ struct scatter_update_test_params {
     tensor dictionary_shape;
     tensor indices_shape;
     tensor updates_shape;
-    cldnn::scatter_update::scatter_update_axis axis;
+    int64_t axis;
     data_types data_type;
     format input_format;
     data_types default_type;
@@ -54,22 +54,8 @@ public:
     }
 
     size_t get_axis_dim(scatter_update_test_params& p) {
-        switch (p.axis) {
-            case cldnn::scatter_update::scatter_update_axis::along_x:
-                return p.dictionary_shape.spatial[0];
-            case cldnn::scatter_update::scatter_update_axis::along_y:
-                return p.dictionary_shape.spatial[1];
-            case cldnn::scatter_update::scatter_update_axis::along_z:
-                return p.dictionary_shape.spatial[2];
-            case cldnn::scatter_update::scatter_update_axis::along_w:
-                return p.dictionary_shape.spatial[3];
-            case cldnn::scatter_update::scatter_update_axis::along_f:
-                return p.dictionary_shape.feature[0];
-            case cldnn::scatter_update::scatter_update_axis::along_b:
-                return p.dictionary_shape.batch[0];
-            default:
-                return 1;
-        }
+        auto shapes = p.dictionary_shape.sizes(p.input_format);
+        return shapes[p.axis];
     }
 
     layout get_per_channel_layout(scatter_update_test_params& p) {
@@ -82,29 +68,29 @@ public:
 /* ------------------------------------------ ScatterUpdate cases -------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_SCATTER_UPDATE_FP32_1 { 2, 4, 1, 1 }, { 2, 1, 1, 1 }, { 2, 4, 1, 1 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_SCATTER_UPDATE_FP32_2 { 8, 1, 1, 1 }, { 4, 1, 1, 1 }, { 4, 1, 1, 1 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_SCATTER_UPDATE_FP32_3 { 4, 3, 1, 1 }, { 2, 2, 1, 1 }, { 2, 2, 1, 3 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_SCATTER_UPDATE_FP32_4 { 2, 5, 1, 2 }, { 2, 2, 1, 1 }, { 2, 2, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_f, data_types::f32, format::bfyx, data_types::f32, format::bfyx
-#define CASE_SCATTER_UPDATE_FP32_5 { 2, 2, 1, 4 }, { 2, 2, 1, 1 }, { 2, 2, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_UPDATE_FP32_1 { 2, 4, 1, 1 }, { 2, 1, 1, 1 }, { 2, 4, 1, 1 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_UPDATE_FP32_2 { 8, 1, 1, 1 }, { 4, 1, 1, 1 }, { 4, 1, 1, 1 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_UPDATE_FP32_3 { 4, 3, 1, 1 }, { 2, 2, 1, 1 }, { 2, 2, 1, 3 }, 0, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_UPDATE_FP32_4 { 2, 5, 1, 2 }, { 2, 2, 1, 1 }, { 2, 2, 2, 2 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_SCATTER_UPDATE_FP32_5 { 2, 2, 1, 4 }, { 2, 2, 1, 1 }, { 2, 2, 2, 2 }, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_SCATTER_UPDATE_FP16_1 { 2, 4, 1, 1 }, { 1, 1, 1, 2 }, { 2, 1, 2, 1 }, cldnn::scatter_update::scatter_update_axis::along_f, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_SCATTER_UPDATE_FP16_2 { 8, 2, 1, 20 }, { 2, 3, 1, 1 }, { 2, 3, 20, 2 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_SCATTER_UPDATE_FP16_3 { 2, 2, 4, 1 }, { 3, 1, 1, 1 }, { 2, 2, 3, 1 }, cldnn::scatter_update::scatter_update_axis::along_x, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_SCATTER_UPDATE_FP16_4 { 6, 2, 1, 1 }, { 1, 2, 1, 2 }, { 1, 2, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_SCATTER_UPDATE_FP16_5 { 3, 1, 1, 5 }, { 2, 2, 1, 1 }, { 3, 1, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_UPDATE_FP16_1 { 2, 4, 1, 1 }, { 1, 1, 1, 2 }, { 2, 1, 2, 1 },  1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_UPDATE_FP16_2 { 8, 2, 1, 20 }, { 2, 3, 1, 1 }, { 2, 3, 20, 2 },0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_UPDATE_FP16_3 { 2, 2, 4, 1 }, { 3, 1, 1, 1 }, { 2, 2, 3, 1 },  3, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_UPDATE_FP16_4 { 6, 2, 1, 1 }, { 1, 2, 1, 2 }, { 1, 2, 2, 2 },  0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_SCATTER_UPDATE_FP16_5 { 3, 1, 1, 5 }, { 2, 2, 1, 1 }, { 3, 1, 2, 2 },  2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
-#define CASE_SCATTER_UPDATE_5D_FP32_1 { 4, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_f, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP32_3 { 5, 3, 2, 4, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, cldnn::scatter_update::scatter_update_axis::along_y, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 1, 4, 2 }, cldnn::scatter_update::scatter_update_axis::along_z, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 2, 2, 1 }, cldnn::scatter_update::scatter_update_axis::along_x, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP32_1 { 4, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, 0, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP32_3 { 5, 3, 2, 4, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, 3, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP32_4 { 2, 3, 1, 4, 4 }, { 2, 1, 1, 1 }, { 2, 3, 1, 4, 2 }, 2, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP32_5 { 3, 1, 5, 2, 1 }, { 2, 1, 1, 1 }, { 3, 1, 2, 2, 1 }, 4, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 
-#define CASE_SCATTER_UPDATE_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 1 }, cldnn::scatter_update::scatter_update_axis::along_b, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, cldnn::scatter_update::scatter_update_axis::along_f, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP16_3 { 2, 3, 1, 3, 3 }, { 1, 2, 1, 1 }, { 2, 3, 1, 2, 3 }, cldnn::scatter_update::scatter_update_axis::along_y, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 2, 2 }, cldnn::scatter_update::scatter_update_axis::along_z, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_SCATTER_UPDATE_5D_FP16_5 { 1, 1, 4, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 3, 1, 1 }, cldnn::scatter_update::scatter_update_axis::along_x, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 1 }, 0, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP16_3 { 2, 3, 1, 3, 3 }, { 1, 2, 1, 1 }, { 2, 3, 1, 2, 3 }, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 1, 1, 1 }, { 3, 2, 2, 2, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_SCATTER_UPDATE_5D_FP16_5 { 1, 1, 4, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 3, 1, 1 }, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 
 class scatter_update_quantize : public ScatterUpdatePrimitiveFusingTest {};
 TEST_P(scatter_update_quantize, basic) {
