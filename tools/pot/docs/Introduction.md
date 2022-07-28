@@ -22,7 +22,7 @@ Post-training model optimization is the process of applying special methods with
 * A representative calibration dataset representing a use case scenario, for example, 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
-For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** which supports the uniform integer quantization method. This method allows substantially increasing inference performance and reducing the model size.
+For the needs of post-training optimization, OpenVINO&trade; provides a **Post-training Optimization Tool (POT)** which supports the **uniform integer quantization** method. This method allows moving from floating-point precision to integer precision (for example, 8-bit) for weights and activations during the inference time. It helps to reduce the model size, memory footprint and latency as well as improve the computational efficiency using integer arithmetic. During the quantization process the model undergoes the transformation process when additional operations, that contain quantization information, are inserted into the model. The actual transition to integer arithmetic happens at model inference.
 
 The figure below shows the optimization workflow with POT:
 ![](./images/workflow_simple.png)
