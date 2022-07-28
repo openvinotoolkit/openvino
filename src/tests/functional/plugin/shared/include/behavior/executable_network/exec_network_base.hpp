@@ -28,8 +28,8 @@ public:
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ov::test::behavior::APIBaseTest::SetUp();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ie = PluginCache::get().ie(target_device);
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);

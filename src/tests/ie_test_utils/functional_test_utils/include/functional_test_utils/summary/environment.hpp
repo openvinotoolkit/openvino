@@ -20,7 +20,6 @@ public:
     void TearDown() override {
         OpSummary::getInstance().saveReport();
         ApiSummary::getInstance().saveReport();
-        std::cout << "GLOBAL TEARDOWN" << std::endl;
     };
 };
 
