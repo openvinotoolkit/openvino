@@ -52,8 +52,9 @@ void regclass_frontend_JsonConfigExtension(py::module m) {
 
     ext.doc() = "Extension class to load and process ModelOptimizer JSON config file";
 
-    ext.def(py::init([](const std::string& path) {
-        return std::make_shared<ov::frontend::JsonConfigExtension>(path);
+    ext.def(py::init([](const py::object& path) {
+        std::string extension_path = Common::utils::convert_path_to_string(path);
+        return std::make_shared<ov::frontend::JsonConfigExtension>(extension_path);
     }));
 }
 

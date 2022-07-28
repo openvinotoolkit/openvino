@@ -47,10 +47,41 @@ def test_compact_api_xml():
     assert np.argmax(results[list(results)[0]]) == 9
 
 
+def test_compact_api_xml_posix_path():
+    img = generate_image()
+
+    model = compile_model(Path(test_net_xml))
+    assert isinstance(model, CompiledModel)
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results[list(results)[0]]) == 9
+
+
+def test_compact_api_wrong_path():
+    # as inner method takes py::object as an input and turns it into string
+    # it is necessary to assure that provided argument is either
+    # python string or pathlib.Path object rather than some class
+    # with implemented __str__ magic method
+    class TestClass:
+        def __str__(self):
+            return "test class"
+    with pytest.raises(RuntimeError) as e:
+        compile_model(TestClass())
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+
+
 def test_compact_api_onnx():
     img = generate_image()
 
     model = compile_model(test_net_onnx)
+    assert isinstance(model, CompiledModel)
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results[list(results)[0]]) == 9
+
+
+def test_compact_api_onnx_posix_path():
+    img = generate_image()
+
+    model = compile_model(Path(test_net_onnx))
     assert isinstance(model, CompiledModel)
     results = model.infer_new_request({"data": img})
     assert np.argmax(results[list(results)[0]]) == 9

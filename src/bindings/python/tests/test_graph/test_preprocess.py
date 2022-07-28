@@ -549,3 +549,63 @@ def test_graph_preprocess_dump():
     assert "resize to model width/height:" in p_str
     assert "Implicit pre-processing steps (1):" in p_str
     assert "convert layout " + ov.Layout("NCHW").to_string() in p_str
+
+
+@pytest.mark.parametrize(
+    ("layout", "layout_str"),
+    [("NHCW", "[N,H,C,W]"), ("NHWC", "[N,H,W,C]")])
+def test_ngraph_set_layout_by_string(layout, layout_str):
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    ppp = PrePostProcessor(function)
+    ppp.input().model().set_layout(layout)
+    p_str = str(ppp)
+    assert f"{layout_str}" in p_str
+
+
+@pytest.mark.parametrize(
+    ("layout", "layout_str"),
+    [(ov.Layout("NHCW"), "[N,H,C,W]"), (ov.Layout("NHWC"), "[N,H,W,C]")])
+def test_ngraph_set_layout_by_layout_class(layout, layout_str):
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    ppp = PrePostProcessor(function)
+    ppp.input().model().set_layout(layout)
+    p_str = str(ppp)
+    assert f"{layout_str}" in p_str
+
+
+@pytest.mark.parametrize(
+    ("layout"),
+    [("1-2-3D"), ("5-5")])
+def test_ngraph_set_layout_by_str_thow_exception(layout):
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    ppp = PrePostProcessor(function)
+
+    with pytest.raises(RuntimeError) as e:
+        ppp.input().model().set_layout(layout)
+    assert "Layout name is invalid" in str(e)
+
+
+def test_ngraph_set_layout_by_layout_class_thow_exception():
+    shape = [1, 3, 224, 224]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    ppp = PrePostProcessor(function)
+
+    with pytest.raises(RuntimeError) as e:
+        layout = ov.Layout("1-2-3D")
+        ppp.input().model().set_layout(layout)
+    assert "Layout name is invalid" in str(e)
