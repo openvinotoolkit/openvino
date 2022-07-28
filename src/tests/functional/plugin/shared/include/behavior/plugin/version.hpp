@@ -15,7 +15,7 @@
 
 namespace BehaviorTestsDefinitions {
 class VersionTest : public testing::WithParamInterface<std::string>,
-                    public CommonTestUtils::TestsCommon {
+                    public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string targetDevice;
@@ -27,35 +27,22 @@ public:
     }
 
     void SetUp()  override {
-        targetDevice = this->GetParam();
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
+        target_device = this->GetParam();
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
     }
 
-    void TearDown() override {
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
-
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::string targetDevice;
 };
 
 // Load unsupported network type to the Plugin
 TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
-    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(targetDevice);
+    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+        std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(target_device);
         ASSERT_EQ(versions.size(), 1);
-        ASSERT_EQ(versions.begin()->first, targetDevice);
+        ASSERT_EQ(versions.begin()->first, target_device);
         auto version = versions.begin()->second;
         IE_SUPPRESS_DEPRECATED_START
         ASSERT_EQ(version.apiVersion.major, 2);

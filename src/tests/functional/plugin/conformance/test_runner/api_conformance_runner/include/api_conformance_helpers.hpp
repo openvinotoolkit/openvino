@@ -105,7 +105,7 @@ inline std::map<std::string, std::string> AnyMap2StringMap(const AnyMap& config)
     return result;
 }
 
-const std::vector<std::map<std::string, std::string>> config = {
+const std::vector<std::map<std::string, std::string>> ie_config = {
         AnyMap2StringMap(ov::test::conformance::pluginConfig),
 };
 

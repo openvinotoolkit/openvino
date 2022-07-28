@@ -78,14 +78,13 @@ public:
 protected:
     void SetUp() override;
 
-    void TearDown() override;
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_infer_request; }
 
     static std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
                                                   const PartialShape& shape);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     OVInferReqInferParam m_param;
-    std::string m_device_name;
 };
 
 }  // namespace behavior

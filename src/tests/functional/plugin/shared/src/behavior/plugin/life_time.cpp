@@ -12,11 +12,11 @@
 
 namespace BehaviorTestsDefinitions {
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
-        std::string targetDevice;
+        std::string target_device;
         std::vector<int> order;
-        std::tie(targetDevice, order) = obj.param;
+        std::tie(target_device, order) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
+        result << "target_device=" << target_device << "_";
         if (!order.empty()) {
             std::string objects[] = { "core", "exec-net", "requcest", "state" };
             for (auto &Item : order) {
@@ -27,29 +27,17 @@ namespace BehaviorTestsDefinitions {
     }
 
     void HoldersTest::SetUp() {
-        std::tie(targetDevice, order) = this->GetParam();
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
+        std::tie(target_device, order) = this->GetParam();
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
-    void HoldersTest::TearDown() {
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
-    }
-
-    void release_order_test(std::vector<int> order, const std::string &deviceName,
+    void release_order_test(std::vector<int> order, const std::string &target_device,
                             std::shared_ptr<ngraph::Function> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
-        auto exe_net = core.LoadNetwork(cnnNet, deviceName);
+        auto exe_net = core.LoadNetwork(cnnNet, target_device);
         auto request = exe_net.CreateInferRequest();
         std::vector<InferenceEngine::VariableState> states;
         try {
@@ -91,7 +79,7 @@ namespace BehaviorTestsDefinitions {
 #else
         if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
 #endif
-            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+            EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {
             IE_THROW() << "Crash happens";
         }
@@ -107,33 +95,21 @@ namespace BehaviorTestsDefinitions {
 #else
         if (sigsetjmp(CommonTestUtils::env, 1) == CommonTestUtils::JMP_STATUS::ok) {
 #endif
-            EXPECT_NO_THROW(release_order_test(order, targetDevice, function));
+            EXPECT_NO_THROW(release_order_test(order, target_device, function));
         } else {
             IE_THROW() << "Crash happens";
         }
     }
 
     std::string HoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-        return "targetDevice=" + obj.param;
+        return "target_device=" + obj.param;
     }
 
     void HoldersTestOnImportedNetwork::SetUp() {
-        targetDevice = this->GetParam();
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
+        target_device = this->GetParam();
+        APIBaseTest::SetUp();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    }
-
-    void HoldersTestOnImportedNetwork::TearDown() {
-        auto& api_summary = ov::test::utils::ApiSummary::getInstance();
-        if (this->HasFailure()) {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-        } else if (this->IsSkipped()) {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-        } else {
-            api_summary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-        }
     }
 
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
@@ -141,10 +117,10 @@ namespace BehaviorTestsDefinitions {
         InferenceEngine::Core core = BehaviorTestsUtils::createIECoreWithTemplate();
         std::stringstream stream;
         {
-            auto exe_net = core.LoadNetwork(cnnNet, targetDevice);
+            auto exe_net = core.LoadNetwork(cnnNet, target_device);
             exe_net.Export(stream);
         }
-        auto exe_net = core.ImportNetwork(stream, targetDevice);
+        auto exe_net = core.ImportNetwork(stream, target_device);
         core = InferenceEngine::Core();
         auto request = exe_net.CreateInferRequest();
     }

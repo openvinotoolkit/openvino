@@ -12,7 +12,7 @@ using namespace BehaviorTestsDefinitions;
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(config)),
+                                ::testing::ValuesIn(ie_config)),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 }  // namespace

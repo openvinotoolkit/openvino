@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
 
         // set default handler for crash
         signal(SIGABRT, SIG_DFL);
-        signal(SIGABRT, SIG_DFL);
+        signal(SIGKILL, SIG_DFL);
         signal(SIGSEGV, SIG_DFL);
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
