@@ -262,6 +262,17 @@ int main(int argc, char* argv[]) {
             config.erase(device);
         }
 
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            for (auto& device : devices) {
+                if (device == "AUTO") {
+                    core.set_property(device, ov::hint::allow_auto_batching(false));
+                } else {
+                    core.set_property(device, {{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(NO)}});
+                }
+            }
+        }
+
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
