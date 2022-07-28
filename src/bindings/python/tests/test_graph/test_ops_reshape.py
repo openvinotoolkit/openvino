@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from tests.runtime import get_runtime
-from tests.test_ngraph.util import run_op_node, run_op_numeric_data
+from tests.test_graph.util import run_op_node, run_op_numeric_data
 
 
 def test_concat():

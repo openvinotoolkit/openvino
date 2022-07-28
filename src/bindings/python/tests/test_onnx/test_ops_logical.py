@@ -26,14 +26,14 @@ def test_logical(onnx_op, numpy_func, data_type):
     input_a = np.array([[0, 1, -1], [0, 1, -1], [0, 1, -1]]).astype(data_type)
     input_b = np.array([[0, 0, 0], [1, 1, 1], [-1, -1, -1]]).astype(data_type)
     expected_output = numpy_func(input_a, input_b)
-    ng_results = run_node(node, [input_a, input_b], opset_version=4)
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_a, input_b], opset_version=4)
+    assert np.array_equal(graph_results, [expected_output])
 
     input_a = np.array([[0, 1, -1], [0, 1, -1], [0, 1, -1]]).astype(data_type)
     input_b = np.array(1).astype(data_type)
     expected_output = numpy_func(input_a, input_b)
-    ng_results = run_node(node, [input_a, input_b], opset_version=4)
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_a, input_b], opset_version=4)
+    assert np.array_equal(graph_results, [expected_output])
 
 
 def test_logical_not():
@@ -41,5 +41,5 @@ def test_logical_not():
     expected_output = np.logical_not(input_data)
 
     node = onnx.helper.make_node("Not", inputs=["X"], outputs=["Y"])
-    ng_results = run_node(node, [input_data])
-    assert np.array_equal(ng_results, [expected_output])
+    graph_results = run_node(node, [input_data])
+    assert np.array_equal(graph_results, [expected_output])

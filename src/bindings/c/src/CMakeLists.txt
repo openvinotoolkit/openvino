@@ -41,8 +41,8 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
     APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} DEPENDS core)
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} DEPENDS ${OV_CPACK_COMP_CORE_C})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
     RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}

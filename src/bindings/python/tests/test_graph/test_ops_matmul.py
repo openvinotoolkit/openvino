@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from tests.test_ngraph.util import run_op_node
+from tests.test_graph.util import run_op_node
 
 
 @pytest.mark.parametrize(

@@ -33,15 +33,15 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
     atol = 0.0 if np.issubdtype(data_type, np.integer) else 1e-04
 
     # generate input tensors
-    ng_inputs = []
+    graph_inputs = []
     np_inputs = []
     for i in range(num_inputs):
         input_i = np.random.randint(1, 10 + 1, size=input_shapes[i]).astype(data_type)
         np_inputs.append(input_i)
-        ng_inputs.append(ov.parameter(input_i.shape, dtype=data_type))
+        graph_inputs.append(ov.parameter(input_i.shape, dtype=data_type))
 
     expected_result = np.einsum(equation, *np_inputs)
-    einsum_model = ov.einsum(ng_inputs, equation)
+    einsum_model = ov.einsum(graph_inputs, equation)
 
     # check the output shape and type
     assert einsum_model.get_type_name() == "Einsum"
@@ -51,7 +51,7 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
 
     # check inference result
     if with_value:
-        computation = runtime.computation(einsum_model, *ng_inputs)
+        computation = runtime.computation(einsum_model, *graph_inputs)
         actual_result = computation(*np_inputs)
         np.allclose(actual_result, expected_result, atol=atol)
 
