@@ -92,7 +92,8 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
-    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
+    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION}
+                           HIDDEN)
 
     install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
             DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}

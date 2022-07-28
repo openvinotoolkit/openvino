@@ -399,7 +399,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto ops = func->get_ordered_ops();
 
     //Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
     std::unordered_set<std::string> unsupported;
 
     std::unordered_set<std::string> supportedNotOriginal;
@@ -599,7 +599,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
+                auto temp = ov::util::from_string(val, ov::hint::num_requests);
                 return temp;
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
@@ -1000,7 +1000,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<Program> program;
 
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 

@@ -19,11 +19,11 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
     auto desc = node.get_primitive();
 
     const int32_t axis = desc->axis;
-    const size_t input_number_of_dims = node.input(0).get_output_layout().size.sizes().size();
+    const size_t input_number_of_dims = node.input(0).get_output_layout().get_tensor().sizes().size();
 
     auto input_layout = node.input(0).get_output_layout();
 
-    auto output_shape = input_layout.size;
+    auto output_shape = input_layout.get_tensor();
     auto input_format = input_layout.format;
     auto output_type = input_layout.data_type;
 
@@ -47,7 +47,6 @@ std::string scatter_elements_update_inst::to_string(scatter_elements_update_node
     json_composite scatter_elements_update_info;
     scatter_elements_update_info.add("input id", input.id());
     scatter_elements_update_info.add("axis", desc->axis);
-    scatter_elements_update_info.add("output shape", node.input(0).get_output_layout().size.to_string());
 
     node_info->add("scatter_elements_update info", scatter_elements_update_info);
     node_info->dump(primitive_description);
