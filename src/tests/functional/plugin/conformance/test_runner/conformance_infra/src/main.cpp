@@ -86,12 +86,20 @@ int main(int argc, char* argv[]) {
 
         // set default handler for crash
         signal(SIGABRT, SIG_DFL);
-        signal(SIGKILL, SIG_DFL);
         signal(SIGSEGV, SIG_DFL);
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
+#ifdef __linux__
+        signal(SIGKILL, SIG_DFL);
+#endif
 
-        if (errCode == SIGINT || errCode == SIGTERM || errCode == SIGABRT || errCode == SIGKILL || errCode == SIGSEGV) {
+        if (errCode == SIGINT ||
+            errCode == SIGTERM ||
+            errCode == SIGABRT ||
+#ifdef __linux__
+            errCode == SIGKILL ||
+#endif
+            errCode == SIGSEGV) {
             auto& op_summary = ov::test::utils::OpSummary::getInstance();
             auto& api_summary = ov::test::utils::ApiSummary::getInstance();
             op_summary.saveReport();
@@ -104,8 +112,9 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, exernalSignalHandler);
     signal(SIGSEGV, exernalSignalHandler);
     signal(SIGTERM , exernalSignalHandler);
-    signal(SIGKILL , exernalSignalHandler);
     signal(SIGABRT , exernalSignalHandler);
-
+#ifdef __linux__
+    signal(SIGKILL , exernalSignalHandler);
+#endif
     return RUN_ALL_TESTS();
 }
