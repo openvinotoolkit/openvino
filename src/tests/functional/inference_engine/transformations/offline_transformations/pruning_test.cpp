@@ -4662,6 +4662,25 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+
+TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
+    /* Checks condition that `get_constant_from_node` is not nullptr in `is_static_reshape_op`*/
+    auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 1});
+    auto input_shape = std::make_shared<opset5::Parameter>(element::i64, Shape{3});
+    auto reshape = std::make_shared<opset5::Reshape>(input, input_shape, true);
+    const auto dummy_mask = std::make_shared<Mask>(Mask{{1}});
+    setMask(reshape->output(0), dummy_mask);
+
+    auto function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{input, input_shape});
+
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "CheckReshapeWithNoConstInShape.svg").run_on_function(function);
+
+    pass::Manager m;
+    m.register_pass<pass::ShrinkWeights>();
+    m.run_passes(function);
+}
+
 INSTANTIATE_TEST_CASE_P(
         TransformationTestsBoolParam,
         TransformationTestsBoolParamF,
