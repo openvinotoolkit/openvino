@@ -45,7 +45,7 @@ bool split_search(double lower_bound, double upper_bound) {
     double break_bound = get_break_bound<T>();
     if (std::is_same<T, ngraph::opset8::Sigmoid>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ov::intel_gna::op::SoftSign>::value ||
+        std::is_same<T, ngraph::opset9::SoftSign>::value ||
         std::is_same<T, ngraph::opset8::Exp>::value ||
         std::is_same<T, ngraph::opset8::Power>::value) {
         return lower_bound < break_bound && upper_bound > break_bound;
@@ -208,7 +208,7 @@ template<typename T>
 bool is_negative(const details::Function<T>& activation_function, double upper_bound) {
     if (std::is_same<T, ngraph::opset8::Sigmoid>::value ||
         std::is_same<T, ngraph::opset8::Tanh>::value ||
-        std::is_same<T, ov::intel_gna::op::SoftSign>::value) {
+        std::is_same<T, ngraph::opset9::SoftSign>::value) {
         return upper_bound == 0;
     }
 
@@ -490,7 +490,7 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
         ngraph::pattern::any_input(), ngraph::pattern::any_input() });
     auto powerIE = ngraph::pattern::wrap_type<ngraph::op::PowerIE>({activation_input});
     auto log = ngraph::pattern::wrap_type<ngraph::opset8::Log>({activation_input});
-    auto softsign = ngraph::pattern::wrap_type<ov::intel_gna::op::SoftSign>({activation_input});
+    auto softsign = ngraph::pattern::wrap_type<ngraph::opset9::SoftSign>({activation_input});
     auto activation_function =
         std::make_shared<ngraph::pattern::op::Or>(ov::OutputVector{ sigmoid, tanh, exp, power, powerIE, log, softsign });
 
@@ -515,7 +515,7 @@ static std::shared_ptr<ngraph::pattern::Matcher> create_matcher(ov::graph_rewrit
                 ngraph::opset8::Power,
                 ngraph::op::PowerIE,
                 ngraph::opset8::Log,
-                ov::intel_gna::op::SoftSign>(),
+                ngraph::opset9::SoftSign>(),
             fake_quantize_iter != pattern_to_output.end() ?
                 fake_quantize_iter->second.get_node_shared_ptr() : std::shared_ptr<ngraph::Node>(),
             iter->second.get_node_shared_ptr(),
