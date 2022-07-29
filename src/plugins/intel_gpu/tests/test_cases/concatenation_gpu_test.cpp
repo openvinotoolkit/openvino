@@ -22,12 +22,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace cldnn
-{
-    template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
-
 TEST(concat_gpu, mixed_input_types) {
     auto& engine = get_test_engine();
 
