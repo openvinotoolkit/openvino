@@ -63,7 +63,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
             pads_begin.push_back(tf_explicit_paddings[6]);
             pads_end.push_back(tf_explicit_paddings[5]);
             pads_end.push_back(tf_explicit_paddings[7]);
-        }    
+        }
     }
 
     // prepare inputs to ConvolutionBackpropData
