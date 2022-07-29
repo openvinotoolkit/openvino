@@ -37,6 +37,8 @@ public:
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
+    std::string get_name() const;
+    void set_name(const std::string& name);
     std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);

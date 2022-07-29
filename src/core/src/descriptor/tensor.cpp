@@ -116,6 +116,19 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
     }
 }
 
+std::string ov::descriptor::Tensor::get_name() const {
+    std::string name;
+    auto it = get_rt_info().find("original_name");
+    if (it != get_rt_info().end())
+        name = it->second.as<std::string>();
+    return name;
+}
+
+void ov::descriptor::Tensor::set_name(const std::string& name) {
+    get_rt_info()["original_name"] = name;
+    add_names({name});
+}
+
 ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
     std::string names;
     for (const auto& name : tensor.get_names()) {
