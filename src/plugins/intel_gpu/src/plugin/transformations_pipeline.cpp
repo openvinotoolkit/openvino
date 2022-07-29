@@ -64,6 +64,7 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
 #include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
@@ -299,6 +300,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                return false;
+            });
+
+        pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
+        pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+            [](const_node_ptr &node) -> bool {
+                // TODO: Handle conditions when NormalizeL2 is not supported
                 return false;
             });
 
