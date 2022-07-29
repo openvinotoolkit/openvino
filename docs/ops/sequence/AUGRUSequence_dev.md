@@ -44,47 +44,42 @@ The rest of the attributes are supported only with default values:
 * *activations*
 
   * **Description**: activation functions for gates
-  * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
+  * **Range of values**: *sigmoid*, *tanh*
   * **Type**: a list of strings
   * **Default value**: *sigmoid* for f, *tanh* for g
   * **Required**: *no*
-  * **Supported value**: *sigmoid* for f, *tanh* for g
 
 * *activations_alpha, activations_beta*
 
   * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on chosen activation functions
-  * **Range of values**: a list of floating-point numbers
+  * **Range of values**: []
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
-  * **Supported value**: []
 
 * *clip*
 
   * **Description**: *clip* specifies bound values *[-C, C]* for tensor clipping. Clipping is performed before activations.
-  * **Range of values**: a positive floating-point number
+  * **Range of values**: `0.`
   * **Type**: `float`
   * **Default value**: `0.` that means the clipping is not applied
   * **Required**: *no*
-  * **Supported value**: `0.`
 
 * *direction*
 
   * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements.
-  * **Range of values**: *forward*, *reverse*, *bidirectional*
+  * **Range of values**: *forward*
   * **Type**: `string`
   * **Default value**: *forward*
   * **Required**: *no*
-  * **Supported value**: *forward*
 
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes, if the output of hidden gate is multiplied by the reset gate before or after linear transformation.
-  * **Range of values**: True or False
+  * **Range of values**: False
   * **Type**: `boolean`
   * **Default value**: False
   * **Required**: *no*
-  * **Supported value**: False
 
 **Inputs**
 
