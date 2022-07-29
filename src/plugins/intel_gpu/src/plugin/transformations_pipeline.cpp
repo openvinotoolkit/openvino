@@ -65,8 +65,8 @@
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
-#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
@@ -74,6 +74,7 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
+#include <transformations/op_conversions/convert_softmax_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -151,10 +152,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
         static const precisions_array convert_precision_list {
@@ -186,7 +188,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                   ngraph::pass::ConvertSpaceToBatch>(
                 [](const_node_ptr &node) -> bool {
                     const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                    return rank <= 5lu;
+                    return rank <= 5;
                 });
 
         if (device_info.supports_immad) {
@@ -320,6 +322,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ngraph::pass::ConvertBroadcast3>();
         pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
         pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        pass_config->disable<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
         if (!config.enable_loop_unrolling) {
@@ -388,7 +391,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (rank.is_dynamic()) {
                     return false;
                 }
-                if (rank.get_length() < 2ul) {
+                if (rank.get_length() < 2l) {
                     return false;
                 }
                 const auto dimension = shape[1];

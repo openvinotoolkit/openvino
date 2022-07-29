@@ -803,7 +803,7 @@ bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
-    if (m_rt_info.count(ov::pass::DisableConstantFolding::get_type_info_static())) {
+    if (is_const_fold_disabled()) {
         return false;
     }
 
@@ -835,6 +835,10 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
+}
+
+bool ov::Node::is_const_fold_disabled() const {
+    return ov::pass::constant_folding_is_disabled(this);
 }
 
 namespace ov {

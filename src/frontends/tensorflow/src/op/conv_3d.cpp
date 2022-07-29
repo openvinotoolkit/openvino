@@ -17,10 +17,13 @@ namespace op {
 OutputVector translate_conv_3d_op(const NodeContext& node) {
     auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
+    // retrieve attributes for Conv3D
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+
+    // retrieve optional attributes
+    auto tf_data_format = node.get_attribute<std::string>("data_format", "NDHWC");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1, 1});
 
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NDHWC" || tf_data_format == "NCDHW",
@@ -51,7 +54,7 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
-    transpose_3d<4, 3, 0, 1, 2>(ng_filter);
+    ng_filter = make_transpose(ng_filter, {4, 3, 0, 1, 2});
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;

@@ -22,7 +22,7 @@ layout border_inst::calc_output_layout(border_node const& node) {
     auto input_layout = node.input().get_output_layout();
     auto desc = node.get_primitive();
 
-    auto&& new_size = input_layout.size;
+    auto new_size = input_layout.get_tensor();
     new_size += desc->left_top_sizes.sub(tensor(0));
     new_size += desc->right_bottom_sizes.sub(tensor(0));
 
@@ -76,7 +76,7 @@ std::string border_inst::to_string(border_node const& node) {
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto& input_sizes = input_layout.size;
+    const auto& input_sizes = input_layout.get_tensor();
 
     auto lt_sizes = argument.left_top_sizes.sub(tensor(0));
     auto rb_sizes = argument.right_bottom_sizes.sub(tensor(0));
