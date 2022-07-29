@@ -159,6 +159,9 @@ static const std::vector<std::string> models{
     std::string("gather_one_dimension2"),
     // gather_axis_input
     // (CVS-82724: not support Axis as input),
+    std::string("gather_nd_float32"),
+    std::string("gather_nd_int64"),
+    std::string("gather_nd_int32"),
     std::string("gelu_erf"),
     std::string("gelu_tanh"),
     std::string("generate_proposals_v2_0"),
