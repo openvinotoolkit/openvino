@@ -105,8 +105,8 @@ void Interaction::run(dnnl::stream strm) {
     auto outFeaturesPtr = reinterpret_cast<Prec*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     std::vector<const Prec*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inputPtr = reinterpret_cast<const Prec*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
-        inputPtrs[n] = inputPtr;
+        auto inPtr = reinterpret_cast<const Prec*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
+        inputPtrs[n] = inPtr;
     }
     for (int64_t start = 0; start < batchSize; start++) {
         cat<Prec>(inputPtr->buffer().as<Prec*>(), inputPtrs, featureSizes, start);
@@ -152,12 +152,12 @@ void Interaction::prepareParams() {
     inputSizes = inputShapes.size();
     interactFeatureSize = inputSizes * (inputSizes - 1) / 2;
     outputFeaturesLen = interactFeatureSize + featureSize;
-    std::vector<int64_t> lhsShape({inputSizes, featureSize});
-    std::vector<int64_t> lhsStride({featureSize, 1});
-    std::vector<int64_t> rhsShape({featureSize, inputSizes});
-    std::vector<int64_t> rhsStride({1, featureSize});
-    std::vector<int64_t> resShape({inputSizes, inputSizes});
-    std::vector<int64_t> resStride({inputSizes, 1});
+    std::vector<int64_t> lhsShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(featureSize)});
+    std::vector<int64_t> lhsStride({static_cast<int64_t>(featureSize), 1});
+    std::vector<int64_t> rhsShape({static_cast<int64_t>(featureSize), static_cast<int64_t>(inputSizes)});
+    std::vector<int64_t> rhsStride({1, static_cast<int64_t>(featureSize)});
+    std::vector<int64_t> resShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(inputSizes)});
+    std::vector<int64_t> resStride({static_cast<int64_t>(inputSizes), 1});
     auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision);
     auto src_md = memory::desc(lhsShape, dataType, lhsStride);
     auto weights_md = memory::desc(rhsShape, dataType, rhsStride);
@@ -194,7 +194,6 @@ void Interaction::prepareParams() {
     auto outDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(outputPtr->getTensorDesc());
     inputMemPtr->Create(inDesc, inputPtr->buffer());
     outputMemPtr->Create(outDesc, outputPtr->buffer());
-    return;
 }
 
 void Interaction::executeDynamicImpl(dnnl::stream strm) {

@@ -42,11 +42,11 @@ private:
         outputPtr->allocate();
         flatPtr->allocate();
     }
-    int64_t batchSize = 0;
-    int64_t featureSize = 0;
-    int64_t inputSizes = 0;
-    int64_t outputFeaturesLen = 0;
-    int64_t interactFeatureSize = 0;
+    size_t batchSize = 0;
+    size_t featureSize = 0;
+    size_t inputSizes = 0;
+    size_t outputFeaturesLen = 0;
+    size_t interactFeatureSize = 0;
     std::string errorPrefix;
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Blob::Ptr inputPtr;
