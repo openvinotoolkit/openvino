@@ -31,7 +31,6 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        MATCHER_SCOPE_ENABLE(ConvertToInteraction);
         auto concat_node = pattern_map.at(concat_m).get_node_shared_ptr();
         auto dense_feature_node = concat_node->input_value(0).get_node_shared_ptr();
         auto get_consumers = [](std::shared_ptr<Node>& node) {
