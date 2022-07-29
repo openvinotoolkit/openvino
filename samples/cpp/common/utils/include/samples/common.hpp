@@ -29,7 +29,7 @@
 
 // @brief performance counters sort
 static constexpr char pcSort[] = "sort";
-static constexpr char noPcSort[] = "no_sort";
+static constexpr char pcNoSort[] = "no_sort";
 static constexpr char pcSimpleSort[] = "simple_sort";
 
 #ifndef UNUSED
@@ -1210,7 +1210,7 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
                                           std::string deviceName,
                                           std::string sorttype,
                                           bool bshowHeader = true) {
-    if (sorttype == noPcSort) {
+    if (sorttype == pcNoSort) {
         printPerformanceCountsNoSort(performanceData, stream, deviceName, bshowHeader);
     } else if (sorttype == pcSort) {
         printPerformanceCountsDescendSort(performanceData, stream, deviceName, bshowHeader);
