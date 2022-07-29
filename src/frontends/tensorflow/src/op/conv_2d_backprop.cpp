@@ -24,7 +24,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     // retrieve attributes for Conv2DBackpropInput
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    ov::op::PadType auto_pad = convert_deconv_tf_padding(node, tf_padding_type);
+    ov::op::PadType auto_pad = convert_conv_tf_padding(node, tf_padding_type);
 
     // retrieve optional attributes
     auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1});
@@ -34,9 +34,11 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
                              "Conv2DBackpropInput data format is neither NHWC nor NCHW");
-    TENSORFLOW_OP_VALIDATION(node,
-                             auto_pad != ov::op::PadType::EXPLICIT && tf_explicit_paddings.size() == 8,
-                             "Conv2DBackpropInput expects 8 padding values for EXPLICIT padding mode.");
+    if (auto_pad == ov::op::PadType::EXPLICIT) {
+        TENSORFLOW_OP_VALIDATION(node,
+                                 tf_explicit_paddings.size() == 8,
+                                 "Conv2DBackpropInput expects 8 padding values for EXPLICIT padding mode.");
+    }
     bool is_nhwc = (tf_data_format == "NHWC");
 
     // prepare attributes for OpenVINO ConvolutionBackpropData
@@ -71,18 +73,22 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     convert_nhwc_to_nchw(is_nhwc, out_backprop);
 
     // initially think that output shape defined for NCHW layout
-    auto begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
-    auto end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
-    auto strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
+    auto ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+    auto ss_strides = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
 
     // change range of indices for spatial dimensions in case NHWC layout
     if (is_nhwc) {
-        begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-        end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3});
+        ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        ss_end = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3});
     }
 
-    auto spatial_shape =
-        make_shared<StridedSlice>(input_sizes, begin, end, strides, std::vector<int64_t>{}, std::vector<int64_t>{});
+    auto spatial_shape = make_shared<StridedSlice>(input_sizes,
+                                                   ss_begin,
+                                                   ss_end,
+                                                   ss_strides,
+                                                   std::vector<int64_t>{},
+                                                   std::vector<int64_t>{});
 
     auto conv_backprop = make_shared<ConvolutionBackpropData>(out_backprop,
                                                               filter,

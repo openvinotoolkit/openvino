@@ -66,7 +66,7 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     Output<Node> res =
         make_shared<Convolution>(ng_input, ng_filter, ng_strides, ng_padding_below, ng_padding_above, ng_dilations);
 
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

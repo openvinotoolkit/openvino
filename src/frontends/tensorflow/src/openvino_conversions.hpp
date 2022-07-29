@@ -43,9 +43,9 @@ void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 }  // namespace detail
 
-void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& input_);
+void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node);
 
-void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& ng_node);
+void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node);
 
 template <typename T>
 void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {

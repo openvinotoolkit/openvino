@@ -66,7 +66,7 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
                                          ov::op::RoundingType::FLOOR);
     auto res = res_node->output(0);
 
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
