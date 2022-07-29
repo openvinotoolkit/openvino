@@ -393,10 +393,10 @@ TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
 
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, false);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, true);
 }
 
