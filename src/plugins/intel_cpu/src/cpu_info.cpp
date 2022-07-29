@@ -435,7 +435,7 @@ float CPUInfo::getPeakGOPSImpl(Precision precision) {
         throw std::invalid_argument("Get GOPS: Unsupported precision");
     }
 
-    uint32_t data_type_bit_size;
+    uint32_t data_type_bit_size = 1;
     switch (precision) {
     case Precision::FP32:
         data_type_bit_size = sizeof(float) * 8;
@@ -447,6 +447,7 @@ float CPUInfo::getPeakGOPSImpl(Precision precision) {
         data_type_bit_size = 1;
         break;
     default:
+        throw std::invalid_argument("Get GOPS: Unsupported precision");
         break;
     }
 
