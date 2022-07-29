@@ -26,7 +26,10 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
 
     // retrieve optional attributes
     auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1, 1});
-    auto tf_explicit_paddings = node.get_attribute<std::vector<int64_t>>("explicit_paddings", {});
+    auto tf_explicit_paddings = std::vector<int64_t>{};
+    if (auto_pad == ov::op::PadType::EXPLICIT) {
+        tf_explicit_paddings = node.get_attribute<std::vector<int64_t>>("explicit_paddings", {});
+    }
     auto tf_data_format = node.get_attribute<std::string>("data_format", "NDHWC");
 
     TENSORFLOW_OP_VALIDATION(node,
