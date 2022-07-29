@@ -136,11 +136,6 @@ void Interaction::execute(dnnl::stream strm) {
     } else if (dataPrecision == InferenceEngine::Precision::BF16) {
         run<int16_t>(strm);
     }
-    // InteractionCtx ctx = {this, strm};
-    // OV_SWITCH(intel_cpu, InteractionExecute, ctx, dataPrecision,
-    //           OV_CASE(InferenceEngine::Precision::BF16, int16_t),
-    //           OV_CASE(InferenceEngine::Precision::FP32, float))
-    return;
 }
 
 bool Interaction::created() const {

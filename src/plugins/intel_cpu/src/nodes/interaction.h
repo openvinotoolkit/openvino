@@ -31,21 +31,8 @@ public:
     void prepareParams() override;
 
 private:
-    void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
-                                  const dnnl::memory::desc &outputDesc);
-
     template <typename Prec>
     void run(dnnl::stream strm);
-    struct InteractionCtx {
-        Interaction* node;
-        dnnl::stream strm;
-    };
-    template<typename T>
-    struct InteractionExecute {
-        void operator()(InteractionCtx& ctx) {
-            ctx.node->run<T>(ctx.strm);
-        }
-    };
     template<typename Prec>
     void inline initializeInternalMemory(const std::vector<InferenceEngine::TensorDesc>& descs) {
         inputPtr = InferenceEngine::make_shared_blob<Prec>(descs[0]);
