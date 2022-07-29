@@ -826,9 +826,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        if (!isNgraphPassesUsed) {
-            passes->registerPass<InsertCopyLayerPass>();
-        }
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
