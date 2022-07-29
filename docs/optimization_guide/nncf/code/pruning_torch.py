@@ -30,7 +30,7 @@ nncf_config = register_default_init_args(nncf_config, train_loader) # train_load
 #! [nncf_congig]
 
 #! [wrap_model]
-model = TorchModel() # instance of torch.nn.Module
+model = TorchModel() # instance of torch.nn.Module 
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 

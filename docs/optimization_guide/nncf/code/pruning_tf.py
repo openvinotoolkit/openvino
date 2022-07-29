@@ -42,7 +42,7 @@ compression_ctrl.distributed() # call it before the training
 ... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
 
 # create compression callbacks to control pruning parameters and dump compression statistics
-# all the setting are being taked from compression_ctrl, i.e. from NNCF config
+# all the setting are being taked from compression_ctrl, i.e. from NNCF config 
 compression_callbacks = create_compression_callbacks(compression_ctrl, log_dir="./compression_log")
 
 # tune quantized model for 50 epochs as the baseline
