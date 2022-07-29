@@ -169,12 +169,13 @@ void regclass_Core(py::module m) {
     cls.def(
         "compile_model",
         [](ov::Core& self,
-           const std::string& model_path,
+           const py::object& model_path,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
+            std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
-            return self.compile_model(model_path, device_name, _properties);
+            return self.compile_model(path, device_name, _properties);
         },
         py::arg("model_path"),
         py::arg("device_name"),
@@ -187,7 +188,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
-            :type model_path: str
+            :type model_path: Union[str, pathlib.Path]
             :param device_name: Name of the device to load the model to.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
@@ -198,10 +199,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
-        [](ov::Core& self, const std::string& model_path, const std::map<std::string, py::object>& properties) {
+        [](ov::Core& self, const py::object& model_path, const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
+            std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
-            return self.compile_model(model_path, _properties);
+            return self.compile_model(path, _properties);
         },
         py::arg("model_path"),
         py::arg("properties"),
@@ -213,7 +215,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model_path: A path to a model in IR / ONNX / PDPD format.
-            :type model_path: str
+            :type model_path: Union[str, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
