@@ -83,7 +83,7 @@ if(THREADING STREQUAL "OMP")
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
 
-    ie_cpack_add_component(omp REQUIRED)
+    ie_cpack_add_component(omp HIDDEN)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
             DESTINATION ${OV_CPACK_RUNTIMEDIR}
@@ -151,6 +151,9 @@ function(ov_download_tbb)
     if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
         # oneTBB case
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
+    elseif(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
+        # oneTBB release package version less than 2021.6.0
+        update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/tbb" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
         # 64-bits oneTBB case
         update_deps_cache(TBB_DIR "${TBBROOT}/lib64/cmake/TBB" "Path to TBB cmake folder")

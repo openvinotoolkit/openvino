@@ -11,6 +11,8 @@
 #include <string>
 #include <sstream>
 #include "to_string_utils.h"
+#include "kernel_selector_helper.h"
+#include "activation_inst.h"
 
 namespace cldnn {
 
@@ -138,13 +140,6 @@ namespace {
 template <typename key_type>
 std::string get_key_name(const key_type &) { return std::string(""); }
 
-template <>
-std::string get_key_name(const int32_t &k) { return std::to_string(k); }
-
-template <>
-std::string get_key_name(const std::tuple<data_types, format::type> &key) {
-    return dt_to_str(std::get<0>(key)) + "/" + fmt_to_str(std::get<1>(key));
-}
 } // namespace
 
 template <typename primitive_kind>
@@ -152,42 +147,39 @@ class implementation_map {
 public:
     using key_builder = implementation_key<primitive_kind>;
     using key_type = typename key_builder::type;
-    using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&)>;
+    using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&, std::shared_ptr<kernel_impl_params>)>;
     using map_type = singleton_map<impl_types, std::pair<std::set<key_type>, factory_type>>;
 
-    static factory_type get(const typed_program_node<primitive_kind>& primitive) {
-        impl_types target_impl_type = primitive.get_preferred_impl_type();
-        // lookup in database; throw if not found
-        auto key = key_builder()(primitive);
+    static factory_type get(std::shared_ptr<kernel_impl_params> impl_param, impl_types preferred_impl_type) {
+        auto key = key_builder()(impl_param->input_layouts[0]);
         for (auto& kv : map_type::instance()) {
             impl_types impl_type = kv.first;
-            if ((target_impl_type & impl_type) != impl_type)
+            if ((preferred_impl_type & impl_type) != impl_type)
                 continue;
-
             std::set<key_type>& keys_set = kv.second.first;
             auto& factory = kv.second.second;
-            if (keys_set.empty() || keys_set.find(key) != keys_set.end()) {
+            if (keys_set.empty() || keys_set.find(key) != keys_set.end())  {
                 return factory;
             }
         }
         std::stringstream target_impl_type_ss;
-        target_impl_type_ss << target_impl_type;
+        target_impl_type_ss << preferred_impl_type;
         throw std::runtime_error(std::string("implementation_map for ") + typeid(primitive_kind).name() +
                                     " could not find any implementation to match key: " +
-                                    get_key_name(key) + ", impl_type: " + target_impl_type_ss.str() + ", node_id: " + primitive.id());
+                                    get_key_name(key) + ", impl_type: " + target_impl_type_ss.str() + ", node_id: " + impl_param->desc->id);
     }
 
     // check if for a given engine and type there exist an implementation
-    static bool check(const typed_program_node<primitive_kind>& primitive) {
+    static bool check(const typed_program_node<primitive_kind>& primitive, std::shared_ptr<kernel_impl_params> impl_params) {
         impl_types target_impl_type = primitive.get_preferred_impl_type();
-        auto key = key_builder()(primitive);
+        auto key = key_builder()(impl_params->input_layouts[0]);
         return check_key(target_impl_type, key);
     }
 
     // check if there exists a kernel implementation of a primitive with output set it primitive's output layout
-    static bool check_io_eq(const typed_program_node<primitive_kind>& primitive) {
+    static bool check_io_eq(const typed_program_node<primitive_kind>& primitive, std::shared_ptr<kernel_impl_params> impl_params) {
         impl_types target_impl_type = primitive.get_preferred_impl_type();
-        auto key = key_builder()(primitive.get_output_layout());
+        auto key = key_builder()(impl_params->output_layout);
         return check_key(target_impl_type, key);
     }
 
@@ -204,11 +196,27 @@ public:
         return false;
     }
 
+    static void add(impl_types impl_type, factory_type factory,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, factory, combine(types, formats));
+    }
+
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
         if (impl_type == impl_types::any) {
             throw std::runtime_error("[CLDNN] Can't register impl with type any");
         }
         map_type::instance().insert({impl_type, {keys, factory}});
+    }
+
+private:
+    static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        std::set<key_type> keys;
+        for (const auto& type : types) {
+            for (const auto& format : formats) {
+                keys.emplace(type, format);
+            }
+        }
+        return keys;
     }
 };
 }  // namespace cldnn

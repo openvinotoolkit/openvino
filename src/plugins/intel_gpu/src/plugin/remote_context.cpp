@@ -22,9 +22,19 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     cldnn::shared_handle mem,
     cldnn::shared_surface surf,
     uint32_t plane,
-    BlobType mem_type) :
-    m_context(context), m_stream(stream), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
-    _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedCounter(0), lockedHolder(nullptr) {
+    BlobType mem_type)
+    : m_context(context)
+    , m_stream(stream)
+    , m_mem(mem)
+    , m_surf(surf)
+    , m_plane(plane)
+    , m_layout(layout)
+    , m_mem_type(mem_type)
+    , m_memObject(nullptr)
+    , lockedCounter(0)
+    , lockedHolder(nullptr)
+    , _handle(nullptr)
+    , _allocator(nullptr) {
     auto _impl = getContextImpl(m_context.lock());
     auto eng = _impl->GetEngine();
 
@@ -272,12 +282,12 @@ void RemoteAllocator::unlock(void* handle) noexcept {
 
 ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
     const AnyMap& params,
-    const Config& config) :
-    m_plugin(plugin),
-    m_type(ContextType::OCL),
-    m_config(config),
-    m_external_queue(nullptr),
-    m_va_display(nullptr) {
+    const Config& config)
+        : m_va_display(nullptr)
+        , m_external_queue(nullptr)
+        , m_config(config)
+        , m_type(ContextType::OCL)
+        , m_plugin(plugin) {
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
