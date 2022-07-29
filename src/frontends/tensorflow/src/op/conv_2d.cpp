@@ -46,7 +46,7 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input);
 
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
