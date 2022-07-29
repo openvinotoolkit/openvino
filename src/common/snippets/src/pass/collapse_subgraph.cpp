@@ -150,7 +150,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
             if (ov::is_type<opset1::Result>(in.get_node())) {
                 auto out_tensor = subgraph->output(i).get_tensor_ptr();
                 NGRAPH_SUPPRESS_DEPRECATED_START
-                if (out_tensor->get_name().empty()) {
+                if (ov::descriptor::get_ov_tensor_legacy_name(*out_tensor).empty()) {
                     const auto& body_result = subgraph->get_body()->get_output_op(i);
                     const auto& body_result_input = body_result->get_input_source_output(0);
                     // Note that create_ie_output_name() checks only deprecated output.get_tensor().get_name()
@@ -158,7 +158,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
                     if (!body_result_input.get_names().empty())
                         out_tensor->add_names(body_result_input.get_names());
                     std::string newTensorName = ngraph::op::util::get_ie_output_name(body_result_input);
-                    out_tensor->set_name(newTensorName);
+                    ov::descriptor::set_ov_tensor_legacy_name(*out_tensor, newTensorName);
                 }
                 NGRAPH_SUPPRESS_DEPRECATED_END
                 not_set = false;

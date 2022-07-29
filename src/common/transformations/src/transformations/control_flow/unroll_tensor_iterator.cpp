@@ -115,9 +115,10 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
                         return ov::as_type<ngraph::opset8::Result>(target_inp.get_node()) != nullptr;
                     })) {
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    insert_to.get_tensor().set_name(ngraph::op::util::create_ie_output_name(ti_output));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    OPENVINO_SUPPRESS_DEPRECATED_START
+                    ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
+                                                              ngraph::op::util::create_ie_output_name(ti_output));
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                 }
             };
 

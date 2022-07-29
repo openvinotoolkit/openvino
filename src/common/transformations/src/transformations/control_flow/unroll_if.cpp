@@ -43,11 +43,12 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
             const auto& in_value = result->input_value(0);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             // set output name to Tensor to store it for ngraph to cnn conversion
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            in_value.get_tensor().set_name(
+            ov::descriptor::set_ov_tensor_legacy_name(
+                in_value.get_tensor(),
                 op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
             for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
                 input.replace_source_output(result->get_input_source_output(0));
             }

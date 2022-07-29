@@ -11,7 +11,6 @@ using namespace std;
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
-      m_name(name),
       m_shape_changed(true) {}
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
@@ -93,16 +92,6 @@ size_t ov::descriptor::Tensor::size() const {
     return shape_size(get_shape()) * m_element_type.size();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-void ov::descriptor::Tensor::set_name(const string& name) {
-    m_name = name;
-}
-
-const std::string& ov::descriptor::Tensor::get_name() const {
-    return m_name;
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
 }
@@ -134,10 +123,18 @@ ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& 
             names += ", ";
         names += name;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = tensor.get_name();
-    NGRAPH_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
+}
+
+std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tensor& tensor) {
+    std::string tensor_name;
+    if (tensor.get_rt_info().find("ov_legacy_tensor_name") != tensor.get_rt_info().end()) {
+        tensor_name = tensor.get_rt_info().at("ov_legacy_tensor_name").as<std::string>();
+    }
+    return tensor_name;
+}
+
+void ov::descriptor::set_ov_tensor_legacy_name(ov::descriptor::Tensor& tensor, const std::string& tensor_name) {
+    tensor.get_rt_info()["ov_legacy_tensor_name"] = tensor_name;
 }

@@ -20,7 +20,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     auto prev = op->get_input_node_shared_ptr(0);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto inputID = op->get_input_source_output(0).get_tensor().get_name();
+    auto inputID = ov::descriptor::get_ov_tensor_legacy_name(op->get_input_source_output(0).get_tensor());
     NGRAPH_SUPPRESS_DEPRECATED_END
     if (inputID.empty()) {
         inputID = prev->get_friendly_name();

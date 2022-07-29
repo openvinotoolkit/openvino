@@ -196,7 +196,8 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
                 input.replace_source_output(outputs[i]->output(0));
             }
             NGRAPH_SUPPRESS_DEPRECATED_START
-            outputs[i]->get_output_tensor(0).set_name(
+            ov::descriptor::set_ov_tensor_legacy_name(
+                outputs[i]->get_output_tensor(0),
                 ngraph::op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
