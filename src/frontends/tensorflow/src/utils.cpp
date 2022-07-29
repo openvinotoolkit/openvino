@@ -4,7 +4,6 @@
 
 #include "utils.hpp"
 
-
 void ov::frontend::tensorflow::tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape,
                                                     ov::PartialShape* ng_shape) {
     std::vector<ov::Dimension> dims;
@@ -29,7 +28,8 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
     output.get_tensor().add_names({out_name});
 }
 
-ov::op::PadType convert_deconv_tf_padding(const ov::frontend::tensorflow::NodeContext& node, const std::string& tf_padding) {
+ov::op::PadType convert_deconv_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
+                                          const std::string& tf_padding) {
     TENSORFLOW_OP_VALIDATION(
         node,
         tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
