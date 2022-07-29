@@ -102,7 +102,7 @@ std::pair<ngraph::Shape, std::vector<ngraph::Shape>> get_numpy_broadcast_shapes(
     for (const ngraph::Shape& input : input_shapes) {
         ngraph::Shape padded_shape{input};
         padded_shape.insert(begin(padded_shape), target_shape.size() - padded_shape.size(), 1);
-        full_shapes.push_back(move(padded_shape));
+        full_shapes.push_back(std::move(padded_shape));
     }
 
     return {target_shape, full_shapes};
