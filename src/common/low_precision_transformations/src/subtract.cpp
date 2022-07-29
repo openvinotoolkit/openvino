@@ -34,7 +34,6 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(SubtractTransformation);
         return transform(*context, m);
     };
 
