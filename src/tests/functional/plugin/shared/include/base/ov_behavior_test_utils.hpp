@@ -194,6 +194,24 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 };
 
+class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
+                                      public ::testing::WithParamInterface<std::string>,
+                                      public APIBaseTest {
+public:
+    void SetUp() override {
+        target_device = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        // TODO: Remove it after fixing issue 69529
+        // w/a for myriad (cann't store 2 caches simultaneously)
+        PluginCache::get().reset();
+        OVClassNetworkTest::SetUp();
+    }
+
+private:
+    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
+};
+
 using PriorityParams = std::tuple<
         std::string,            // Device name
         ov::AnyMap              // device priority Configuration key

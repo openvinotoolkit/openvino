@@ -27,11 +27,7 @@ namespace behavior {
         ASSERT_NE(properties.end(), it);                                                           \
     }
 
-class OVCompiledModelClassBaseTestP : public OVClassBaseTestP  {
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
-};
-
+using OVCompiledModelClassBaseTest = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkImportExportTestP = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVCompiledModelClassBaseTestP;
 using OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVCompiledModelClassBaseTestP;
@@ -45,11 +41,10 @@ using OVClassExecutableNetworkGetConfigTest = OVCompiledModelClassBaseTestP;
 class OVClassExecutableNetworkGetMetricTestForSpecificConfig :
         public OVClassNetworkTest,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
-        public APIBaseTest {
+        public OVCompiledNetworkTestBase {
 protected:
     std::string configKey;
     ov::Any configValue;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 
 public:
     void SetUp() override {
@@ -70,11 +65,9 @@ using OVClassExecutableNetworkUnsupportedConfigTest = OVClassExecutableNetworkGe
 class OVClassHeteroExecutableNetworkGetMetricTest :
         public OVClassNetworkTest,
         public ::testing::WithParamInterface<std::string>,
-        public APIBaseTest {
+        public OVCompiledNetworkTestBase {
 protected:
     std::string heteroDeviceName;
-
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 
 public:
     void SetUp() override {

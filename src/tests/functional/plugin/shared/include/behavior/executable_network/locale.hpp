@@ -18,14 +18,12 @@ typedef std::tuple<
         std::string>    // Target device name
         LocaleParams;
 
-class CustomLocaleTest : public virtual ov::test::behavior::APIBaseTest,
+class CustomLocaleTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
                          public ::testing::WithParamInterface<LocaleParams> {
 protected:
     std::shared_ptr<ngraph::Function> function;
     std::string localeName;
     std::string testName;
-
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 
     void SetUp() override;
 public:

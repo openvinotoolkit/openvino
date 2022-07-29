@@ -252,6 +252,8 @@ std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<s
 void ExecGraphSerializationTest::SetUp() {
     target_device = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
+
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
@@ -259,8 +261,6 @@ void ExecGraphSerializationTest::SetUp() {
 
     m_out_xml_path = model_name + XML_EXT;
     m_out_bin_path = model_name + BIN_EXT;
-
-    APIBaseTest::SetUp();
 }
 
 void ExecGraphSerializationTest::TearDown() {

@@ -153,9 +153,10 @@ public:
     }
 };
 
+// TODO
 class IEClassBaseTestP : public IEClassNetworkTest,
                          public ::testing::WithParamInterface<std::string>,
-                         public virtual ov::test::behavior::APIBaseTest {
+                         public IEPluginTestBase {
 public:
     void SetUp() override {
         target_device = GetParam();
@@ -163,8 +164,17 @@ public:
         APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
     }
+};
 
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; };
+class IEExecNetClassBaseTestP : public IEClassNetworkTest,
+                                public ::testing::WithParamInterface<std::string>,
+                                public IEExecutableNetworkTestBase {
+public:
+    void SetUp() override {
+        target_device = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+        IEClassNetworkTest::SetUp();
+    }
 };
 } // namespace BehaviorTestsUtils

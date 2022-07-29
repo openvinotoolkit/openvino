@@ -25,7 +25,7 @@ typedef std::tuple<
 > OVExecGraphImportExportTestParams;
 
 class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGraphImportExportTestParams>,
-                                    public APIBaseTest {
+                                    public OVCompiledNetworkTestBase {
     public:
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
         ov::element::Type_t elementType;
@@ -66,8 +66,6 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     ov::AnyMap configuration;
     ov::element::Type_t elementType;
     std::shared_ptr<ov::Model> function;
-
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunction) {

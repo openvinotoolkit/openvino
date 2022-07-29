@@ -16,7 +16,7 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVCompiledModelPropertiesBase : public APIBaseTest {
+class OVCompiledModelPropertiesBase : public OVCompiledNetworkTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
@@ -24,26 +24,20 @@ public:
 };
 
 class OVCompiledModelEmptyPropertiesTests : public testing::WithParamInterface<std::string>,
-                               public OVCompiledModelPropertiesBase {
+                                            public OVCompiledModelPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-
     void SetUp() override;
 };
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;
 
 class OVCompiledModelPropertiesTests : public testing::WithParamInterface<PropertiesParams>,
-                          public OVCompiledModelPropertiesBase {
+                                       public OVCompiledModelPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
-
     void SetUp() override;
-
     void TearDown() override;
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
 using OVCompiledModelPropertiesIncorrectTests = OVCompiledModelPropertiesTests;

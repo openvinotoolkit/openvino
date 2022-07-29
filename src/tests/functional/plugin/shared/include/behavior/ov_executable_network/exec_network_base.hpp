@@ -17,7 +17,7 @@ namespace test {
 namespace behavior {
 
 class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
-                                    public APIBaseTest {
+                                    public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string target_device;

@@ -33,7 +33,7 @@ namespace BehaviorTestsDefinitions {
 }
 
 class IEClassExecutableNetworkGetMetricTestForSpecificConfig :
-        public virtual ov::test::behavior::APIBaseTest,
+        public BehaviorTestsUtils::IEExecutableNetworkTestBase,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
 protected:
@@ -44,20 +44,16 @@ public:
         target_device = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
     }
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
 };
 
 //
 // Hetero Executable network case
 //
 class IEClassHeteroExecutableNetworkGetMetricTest :
-        public virtual ov::test::behavior::APIBaseTest,
+        public BehaviorTestsUtils::IEExecutableNetworkTestBase,
         public BehaviorTestsUtils::IEClassNetworkTest,
         public ::testing::WithParamInterface<std::string> {
 protected:
@@ -70,9 +66,6 @@ public:
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
     }
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
 };
 
 
@@ -80,11 +73,7 @@ protected:
 // ImportExportNetwork
 //
 
-class IEClassGetMetricP : public BehaviorTestsUtils::IEClassBaseTestP {
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; };
-};
-
+using IEClassGetMetricP = BehaviorTestsUtils::IEExecNetClassBaseTestP;
 using IEClassImportExportTestP = IEClassGetMetricP;
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {

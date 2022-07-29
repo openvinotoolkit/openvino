@@ -18,17 +18,16 @@
 namespace ExecutionGraphTests {
 
 class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                                 public virtual ov::test::behavior::APIBaseTest {
+                                 public BehaviorTestsUtils::IEExecutableNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
     void SetUp() override;
 
 protected:
     std::shared_ptr<ngraph::Function> fnPtr;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 };
 
-class ExecGraphSerializationTest : public virtual ov::test::behavior::APIBaseTest,
+class ExecGraphSerializationTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
                                    public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
@@ -55,7 +54,6 @@ protected:
     // beetween different devices)
     std::pair<bool, std::string> compare_docs(const pugi::xml_document &doc1,
                                               const pugi::xml_document &doc2);
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 
     std::string m_out_xml_path, m_out_bin_path;
 };

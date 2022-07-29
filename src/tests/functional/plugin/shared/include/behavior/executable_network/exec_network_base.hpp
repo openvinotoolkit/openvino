@@ -9,7 +9,7 @@
 #include "openvino/core/model.hpp"
 
 namespace BehaviorTestsDefinitions {
-class ExecutableNetworkBaseTest : public virtual ov::test::behavior::APIBaseTest,
+class ExecutableNetworkBaseTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
                                   public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorTestsUtils::InferRequestParams> obj) {
@@ -28,8 +28,8 @@ public:
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
-        ov::test::behavior::APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        ov::test::behavior::APIBaseTest::SetUp();
         ie = PluginCache::get().ie(target_device);
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);
@@ -40,7 +40,6 @@ protected:
     std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_executable_network; }
 };
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
