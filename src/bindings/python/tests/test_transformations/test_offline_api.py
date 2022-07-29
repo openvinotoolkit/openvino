@@ -44,10 +44,10 @@ def get_lstm_sequence_model():
 
     lstm_sequence = ov.opset9.lstm_sequence(parameter_x, parameter_y, parameter_z, seq_lengths, const_w, const_r, const_b, 128, "FORWARD")
     y_out = ov.opset9.result(lstm_sequence.output(0))
-    Ho = ov.opset9.result(lstm_sequence.output(1))
-    Co = ov.opset9.result(lstm_sequence.output(2))
+    ho = ov.opset9.result(lstm_sequence.output(1))
+    co = ov.opset9.result(lstm_sequence.output(2))
 
-    model = Model([y_out, Ho, Co], [parameter_x, parameter_y, parameter_z])
+    model = Model([y_out, ho, co], [parameter_x, parameter_y, parameter_z])
     return model
 
 
@@ -86,8 +86,8 @@ def get_gru_sequence_model():
 
     gru_sequence = ov.opset9.gru_sequence(parameter_x, parameter_y, seq_lengths, const_w, const_r, const_b, 128, "FORWARD")
     y_out = ov.opset9.result(gru_sequence.output(0))
-    Ho = ov.opset9.result(gru_sequence.output(1))
-    model = Model([y_out, Ho], [parameter_x, parameter_y])
+    ho = ov.opset9.result(gru_sequence.output(1))
+    model = Model([y_out, ho], [parameter_x, parameter_y])
 
     return model
 
