@@ -1,4 +1,4 @@
-# AUGRUSequence  {#openvino_docs_ops_sequence_AUGRUSequence}
+# AUGRUSequence
 
 **Versioned name**: *AUGRUSequence*
 

@@ -1,4 +1,4 @@
-# AUGRUCell  {#openvino_docs_ops_sequence_AUGRUCell}
+# AUGRUCell
 
 **Versioned name**: *AUAUGRUCell*
 
