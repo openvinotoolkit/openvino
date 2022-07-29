@@ -25,7 +25,7 @@ namespace pass {
 namespace ric_attr {
 
 namespace {
-std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& values) {
+std::shared_ptr<opset8::Constant> create_1d_const(const std::vector<int64_t>& values) {
     return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
 }
 }  // namespace
@@ -35,8 +35,6 @@ std::shared_ptr<opset8::Constant> create_const(const std::vector<int64_t>& value
 // In addition, attribute has some functionality and properties for propagation.
 class Attribute {
 public:
-    using callback_t = std::function<void(Input<Node>, const Attribute&)>;
-
     Attribute(std::vector<int64_t> order, int64_t axis, bool is_final = false, bool is_initial = false)
         : m_order(std::move(order)),
           m_axis(axis),
@@ -68,11 +66,15 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input) const {
-        if (get_axis() >= input.get_partial_shape().size())
-            throw std::runtime_error("Axis not in range");
+        if (get_axis() >= input.get_partial_shape().size()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
+            return;
+        }
         const auto& axis_dim = input.get_partial_shape()[get_axis()];
-        if (axis_dim.is_dynamic())
-            throw std::runtime_error("Axis dimension is dynamic");
+        if (axis_dim.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
+            return;
+        }
         auto output = input.get_source_output();
         // Handle case when the RIC order is default
         auto order = get_order();
@@ -80,9 +82,9 @@ public:
             order.resize(axis_dim.get_length());
             std::iota(order.rbegin(), order.rend(), 0);
         }
-        auto gather = std::make_shared<opset8::Gather>(output, create_const(order), create_const({get_axis()}));
+        auto gather = std::make_shared<opset8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
         input.replace_source_output(gather);
-        // TODO: copy runtime info from RIC sub-graph
+        // TODO: copy runtime info from RIC sub-graph (ticket 88597)
     }
 
     bool can_be_fused() const {
@@ -633,8 +635,19 @@ class Binary : public ngraph::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
+        auto fake_quantize_pattern =
+            pattern::wrap_type<opset8::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank()),
+                                                      pattern::any_input(pattern::has_static_rank())},
+                                                     pattern::has_static_rank());
+        auto binary_elementwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
+            {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
+            pattern::has_static_rank());
+
         auto pattern_root =
-            pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>(pattern::has_static_rank());
+            std::make_shared<pattern::op::Or>(OutputVector{fake_quantize_pattern, binary_elementwise_pattern});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();
@@ -668,8 +681,6 @@ public:
             for (const auto& input : root->inputs()) {
                 auto output = input.get_source_output();
                 const auto& shape = output.get_partial_shape();
-                if (shape.rank().is_dynamic())
-                    return false;
                 const int64_t& shape_rank = shape.rank().get_length();
                 if (shape_rank > data_rank) {
                     // TODO: handle case when constant input broadcast another one
@@ -686,7 +697,7 @@ public:
                 if (axis_dim.is_dynamic())
                     return false;
                 if (axis_dim == 1) {
-                    // we don't have to insert RIC for constant, so we keep propagating
+                    // we don't have to insert RIC, because the channel dimension is 1
                     continue;
                 }
 
@@ -757,8 +768,7 @@ public:
     OPENVINO_RTTI("Constant", "0");
     Constant() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        // TODO: enable conditional compile
-        // RUN_ON_FUNCTION_SCOPE(Constant);
+        RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
             if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
                  std::dynamic_pointer_cast<opset8::FakeQuantize>(node) ||
