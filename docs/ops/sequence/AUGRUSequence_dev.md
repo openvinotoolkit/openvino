@@ -98,9 +98,9 @@ The rest of the attributes are supported only with default values:
 
 * **5**: `R` - 3D tensor of type *T1* and shape `[num_directions, 3 * hidden_size, hidden_size]`. The recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **6**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[num_directions, 3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[num_directions, 4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
+* **6**: `B` - 2D tensor of type *T1*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[num_directions, 3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[num_directions, 4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
 
-* **7**: `A` - 3D tensor of type *T* `[batch_size, seq_length, 1]`, the attention score. **Required.**
+* **7**: `A` - 3D tensor of type *T1* `[batch_size, seq_length, 1]`, the attention score. **Required.**
 
 **Outputs**
 
