@@ -27,8 +27,6 @@ AUGRU formula:
   Ht = (1 - zt') (.) ht + zt' (.) Ht-1
 ```
 
-Activation functions for gates: *sigmoid* for f, *tanh* for g.
-
 **Attributes**
 
 * *hidden_size*
@@ -38,44 +36,37 @@ Activation functions for gates: *sigmoid* for f, *tanh* for g.
   * **Type**: `int`
   * **Required**: *yes*
 
-
-The rest of the attributes are supported only with default values:
-
 * *activations*
 
   * **Description**: activation functions for gates
-  * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
+  * **Range of values**: *sigmoid*, *tanh*
   * **Type**: a list of strings
   * **Default value**: *sigmoid* for f, *tanh* for g
   * **Required**: *no*
-  * **Supported value**: *sigmoid* for f, *tanh* for g
 
 * *activations_alpha, activations_beta*
 
   * **Description**: *activations_alpha, activations_beta* attributes of functions; applicability and meaning of these attributes depends on chosen activation functions
-  * **Range of values**: a list of floating-point numbers
+  * **Range of values**: []
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
-  * **Supported value**: []
 
 * *clip*
 
   * **Description**: *clip* specifies bound values *[-C, C]* for tensor clipping. Clipping is performed before activations.
-  * **Range of values**: a positive floating-point number
+  * **Range of values**: `0.`
   * **Type**: `float`
   * **Default value**: `0.` that means the clipping is not applied
   * **Required**: *no*
-  * **Supported value**: `0.`
 
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes, if the output of hidden gate is multiplied by the reset gate before or after linear transformation.
-  * **Range of values**: True or False
+  * **Range of values**: False
   * **Type**: `boolean`
   * **Default value**: False
   * **Required**: *no*.
-  * **Supported value**: False
 
 **Inputs**
 

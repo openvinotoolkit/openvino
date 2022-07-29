@@ -39,8 +39,6 @@ Only `forward` direction is supported, so `num_directions` is always equal to `1
   * **Type**: `int`
   * **Required**: *yes*
 
-The rest of the attributes are supported only with default values:
-
 * *activations*
 
   * **Description**: activation functions for gates
