@@ -35,63 +35,20 @@ def get_model_name_from_args(argv: argparse.Namespace):
     return model_name
 
 
-def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
+def main(cli_parser: argparse.ArgumentParser):
     argv = cli_parser.parse_args()
-    model_name = get_model_name_from_args(argv)
-    ngraph_function = convert(
-        argv.input_model,
-        framework,
-        model_name,
-        argv.input_shape,
-        argv.scale,
-        argv.reverse_input_channels,
-        argv.log_level,
-        argv.input,
-        argv.output,
-        argv.mean_values,
-        argv.scale_values,
-        argv.source_layout,
-        argv.target_layout,
-        argv.layout,
-        argv.transform,
-        argv.extensions,
-        argv.batch,
-        argv.silent,
-        argv.static_shape,
-        argv.progress,
-        argv.stream_output,
-        argv.transformations_config,
-        argv.use_new_frontend,
-        argv.use_legacy_frontend,
-        argv.disable_omitting_optional,
-        argv.enable_flattening_nested_params,
-        argv.input_model_is_text,
-        argv.input_checkpoint,
-        argv.input_meta_graph,
-        argv.saved_model_dir,
-        argv.saved_model_tags,
-        argv.tensorflow_custom_operations_config_update,
-        argv.tensorflow_object_detection_api_pipeline_config,
-        argv.tensorboard_logdir,
-        argv.tensorflow_custom_layer_libraries,
-        argv.input_proto,
-        argv.caffe_parser_path,
-        argv.k,
-        argv.input_symbol,
-        argv.nd_prefix_name,
-        argv.pretrained_model_name,
-        argv.save_params_from_nd,
-        argv.legacy_mxnet_model,
-        argv.enable_ssd_gluoncv,
-        argv.counts,
-        argv.remove_output_softmax,
-        argv.remove_memory)
+    argv.model_name = get_model_name_from_args(argv)
+    argv = vars(argv)
+    ngraph_function = convert(**argv)
 
     if ngraph_function is None:
         return 1
 
-    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-    model_path = os.path.normpath(os.path.join(output_dir, model_name + '.xml'))
+    output_dir = argv['output_dir'] if argv['output_dir'] != '.' else os.getcwd()
+    model_path = os.path.normpath(os.path.join(output_dir, argv['model_name'] + '.xml'))
+
+    # Ticket for fixing: 88606
+    print('[ WARNING ] MO Meta data is not serialized to IR.'.format(get_ir_version(argv)))
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
@@ -103,5 +60,4 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    fe_manager = FrontEndManager()
-    sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))
+    sys.exit(main(get_all_cli_parser(FrontEndManager())))
