@@ -80,7 +80,7 @@ AUGRU formula:
 
 * **6**: `B` - 2D tensor of type *T*. The biases. If *linear_before_reset* is set to  `False`, then the shape is `[3 * hidden_size]`, gate order: zrh. Otherwise the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. **Required.**
 
-* **6**: `A` - 2D tensor of type *T* and shape `[batch_size, 1]`, the attention score. **Required.**
+* **7**: `A` - 2D tensor of type *T* and shape `[batch_size, 1]`, the attention score. **Required.**
 
 
 **Outputs**
