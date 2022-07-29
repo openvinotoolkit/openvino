@@ -59,8 +59,8 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
 }
 
 void OVInferRequestDynamicTests::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(function, inOutShapes, target_device, configuration) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
 }
 

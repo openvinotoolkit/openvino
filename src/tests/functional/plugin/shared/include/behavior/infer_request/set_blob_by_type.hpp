@@ -19,7 +19,7 @@ using InferRequestSetBlobByTypeParams = std::tuple<
 >;
 
 class InferRequestSetBlobByType : public testing::WithParamInterface<InferRequestSetBlobByTypeParams>,
-                                  public virtual ov::test::behavior::APIBaseTest {
+                                  public BehaviorTestsUtils::IEInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestSetBlobByTypeParams> obj) {
         FuncTestUtils::BlobType BlobType;
@@ -47,7 +47,6 @@ public:
     }
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; }
     bool blobTypeIsSupportedByDevice() {
         switch (blobType) {
             case FuncTestUtils::BlobType::Memory:

@@ -16,10 +16,6 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-std::string OVInferRequestIOTensorTest::getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
-    return OVInferRequestTests::getTestCaseName(obj);
-}
-
 void OVInferRequestIOTensorTest::SetUp() {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -241,8 +237,9 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
 }
 
 void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     function = ngraph::builder::subgraph::makeConvPoolRelu();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
@@ -251,14 +248,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
 void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     execNet = {};
     req = {};
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    if (this->HasFailure()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::FAILED);
-    } else if (this->IsSkipped()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::SKIPPED);
-    } else {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ov_infer_request, target_device, ov::test::utils::PassRate::Statuses::PASSED);
-    }
+    APIBaseTest::TearDown();
 }
 
 TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
@@ -303,8 +293,8 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
 }
 
 void OVInferRequestCheckTensorPrecision::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
     {
         auto parameter1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});

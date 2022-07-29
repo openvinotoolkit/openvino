@@ -18,13 +18,13 @@ typedef std::tuple<
 > InferRequestParams;
 
 class InferRequestConfigTest : public testing::WithParamInterface<InferRequestParams>,
-                               public virtual ov::test::behavior::APIBaseTest {
+                               public BehaviorTestsUtils::IEInferRequestTestBase {
 public:
     void SetUp() override {
-        APIBaseTest::SetUp();
+        std::tie(streamExecutorNumber, target_device, configuration) = this->GetParam();
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(streamExecutorNumber, target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
         // Create CNNNetwork from ngrpah::Function
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
         cnnNet = InferenceEngine::CNNNetwork(function);

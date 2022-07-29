@@ -55,13 +55,34 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
+class IEInferRequestTestBase :  public ov::test::behavior::APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ie_infer_request;
+    };
+};
+
+class IEExecutableNetworkTestBase :  public ov::test::behavior::APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ie_executable_network;
+    };
+};
+
+class IEPluginTestBase :  public ov::test::behavior::APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ie_plugin;
+    };
+};
+
 typedef std::tuple<
         std::string,                        // Device name
         std::map<std::string, std::string>  // Config
 > InferRequestParams;
 
 class InferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                          public virtual ov::test::behavior::APIBaseTest {
+                          public IEInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -96,13 +117,11 @@ public:
     }
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; };
-
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
-    std::map<std::string, std::string> configuration;
+    std::map<std::string, std::string> configuration;;
 };
 
 inline InferenceEngine::Core createIECoreWithTemplate() {

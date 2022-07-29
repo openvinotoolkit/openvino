@@ -43,13 +43,12 @@ using OVInferRequestDynamicParams = std::tuple<
 >;
 
 class OVInferRequestDynamicTests : public testing::WithParamInterface<OVInferRequestDynamicParams>,
-                                   virtual public APIBaseTest {
+                                   public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj);
 
 protected:
     void SetUp() override;
-    void set_api_entity() override { api_entity = utils::ov_entity::ov_infer_request; }
     bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();

@@ -15,7 +15,6 @@ namespace test {
 namespace behavior {
 
 struct OVInferRequestIOTensorTest : public OVInferRequestTests {
-    static std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj);
     void SetUp() override;
     void TearDown() override;
     ov::InferRequest req;
@@ -29,7 +28,7 @@ using OVInferRequestSetPrecisionParams = std::tuple<
         ov::AnyMap                                              // Config
 >;
 struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterface<OVInferRequestSetPrecisionParams>,
-                                                public CommonTestUtils::TestsCommon {
+                                                public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
@@ -37,7 +36,6 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     std::shared_ptr<ov::Model> function;
     ov::CompiledModel execNet;
     ov::InferRequest req;
-    std::string         target_device;
     ov::AnyMap          config;
     element::Type       element_type;
 };
@@ -45,7 +43,7 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
 using OVInferRequestCheckTensorPrecisionParams = OVInferRequestSetPrecisionParams;
 
 struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
-                                            public APIBaseTest {
+                                            public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;

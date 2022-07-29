@@ -11,8 +11,8 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
-using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 using namespace CommonTestUtils;
+using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestIOBBlobTest, CanCreateInferRequest) {
     // Create InferRequest

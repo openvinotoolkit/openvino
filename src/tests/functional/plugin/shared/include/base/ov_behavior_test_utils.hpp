@@ -59,13 +59,34 @@ public:
     }
 };
 
+class OVInferRequestTestBase :  public APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ov_infer_request;
+    };
+};
+
+class OVCompiledNetworkTestBase :  public APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ov_compiled_model;
+    };
+};
+
+class OVPluginTestBase :  public APIBaseTest {
+private:
+    void set_api_entity() override {
+        api_entity = ov::test::utils::ov_entity::ov_plugin;
+    };
+};
+
 typedef std::tuple<
         std::string, // Device name
         ov::AnyMap   // Config
 > InferRequestParams;
 
 class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                            public APIBaseTest {
+                            public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -104,10 +125,6 @@ public:
     }
 
 protected:
-    void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ov_infer_request;
-    };
-
     ov::CompiledModel execNet;
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;

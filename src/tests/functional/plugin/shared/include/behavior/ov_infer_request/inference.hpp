@@ -71,14 +71,12 @@ inline OVInferReqInferParam roi_1d() {
 } // namespace tensor_roi
 
 class OVInferRequestInferenceTests : public testing::WithParamInterface<OVInferRequestInferenceTestsParams>,
-                                     public APIBaseTest {
+                                     public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestInferenceTestsParams>& device_name);
 
 protected:
     void SetUp() override;
-
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_infer_request; }
 
     static std::shared_ptr<Model> create_n_inputs(size_t num, element::Type type,
                                                   const PartialShape& shape);

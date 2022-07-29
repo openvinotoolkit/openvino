@@ -19,8 +19,8 @@ std::string OVInferRequestInferenceTests::getTestCaseName(
 void OVInferRequestInferenceTests::SetUp() {
     m_param = std::get<0>(GetParam());
     target_device = std::get<1>(GetParam());
-    APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
 }
 
 std::shared_ptr<Model> OVInferRequestInferenceTests::create_n_inputs(size_t n,
