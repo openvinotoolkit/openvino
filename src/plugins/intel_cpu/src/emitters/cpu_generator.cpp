@@ -118,6 +118,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
+    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = CREATE_EMITTER(TileSchedulerEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {

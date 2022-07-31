@@ -46,6 +46,14 @@ std::shared_ptr<ov::Model> AddSinhFunction::initReference() const {
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
 }
+std::shared_ptr<ov::Model> AddSinhConstFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[0]), -10., 10.);
+    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shapes[0], const_values);
+    auto sin0 = std::make_shared<ov::op::v0::Sinh>(data0);
+    auto add = std::make_shared<op::v1::Add>(sin0, const_data1);
+    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
+}
 std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
@@ -97,6 +105,28 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsSinhFunction::initOriginal() const 
     auto sub = std::make_shared<op::v1::Subtract>(sinh2, const_data);
     auto mul = std::make_shared<op::v1::Multiply>(add, sub);
     return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1, data2});
+}
+std::shared_ptr<ov::Model> EltwiseMaxNumParamsSinhFunction::initOriginal() const {
+    ParameterVector params;
+    std::vector<std::shared_ptr<Node>> sinh; // 10
+    for (const auto& shape : input_shapes) {
+        auto param = std::make_shared<op::v0::Parameter>(precision, shape);
+        params.push_back(param);
+        sinh.push_back(std::make_shared<op::v0::Sinh>(param));
+    }
+    std::vector<std::shared_ptr<Node>> add; // 5
+    for (size_t i = 0; i < input_shapes.size() / 2; i++) {
+        add.push_back(std::make_shared<op::v1::Add>(sinh[i * 2], sinh[i * 2 + 1]));
+    }
+    std::vector<std::shared_ptr<Node>> mul; // 2
+    for (size_t i = 0; i < add.size() / 2; i++) {
+        auto mul_node = std::make_shared<op::v1::Multiply>(add[i * 2], add[i * 2 + 1]);
+        mul.push_back(mul_node);
+    }
+    auto sub = std::make_shared<op::v1::Subtract>(mul[0], mul[1]);
+    auto power = std::make_shared<op::v1::Power>(add.back(), sub);
+    auto exit_sinh = std::make_shared<op::v0::Sinh>(power);
+    return std::make_shared<ov::Model>(NodeVector{sub, exit_sinh}, params);
 }
 
 std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initOriginal() const {

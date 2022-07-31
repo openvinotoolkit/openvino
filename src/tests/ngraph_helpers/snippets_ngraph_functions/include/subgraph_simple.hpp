@@ -29,13 +29,14 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
-/// Add separated from inputs by Sin to WA CPU-specific disabling after inputs.
+/// Add separated from inputs by Sinh to WA CPU-specific disabling after inputs.
 /// Works because Sinh is not supported by tokenization yet.
 /// Tokenized simply by starting subgraph.
 //   in1       in2
-//   Sin       Sinh
+//   Sinh       Sinh
 //        Add
 //      Result
+// todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class AddSinhFunction : public SnippetsFunctionBase {
 public:
     explicit AddSinhFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
@@ -44,6 +45,21 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
+};
+/// Like AddSinh but with a constant second input (and no sinh on in)
+//   in1       in2
+//   Sin       Sinh
+//        Add
+//      Result
+// todo: remove Sinh once "no subgraph after input" limitation is relaxed
+class AddSinhConstFunction : public SnippetsFunctionBase {
+public:
+    explicit AddSinhConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+//    std::shared_ptr<ov::Model> initReference() const override;
 };
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
@@ -77,11 +93,30 @@ protected:
 };
 /// EltwiseFunctionThreeInputs with Sinh after inputs to to WA CPU-specific disabling after inputs
 /// See AddSinh for details.
+// todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class EltwiseThreeInputsSinhFunction : public SnippetsFunctionBase {
 public:
     explicit EltwiseThreeInputsSinhFunction(const std::vector<Shape>& inputShapes) :
         SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+/// Eltwise graph with 10 inputs and 2 outputs.
+/// Needed to test for a max number of inputs+outputs allowed.
+// in1   in2   in3 ... in10
+// Sinh  Sinh  Sinh ...Sinh
+// ........................
+//    Subtract    Power
+//          \   Sinh
+//          Result
+// todo: remove Sinh once "no subgraph after input" limitation is relaxed
+class EltwiseMaxNumParamsSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<Shape>& inputShapes) :
+            SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 10, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
