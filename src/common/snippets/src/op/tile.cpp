@@ -8,5 +8,5 @@
 using namespace std;
 using namespace ngraph;
 
-snippets::op::Tile::Tile(const std::vector<std::pair<std::shared_ptr<snippets::Emitter>, snippets::RegInfo>>& nested) : Op(), region(nested) {
+snippets::op::Tile::Tile(const std::vector<AllocatedEmitter>& nested) : Op(), region(nested) {
 }

@@ -35,6 +35,7 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = dummy_functor;
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {

@@ -477,7 +477,7 @@ TokenizeSnippets::TokenizeSnippets() {
             throw ngraph_error("body results and node results size mismatch during subgraph collaps");
         }
         // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() > 7) {
+        if (body_parameters.size() + body_results.size() > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs and " + std::to_string(body_results.size()) + " outputs.";
             const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
