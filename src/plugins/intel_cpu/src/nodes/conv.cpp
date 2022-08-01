@@ -715,8 +715,8 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::array<dnnl::primitive_attr, 3> attrs;
-    const uint8_t attrsNum = !shouldTryBrgconv ? 1 : inputZeroPoints.size() == 1 ? 3 : 2;
+    std::array<dnnl::primitive_attr, 2> attrs;
+    uint8_t attrsNum = 0;
     SetPostOpsAndZeroPoints(attrs, attrsNum);
     bool containJitImpl = false;
 
@@ -927,23 +927,40 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
-// attr[0] - depthwise, quantize postops. pass output compensation.
-// attr[1] - binary postops. If zp per-tensor on AMX, pass per-tensor zp intput, otherwise pass output compensation.
-// attr[2] - depthwise, quantize postops. Only available when zp per-tensor on AMX, pass per-tensor zp intput.
-void Convolution::SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 3>& attrs, const uint8_t attrsNum) {
+void Convolution::SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 2>& attrs, uint8_t& attrsNum) {
+    const bool havingZeroPoint = (legacyOutputCompensation.size() != 0);
+    const bool zpPerTensor = (havingZeroPoint && inputZeroPoints.size() == 1);
+    const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.size() == 0);
+
+    attrsNum = 1;
+    // attr[0] - Legacy post ops + Legacy zero points
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
     addLegacyZeroPoints(attrs[0]);
+    if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
+        attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1 &&
+        attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) == -1 && !havingZeroPoint) {
+        // Avoid duplicate same attribute when shouldTryBrgconv is True;
+        return;
+    }
 
-    if (attrsNum == 2) {
-        //If having input zp, would be per-channel.
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-        addLegacyZeroPoints(attrs[1]);
-    } else if (attrsNum == 3) {
-        //Having per-tensor input zero point.
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-        addZeroPoints(attrs[1]);
-        setPostOps(attrs[2], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
-        addZeroPoints(attrs[2]);
+    // Per channel zero point can only use attr[0];
+    if (zpPerChannel)
+        return;
+
+    if (shouldTryBrgconv) {
+        attrsNum = 2;
+
+        if (!zpPerTensor) {
+            // attr[1] - Binary post ops && without zero point
+            setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+        } else {
+            // attr[1] - legacy post ops && stock zero points
+            //@todo: Switch back to binary postops when binary perf issue fix.
+            // ONEDNN limitition: BRGCONV_AMX does not support input zeropoint.Only JIT_AMX supports input zp.
+            // So for now, Use JIT AMX with legacy post ops to hanlde pertensor zero point for performance gain.
+            setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+            addZeroPoints(attrs[1]);
+        }
     }
 }
 
@@ -966,8 +983,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
 
-    std::array<dnnl::primitive_attr, 3> attrs;
-    const uint8_t attrsNum = !shouldTryBrgconv ? 1 : inputZeroPoints.size() == 1 ? 3 : 2;
+    std::array<dnnl::primitive_attr, 2> attrs;
+    uint8_t attrsNum = 0;
     SetPostOpsAndZeroPoints(attrs, attrsNum);
 
     auto rightConfig = selectedPD->getConfig();
@@ -1034,8 +1051,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                                     << " but got: " << impl_type_to_string(impl_type);
                     }
                     rightConfig = cfg;
-                    preferLegacyPostOps = (n != 1);
-                    preferLegacyZeroPoint = (attrsNum != 3) || (n == 0);
+                    preferLegacyPostOps = !(n == 1 && inputZeroPoints.size() == 0);
+                    preferLegacyZeroPoint = (n == 0);
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {
                     if (impl_type == selectedPD->getImplementationType()) {

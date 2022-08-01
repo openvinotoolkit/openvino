@@ -93,7 +93,7 @@ private:
     void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
-    void SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 3>& attrs, const uint8_t attrsNum);
+    void SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 2>& attrs, uint8_t& attrsNum);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;
