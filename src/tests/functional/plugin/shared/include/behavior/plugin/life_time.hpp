@@ -27,30 +27,26 @@ typedef std::tuple<
         std::vector<int>>    // Order
 HoldersParams;
 
-class HoldersTest : public ov::test::behavior::APIBaseTest,
+class HoldersTest : public BehaviorTestsUtils::IEPluginTestBase,
                     public ::testing::WithParamInterface<HoldersParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<HoldersParams> obj);
     void SetUp() override;
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; }
-
     std::vector<int> order;
     std::shared_ptr<ngraph::Function> function;
 };
 
 using HoldersTestImportNetwork = HoldersTest;
 
-class HoldersTestOnImportedNetwork : public ov::test::behavior::APIBaseTest,
+class HoldersTestOnImportedNetwork : public BehaviorTestsUtils::IEPluginTestBase,
                                      public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; }
-
     std::shared_ptr<ngraph::Function> function;
 };
 

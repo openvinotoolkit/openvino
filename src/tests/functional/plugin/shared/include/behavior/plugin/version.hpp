@@ -15,7 +15,7 @@
 
 namespace BehaviorTestsDefinitions {
 class VersionTest : public testing::WithParamInterface<std::string>,
-                    public ov::test::behavior::APIBaseTest {
+                    public BehaviorTestsUtils::IEPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string targetDevice;
@@ -28,8 +28,8 @@ public:
 
     void SetUp()  override {
         target_device = this->GetParam();
-        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

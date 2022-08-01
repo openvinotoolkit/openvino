@@ -52,7 +52,7 @@ using compileKernelsCacheParams = std::tuple<
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
 >;
 class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
-                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+                                            public testing::WithParamInterface<compileKernelsCacheParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
 protected:

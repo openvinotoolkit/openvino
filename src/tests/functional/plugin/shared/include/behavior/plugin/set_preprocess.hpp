@@ -16,11 +16,7 @@
 #include "ie_ngraph_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-class InferRequestPreprocessTest : public virtual BehaviorTestsUtils::BehaviorTestsBasic {
-    void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ie_plugin;
-    };
-};
+using InferRequestPreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
     // Create CNNNetwork from ngraph::Function
@@ -581,7 +577,7 @@ typedef std::tuple<
 > PreprocessConversionParams;
 
 class InferRequestPreprocessConversionTest : public testing::WithParamInterface<PreprocessConversionParams>,
-                                             public CommonTestUtils::TestsCommon {
+                                             public BehaviorTestsUtils::IEPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessConversionParams> obj) {
         InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
@@ -630,25 +626,26 @@ public:
     }
 
     void SetUp()  override {
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
                  setInputBlob, setOutputBlob,
                  target_device, configuration) = this->GetParam();
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        APIBaseTest::TearDown();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
     InferenceEngine::Layout netLayout, iLayout, oLayout;
     bool setInputBlob, setOutputBlob;
-    std::string target_device;
     std::map<std::string, std::string> configuration;
 };
 

@@ -13,47 +13,6 @@ namespace BehaviorTestsUtils {
 
 using namespace CommonTestUtils;
 
-typedef std::tuple<
-        InferenceEngine::Precision,         // Network precision
-        std::string,                        // Device name
-        std::map<std::string, std::string>  // Config
-> BehaviorBasicParams;
-
-class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
-                           public virtual ov::test::behavior::APIBaseTest {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
-        InferenceEngine::Precision  netPrecision;
-        std::string targetDevice;
-        std::map<std::string, std::string> configuration;
-        std::tie(netPrecision, targetDevice, configuration) = obj.param;
-        std::ostringstream result;
-        result << "netPRC=" << netPrecision.name() << "_";
-        result << "targetDevice=" << targetDevice;
-        if (!configuration.empty()) {
-            result << "config=" << configuration;
-        }
-        return result.str();
-    }
-
-    void SetUp() override {
-        std::tie(netPrecision, target_device, configuration) = this->GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        APIBaseTest::SetUp();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-    void TearDown() override {
-        if (!configuration.empty()) {
-            PluginCache::get().reset();
-        }
-        APIBaseTest::TearDown();
-    }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::map<std::string, std::string> configuration;
-};
 
 class IEInferRequestTestBase :  public ov::test::behavior::APIBaseTest {
 private:
@@ -176,5 +135,47 @@ public:
         APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
     }
+};
+
+typedef std::tuple<
+        InferenceEngine::Precision,         // Network precision
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> BehaviorBasicParams;
+
+class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
+                           public IEPluginTestBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
+        InferenceEngine::Precision  netPrecision;
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(netPrecision, targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "targetDevice=" << targetDevice;
+        if (!configuration.empty()) {
+            result << "config=" << configuration;
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::tie(netPrecision, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+    }
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<ngraph::Function> function;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> configuration;
 };
 } // namespace BehaviorTestsUtils

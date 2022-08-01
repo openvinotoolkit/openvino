@@ -78,7 +78,7 @@ public:
 //
 
 class CoreThreadingTests : public testing::WithParamInterface<Params>,
-                           public virtual ov::test::behavior::APIBaseTest,
+                           public BehaviorTestsUtils::IEPluginTestBase,
                            public CoreThreadingTestsBase {
 public:
     void SetUp() override {
@@ -100,9 +100,6 @@ public:
         }
         return result.str();
     }
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; }
 };
 
 // tested function: GetVersions, UnregisterPlugin
@@ -185,7 +182,7 @@ enum struct ModelClass : unsigned {
 using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
 
 class CoreThreadingTestsWithIterations : public testing::WithParamInterface<CoreThreadingParams>,
-                                         public virtual ov::test::behavior::APIBaseTest,
+                                         public BehaviorTestsUtils::IEPluginTestBase,
                                          public CoreThreadingTestsBase {
 public:
     void SetUp() override {
@@ -217,8 +214,6 @@ public:
 
 
 protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; }
-
     ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;

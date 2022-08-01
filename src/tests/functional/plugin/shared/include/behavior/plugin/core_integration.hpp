@@ -29,11 +29,10 @@ namespace BehaviorTestsDefinitions {
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
-class IEClassBasicTestP : public virtual ov::test::behavior::APIBaseTest,
+class IEClassBasicTestP : public BehaviorTestsUtils::IEPluginTestBase,
                           public ::testing::WithParamInterface<std::pair<std::string, std::string> > {
 protected:
     std::string pluginName;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; };
 
 public:
     void SetUp() override {
@@ -44,11 +43,11 @@ public:
     }
 };
 
-class IEClassSetDefaultDeviceIDTest : public virtual ov::test::behavior::APIBaseTest,
+class IEClassSetDefaultDeviceIDTest : public BehaviorTestsUtils::IEPluginTestBase,
                                       public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string deviceID;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; };
+
 public:
     void SetUp() override {
         std::tie(target_device, deviceID) = GetParam();
@@ -79,7 +78,7 @@ using IEClassSpecificDeviceTestSetConfig = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassSpecificDeviceTestGetConfig = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassLoadNetworkAfterCoreRecreateTest = BehaviorTestsUtils::IEClassBaseTestP;
 
-class IEClassSeveralDevicesTest : public virtual ov::test::behavior::APIBaseTest,
+class IEClassSeveralDevicesTest : public BehaviorTestsUtils::IEPluginTestBase,
                                   public BehaviorTestsUtils::IEClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
 public:
@@ -91,9 +90,6 @@ public:
         IEClassNetworkTest::SetUp();
         target_devices = GetParam();
     }
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_plugin; };
 };
 
 using IEClassSeveralDevicesTestLoadNetwork = IEClassSeveralDevicesTest;
