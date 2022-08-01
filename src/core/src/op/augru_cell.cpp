@@ -23,6 +23,20 @@ op::v3::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
 }
 
 op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
+                             const Output<Node>& H_t,
+                             const Output<Node>& W,
+                             const Output<Node>& R,
+                             const Output<Node>& B,
+                             const Output<Node>& A,
+                             size_t hidden_size)
+    : RNNCellBase({X, H_t, W, R, B, A}, hidden_size, 0.f, std::vector<std::string>{"sigmoid", "tanh"}, {}, {}),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_linear_before_reset{false} {
+    constructor_validate_and_infer_types();
+}
+
+op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
                              const Output<Node>& initial_hidden_state,
                              const Output<Node>& W,
                              const Output<Node>& R,
@@ -54,6 +68,7 @@ bool op::v3::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v3::AUGRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_validate_and_infer_types);
+    // TODO: Output rank can be always static 2D
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
@@ -70,8 +85,15 @@ void op::v3::AUGRUCell::validate_and_infer_types() {
     const auto& w_pshape = get_input_partial_shape(2);
     const auto& r_pshape = get_input_partial_shape(3);
     const auto& b_pshape = get_input_partial_shape(4);
+    const auto& a_pshape = get_input_partial_shape(5);
 
     validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
+
+    // `A` input shape validation // [batch_size, 1]
+    NODE_VALIDATION_CHECK(this, a_pshape.rank().compatible(2), "'A' input must be a 2D tensor.");
+    if (a_pshape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(this, a_pshape[1].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
+    }
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
@@ -79,14 +101,16 @@ void op::v3::AUGRUCell::validate_and_infer_types() {
                               element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
                               element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
                               element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)),
-                          "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
+                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)),
+                          "Element types for inputs do not match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, a_pshape[0]) &&
                               Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-                          "Parameter batch_size not matched for X and initial_hidden_state inputs.");
+                          "Dimension batch_size is not matched between inputs.");
 
     // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
     NODE_VALIDATION_CHECK(this,
@@ -135,14 +159,6 @@ void op::v3::AUGRUCell::validate_and_infer_types() {
     // Set output size, type and shape
     set_output_size(1);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
-}
-
-void op::v3::AUGRUCell::add_default_bias_input() {
-    Output<Node> B =
-        op::v0::Constant::create(get_input_element_type(0),
-                                 ov::Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
-                                 vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
-    set_argument(4, B);
 }
 
 shared_ptr<Node> op::v3::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {

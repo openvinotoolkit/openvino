@@ -32,6 +32,15 @@ public:
               const Output<Node>& R,
               const Output<Node>& B,
               const Output<Node>& A,
+              std::size_t hidden_size);
+
+    // TODO: Remove this constructor
+    AUGRUCell(const Output<Node>& X,
+              const Output<Node>& initial_hidden_state,
+              const Output<Node>& W,
+              const Output<Node>& R,
+              const Output<Node>& B,
+              const Output<Node>& A,
               std::size_t hidden_size,
               const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
               const std::vector<float>& activations_alpha = {},
@@ -48,9 +57,6 @@ public:
     }
 
 private:
-    /// brief Add and initialize bias input to all zeros.
-    void add_default_bias_input();
-
     ///
     /// \brief The Activation function f.
     ///

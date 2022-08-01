@@ -148,8 +148,12 @@ void gru_cell(const T* X,
                    op::AutoBroadcastType::NUMPY);  //
     reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape,
                    op::AutoBroadcastType::NUMPY);  //
-    if (A) {                                       // Attention score input provided
-        reference::multiply(z_t.data(), A, z_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    T one[] = {1};
+    if (A) {  // Attention score input provided
+        Shape a_shape{gate_shape[0], 1};
+        std::vector<T> a_t(gate_shape[0]);
+        reference::subtract(one, A, a_t.data(), {1}, a_shape, op::AutoBroadcastType::NUMPY);
+        reference::multiply(z_t.data(), a_t.data(), z_t.data(), gate_shape, a_shape, op::AutoBroadcastType::NUMPY);
     }
     clip_activation(z_t, activation_f);
 
@@ -203,7 +207,6 @@ void gru_cell(const T* X,
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     std::vector<T> mul1(gate_shape_size);
     std::vector<T> mul2(gate_shape_size);
-    T one[] = {1};
     reference::subtract(one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastType::NUMPY);
     reference::multiply(mul1.data(), h_t.data(), mul1.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     reference::multiply(z_t.data(), H, mul2.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);

@@ -31,6 +31,16 @@ public:
                   const Output<Node>& R,
                   const Output<Node>& B,
                   const Output<Node>& A,
+                  size_t hidden_size);
+
+    // TODO: Remove this constructor
+    AUGRUSequence(const Output<Node>& X,
+                  const Output<Node>& H_t,
+                  const Output<Node>& sequence_lengths,
+                  const Output<Node>& W,
+                  const Output<Node>& R,
+                  const Output<Node>& B,
+                  const Output<Node>& A,
                   size_t hidden_size,
                   op::RecurrentSequenceDirection direction,
                   const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},

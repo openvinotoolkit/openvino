@@ -27,6 +27,25 @@ op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
                                      const Output<Node>& R,
                                      const Output<Node>& B,
                                      const Output<Node>& A,
+                                     std::size_t hidden_size)
+    : RNNCellBase({X, H_t, sequence_lengths, W, R, B, A},
+                  hidden_size,
+                  0.f,
+                  std::vector<std::string>{"sigmoid", "tanh"},
+                  {},
+                  {}),
+      m_direction(op::RecurrentSequenceDirection::FORWARD),
+      m_linear_before_reset(false) {
+    constructor_validate_and_infer_types();
+}
+
+op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
+                                     const Output<Node>& H_t,
+                                     const Output<Node>& sequence_lengths,
+                                     const Output<Node>& W,
+                                     const Output<Node>& R,
+                                     const Output<Node>& B,
+                                     const Output<Node>& A,
                                      std::size_t hidden_size,
                                      op::RecurrentSequenceDirection direction,
                                      const std::vector<std::string>& activations,
@@ -47,6 +66,7 @@ op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
 
 void op::v5::AUGRUSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_AUGRUSequence_validate_and_infer_types);
+    // TODO: Output rank can be always static
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
@@ -67,6 +87,7 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
     auto w_pshape = get_input_partial_shape(3);
     auto r_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
+    auto a_pshape = get_input_partial_shape(6);
 
     ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
 
@@ -76,16 +97,26 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
                               element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
                               element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
                               element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)),
-                          "Element types for X, initial_hidden_state, W, R and B inputs do not "
-                          "match.");
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
+                          "Element types for inputs do not match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, a_pshape[0]) &&
                               Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
                               Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-                          "Parameter batch_size not matched in AUGRUSequence.");
+                          "Dimension batch_size is not matched between inputs.");
+
+    // `A` input shape validation // [batch_size, seq_length, 1]
+    NODE_VALIDATION_CHECK(this, a_pshape.rank().compatible(3), "'A' input must be a 3D tensor.");
+    if (a_pshape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              a_pshape[1].compatible(x_pshape[1]),
+                              "Dimension `seq_length` must be the same for `X` and `A` inputs.");
+        NODE_VALIDATION_CHECK(this, a_pshape[2].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
+    }
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     NODE_VALIDATION_CHECK(this,
