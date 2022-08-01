@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
 
 * compiler the sample
 ```sh
-g++ -o mytest main.cpp -L. -lcustomer-library
+g++ -o TEST main.cpp -L. -lcustomer-library
 ```
 
 * run the sample
