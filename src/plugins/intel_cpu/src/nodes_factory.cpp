@@ -56,6 +56,7 @@
 #include "nodes/matrix_nms.h"
 #include "nodes/mvn.h"
 #include "nodes/gather.h"
+#include "nodes/grid_sample.hpp"
 #include "nodes/scatter_update.h"
 #include "nodes/gather_tree.h"
 #include "nodes/def_conv.h"
@@ -178,6 +179,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(Deconvolution, Type::Deconvolution);
     INTEL_CPU_NODE(Gather, Type::Gather);
+    INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(Range, Type::Range);
     INTEL_CPU_NODE(TopK, Type::TopK);

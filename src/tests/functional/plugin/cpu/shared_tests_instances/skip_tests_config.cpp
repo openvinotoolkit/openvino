@@ -167,6 +167,8 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        // Issue 90107. Division by zero in the reference implementation.
+        R"(smoke.*GridSampleLayerTestCPU.*(1.5.1.1.*2|2.4.7.1.*2|1.1.1.1.*2|1.2.1.5.*2|1.2.1.13.*2|4.7.1.11.*2|6.3.33.1.*2|2.11.1.17.*2|9.2.1.23.*2).*REFLECTION.*True.*)",
     };
 
 #define FIX_62820 0

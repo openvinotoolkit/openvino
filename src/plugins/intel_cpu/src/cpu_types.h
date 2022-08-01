@@ -72,6 +72,7 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
     Select,

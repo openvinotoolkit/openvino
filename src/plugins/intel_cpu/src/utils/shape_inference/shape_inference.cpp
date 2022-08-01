@@ -34,6 +34,7 @@
 #include "gather_elements_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "grid_sample_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -502,6 +503,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::GatherBase>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::GatherTree>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::GridSample>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::OneHot>(op)) {
         return make_shared_entryIOC(node);
