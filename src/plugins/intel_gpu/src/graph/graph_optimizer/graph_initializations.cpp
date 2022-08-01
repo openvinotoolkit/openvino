@@ -44,7 +44,7 @@ void graph_initializations::handle_split_node(program& p, split_node& node) {
     }
     // get_output size and validate split primitive inputs
     layout output_layout = node.get_output_layout();
-    tensor output_layout_size = output_layout.size;
+    tensor output_layout_size = output_layout.get_tensor();
 
     auto split_prim = node.typed_desc();
     std::size_t split_num = split_prim->output_offsets.size();
@@ -121,7 +121,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // calculating sizes
     program_node& input = node.input();
     layout input_layout = input.get_output_layout();
-    tensor recurrent_size = p.get_node(recurrent_id).get_output_layout().size;
+    tensor recurrent_size = p.get_node(recurrent_id).get_output_layout().get_tensor();
 
     // hidden tensor size = [batch, seq, hidden_size, direction]
     // the output of the element wise operation is cropped and used in the next time step

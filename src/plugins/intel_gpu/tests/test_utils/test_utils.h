@@ -553,7 +553,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";
@@ -603,7 +603,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_bin_blob_packed(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";
@@ -641,7 +641,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_blob(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";
