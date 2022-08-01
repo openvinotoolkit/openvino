@@ -923,8 +923,6 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
-        DEBUG_LOG("=================================");
-        DEBUG_LOG(getName(), " get levels from NGRAPH ", levels, "\n");
         if (levels <= 1)
             IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
 
@@ -1049,11 +1047,6 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 }
             }
         } else {
-            if (levels != 256 && outputLowData[0] < 0) {
-                levels = 256;
-                outputLowData[0] = -128;
-                outputHighData[0] = 127;
-            }
             auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
                 if (size == 0)
                     return true;
@@ -1176,9 +1169,14 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
-                                              (abs(ol / (oh - ol) - il / (ih - il)) < 0.001f);
+                                              (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256) ? 0.001 : 0.01);
+                if (abs(ol / (oh - ol) - il / (ih - il)) >= 0.01 && levels != 256)
+                    std::cout << getName() << " abs: " << abs(ol / (oh - ol) - il / (ih - il))
+                                << " threshold: 0.01 " << std::endl;
             }
 
+            if (levels != 256)
+                    std::cout << levels << "isfqscale"<< static_cast<int>(isFakeQuantizationWithScale) <<std::endl;
             if (isFakeQuantizationWithScale) {
                 for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
@@ -1986,7 +1984,7 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
     appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
-std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC) {
+std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC, const float zpErrorThreashold) {
     auto &cl = getCropLow();
     auto &ch = getCropHigh();
     auto &isc = getInputScale();
@@ -1995,6 +1993,9 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
     auto &osh = getOutputShift();
 
     std::vector<float> outScale;
+    //OV POT model will tune the inputL/InputHigh = -128.0 / 127.0.
+    const float s8InputZeroPoint = static_cast<float>(levels - 1) / 255.0 * 128.0;
+    const float s8OutputZeroPoint = (0.0 - std::floor(static_cast<float>(levels - 1) / 2.0 + 0.5));
 
     if (outDataType == memory::data_type::u8 &&
         getAlgorithm() == Algorithm::FQQuantization &&
@@ -2012,18 +2013,44 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
     }
 
     if (outDataType == memory::data_type::s8 &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
-        std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [this, zpErrorThreashold, s8InputZeroPoint](float val) {
+                        if (abs(val - s8InputZeroPoint) >= zpErrorThreashold && levels != 256) {
+                            std::cout << "ish check :" << getName() << " " << val + s8InputZeroPoint << " >= " << zpErrorThreashold
+                            << " levels: " << levels << " value: " << val << std::endl;
+                        }
+                        return std::abs(val - s8InputZeroPoint) < zpErrorThreashold;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.f;
+                    }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [this, zpErrorThreashold, s8OutputZeroPoint](float val) {
+            if (abs(val - s8OutputZeroPoint) >= zpErrorThreashold && levels != 256) {
+                std::cout << "osh check :" << getName() << " " << val - s8OutputZeroPoint << " >= " << zpErrorThreashold
+                          << " levels: " << levels << " value: " << val << std::endl;
+            }
+            return std::abs(val - s8OutputZeroPoint) < zpErrorThreashold;
+        })) {
         bool isCropAligned = true;
         for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > 0.0001f) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + static_cast<float>(levels - 1) / 255.0 * 128.0) >
+            (zpErrorThreashold)) {
+                if (levels != 256)
+                    std::cout << "input low cropcheck :" << getName() << " " << (cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
+                        << " levels: " << levels << " inputzp: " << s8InputZeroPoint << std::endl;
                 isCropAligned = false;
             }
         }
 
         for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - static_cast<float>(levels - 1) / 255.0 * 127.0) >
+                (zpErrorThreashold)) {
+                if (levels != 256)
+                    std::cout << "input high cropcheck :" << getName() << " " << (ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
+                        << " levels: " << levels << " inputzp: " << s8InputZeroPoint << std::endl;
                 isCropAligned = false;
             }
         }
