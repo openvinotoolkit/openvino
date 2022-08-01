@@ -1,6 +1,6 @@
 # Experimental: Protecting Deep Learning Model through Range Supervision ("RangeSupervision") {#pot_ranger_README}
 
-## Introdution
+## Introduction
 
 Deep neural network find applications in many scenarios where the prediction is a critical component for safety-relevant decisions. Such workloads can benefit from additional protection against underlying errors. For example, memory bit flips (**"soft errors"** originating, e.g., from external radiation or internal electrical disturbances within the circuitry) in der platform hosting the network inference can corrupt the learned network parameters and lead to incorrect predictions. Typically, errors resulting in very large parameter values have a more drastic impact on the network behavior. **The range supervision algorithm ("RangeSupervision") described here establishes and inserts additional protection layers after already present activation layers**. Those layers truncate values that are found to be out of an expected activation range in order to mitigate the traces of potential platform errors. They do so during inference by applying a *clamp* operation to any activation *x* in the input to the RangeSupervision layer,
 
