@@ -56,110 +56,29 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
                                      "Current output data type is unable to hold maximum index of a tensor.");
         }
     };
-    auto format = input_layout.format;
-    if (desc->with_axis) {
-        switch (desc->axis) {
-            case arg_max_min::x:
-                size_check(input_layout.spatial(0));
-                if (format == cldnn::format::bfzyx)
-                    return layout{output_data_type,
-                                  format::bfzyx,
-                                  tensor{input_layout.batch(),
-                                         input_layout.feature(),
-                                         (int32_t)desc->top_k,
-                                         input_layout.spatial(1),
-                                         input_layout.spatial(2)}};
-                else
-                    return layout{output_data_type,
-                                  format,
-                                  tensor{input_layout.batch(),
-                                         input_layout.feature(),
-                                         (int32_t)desc->top_k,
-                                         input_layout.spatial(1)}};
-            case arg_max_min::y:
-                size_check(input_layout.spatial(1));
-                if (format == cldnn::format::bfzyx)
-                    return layout{output_data_type,
-                                  format::bfzyx,
-                                  tensor{input_layout.batch(),
-                                         input_layout.feature(),
-                                         input_layout.spatial(0),
-                                         (int32_t)desc->top_k,
-                                         input_layout.spatial(2)}};
-                else
-                    return layout{output_data_type,
-                                  format,
-                                  tensor{input_layout.batch(),
-                                         input_layout.feature(),
-                                         input_layout.spatial(0),
-                                         (int32_t)desc->top_k}};
-            case arg_max_min::feature:
-                size_check(input_layout.feature());
-                if (format == cldnn::format::bfzyx)
-                    return layout{output_data_type,
-                                  format::bfzyx,
-                                  tensor{input_layout.batch(),
-                                         (int32_t)desc->top_k,
-                                         input_layout.spatial(0),
-                                         input_layout.spatial(1),
-                                         input_layout.spatial(2)}};
-                else
-                    return layout{output_data_type,
-                                  format,
-                                  tensor{input_layout.batch(),
-                                         (int32_t)desc->top_k,
-                                         input_layout.spatial(0),
-                                         input_layout.spatial(1)}};
-            case arg_max_min::batch:
-                size_check(input_layout.batch());
-                if (format == cldnn::format::bfzyx)
-                    return layout{output_data_type,
-                                  format::bfzyx,
-                                  tensor{(int32_t)desc->top_k,
-                                         input_layout.feature(),
-                                         input_layout.spatial(0),
-                                         input_layout.spatial(1),
-                                         input_layout.spatial(2)}};
-                else
-                    return layout{output_data_type,
-                                  format,
-                                  tensor{(int32_t)desc->top_k,
-                                         input_layout.feature(),
-                                         input_layout.spatial(0),
-                                         input_layout.spatial(1)}};
-            case arg_max_min::z:
-                size_check(input_layout.spatial(2));
-                return layout{output_data_type,
-                              format::bfzyx,
-                              tensor{input_layout.batch(),
-                                     input_layout.feature(),
-                                     input_layout.spatial(0),
-                                     input_layout.spatial(1),
-                                     (int32_t)desc->top_k}};
-            default:
-                break;
-        }
+    for (auto dim : input_layout.get_dims()) {
+        size_check(dim);
     }
-    size_check(input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1));
-    return layout{output_data_type,
-                  input_layout.format,
-                  tensor{input_layout.batch(), 1, (int32_t)desc->top_k, 1}};
+    auto format = input_layout.format;
+    auto sizes = input_layout.get_dims();
+    if (desc->axis >= static_cast<int64_t>(sizes.size()) || desc->axis < 0) {
+        IE_THROW() << "Incorrect arg_max_min axis.";
+    }
+    sizes[desc->axis] = desc->top_k;
+    return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};
 }
 
 std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto axis = desc->with_axis ? "true" : "false";
-    auto out_type = desc->output_type ? "max" : "min";
 
     std::stringstream primitive_description;
 
     json_composite conv_info;
     conv_info.add("top_k", desc->top_k);
-    conv_info.add("with axis", axis);
-    if (desc->with_axis)
-        conv_info.add("axis", desc->axis);
-    conv_info.add("output type", out_type);
+    conv_info.add("axis", desc->axis);
+    conv_info.add("output type", desc->mode);
+    conv_info.add("sort type", desc->sort);
     node_info->add("arg_max_min info", conv_info);
     node_info->dump(primitive_description);
 

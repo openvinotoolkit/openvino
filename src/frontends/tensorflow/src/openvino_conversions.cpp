@@ -14,9 +14,9 @@ void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Out
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
-            transpose<0, 3, 1, 2>(node);
+            node = make_transpose(node, {0, 3, 1, 2});
         } else if (rank == 5) {
-            transpose_3d<0, 4, 1, 2, 3>(node);
+            node = make_transpose(node, {0, 4, 1, 2, 3});
         }
     }
 }
@@ -25,11 +25,18 @@ void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Out
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
-            transpose<0, 2, 3, 1>(node);
+            node = make_transpose(node, {0, 2, 3, 1});
         } else if (rank == 5) {
-            transpose_3d<0, 2, 3, 4, 1>(node);
+            node = make_transpose(node, {0, 2, 3, 4, 1});
         }
     }
+}
+
+std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
+                                                      const ov::AxisVector& input_order) {
+    auto order = std::make_shared<ov::opset8::Constant>(element::i64, Shape{input_order.size()}, input_order);
+    auto transpose = std::make_shared<ov::opset8::Transpose>(arg, order);
+    return transpose;
 }
 
 }  // namespace tensorflow

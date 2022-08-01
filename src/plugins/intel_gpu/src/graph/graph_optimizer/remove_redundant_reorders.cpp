@@ -485,14 +485,14 @@ void remove_redundant_reorders::run(program& p) {
             input.set_output_padding(node->get_output_layout().data_padding);
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
-            fused_primitive_desc local_desc;
-            local_desc.node = p.get_node_ptr(node->id());
+            fused_primitive_desc local_desc(node->get_primitive());
+            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
+            node->set_input_layout(local_desc.input_layout);
+            local_desc.f_param = node->get_fuse_params();
             local_desc.dep_start_idx = input.get_fused_primitives().size();
             local_desc.output_layout = output_layout;
-            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
             local_desc.activation = activation_func::none;
             input.add_fused_primitive(local_desc);
-            node->set_input_layout(local_desc.input_layout);
 
             // remove reorder node
             LOG_NODE_REMOVAL(node->id());
@@ -559,7 +559,7 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).get_output_layout().size == reshape_node.get_output_layout().size &&
+                              reshape_input_node.get_dependency(0).get_output_layout().get_tensor() == reshape_node.get_output_layout().get_tensor() &&
                               reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
 
         if (remove_dep) {

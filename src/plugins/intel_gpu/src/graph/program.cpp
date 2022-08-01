@@ -90,7 +90,7 @@
 #include <sys/resource.h>
 #endif
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -228,9 +228,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto inputSize = prim_node.input().get_output_layout().size;
+            auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
@@ -250,9 +250,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
@@ -274,9 +274,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -303,7 +303,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = prim->size[prim->size.size() - i - 1];
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -587,7 +587,8 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
+    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
+        node.is_type<assign>() || node.is_type<read_value>()) {
         return;
     }
     node.constant = true;
@@ -1038,10 +1039,11 @@ void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
-    fused_primitive_desc local_desc;
-    local_desc.node = get_node_ptr(peer_node.id());
+    fused_primitive_desc local_desc(peer_node.get_primitive());
+    local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
+    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1334,7 +1336,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
             auto ifm = static_cast<uint32_t>(input_size.feature[0]);
             if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                 total_dw_conv_layers++;
@@ -1398,7 +1400,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
-            prim.type() != cldnn::scatter_nd_update::type_id()) {
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1425,10 +1429,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
-            prim.type() != cldnn::quantize::type_id())
+            prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
+        }
     }
-
 
     size_t total_conv_layers = lo.get_total_conv_count();
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
