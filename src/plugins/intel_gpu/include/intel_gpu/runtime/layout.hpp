@@ -430,6 +430,10 @@ private:
     tensor size;
 };
 
+inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
+    return os << p.to_string();
+}
+
 class optional_layout {
 public:
     optional_layout() {}
