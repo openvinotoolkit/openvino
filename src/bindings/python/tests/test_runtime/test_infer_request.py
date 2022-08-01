@@ -919,5 +919,3 @@ def test_convert_infer_request(device):
     with pytest.raises(TypeError) as e:
         deepcopy(res)
     assert "cannot copy 'openvino.runtime.ConstOutput' object." in str(e)
-
-    

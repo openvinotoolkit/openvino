@@ -67,6 +67,7 @@ from openvino.pyopenvino import properties
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
+
 # Extend Node class to support binary operators
 Node.__add__ = opset9.add
 Node.__sub__ = opset9.subtract
