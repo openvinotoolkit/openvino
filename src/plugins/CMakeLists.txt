@@ -31,3 +31,15 @@ endif()
 if(ENABLE_AUTO_BATCH)
     add_subdirectory(auto_batch)
 endif()
+
+# Register proxy plugin for CPU device
+ov_add_plugin(NAME PROXY
+              DEVICE_NAME "CPU"
+              DEFAULT_CONFIG
+              FALLBACK_PRIORITY:Intel_CPU)
+
+# Register proxy plugin for GPU device
+ov_add_plugin(NAME PROXY
+              DEVICE_NAME "GPU"
+              DEFAULT_CONFIG
+              FALLBACK_PRIORITY:Intel_GPU)
