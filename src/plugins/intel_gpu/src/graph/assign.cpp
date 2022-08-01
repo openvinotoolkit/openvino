@@ -20,8 +20,8 @@ assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
     memory_state::variable{node.get_primitive()->variable_id} {
 }
 
-layout assign_inst::calc_output_layout(const assign_node& node) {
-    return node.get_primitive()->output_layout;
+layout assign_inst::calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param) {
+    return impl_param.typed_desc<assign>()->output_layout;
 }
 
 std::string assign_inst::to_string(const assign_node& node) {
