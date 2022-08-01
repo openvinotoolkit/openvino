@@ -16,14 +16,11 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVPropertiesBase : public APIBaseTest {
+class OVPropertiesBase : public OVPluginTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
     AnyMap properties;
-
-protected:
-    void set_api_entity() override { api_entity = utils::ov_entity::ov_plugin; }
 };
 
 class OVEmptyPropertiesTests : public testing::WithParamInterface<std::string>,

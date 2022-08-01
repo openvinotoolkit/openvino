@@ -30,10 +30,10 @@ namespace behavior {
 }
 
 
-class OVClassBasicTestP : public APIBaseTest, public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
+class OVClassBasicTestP : public OVPluginTestBase,
+                          public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string pluginName;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 
 public:
     void SetUp() override {
@@ -44,12 +44,11 @@ public:
     }
 };
 
-class OVClassSetDefaultDeviceIDTest : public APIBaseTest,
+class OVClassSetDefaultDeviceIDTest : public OVPluginTestBase,
                                       public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string deviceID;
 
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 public:
     void SetUp() override {
         std::tie(target_device, deviceID) = GetParam();
@@ -61,13 +60,11 @@ using DevicePriorityParams = std::tuple<
         ov::AnyMap              // Configuration key and its default value
 >;
 
-class OVClassSetDevicePriorityConfigTest : public APIBaseTest, public ::testing::WithParamInterface<DevicePriorityParams> {
+class OVClassSetDevicePriorityConfigTest : public OVPluginTestBase,
+                                           public ::testing::WithParamInterface<DevicePriorityParams> {
 protected:
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> actualNetwork;
-
-
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 
 public:
     void SetUp() override {
@@ -109,11 +106,12 @@ using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConf
 using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
-class OVClassSeveralDevicesTest : public APIBaseTest,
+class OVClassSeveralDevicesTest : public OVPluginTestBase,
                                   public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
 public:
     std::vector<std::string> target_devices;
+
     void SetUp() override {
         target_device = CommonTestUtils::DEVICE_MULTI;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -121,8 +119,6 @@ public:
         OVClassNetworkTest::SetUp();
         target_devices = GetParam();
     }
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 };
 
 using OVClassSeveralDevicesTestLoadNetwork = OVClassSeveralDevicesTest;

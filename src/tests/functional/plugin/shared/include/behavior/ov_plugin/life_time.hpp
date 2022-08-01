@@ -10,32 +10,26 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVHoldersTest : public APIBaseTest,
+class OVHoldersTest : public OVPluginTestBase,
                       public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-
     void SetUp() override;
-
     void TearDown() override;
 
 protected:
-    void set_api_entity() override { api_entity = utils::ov_entity::ov_plugin; }
     std::string deathTestStyle;
     std::shared_ptr<ngraph::Function> function;
 };
 
-class OVHoldersTestOnImportedNetwork : public APIBaseTest,
+class OVHoldersTestOnImportedNetwork : public OVPluginTestBase,
                                        public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-
     void SetUp() override;
     void TearDown() override;
 
 protected:
-    void set_api_entity() override { api_entity = utils::ov_entity::ov_plugin; }
-
     std::shared_ptr<ngraph::Function> function;
     std::string deathTestStyle;
 };
