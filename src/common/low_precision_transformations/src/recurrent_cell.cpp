@@ -116,6 +116,8 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ngra
             }
         } else {
             if (is_type<ngraph::opset1::Multiply>(lstm_parent)) {
+                auto multiply = lstm_parent->get_input_node_shared_ptr(0);
+                ov::disable_constant_folding(multiply);
                 propagateSkipCleanupAttribute(lstm_parent);
             }
             continue;
