@@ -4,6 +4,7 @@
 import argparse
 import os
 import sys
+import logging as log
 
 try:
     import openvino_telemetry as tm
@@ -12,6 +13,10 @@ except ImportError:
 
 from openvino.tools.mo.pipeline.common import get_ir_version
 from openvino.tools.mo.utils.cli_parser import get_model_name
+from openvino.tools.mo.utils.logger import init_logger
+from openvino.tools.mo.utils.error import Error, FrameworkError
+import traceback
+from openvino.tools.mo.utils.model_analysis import AnalysisResults
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -39,7 +44,36 @@ def main(cli_parser: argparse.ArgumentParser):
     argv = cli_parser.parse_args()
     argv.model_name = get_model_name_from_args(argv)
     argv = vars(argv)
-    ngraph_function = convert(**argv)
+
+    # Initialize logger with 'ERROR' as default level to be able to form nice messages
+    # before arg parser deliver log_level requested by user
+    init_logger('ERROR', False)
+
+    ngraph_function = None
+    try:
+        ngraph_function = convert(**argv)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
+        log.debug(traceback.format_exc())
+    except Error as err:
+        analysis_results = AnalysisResults()
+        if analysis_results.get_messages() is not None:
+            for el in analysis_results.get_messages():
+                log.error(el, extra={'analysis_info': True})
+        log.error(err)
+        log.debug(traceback.format_exc())
+    except FrameworkError as err:
+        log.error(err, extra={'framework_error': True})
+        log.debug(traceback.format_exc())
+    except Exception as err:
+        log.error("-------------------------------------------------")
+        log.error("----------------- INTERNAL ERROR ----------------")
+        log.error("Unexpected exception happened.")
+        log.error("Please contact Model Optimizer developers and forward the following information:")
+        log.error(str(err))
+        log.error(traceback.format_exc())
+        log.error("---------------- END OF BUG REPORT --------------")
+        log.error("-------------------------------------------------")
 
     if ngraph_function is None:
         return 1

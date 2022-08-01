@@ -557,30 +557,8 @@ def _convert(**args):
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         return ngraph_function
-    except (FileNotFoundError, NotADirectoryError) as e:
-        log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
-        log.debug(traceback.format_exc())
-    except Error as err:
-        analysis_results = AnalysisResults()
-        if analysis_results.get_messages() is not None:
-            for el in analysis_results.get_messages():
-                log.error(el, extra={'analysis_info': True})
-        log.error(err)
-        log.debug(traceback.format_exc())
-    except FrameworkError as err:
-        log.error(err, extra={'framework_error': True})
-        log.debug(traceback.format_exc())
-    except Exception as err:
-        log.error("-------------------------------------------------")
-        log.error("----------------- INTERNAL ERROR ----------------")
-        log.error("Unexpected exception happened.")
-        log.error("Please contact Model Optimizer developers and forward the following information:")
-        log.error(str(err))
-        log.error(traceback.format_exc())
-        log.error("---------------- END OF BUG REPORT --------------")
-        log.error("-------------------------------------------------")
-
-    telemetry.send_event('mo', 'conversion_result', 'fail')
-    telemetry.end_session('mo')
-    telemetry.force_shutdown(1.0)
-    return None
+    except Exception as e:
+        telemetry.send_event('mo', 'conversion_result', 'fail')
+        telemetry.end_session('mo')
+        telemetry.force_shutdown(1.0)
+        raise e
