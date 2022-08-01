@@ -70,7 +70,7 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
-    transpose_3d<4, 3, 0, 1, 2>(ng_filter);
+    ng_filter = make_transpose(ng_filter, {4, 3, 0, 1, 2});
 
     ov::CoordinateDiff ng_padding_below;
     ov::CoordinateDiff ng_padding_above;

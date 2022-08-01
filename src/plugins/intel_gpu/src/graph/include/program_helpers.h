@@ -140,7 +140,7 @@ struct onednn_add_fusing_helpers {
     static bool is_full_tensor(const layout& layout);
     static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
-                            std::function<void(const program_node&, const eltwise_node&, const fused_primitive_desc&)> func);
+                            std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
 };
 

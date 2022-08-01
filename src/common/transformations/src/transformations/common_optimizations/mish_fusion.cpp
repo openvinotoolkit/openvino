@@ -35,7 +35,6 @@ ngraph::pass::MishFusion::MishFusion() {
                                    pattern_to_output.at(exp).get_node_shared_ptr()},
                                   mish);
         ngraph::replace_node(m.get_match_root(), mish);
-        MATCHER_SCOPE_ENABLE(MishFusion);
         return true;
     };
 
