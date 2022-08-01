@@ -127,17 +127,19 @@ public:
 
         auto& engine = get_test_engine();
         const auto data_type = type_to_data_type<T>::value;
+        const auto plane_format = format::bfyx;
+
         std::vector<std::pair<primitive_id, memory::ptr>> inputs;
 
         const layout image_layout(
             data_type,
-            format::bfyx,
-            tensor(format::bfyx, {p.batch_count, p.channel_count, p.input_height, p.input_width}));
+            plane_format,
+            tensor(plane_format, {p.batch_count, p.channel_count, p.input_height, p.input_width}));
         auto image = engine.allocate_memory(image_layout);
         set_values(image, p.image_values);
         inputs.emplace_back("image", image);
 
-        const layout proposal_layout(data_type, format::bfyx, tensor(format::bfyx, {p.roi_count, 5, 1, 1}));
+        const layout proposal_layout(data_type, plane_format, tensor(plane_format, {p.roi_count, 5, 1, 1}));
         auto proposal = engine.allocate_memory(proposal_layout);
         set_values(proposal, p.proposal_values);
         inputs.emplace_back("proposal", proposal);
@@ -145,8 +147,8 @@ public:
         // Set third input
         if (mode == pooling_mode::deformable_bilinear && !p.no_trans) {
             const layout offsets_layout(data_type,
-                                        format::bfyx,
-                                        tensor(format::bfyx, {p.roi_count, 2, p.group_size, p.group_size}));
+                                        plane_format,
+                                        tensor(plane_format, {p.roi_count, 2, p.group_size, p.group_size}));
             auto offsets = engine.allocate_memory(offsets_layout);
             set_values(offsets, equallyFilledBlob(offsets_layout.get_linear_size(), p.offset));
             inputs.emplace_back("offsets", offsets);
@@ -157,12 +159,13 @@ public:
                        inputs.end(),
                        std::back_inserter(inputs_ids),
                        [](const decltype(inputs)::value_type& pair) {
-                           return pair.first;
+                           return "reordered_" + pair.first;
                        });
 
         topology topology;
         for (auto& input : inputs) {
             topology.add(input_layout(input.first, input.second->get_layout()));
+            topology.add(reorder("reordered_" + input.first, input.first, fmt, type_to_data_type<T>::value));
         }
 
         topology.add(roi_pooling("roi_pooling",
@@ -180,6 +183,8 @@ public:
                                  p.spatial_bins_x,
                                  p.spatial_bins_y));
 
+        topology.add(reorder("reordered_roi_pooling", "roi_pooling", plane_format, type_to_data_type<T>::value));
+
         network network(engine, topology);
         for (auto& input : inputs) {
             network.set_input_data(input.first, input.second);
@@ -187,9 +192,9 @@ public:
         const auto outputs = network.execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "roi_pooling");
+        EXPECT_EQ(outputs.begin()->first, "reordered_roi_pooling");
 
-        auto output = outputs.at("roi_pooling").get_memory();
+        auto output = outputs.at("reordered_roi_pooling").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.output_values.size());
@@ -219,9 +224,10 @@ public:
         result << "Ss=" << p.spatial_scale << "_";
         result << "Mode=" << mode_str << "_";
         result << "PS=" << position_sensitive << "_";
-        result << "Prec=" << data_type_traits::name(type_to_data_type<T>::value);
+        result << "Prec=" << data_type_traits::name(type_to_data_type<T>::value) << "_";
+        result << "Format=" << fmt_to_str(fmt);
         if (!p.test_name.empty()) {
-            result << "_" << p.test_name;
+            result << "_TN=" << p.test_name;
         }
         return result.str();
     }
@@ -800,16 +806,12 @@ const std::vector<roi_pooling_test_inputs<float>> deformable_ps_roi_pooling_inpu
     },
 };
 
-const std::vector<format::type> layout_formats = {
-    format::bfyx,
-    /* TODO: Add blocked layouts support
-    format::b_fs_yx_fsv16,
-    format::b_fs_yx_fsv32,
-    format::bs_fs_yx_bsv16_fsv16,
-    format::bs_fs_yx_bsv32_fsv32,
-    format::bs_fs_yx_bsv32_fsv16,
-     */
-};
+const std::vector<format::type> layout_formats = {format::bfyx,
+                                                  format::b_fs_yx_fsv16,
+                                                  format::b_fs_yx_fsv32,
+                                                  format::bs_fs_yx_bsv16_fsv16,
+                                                  format::bs_fs_yx_bsv32_fsv32,
+                                                  format::bs_fs_yx_bsv32_fsv16};
 
 INSTANTIATE_TEST_SUITE_P(smoke_roi_pooling_max,
                          roi_pooling_gpu_test_float,

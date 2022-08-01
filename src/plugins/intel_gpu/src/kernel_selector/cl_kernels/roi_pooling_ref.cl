@@ -56,17 +56,15 @@ KERNEL(roi_pooling_gpu)
     //       with SPATIAL_SCALE: It makes sense since the resolution of
     //       the pooled data is limited by its dimensions. (Is this clear?)
 
-    const __global INPUT1_TYPE* roi_ptr = &src_rois[PITCH_ROI_R * r];
-
-    const int src_batch_idx = (int)(roi_ptr[0]);
+    const int src_batch_idx = src_rois[INPUT1_GET_INDEX(r, 0, 0, 0)];
 
 #if BILINEAR_POOLING
-    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_BATCH_PITCH;
+    const uint output_offset = OUTPUT_GET_INDEX(r, c, y, x);
 
-    COORD_T roi_start_w = roi_ptr[1];
-    COORD_T roi_start_h = roi_ptr[2];
-    COORD_T roi_end_w   = roi_ptr[3];
-    COORD_T roi_end_h   = roi_ptr[4];
+    COORD_T roi_start_w = src_rois[INPUT1_GET_INDEX(r, 1, 0, 0)];
+    COORD_T roi_start_h = src_rois[INPUT1_GET_INDEX(r, 2, 0, 0)];
+    COORD_T roi_end_w   = src_rois[INPUT1_GET_INDEX(r, 3, 0, 0)];
+    COORD_T roi_end_h   = src_rois[INPUT1_GET_INDEX(r, 4, 0, 0)];
 
     COORD_T height_scale = (roi_end_h - roi_start_h) * (SRC_H - 1.0f) / (COORD_T)(POOLED_HEIGHT - 1.0f);
     COORD_T width_scale  = (roi_end_w - roi_start_w) * (SRC_W - 1.0f) / (COORD_T)(POOLED_WIDTH  - 1.0f);
@@ -84,12 +82,10 @@ KERNEL(roi_pooling_gpu)
     int left_x_index   = (int)(floor(in_x));
     int right_x_index  = (int)(min(ceil(in_x), (COORD_T)SRC_W - 1));
 
-    const __global INPUT0_TYPE* data = src_data + INPUT0_OFFSET + src_batch_idx*INPUT0_BATCH_PITCH + INPUT0_FEATURE_PITCH*c;
-
-    ACCUM_T top_left     = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + left_x_index*INPUT0_X_PITCH];
-    ACCUM_T top_right    = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + right_x_index*INPUT0_X_PITCH];
-    ACCUM_T bottom_left  = (ACCUM_T)data[bottom_y_index*INPUT0_Y_PITCH + left_x_index*INPUT0_X_PITCH];
-    ACCUM_T bottom_right = (ACCUM_T)data[bottom_y_index*INPUT0_Y_PITCH + right_x_index*INPUT0_X_PITCH];
+    ACCUM_T top_left     = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, left_x_index)];
+    ACCUM_T top_right    = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, top_y_index, right_x_index)];
+    ACCUM_T bottom_left  = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, bottom_y_index, left_x_index)];
+    ACCUM_T bottom_right = (ACCUM_T)src_data[INPUT0_GET_INDEX(src_batch_idx, c, bottom_y_index, right_x_index)];
 
     ACCUM_T top    = top_left + (top_right - top_left) * (in_x - left_x_index);
     ACCUM_T bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
@@ -99,10 +95,10 @@ KERNEL(roi_pooling_gpu)
     dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, ACTIVATION_PARAMS);
 #else
 
-    const int roi_x  = round(roi_ptr[1] * SPATIAL_SCALE);
-    const int roi_y  = round(roi_ptr[2] * SPATIAL_SCALE);
-    const int roi_x1 = round(roi_ptr[3] * SPATIAL_SCALE);
-    const int roi_y1 = round(roi_ptr[4] * SPATIAL_SCALE);
+    const int roi_x  = round(src_rois[INPUT1_GET_INDEX(r, 1, 0, 0)] * SPATIAL_SCALE);
+    const int roi_y  = round(src_rois[INPUT1_GET_INDEX(r, 2, 0, 0)] * SPATIAL_SCALE);
+    const int roi_x1 = round(src_rois[INPUT1_GET_INDEX(r, 3, 0, 0)] * SPATIAL_SCALE);
+    const int roi_y1 = round(src_rois[INPUT1_GET_INDEX(r, 4, 0, 0)] * SPATIAL_SCALE);
 
     // The final coordinate is within the ROI and malformed dimensions are treated as 1
     const uint roi_w = max(roi_x1 - roi_x, 0) + 1;
@@ -127,7 +123,6 @@ KERNEL(roi_pooling_gpu)
     const int x_after = clamp(roi_x + dx_after, 0, SRC_W);
     const int y_after = clamp(roi_y + dy_after, 0, SRC_H);
 
-    const __global INPUT0_TYPE* data = src_data + INPUT0_OFFSET + src_batch_idx*INPUT0_BATCH_PITCH + INPUT0_FEATURE_PITCH*c;
 
 #if MAX_POOLING
     ACCUM_T res = x_begin < x_after && y_begin < y_after ? -FLT_MAX : 0;
@@ -138,7 +133,7 @@ KERNEL(roi_pooling_gpu)
     for (int yy = y_begin; yy < y_after; ++yy)
     for (int xx = x_begin; xx < x_after; ++xx)
     {
-        INPUT0_TYPE val = data[xx*INPUT0_X_PITCH + yy*INPUT0_Y_PITCH];
+        INPUT0_TYPE val = src_data[INPUT0_GET_INDEX(src_batch_idx, c, yy, xx)];
 #if MAX_POOLING
         res = MAX(res, (ACCUM_T)val);
 #else
@@ -153,7 +148,7 @@ KERNEL(roi_pooling_gpu)
     }
 #endif
 
-    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_BATCH_PITCH;
+    const uint output_offset = OUTPUT_GET_INDEX(r, c, y, x);
     dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, ACTIVATION_PARAMS);
 #endif
 }

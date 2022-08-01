@@ -1507,7 +1507,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
@@ -1557,6 +1559,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&

@@ -82,9 +82,7 @@ public:
         auto roi_optional_params =
             get_default_optional_params<kernel_selector::roi_pooling_optional_params>(arg.get_program());
 
-        const auto roi_bfyx = convert_data_tensor(rois_layout);
-        const auto roi_bf = roi_bfyx.FlattenFeatureAndSpatials();
-        roi_params.inputs.push_back(roi_bf);
+        roi_params.inputs.push_back(convert_data_tensor(rois_layout));
         if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans)
             roi_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         roi_params.mode = cldnn_2_pool_type(primitive->mode);
@@ -116,10 +114,16 @@ public:
 namespace detail {
 
 attach_roi_pooling_impl::attach_roi_pooling_impl() {
-    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    const auto formats = {format::bfyx,
+                          format::b_fs_yx_fsv16,
+                          format::b_fs_yx_fsv32,
+                          format::bs_fs_yx_bsv16_fsv16,
+                          format::bs_fs_yx_bsv32_fsv32,
+                          format::bs_fs_yx_bsv32_fsv16};
+
+    const auto types = {data_types::f16, data_types::f32};
+
+    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, types, formats);
 }
 
 }  // namespace detail
