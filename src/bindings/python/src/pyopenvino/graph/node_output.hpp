@@ -50,12 +50,12 @@ void regclass_graph_Output(py::module m, std::string typestring)
         return std::hash<VT*>()(self.get_node()) + self.get_index();
     });
 
-    output.def("__deepcopy__", [](ov::Output<VT>& self, py::dict memo) {
-        PyErr_SetString(PyExc_TypeError, "cannot copy 'openvino.pyopenvino.ConstOutput' object. \
-        For workaround, please replace ConstOutput object with \
-        Tensor names using ConstOutput.get_names(), \
-        use str() representation of object or in case of inference result, \
-        refer to openvino.runtime.convert_infer_request function.");
+    output.def("__copy__", [](ov::Output<VT>& self) {
+        return ov::Output<VT>(self);
+    });
+
+    output.def("__deepcopy__", [](ov::Output<VT>& self, py::dict& memo) {
+        PyErr_SetString(PyExc_TypeError, "cannot copy 'openvino.runtime.ConstOutput' object.");
         throw py::error_already_set();
     });
 

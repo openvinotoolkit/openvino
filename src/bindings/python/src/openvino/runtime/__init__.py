@@ -66,8 +66,6 @@ from openvino.pyopenvino import properties
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
-from openvino.runtime.ie_api import convert_infer_results
-
 
 # Extend Node class to support binary operators
 Node.__add__ = opset9.add

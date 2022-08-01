@@ -215,30 +215,6 @@ class InferRequest(InferRequestBase):
         else:
             raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
-def convert_infer_results(infer_results: Dict[ConstOutput, np.ndarray]) -> Dict[str, np.ndarray]:
-    """Convert inference results dictionary to allow deepcopy.
-
-    Accepted only results returned by openvino.runtime.InferRequest.infer() or
-    openvino.runtime.CompiledModel.infer_new_request() method.
-    Results indexed by openvino.runtime.ConstOutput key will be converted into dictionary indexed
-    by openvino.runtime.Tensor names connected to outputs, with will allow for results to be copied.
-    Number of items in dictionary might increase, since single ConstOutput can have multiple Tensor objects as outputs.
-
-    :param infer_results: Data returned by openvino.runtime.InferRequest.infer() method.
-    :type infer_results: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
-    :return: Dictionary of results from output tensors with tensor names as keys.
-    :rtype: Dict[str, numpy.ndarray]
-    """
-    return_results = {}
-    for key, value in infer_results.items():
-        if not isinstance(key, ConstOutput):
-            raise TypeError(f"Expected `openvino.runtime.ConstOutput` object as dictionary key, recived `{type(key)}`.")
-        if not isinstance(value, np.ndarray):
-            raise TypeError(f"Expected `numpy.ndarray` object as dictionary value, recived `{type(value)}`.")
-        tensor_names = key.get_names()
-        for name in tensor_names:
-            return_results[name] = value
-    return return_results
 
 class CompiledModel(CompiledModelBase):
     """CompiledModel class.

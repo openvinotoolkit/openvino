@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from copy import deepcopy
+from copy import copy, deepcopy
 
 from ..conftest import model_path
 import openvino.runtime.opset8 as ops
@@ -142,13 +142,22 @@ def test_operations():
     assert hash(outputs[0]) == hash(split.output(0))
     assert hash(outputs[0]) != hash(outputs[0].node)
 
+
+def test_copy():
+    node = ops.relu(5)
+    output_node = node.outputs()[0]
+    out_copy = copy(output_node)
+    assert out_copy is not output_node
+    assert out_copy == output_node
+    assert out_copy.get_node() is output_node.get_node()
+    out_copy._add_new_var = True
+    output_node._add_new_var = False
+    assert out_copy._add_new_var != output_node._add_new_var
+
+
 def test_deepcopy():
     node = ops.relu(5)
-    output_node = node.outputs()
+    output_node = node.outputs()[0]
     with pytest.raises(TypeError) as e:
-        copy = deepcopy(output_node)
-    assert "cannot copy 'openvino.pyopenvino.ConstOutput' object. \
-        For workaround, please replace ConstOutput object with \
-        Tensor names using ConstOutput.get_names(), \
-        use str() representation of object or in case of inference result, \
-        refer to openvino.runtime.convert_infer_request function." in str(e)
+        out_copy = deepcopy(output_node)
+    assert "cannot copy 'openvino.runtime.ConstOutput' object." in str(e)
