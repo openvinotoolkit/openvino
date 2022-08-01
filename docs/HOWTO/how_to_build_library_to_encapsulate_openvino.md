@@ -68,7 +68,7 @@ $ cmake ..
 ```sh
 $ make
 $ ll | grep lib
--rwxrwxr-x 1 odt odt 39744  七  28 13:28 libcustomer-library.so*
+-rwxrwxr-x 1 odt odt 39744  July  28 13:28 libcustomer-library.so*
 ```
 
 * check the library link
