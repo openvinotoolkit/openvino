@@ -29,11 +29,11 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
+        // auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_outer_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -54,10 +54,6 @@ protected:
 
         return args;
     }
-
-    int32_t get_split() const override { return _outer.get_split(); }
-    uint32_t get_groups() const override { return _outer.get_groups(); }
-    bool get_depthwise_sep_opt() const override { return _outer.get_depthwise_sep_opt(); }
 
 public:
     static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
@@ -154,6 +150,9 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto conv = new convolution_impl(arg, best_kernels[0]);
+        conv->set_split(arg.get_split());
+        conv->set_groups(arg.get_groups());
+        conv->set_depthwise_sep_opt(arg.get_depthwise_sep_opt());
 
         return conv;
     }

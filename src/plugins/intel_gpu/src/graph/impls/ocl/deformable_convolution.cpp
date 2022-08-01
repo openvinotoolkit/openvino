@@ -32,10 +32,6 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
-
-    uint32_t get_groups() const override { return _outer.get_groups(); }
-
 public:
     static primitive_impl* create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
@@ -73,6 +69,8 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto conv = new deformable_conv_impl(arg, best_kernels[0]);
+        conv->set_split(arg.get_split());
+        conv->set_groups(arg.get_groups());
 
         return conv;
     }
@@ -85,11 +83,6 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_interp_impl>(*this);
     }
-
-protected:
-    int32_t get_split() const override { return 1; }
-
-    uint32_t get_groups() const override { return 1; }
 
 public:
     static primitive_impl* create(const deformable_interp_node& arg, const kernel_impl_params& impl_param) {
@@ -150,6 +143,8 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto conv = new deformable_interp_impl(arg, best_kernels[0]);
+        conv->set_split(1);
+        conv->set_groups(1);
 
         return conv;
     }

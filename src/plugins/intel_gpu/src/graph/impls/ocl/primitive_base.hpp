@@ -25,14 +25,14 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const typed_program_node<PType>& _outer;
+    const primitive_id& _outer_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
-    , _outer(other._outer)
+    , _outer_id(other._outer_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
     , _kernels({}) {
@@ -44,7 +44,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _outer(arg),
+          _outer_id(arg.id()),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -54,7 +54,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         _kernel_ids.reserve(kd.kernels.size());
         // Add selected kernels to kernels_cache for the following compilation and save output ids
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            _kernel_ids.emplace_back(_outer.get_program().add_kernel(kd.kernels[i].code.kernelString));
+            _kernel_ids.emplace_back(arg.get_program().add_kernel(kd.kernels[i].code.kernelString));
         }
     }
 
@@ -82,9 +82,14 @@ protected:
         return args;
     }
 
-    virtual int32_t get_split() const { return 1; }
-    virtual uint32_t get_groups() const { return 1; }
-    virtual bool get_depthwise_sep_opt() const { return false; }
+    int32_t get_split() const { return _split; }
+    void set_split(int32_t split) { _split = split; }
+    uint32_t get_groups() const { return _groups; }
+    void set_groups(uint32_t groups) { _groups = groups; }
+    bool get_depthwise_sep_opt() const { return _depthwise_sep_opt; }
+    void set_depthwise_sep_opt(bool depthwise_sep_opt) { _depthwise_sep_opt = depthwise_sep_opt; }
+    bool get_can_be_optimized() const { return _can_be_optimized; }
+    void set_can_be_optimized(bool can_be_optimized) { _can_be_optimized = can_be_optimized; }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -96,7 +101,7 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels() override {
+    void init_kernels(const program& prog) override {
         if (is_cpu()) {
             return;
         }
@@ -104,7 +109,7 @@ protected:
 
         _kernels.reserve(_kernel_ids.size());
         for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(std::move(_outer.get_program().get_kernel(_kernel_ids[k])));
+            _kernels.emplace_back(std::move(prog.get_kernel(_kernel_ids[k])));
         }
     }
 
@@ -196,6 +201,12 @@ protected:
         bool group_events = (all_events.size() > 1);
         return aggregate_events(all_events, stream, group_events);
     }
+
+private:
+    int32_t _split =  1;
+    uint32_t _groups = 1;
+    bool _depthwise_sep_opt = false;
+    bool _can_be_optimized = false;
 };
 
 }  // namespace ocl

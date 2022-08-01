@@ -188,9 +188,7 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
-    const proposal_node& outer;
-
-    explicit proposal_impl(const proposal_node& arg) : outer(arg) {}
+    explicit proposal_impl(const proposal_node& arg) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -425,7 +423,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return ev;
     }
 
-    void init_kernels() override {}
+    void init_kernels(const program&) override {}
 
     static primitive_impl* create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];

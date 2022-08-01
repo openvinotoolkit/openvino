@@ -29,7 +29,7 @@ protected:
         args.inputs = {instance.input_memory_ptr(), instance.scale_memory()};
         args.outputs = {instance.output_memory_ptr()};
 
-        if (_outer.bias_term()) {
+        if (_has_bias_term) {
             args.inputs.push_back(instance.bias_memory());
         }
         return args;
@@ -65,9 +65,13 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto scale = new scale_impl(arg, best_kernels[0]);
+        scale->_has_bias_term = arg.bias_term();
 
         return scale;
     }
+
+private:
+    bool _has_bias_term = false;
 };
 
 namespace detail {

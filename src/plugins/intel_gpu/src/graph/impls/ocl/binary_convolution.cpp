@@ -30,17 +30,17 @@ protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
+        // auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Check whether all memory elements use the same unit type (FP16 or FP32).
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer_id,
                                         "Input memory",
                                         data_type,
                                         "output memory",
                                         instance.node.get_output_layout().data_type,
                                         "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_outer_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -56,8 +56,6 @@ protected:
         args.weights = instance.weights_memory(split);
         return args;
     }
-
-    int32_t get_split() const override { return _outer.get_split(); }
 
 public:
     static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
@@ -124,6 +122,7 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto conv = new binary_convolution_impl(arg, best_kernels[0]);
+        conv->set_split(arg.get_split());
 
         return conv;
     }

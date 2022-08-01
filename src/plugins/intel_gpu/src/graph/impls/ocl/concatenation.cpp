@@ -53,10 +53,10 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     }
 
     concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        if (!_outer.can_be_optimized()) {
-            CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+        if (!arg.can_be_optimized()) {
+            CLDNN_ERROR_NOT_EQUAL(arg.id(),
                                   "Input count",
-                                  _outer.inputs_count(),
+                                  arg.inputs_count(),
                                   "kds size",
                                   kd.kernels.size(),
                                   "Error - not enough kernels for concatenation");
@@ -65,7 +65,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
 
 protected:
     bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || get_can_be_optimized();
     }
 
 public:
@@ -95,9 +95,13 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         concatenation_impl* concat = new concatenation_impl(arg, best_kernels[0]);
-
+        concat->set_can_be_optimized(arg.can_be_optimized());
+        concat->_inputs_count = arg.inputs_count();
         return concat;
     }
+
+private:
+    size_t _inputs_count = 1;
 };
 
 namespace detail {

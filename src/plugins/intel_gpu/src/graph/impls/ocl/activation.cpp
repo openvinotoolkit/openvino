@@ -24,7 +24,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        if (_outer.is_parameterized()) {
+        if (_is_parameterized) {
             args.slope = instance.slope_memory();
         }
 
@@ -63,9 +63,13 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
                          "Cannot find a proper kernel with this arguments");
 
         auto activation = new activation_impl(arg, best_kernels[0]);
+        activation->_is_parameterized = arg.is_parameterized();
 
         return activation;
     }
+
+private:
+    bool _is_parameterized = false;
 };
 
 namespace detail {
