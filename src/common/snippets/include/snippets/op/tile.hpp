@@ -20,12 +20,16 @@ class Tile : public ngraph::op::Op {
 public:
     OPENVINO_OP("Tile", "SnippetsOpset");
 
-    Tile(const std::vector<AllocatedEmitter>& region);
+    Tile(const std::vector<AllocatedEmitter>& region, size_t increment, size_t num_inputs, size_t num_outputs, const std::vector<size_t>& io_dims);
     Tile() = default;
     std::vector<AllocatedEmitter> region;
+    size_t increment = 0;
+    size_t num_inputs = 0;
+    size_t num_outputs = 0;
+    std::vector<size_t> io_dims {};
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<Tile>(region);
+        return std::make_shared<Tile>(region, increment, num_inputs, num_outputs, io_dims);
     }
 };
 
