@@ -14,12 +14,10 @@ def get_available_transformations():
         from openvino.offline_transformations import apply_low_latency_transformation # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations import apply_make_stateful_transformation # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations import apply_pruning_transformation # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import convert_sequence_to_tensor_iterator_transformation # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': apply_make_stateful_transformation,
             'LowLatency2': apply_low_latency_transformation,
             'Pruning': apply_pruning_transformation,
-            'ConvertSequenceToTensorIterator': convert_sequence_to_tensor_iterator_transformation,
         }
     except Exception as e:
         return {}
