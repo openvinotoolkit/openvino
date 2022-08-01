@@ -523,7 +523,7 @@ def show_mo_convert_help():
         print("{}: {}".format(param_name, param_data.description.format(param_data.possible_types_python_api)))
 
 
-def convert_(**args):
+def _convert(**args):
     if len(args.items()) == 0:
         show_mo_convert_help()
         return

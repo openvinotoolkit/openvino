@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import namedtuple
-from convert_impl import convert_
+from openvino.tools.mo.convert_impl import _convert
 
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
@@ -11,5 +11,6 @@ LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 def convert(**args):
     """
     Converts the model from original framework to nGraph function.
+    Run convert() to list available parameter.
     """
-    return convert_(**args)
+    return _convert(**args)

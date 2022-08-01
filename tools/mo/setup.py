@@ -38,6 +38,7 @@ for item in os.listdir(prefix):
         py_modules.append(prefix.replace('/', '.') + item.split('.')[0])
 py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
 py_modules.append(prefix.replace('/', '.') + 'convert')
+py_modules.append(prefix.replace('/', '.') + 'convert_impl')
 py_modules.append(prefix.replace('/', '.') + 'serialize')
 py_modules.append(prefix.replace('/', '.') + '__main__')
 
