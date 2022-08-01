@@ -23,7 +23,7 @@ from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
-
+#import openvino.tools.mo.back.offline_transformations
 
 def extension_path_to_str_or_extensions_class(extension):
     if isinstance(extension, str):
@@ -290,8 +290,8 @@ def batch_to_int(value):
         return value
     if isinstance(value, Dimension):
         if not value.is_static:
-            # TODO: Add dynamic batch support when MO supports dynamic batch
-            raise Exception("Dynamic batch is not supported.")
+            # TODO: Ticket 88676
+            raise Exception("Dynamic batch for --batch parameter is not supported.")
         else:
             return value.get_length()
     raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
@@ -318,12 +318,17 @@ def transform_param_value_to_str(value):
 
 
 def transform_to_str(value):
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations
+
     if isinstance(value, str):
         return value
+
     if isinstance(value, tuple):
-        assert 1 <= len(value) <= 2, "Incorrect transform. Expected tuple with transform name " \
-                                     "and dictionary with transform parameters. " \
-                                     "Got tuple with length = {}".format(len(value))
+        assert 1 <= len(value) <= 2, "Incorrect definition of transformation in transform argument: " \
+                                     "expect two elements in tuple, provided {}. " \
+                                     "Supported transforms are: {}".format(
+            len(value),
+            list(get_available_transformations().keys()))
         transform_name = value[0]
         assert isinstance(transform_name, str), "Incorrect transform name type. " \
                                                 "Expected string, got {}".format(type(transform_name))
