@@ -164,6 +164,8 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        // 94989. BF16 Reference produces different results.
+        R"(smoke.*GridSampleLayerTestCPU.*bf16.*)"
     };
 
 #define FIX_62820 0
