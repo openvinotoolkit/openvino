@@ -268,6 +268,15 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     return set_output_layout(new_layout, invalidate_users_if_changed);
 }
 
+bool program_node::is_dynamic() const {
+    for (auto& input : get_dependencies()) {
+        if (input->get_output_layout().is_dynamic())
+            return true;
+    }
+
+    return get_output_layout().is_dynamic();
+}
+
 bool program_node::has_padded_dependency() {
     return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
         return node->is_padded();

@@ -140,8 +140,15 @@ std::vector<size_t> layout::get_dims_order() const {
 }
 
 std::string layout::to_string() const {
-    // TODO: Extend with format/data-type info
-    return format.to_string() + size.to_string();
+    std::stringstream s;
+    s << "\n{\n"
+      << "\tdata_type=" << data_type_traits::name(data_type) << ";\n"
+      << "\tformat=" << format.to_string() << ";\n"
+      << "\tshape=" << size.to_string() << ";\n"
+      << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
+      << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
+      << "}";
+    return s.str();
 }
 
 size_t layout::count() const {

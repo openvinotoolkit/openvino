@@ -36,19 +36,7 @@ public:
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
             auto& input = arg.get_dependency(i).as<data>();
             auto mem = input.get_attached_memory_ptr();
-            std::vector<int32_t> sizes;
-            if (input.get_output_layout().data_type == cldnn::data_types::i64) {
-                mem_lock<int64_t> lock{mem, arg.get_program().get_stream()};
-                int64_t* data = lock.data();
-                std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + input.get_output_layout().count());
-                sizes.resize(sizes_i64.size());
-                for (size_t j = 0; j < sizes.size(); j++)
-                    sizes[j] = static_cast<int32_t>(sizes_i64[j]);
-            } else {
-                mem_lock<int32_t> lock{mem, arg.get_program().get_stream()};
-                int32_t* data = lock.data();
-                sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
-            }
+            std::vector<int32_t> sizes = read_vector<int32_t>(mem, arg.get_program().get_stream());
             pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
             params.striding_params.push_back(sizes);
         }
