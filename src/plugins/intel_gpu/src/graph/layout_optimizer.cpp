@@ -436,6 +436,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         if (prev.is_type<eltwise>() &&
             is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
             return true;
+        if (prev.is_type<eltwise>() && next->is_type<convolution>()) {
+            return true;
+        }
     }
 
     return false;

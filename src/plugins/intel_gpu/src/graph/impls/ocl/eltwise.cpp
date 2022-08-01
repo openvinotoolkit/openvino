@@ -224,6 +224,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv4),
 
+        MAKE_TUPLE6(bs_fs_yx_bsv8_fsv2, f32, f16, i8, u8, i32, i64),
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
