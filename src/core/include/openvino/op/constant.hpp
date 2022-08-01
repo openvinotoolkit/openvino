@@ -128,6 +128,8 @@ public:
         case Type_t::u64:
             fill_data<Type_t::u64>(value);
             break;
+        case Type_t::custom:
+            fill_data<Type_t::custom>(value);
         case Type_t::undefined:
         case Type_t::dynamic:
             throw std::runtime_error("unsupported type");
@@ -670,6 +672,7 @@ private:
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
+        case element::Type_t::custom:
             throw std::runtime_error("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

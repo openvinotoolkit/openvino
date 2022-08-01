@@ -14,6 +14,7 @@
 namespace ov {
 namespace frontend {
 
+
 class FRONTEND_API NodeContext {
 public:
     explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
@@ -86,6 +87,19 @@ public:
 
     /// \brief Returns node attribute by name as ov::Any.
     virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
+
+    /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
+    size_t get_subgraph_size() const {
+        return 0;
+    }
+
+    /// \brief Returns subgraph converted on demand by the first access
+    /// If there is no query for specific sub-graph it shouldn't be converted
+    /// idx should be in range 0..get_subgraph_size()-1
+    // TODO: Why int for idx? Why not unsigned? Just reused the same type fro get_input
+    virtual std::shared_ptr<Model> get_subgraph(int idx) const {
+        throw std::runtime_error("There is no subgraphs in node");
+    }
 
 private:
     virtual ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {

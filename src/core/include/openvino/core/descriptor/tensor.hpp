@@ -32,7 +32,9 @@ namespace descriptor {
 class OPENVINO_API Tensor {
 public:
     Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
+    Tensor(const ov::Any& custom_element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
+    Tensor(const ov::Any& custom_element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
@@ -68,6 +70,14 @@ public:
     const element::Type& get_element_type() const {
         return m_element_type;
     }
+    /// \brief Returns custom description of element type if element type is set to ov::element::custom
+    const ov::Any get_custom_element_type() const {
+        if(get_element_type() == ov::element::custom) {
+            return m_custom_element_type;
+        } else {
+            throw std::runtime_error("Attempt to query custom data type description for description::Tensor which doesn't have a custom element type");
+        }
+    }
     const Shape& get_shape() const;
     const PartialShape& get_partial_shape() const {
         return m_partial_shape;
@@ -99,6 +109,9 @@ public:
 
 protected:
     element::Type m_element_type;
+
+    // TODO: Consider moving to m_rt_info with a well specified key value
+    ov::Any m_custom_element_type;
 
     // TODO: remove along with get_shape
     // Initially there was Shape m_shape only available to keep shape information.

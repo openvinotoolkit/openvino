@@ -290,6 +290,8 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
         throw runtime_error("unsupported type");
     case Type_t::dynamic:
         throw runtime_error("unsupported type");
+    case Type_t::custom:
+        throw runtime_error("Unsupported type 'custom' cannot be processed in Constant::convert_value_to_string");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -384,6 +386,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
+    case element::Type_t::custom:
         throw runtime_error("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -521,6 +524,7 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::u4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
+    case element::Type_t::custom:
         break;
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

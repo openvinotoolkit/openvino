@@ -95,6 +95,8 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
         throw ngraph_error("make_constant: Unsupported element type 'u4'");
     case element::Type_t::undefined:
         throw ngraph_error("make_constant: Unsupported element type 'undefined'");
+    case element::Type_t::custom:
+        throw ngraph_error("make_constant: Unsupported element type 'custom'");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop

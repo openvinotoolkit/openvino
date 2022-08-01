@@ -51,7 +51,8 @@ enum class Type_t {
     u8,         //!< u8 element type
     u16,        //!< u16 element type
     u32,        //!< u32 element type
-    u64         //!< u64 element type
+    u64,        //!< u64 element type
+    custom      //!< Custom element type, specified separately (in a user-define way)
 };
 
 /// \brief Base class to define element type
@@ -175,6 +176,9 @@ constexpr Type u32(Type_t::u32);
 /// \brief u64 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u64(Type_t::u64);
+/// \brief custom element type to support arbitrary user-defined typing system
+/// \ingroup ov_element_cpp_api
+constexpr Type custom(Type_t::custom);
 
 template <typename T>
 Type from() {
