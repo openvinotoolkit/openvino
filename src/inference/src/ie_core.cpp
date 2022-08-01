@@ -717,6 +717,12 @@ public:
             // as the result is being checked by the user
             strictly_check_dims = false;
         } else {
+            // check if Auto-Batch plugin registered
+            try {
+                GetCPPPluginByName("BATCH");
+            } catch (const std::runtime_error&) {
+                return;
+            }
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {
