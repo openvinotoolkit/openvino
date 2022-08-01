@@ -205,6 +205,35 @@ function(ov_debian_add_lintian_suppression comp)
 endfunction()
 
 #
+# ov_debian_generate_conflicts(<comp name>)
+#
+function(ov_debian_generate_conflicts comp)
+    set(versions ${ARGN})
+    string(TOUPPER "${comp}" ucomp)
+
+    # sanity check
+    if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
+        message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
+    else()
+        if(NOT DEFINED CPACK_PACKAGE_VERSION)
+            message(FATAL_ERROR "CPACK_PACKAGE_VERSION is not defined")
+        endif()
+
+        string(REPLACE "${CPACK_PACKAGE_VERSION}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+    endif()
+
+    foreach(version IN LISTS versions)
+        if(package_names)
+            set(package_names "${package_names}, ${package_name_base}${version}")
+        else()
+            set(package_names "${package_name_base}${version}")
+        endif()
+    endforeach()
+
+    set(CPACK_DEBIAN_${ucomp}_PACKAGE_CONFLICTS "${package_names}" PARENT_SCOPE)
+endfunction()
+
+#
 # ov_debian_add_latest_component(<comp>)
 #
 # Adds latest component for `comp`, but without a version
@@ -212,25 +241,26 @@ endfunction()
 #
 macro(ov_debian_add_latest_component comp)
     string(TOUPPER "${comp}" ucomp)
-    set(latest "${ucomp}_LATEST")
+    set(comp_name "${comp}_latest")
+    set(upper_case "${ucomp}_LATEST")
 
-    set(CPACK_COMPONENT_${latest}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${latest}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${latest}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
+    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
         string(REPLACE "-${cpack_ver_mm}" ""
-            CPACK_DEBIAN_${latest}_PACKAGE_NAME
+            CPACK_DEBIAN_${upper_case}_PACKAGE_NAME
             "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     else()
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
     endif()
 
-    ov_debian_add_lintian_suppression(${latest}
+    ov_debian_add_lintian_suppression(${comp_name}
         # it's umbrella package
         "empty-binary-package")
 
     # add latest to a list of debian packages
-    list(APPEND CPACK_COMPONENTS_ALL ${latest})
+    list(APPEND CPACK_COMPONENTS_ALL ${comp_name})
 endmacro()

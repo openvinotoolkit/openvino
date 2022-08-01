@@ -15,10 +15,10 @@ function(_ov_add_plugin comp is_pseudo)
     endif()
 
     if(is_pseudo)
-        if(pseudo_plugins_suggest)
-            set(pseudo_plugins_suggest "${pseudo_plugins_suggest}, ${package_name} (= ${CPACK_PACKAGE_VERSION})")
+        if(pseudo_plugins_recommends)
+            set(pseudo_plugins_recommends "${pseudo_plugins_recommends}, ${package_name} (= ${CPACK_PACKAGE_VERSION})")
         else()
-            set(pseudo_plugins_suggest "${package_name} (= ${CPACK_PACKAGE_VERSION})")
+            set(pseudo_plugins_recommends "${package_name} (= ${CPACK_PACKAGE_VERSION})")
         endif()
     endif()
 
@@ -30,7 +30,7 @@ function(_ov_add_plugin comp is_pseudo)
 
     list(APPEND installed_plugins ${comp})
 
-    set(pseudo_plugins_suggest "${pseudo_plugins_suggest}" PARENT_SCOPE)
+    set(pseudo_plugins_recommends "${pseudo_plugins_recommends}" PARENT_SCOPE)
     set(all_plugins_suggest "${all_plugins_suggest}" PARENT_SCOPE)
     set(installed_plugins "${installed_plugins}" PARENT_SCOPE)
 endfunction()
@@ -56,8 +56,12 @@ macro(ov_cpack_settings)
     endforeach()
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
-    # CPACK_PACKAGE_VERSION_MAJOR.CPACK_PACKAGE_VERSION_MINOR
-    set(cpack_ver_mm "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}")
+    # version with 3 components
+    set(cpack_ver_mm "${CPACK_PACKAGE_VERSION}")
+    # a list of conflicting package versions
+    set(conflicting_versions
+        # 2022 release series
+        2022.1.0)
 
     # core
     set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C / C++ Runtime libraries")
@@ -73,9 +77,8 @@ macro(ov_cpack_settings)
     # core_dev
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-${cpack_ver_mm}-dev")
-    # TODO !!!!!!
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_CONFLICTS "libopenvino-2021.3-dev, libopenvino-2021.4-dev")
+    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_ver_mm}")
+    ov_debian_generate_conflicts(core_dev ${conflicting_versions})
 
     ov_debian_add_lintian_suppression(core_dev
         # CVS-79409: create man page for compile_tool
@@ -127,7 +130,6 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
         set(CPACK_COMPONENT_CPU_DEPENDS "core")
         set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu-${cpack_ver_mm}")
-        set(CPACK_DEBIAN_CPU_PACKAGE_SUGGESTS "${pseudo_plugins_suggest}")
         set(CPACK_DEBIAN_CPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(cpu OFF)
     endif()
@@ -137,7 +139,6 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_GPU_DESCRIPTION "Intel® Processor Graphics")
         set(CPACK_COMPONENT_GPU_DEPENDS "core")
         set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu-${cpack_ver_mm}")
-        set(CPACK_DEBIAN_GPU_PACKAGE_SUGGESTS "${pseudo_plugins_suggest}")
         set(CPACK_DEBIAN_GPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(gpu OFF)
     endif()
@@ -147,7 +148,6 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU")
         set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-${cpack_ver_mm}")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_SUGGESTS "${pseudo_plugins_suggest}")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(myriad OFF)
     endif()
@@ -157,7 +157,6 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator")
         set(CPACK_COMPONENT_GNA_DEPENDS "core")
         set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-${cpack_ver_mm}")
-        set(CPACK_DEBIAN_GNA_PACKAGE_SUGGESTS "${pseudo_plugins_suggest}")
         # since we have libgna.so we need to call ldconfig and have `def_triggers` here
         set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
 
@@ -169,10 +168,11 @@ macro(ov_cpack_settings)
         _ov_add_plugin(gna OFF)
     endif()
 
-    # add all plugins as suggestion to core component
-    if(installed_plugins)
-        # TODO: whether suggests or recommends
-        set(CPACK_DEBIAN_CORE_PACKAGE_SUGGESTS "${all_plugins_suggest}")
+    # add pseudo plugins are recommended to core component
+    if(pseudo_plugins_recommends)
+        # see https://superuser.com/questions/70031/what-is-the-difference-between-recommended-and-suggested-packages-ubuntu.
+        # we suppose that pseudo plugins are needed for core
+        set(CPACK_DEBIAN_CORE_PACKAGE_RECOMMENDS "${pseudo_plugins_recommends}")
     endif()
 
     #
@@ -202,7 +202,9 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "core_dev")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_ver_mm}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "${samples_build_deps}, libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+    # can be skipped with --no-install-recommends
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
     # python_samples
@@ -231,10 +233,8 @@ macro(ov_cpack_settings)
     # all libraries-dev
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
-    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-${cpack_ver_mm}-dev")
-    # TODO !!!!!!
-    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_CONFLICTS "openvino-libraries-dev-2022.1.0")
-
+    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_ver_mm}")
+    # ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package
         "empty-binary-package")
@@ -243,7 +243,6 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_ver_mm}")
-
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
         "empty-binary-package")
@@ -265,8 +264,12 @@ macro(ov_cpack_settings)
     # NOTE: we expicitly don't add runtime latest packages
     # since a user needs to depend on specific VERSIONED runtime package
     # with fixed SONAMEs, while latest package can be updated multiple times
+    # ov_debian_add_latest_component(libraries)
 
-    # ov_debian_add_latest_component(libraries) # TODO: think about it
-    # ov_debian_add_latest_component(libraries_dev)
-    # ov_debian_add_latest_component(openvino)
+    ov_debian_add_latest_component(libraries_dev)
+    ov_debian_add_latest_component(openvino)
+
+    # users can manually install specific version of package
+    # e.g. sudo apt-get install openvino=2022.1.0-643
+    # even if we have package version 2022.2.0
 endmacro()
