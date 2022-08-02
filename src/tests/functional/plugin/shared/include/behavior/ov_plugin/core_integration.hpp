@@ -410,6 +410,13 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     EXPECT_EQ(value, true);
 }
 
+TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Unsupported property test
+    ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
+}
+
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     // log level
