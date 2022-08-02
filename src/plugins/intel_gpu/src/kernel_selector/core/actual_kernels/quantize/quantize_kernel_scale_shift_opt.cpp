@@ -44,16 +44,10 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
-    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 || output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) {
-        dispatchData.gws[0] = output.Y().v * output.X().v;
-        dispatchData.gws[1] = Align(output.Feature().v, feature_size);
-        dispatchData.gws[2] = Align(output.Batch().v, feature_size);
-
-        dispatchData.lws[0] = 1;
-        dispatchData.lws[1] = feature_size;
-        dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
-    } else if (output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
+    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         dispatchData.gws[0] = output.Z().v * output.Y().v * output.X().v;
         dispatchData.gws[1] = Align(output.Feature().v, feature_size);
         dispatchData.gws[2] = Align(output.Batch().v, feature_size);
@@ -72,9 +66,11 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) {
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCKED_FORMAT", true));
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));
         jit.AddConstant(MakeJitConstant("GWS_FEATURE", 1));
