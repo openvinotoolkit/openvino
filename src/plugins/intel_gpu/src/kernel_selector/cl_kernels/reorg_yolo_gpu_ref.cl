@@ -28,30 +28,15 @@ inline void FUNC(planar_to_bfyx)(const uint planar_index,
                                  const uint batch_num, const uint channel_num, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
 {
-    if(planar_index < width) {
-        *dst_b = 0;
-        *dst_f = 0;
-        *dst_y = 0;
-        *dst_x = planar_index;
-    } else if(planar_index < height * width) {
-        *dst_b = 0;
-        *dst_f = 0;
-        *dst_y = planar_index / width;
-        *dst_x = planar_index % width;
-    } else if(planar_index < channel_num * height * width) {
-        *dst_b = 0;
-        *dst_f = planar_index / (height * width);
-        uint dst_xy = planar_index % (height * width);
-        *dst_y = dst_xy / width;
-        *dst_x = dst_xy % width;
-    } else if(planar_index >= channel_num * height * width) {
-        *dst_b = planar_index / (channel_num * height * width);
-        uint dst_fxy = planar_index % (channel_num * height * width);
-        *dst_f = dst_fxy / (height * width);
-        uint dst_xy = dst_fxy % (height * width);
-        *dst_y = dst_xy / width;
-        *dst_x = dst_xy % width;
-    }
+    const uint feature_size = height * width;
+    const uint batch_size = channel_num * feature_size;
+
+    *dst_b = planar_index / batch_size;
+    const uint dst_fxy = planar_index % batch_size;
+    *dst_f = dst_fxy / feature_size;
+    const uint dst_xy = dst_fxy % feature_size;
+    *dst_y = dst_xy / width;
+    *dst_x = dst_xy % width;
 }
 #endif
 
