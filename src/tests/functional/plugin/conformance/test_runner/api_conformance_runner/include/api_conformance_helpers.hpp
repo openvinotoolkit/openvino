@@ -85,7 +85,7 @@ static const std::vector<std::string> return_all_possible_device_combination() {
     return res;
 }
 
-inline std::vector<std::pair<std::string, std::string>> generate_all_pairs() {
+inline std::vector<std::pair<std::string, std::string>> generate_pairs_plugin_name_by_device() {
     std::vector<std::pair<std::string, std::string>> res;
     for (const auto& device : return_all_possible_device_combination()) {
         std::string real_device = device.substr(0, device.find(':'));

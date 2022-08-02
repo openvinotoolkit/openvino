@@ -181,7 +181,7 @@ public:
 
 class OVClassBaseTestP : public OVClassNetworkTest,
                          public ::testing::WithParamInterface<std::string>,
-                         public APIBaseTest {
+                         public OVPluginTestBase {
 public:
     void SetUp() override {
         target_device = GetParam();
@@ -192,14 +192,11 @@ public:
         PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
-
-protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_plugin; };
 };
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
                                       public ::testing::WithParamInterface<std::string>,
-                                      public APIBaseTest {
+                                      public OVCompiledNetworkTestBase {
 public:
     void SetUp() override {
         target_device = GetParam();
@@ -210,9 +207,6 @@ public:
         PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
-
-private:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 };
 
 using PriorityParams = std::tuple<
@@ -220,11 +214,10 @@ using PriorityParams = std::tuple<
         ov::AnyMap              // device priority Configuration key
 >;
 class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
-                                                       public APIBaseTest {
+                                                       public OVCompiledNetworkTestBase {
 protected:
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> simpleNetwork;
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; };
 
 public:
     void SetUp() override {

@@ -70,12 +70,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 
 class IEClassSetConfigTestHETERO : public BehaviorTestsUtils::IEClassNetworkTest,
-                                   public virtual ov::test::behavior::APIBaseTest {
-protected:
-    void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ie_plugin;
-    }
-
+                                   public BehaviorTestsUtils::IEPluginTestBase {
 public:
     void SetUp() override {
         target_device = CommonTestUtils::DEVICE_HETERO;
@@ -129,12 +124,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTest,
-public ov::test::behavior::APIBaseTest {
-protected:
-    void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ie_plugin;
-    }
-
+                                     public BehaviorTestsUtils::IEPluginTestBase {
 public:
     void SetUp() override {
         target_device = CommonTestUtils::DEVICE_TEMPLATE;

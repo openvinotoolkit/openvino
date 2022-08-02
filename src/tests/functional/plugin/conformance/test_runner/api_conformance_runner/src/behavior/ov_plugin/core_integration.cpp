@@ -17,7 +17,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassBasicTestP,
-        ::testing::ValuesIn(generate_all_pairs()));
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassNetworkTestP,

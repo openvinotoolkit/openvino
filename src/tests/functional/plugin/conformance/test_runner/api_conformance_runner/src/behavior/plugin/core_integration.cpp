@@ -16,7 +16,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassBasicTestP,
-        ::testing::ValuesIn(generate_all_pairs()));
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassNetworkTestP,
