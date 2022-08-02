@@ -140,6 +140,8 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_GPU_DEPENDS "core")
         set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu-${cpack_ver_mm}")
         set(CPACK_DEBIAN_GPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        # auto batch exhances GPU
+        set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} = $(CPACK_PACKAGE_VERSION)")
         _ov_add_plugin(gpu OFF)
     endif()
 

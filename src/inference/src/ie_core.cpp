@@ -68,13 +68,26 @@ namespace {
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
-std::string parseXmlConfig(const std::string& xmlFile) {
+std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
-        // register plugins from default plugins.xml config
+        const auto ielibraryDir = ie::getInferenceEngineLibraryPath();
+
+        std::ostringstream str;
+        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+        const auto subFolder = ov::util::to_file_path(str.str());
+
+        // register plugins from default openvino-<openvino version>/plugins.xml config
         ov::util::FilePath xmlConfigFileDefault =
-            FileUtils::makePath(ie::getInferenceEngineLibraryPath(), ov::util::to_file_path("plugins.xml"));
-        xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+            FileUtils::makePath(FileUtils::makePath(ielibraryDir, subFolder), ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        throw ov::Exception("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
@@ -1493,7 +1506,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::parseXmlConfig(xmlConfigFile));
+    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
 #endif
 }
 
@@ -1772,7 +1785,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    register_plugins(parseXmlConfig(xmlConfigFile));
+    register_plugins(findPluginXML(xmlConfigFile));
 #endif
 }
 

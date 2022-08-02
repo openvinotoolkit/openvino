@@ -88,12 +88,17 @@ macro(ov_debian_specific_settings)
 
     # WA: dpkg-shlibdeps requires folder with libraries
     # proper way is to use -l (path to libs) and -L (path to shlibs) for other already installed components
-    # but it require CMake source code changes
+    # but it requires CMake source code changes
     # with current WA automatic deps detection via dpkg-shlibdeps for "our libraries"
     # is ignored; but dependencies between our components are here because of
     # CPACK_COMPONENT_<UCOMP>_DEPENDS variables
     # More proper WA is try to enable INSTALL_RPATH
-    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+
+    if(DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    else()
+        message(FATAL_ERROR "CMAKE_LIBRARY_OUTPUT_DIRECTORY is empty")
+    endif()
 
     # automatic dependencies discovering between openvino and user packages
     set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)

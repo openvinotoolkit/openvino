@@ -103,10 +103,9 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
 # TODO: dpkg-shlibdeps does not work otherwise
-# TODO: define proper library version, currently SOVERSION 2022
-# set_target_properties(${TARGET_NAME} PROPERTIES
-#     SOVERSION ${OpenVINO_VERSION_MAJOR}
-#     VERSION ${OpenVINO_VERSION})
+set_target_properties(${TARGET_NAME} PROPERTIES
+    SOVERSION ${OpenVINO_SOVERSION}
+    VERSION ${OpenVINO_VERSION})
 
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
