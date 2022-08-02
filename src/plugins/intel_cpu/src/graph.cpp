@@ -97,7 +97,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     // disable weights caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
-    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    nodeRT = std::make_shared<NodeRuntime>(config.rtCacheCapacity, eng);
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -1356,7 +1356,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     if (isQuantized()) {
         node->setQuantizedGraphFlag(true);
     }
-    node->setRuntimeCache(rtParamsCache);
+    node->setRuntime(nodeRT);
 
     if (initNode) {
         node->getSupportedDescriptors();

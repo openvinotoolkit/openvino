@@ -20,6 +20,7 @@
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
+#include "scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -28,6 +29,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
+#include "config.h"
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
@@ -93,6 +95,12 @@ public:
 private:
     NodeConfig config;
     impl_desc_type implementationType;
+};
+
+struct NodeRuntime {
+    MultiCache paramsCache;
+    ScratchPad scratchPad;
+    NodeRuntime(size_t rtCacheCapacity, dnnl::engine eng) : paramsCache(rtCacheCapacity), scratchPad(eng) {}
 };
 
 class Node {
@@ -569,8 +577,8 @@ public:
 
     virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
 
-    void setRuntimeCache(MultiCachePtr cache) {
-        rtParamsCache = cache;
+    void setRuntime(std::shared_ptr<NodeRuntime> rt) {
+        nodeRT = rt;
     }
 
     void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
@@ -743,8 +751,12 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getRuntimeCache() const {
-        return rtParamsCache;
+    MultiCache * getRuntimeCache() {
+        return &(nodeRT->paramsCache);
+    }
+
+    ScratchPad * getRuntimeScratchPad() {
+        return &(nodeRT->scratchPad);
     }
 
     std::vector<VectorDims> lastInputDims = {};
@@ -764,6 +776,8 @@ private:
 
     dnnl::engine engine;
 
+    std::shared_ptr<NodeRuntime> nodeRT;
+
     std::string name;
     std::string typeStr;
     Type type;
@@ -773,8 +787,6 @@ private:
 
     PerfCount perfCounter;
     PerfCounters profiling;
-
-    MultiCachePtr rtParamsCache;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 

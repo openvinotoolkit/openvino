@@ -823,34 +823,43 @@ void RNN::prepareParams() {
 
     RNNKey key = { inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction };
 
-    auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [this](const RNNKey& key) -> std::pair<std::shared_ptr<dnnl::primitive>, dnnl::memory::desc> {
+        dnnl::primitive_attr attr;
+        // RNN's performance can benefit a lot from user scratchpad
+        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
         fillDescs();
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
-            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, getEngine()));
+            vanilla_rnn_forward::primitive_desc pd(*desc, attr, getEngine());
+            return std::make_pair(std::make_shared<vanilla_rnn_forward>(pd), pd.scratchpad_desc());
         } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
-            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, getEngine()));
+            gru_forward::primitive_desc pd(*desc, attr, getEngine());
+            return std::make_pair(std::make_shared<gru_forward>(pd), pd.scratchpad_desc());
         } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, getEngine()));
+            lbr_gru_forward::primitive_desc pd(*desc, attr, getEngine());
+            return std::make_pair(std::make_shared<lbr_gru_forward>(pd), pd.scratchpad_desc());
         } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
-            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, getEngine()));
+            lstm_forward::primitive_desc pd(*desc, attr, getEngine());
+            return std::make_pair(std::make_shared<lstm_forward>(pd), pd.scratchpad_desc());
         } else {
-            return nullptr;
+            return std::make_pair(nullptr, dnnl::memory::desc());
         }
     };
 
     auto cache = getRuntimeCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    if (!result.first.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    prim = result.first.first;
+    scratchpad_md = result.first.second;
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();
@@ -897,6 +906,8 @@ void RNN::execute(dnnl::stream strm) {
         {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
         {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
     };
+
+    getRuntimeScratchPad()->setScratchPad(args, scratchpad_md);
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
