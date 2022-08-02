@@ -4,23 +4,56 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
-#if OUTPUT_LAYOUT_BFYX
-    #define IW INPUT0_SIZES[0]
-    #define IH INPUT0_SIZES[1]
-    #define IC INPUT0_SIZES[2]
-    #define B  INPUT0_SIZES[3]
 
-#elif OUTPUT_LAYOUT_YXFB
+#if OUTPUT_LAYOUT_YXFB
     #define IW INPUT0_SIZES[3]
     #define IH INPUT0_SIZES[2]
     #define IC INPUT0_SIZES[1]
     #define B  INPUT0_SIZES[0]
+#else
+    #define IW INPUT0_SIZES[0]
+    #define IH INPUT0_SIZES[1]
+    #define IC INPUT0_SIZES[2]
+    #define B  INPUT0_SIZES[3]
 #endif
 
 #define ic_off (IC / (STRIDE * STRIDE))
 #define ih_off (IH * STRIDE)
 #define iw_off (IW * STRIDE)
+
+#if !(defined(OUTPUT_LAYOUT_YXFB) || defined(OUTPUT_LAYOUT_BFYX))
+inline void FUNC(planar_to_bfyx)(const uint planar_index,
+                                 const uint batch_num, const uint channel_num, const uint height, const uint width,
+                                 uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
+{
+    if(planar_index < width) {
+        *dst_b = 0;
+        *dst_f = 0;
+        *dst_y = 0;
+        *dst_x = planar_index;
+    } else if(planar_index < height * width) {
+        *dst_b = 0;
+        *dst_f = 0;
+        *dst_y = planar_index / width;
+        *dst_x = planar_index % width;
+    } else if(planar_index < channel_num * height * width) {
+        *dst_b = 0;
+        *dst_f = planar_index / (height * width);
+        uint dst_xy = planar_index % (height * width);
+        *dst_y = dst_xy / width;
+        *dst_x = dst_xy % width;
+    } else if(planar_index >= channel_num * height * width) {
+        *dst_b = planar_index / (channel_num * height * width);
+        uint dst_fxy = planar_index % (channel_num * height * width);
+        *dst_f = dst_fxy / (height * width);
+        uint dst_xy = dst_fxy % (height * width);
+        *dst_y = dst_xy / width;
+        *dst_x = dst_xy % width;
+    }
+}
+#endif
 
 KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {
@@ -28,7 +61,7 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
     int ic = get_global_id(2);
     int ih = get_global_id(1);
     int iw = get_global_id(0);
-        for (int b = 0; b < B; b++) {
+    for (int b = 0; b < B; b++) {
         int dstIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
 
         int oc = ic % ic_off;
@@ -59,7 +92,42 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
 
         output[dstIndex] = input[srcIndex];
     }
-#endif
-    
+#else
+    const uint ic = get_global_id(2);
+    const uint ih = get_global_id(1);
+    const uint iw = get_global_id(0);
 
+    const uint OC = IC * STRIDE * STRIDE;
+    const uint OH = IH / STRIDE;
+    const uint OW = IW / STRIDE;
+
+    for (int b = 0; b < B; b++) {
+        const uint dstPlanarIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
+        uint dstB, dstC, dstY, dstX;
+        FUNC_CALL(planar_to_bfyx)(dstPlanarIndex, B, OC, OH, OW, &dstB, &dstC, &dstY, &dstX);
+        const uint dstIndex = OUTPUT_GET_INDEX(dstB, dstC, dstY, dstX);
+
+        const int oc = ic % ic_off;
+        const int offset = ic / ic_off;
+
+        const int ow = iw * STRIDE + offset % STRIDE;
+        const int oh = ih * STRIDE + offset / STRIDE;
+
+        const int srcPlanarIndex = b*ic_off*ih_off*iw_off + oc*ih_off*iw_off + oh*iw_off + ow;
+        uint srcB, srcC, srcY, srcX;
+        FUNC_CALL(planar_to_bfyx)(srcPlanarIndex, B, IC, IH, IW, &srcB, &srcC, &srcY, &srcX);
+        const uint srcIndex = INPUT0_GET_INDEX(srcB, srcC, srcY, srcX);
+
+        output[dstIndex] = input[srcIndex];
+    }
+#endif
 }
+
+#undef iw_off
+#undef ih_off
+#undef ic_off
+#undef B
+#undef IC
+#undef IH
+#undef IW
+
