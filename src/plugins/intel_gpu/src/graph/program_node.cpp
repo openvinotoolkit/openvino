@@ -226,7 +226,7 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    return type()->calc_output_layout(*this);
+    return type()->calc_output_layout(*this, *get_kernel_impl_params());
 }
 
 layout program_node::get_output_layout(bool invalidate_users_if_changed) {
@@ -266,6 +266,15 @@ bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_i
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     auto new_layout = calc_output_layout();
     return set_output_layout(new_layout, invalidate_users_if_changed);
+}
+
+bool program_node::is_dynamic() const {
+    for (auto& input : get_dependencies()) {
+        if (input->get_output_layout().is_dynamic())
+            return true;
+    }
+
+    return get_output_layout().is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
