@@ -21,7 +21,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     void init_kernels(const program&) override {}
 
     loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
-        _outer_id(other._outer_id),
+        _node_id(other._node_id),
         _current_iteration_id(other._current_iteration_id),
         _trip_count_id(other._trip_count_id),
         _initial_execution_id(other._initial_execution_id),
@@ -33,7 +33,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         _back_edges(other._back_edges) {}
 
     explicit loop_impl(const loop_node& node) :
-        _outer_id(node.id()),
+        _node_id(node.id()),
         _current_iteration_id(node.get_current_iteration_id()),
         _trip_count_id(node.get_trip_count_id()),
         _initial_execution_id(node.get_initial_execution_id()),
@@ -62,7 +62,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 auto current_iteration_prim = body_network->get_primitive(_current_iteration_id);
                 auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
                 if (input_layout_prim == nullptr) {
-                    CLDNN_ERROR_MESSAGE(_outer_id, "current_iteration primitive is not input_layout");
+                    CLDNN_ERROR_MESSAGE(_node_id, "current_iteration primitive is not input_layout");
                 }
 
                 const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
@@ -100,7 +100,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             if (mem) {
                 body_network->set_input_data(concatenated_input.sliced_data_prim->id(), mem);
             } else {
-                CLDNN_ERROR_MESSAGE(_outer_id, "sliced input memory of loop is not allocated properly");
+                CLDNN_ERROR_MESSAGE(_node_id, "sliced input memory of loop is not allocated properly");
             }
         }
 
@@ -114,7 +114,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 if (mem) {
                     concatenated_input.sliced_data_prim->set_output_memory(mem);
                 } else {
-                    CLDNN_ERROR_MESSAGE(_outer_id, "sliced input memory of loop is not allocated properly");
+                    CLDNN_ERROR_MESSAGE(_node_id, "sliced input memory of loop is not allocated properly");
                 }
             }
 
@@ -181,7 +181,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
 
 private:
-    const primitive_id& _outer_id;
+    const primitive_id& _node_id;
     const primitive_id& _current_iteration_id;   
     const primitive_id& _trip_count_id;
     const primitive_id& _initial_execution_id;

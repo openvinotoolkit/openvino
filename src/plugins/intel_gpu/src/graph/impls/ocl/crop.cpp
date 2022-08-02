@@ -23,7 +23,7 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
 
 protected:
     bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || get_can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
@@ -48,10 +48,13 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto crop = new crop_impl(arg, best_kernels[0]);
-        crop->set_can_be_optimized(arg.can_be_optimized());
+        crop->_can_be_optimized = arg.can_be_optimized();
 
         return crop;
     }
+
+private:
+    bool _can_be_optimized;
 };
 
 namespace detail {

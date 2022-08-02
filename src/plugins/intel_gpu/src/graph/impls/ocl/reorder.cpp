@@ -23,7 +23,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
 protected:
     bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || get_can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
     kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
@@ -109,14 +109,15 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto reorder = new reorder_impl(arg, best_kernels[0]);
-        reorder->set_can_be_optimized(arg.can_be_optimized());
+        reorder->_can_be_optimized = arg.can_be_optimized();
         reorder->_has_mean = arg.has_mean();
 
         return reorder;
     }
 
 private:
-    bool _has_mean = false;
+    bool _can_be_optimized;
+    bool _has_mean;
 };
 
 namespace detail {

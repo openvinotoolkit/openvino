@@ -25,14 +25,14 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const primitive_id& _outer_id;
+    const primitive_id& _node_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
-    , _outer_id(other._outer_id)
+    , _node_id(other._node_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
     , _kernels({}) {
@@ -44,7 +44,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _outer_id(arg.id()),
+          _node_id(arg.id()),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -82,14 +82,9 @@ protected:
         return args;
     }
 
-    int32_t get_split() const { return _split; }
-    void set_split(int32_t split) { _split = split; }
-    uint32_t get_groups() const { return _groups; }
-    void set_groups(uint32_t groups) { _groups = groups; }
-    bool get_depthwise_sep_opt() const { return _depthwise_sep_opt; }
-    void set_depthwise_sep_opt(bool depthwise_sep_opt) { _depthwise_sep_opt = depthwise_sep_opt; }
-    bool get_can_be_optimized() const { return _can_be_optimized; }
-    void set_can_be_optimized(bool can_be_optimized) { _can_be_optimized = can_be_optimized; }
+    virtual int32_t get_split() const { return 1; }
+    virtual uint32_t get_groups() const { return 1; }
+    virtual bool get_depthwise_sep_opt() const { return false; }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -201,12 +196,6 @@ protected:
         bool group_events = (all_events.size() > 1);
         return aggregate_events(all_events, stream, group_events);
     }
-
-private:
-    int32_t _split =  1;
-    uint32_t _groups = 1;
-    bool _depthwise_sep_opt = false;
-    bool _can_be_optimized = false;
 };
 
 }  // namespace ocl

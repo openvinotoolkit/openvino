@@ -69,7 +69,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
     }
 
 private:
-    bool _is_parameterized = false;
+    bool _is_parameterized;
 };
 
 namespace detail {

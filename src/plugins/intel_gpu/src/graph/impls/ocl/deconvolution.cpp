@@ -27,7 +27,7 @@ protected:
     bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
         bool res = true;
 
-        CLDNN_ERROR_NOT_EQUAL(_outer_id,
+        CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
                               _filling_value,
                               "padding mode",
@@ -45,6 +45,10 @@ protected:
 
         return args;
     }
+
+    int32_t get_split() const override { return _split; }
+
+    uint32_t get_groups() const override { return _groups; }
 
 public:
     static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
@@ -99,14 +103,16 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto deconv = new deconvolution_impl(arg, best_kernels[0]);
-        deconv->set_split(arg.get_split());
-        deconv->set_groups(arg.get_groups());
+        deconv->_split = arg.get_split();
+        deconv->_groups = arg.get_groups();
         deconv->_filling_value = arg.get_output_layout().data_padding.filling_value();
 
         return deconv;
     }
 
 private:
+    int32_t _split;
+    uint32_t _groups;
     float _filling_value;
 };
 

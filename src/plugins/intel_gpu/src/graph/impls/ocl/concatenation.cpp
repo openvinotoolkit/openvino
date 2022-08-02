@@ -65,7 +65,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
 
 protected:
     bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || get_can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
@@ -94,14 +94,15 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        concatenation_impl* concat = new concatenation_impl(arg, best_kernels[0]);
-        concat->set_can_be_optimized(arg.can_be_optimized());
+        auto concat = new concatenation_impl(arg, best_kernels[0]);
+        concat->_can_be_optimized = arg.can_be_optimized();
         concat->_inputs_count = arg.inputs_count();
         return concat;
     }
 
 private:
-    size_t _inputs_count = 1;
+    bool _can_be_optimized;
+    size_t _inputs_count;
 };
 
 namespace detail {
