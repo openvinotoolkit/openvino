@@ -39,7 +39,7 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
-1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). Select the Intel® Distribution of OpenVINO™ toolkit for macOS package from the dropdown menu. There are typically two files for you to download: 
+1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS download page](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). There are typically two files for you to download: 
    ```sh
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz
    m_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.tgz.sha256

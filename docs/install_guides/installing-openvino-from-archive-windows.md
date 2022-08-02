@@ -53,8 +53,8 @@ With the OpenVINO™ 2022.2 release, you can download the archive files and inst
 
 ### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
-1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
-   Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu. There are typically two files for you to download: 
+1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit download page](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+   There are typically two files for you to download: 
    ```sh
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip
    w_openvino_toolkit_<operating system>_dev_<release version>_<package ID>.zip.sha256
