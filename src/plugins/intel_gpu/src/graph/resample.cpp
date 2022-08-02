@@ -17,7 +17,7 @@ primitive_type_id resample::type_id() {
 
 layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)

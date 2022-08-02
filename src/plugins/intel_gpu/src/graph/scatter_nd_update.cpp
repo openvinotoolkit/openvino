@@ -17,7 +17,7 @@ primitive_type_id scatter_nd_update::type_id() {
 
 
 layout scatter_nd_update_inst::calc_output_layout(scatter_nd_update_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto output_shape = input_layout.get_tensor();
     auto input_format = input_layout.format;

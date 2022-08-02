@@ -62,7 +62,7 @@ static format get_recommended_format(layout input_layout, data_types output_type
 layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convolution>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 

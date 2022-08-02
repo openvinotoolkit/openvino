@@ -20,7 +20,7 @@ primitive_type_id cldnn::space_to_batch::type_id() {
 layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<space_to_batch>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
     auto output_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;

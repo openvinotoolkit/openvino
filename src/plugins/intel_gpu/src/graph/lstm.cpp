@@ -18,7 +18,7 @@ primitive_type_id lstm::type_id() {
 layout lstm_inst::calc_output_layout(lstm_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for lstm_node!");
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto hidden_layout = node.inital_hidden().get_output_layout();
 
     // input     = [ batch,  sequence,       direction,      input_size ]

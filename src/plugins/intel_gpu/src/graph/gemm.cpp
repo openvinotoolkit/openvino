@@ -20,8 +20,8 @@ primitive_type_id gemm::type_id() {
 layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param) {
     auto prim = impl_param.typed_desc<gemm>();
 
-    auto input0_layout = impl_param.input_layouts[0];
-    auto input1_layout = impl_param.input_layouts[1];
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto input1_layout = impl_param.get_input_layout(1);
     bool transpose_input0 = prim->transpose_input0;
     bool transpose_input1 = prim->transpose_input1;
 
@@ -31,7 +31,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     auto output_size = input0_layout.get_tensor();
 
     for (size_t i = 1; i < prim->input_size(); ++i) {
-        auto input_layout = impl_param.input_layouts[i];
+        auto input_layout = impl_param.get_input_layout(i);
         output_size = tensor::max(output_size, input_layout.get_tensor());
     }
 

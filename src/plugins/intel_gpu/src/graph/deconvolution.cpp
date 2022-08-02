@@ -23,7 +23,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
            "Output data type forcing is not supported for deconvolution_node!");
     auto desc = impl_param.typed_desc<deconvolution>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 

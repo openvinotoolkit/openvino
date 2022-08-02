@@ -20,7 +20,7 @@ primitive_type_id reduce::type_id() {
 layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<reduce>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
     auto format_dim = input_format.dimension();
     auto output_type = input_layout.data_type;

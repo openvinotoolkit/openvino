@@ -23,8 +23,8 @@ layout select_inst::calc_output_layout(select_node const& node, kernel_impl_para
     auto output_size = in_layout.get_tensor();
 
     if (impl_param.typed_desc<select>()->broadcast_type == "numpy") {
-        auto input1_size = impl_param.input_layouts[1].get_tensor();
-        auto input2_size = impl_param.input_layouts[2].get_tensor();
+        auto input1_size = impl_param.get_input_layout(1).get_tensor();
+        auto input2_size = impl_param.get_input_layout(2).get_tensor();
         output_size = tensor::max(input1_size, input2_size);
     }
 

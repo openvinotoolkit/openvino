@@ -22,8 +22,8 @@ layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& 
 
     auto desc = impl_param.typed_desc<pyramid_roi_align>();
 
-    auto boxes_layout = impl_param.input_layouts[0];
-    auto P2_layout = impl_param.input_layouts[1];
+    auto boxes_layout = impl_param.get_input_layout(0);
+    auto P2_layout = impl_param.get_input_layout(1);
 
     int32_t output_b = boxes_layout.batch();
     int32_t output_f = P2_layout.feature();

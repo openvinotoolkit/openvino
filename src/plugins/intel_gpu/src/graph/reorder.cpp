@@ -21,7 +21,7 @@ primitive_type_id reorder::type_id() {
 }
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto ifmt = input_layout.format;
 
     auto desc = impl_param.typed_desc<reorder>();

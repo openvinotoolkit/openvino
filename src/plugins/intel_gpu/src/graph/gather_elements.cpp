@@ -18,8 +18,8 @@ primitive_type_id gather_elements::type_id() {
 layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();
 
-    auto input_layout_origin = impl_param.input_layouts[0];
-    auto indices_layout_origin = impl_param.input_layouts[1];
+    auto input_layout_origin = impl_param.get_input_layout(0);
+    auto indices_layout_origin = impl_param.get_input_layout(1);
 
     auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);

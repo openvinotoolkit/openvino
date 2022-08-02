@@ -18,7 +18,7 @@ primitive_type_id deformable_conv::type_id() {
 layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<deformable_conv>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto input_type = input_layout.data_type;
     auto output_type = desc->output_data_type ? *desc->output_data_type : input_type;

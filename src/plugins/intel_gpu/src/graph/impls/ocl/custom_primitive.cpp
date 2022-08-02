@@ -190,7 +190,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
     });
 
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
-        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.input_layouts[i]);
+        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
     add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.output_layout);

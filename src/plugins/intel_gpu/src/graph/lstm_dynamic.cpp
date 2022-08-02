@@ -27,7 +27,7 @@ layout lstm_dynamic_inst::calc_output_layout(lstm_dynamic_node const& node, kern
     /*
         This program node is just placeholder for input + timeloop combinations, thus this is returning dummy layout.
         */
-    return impl_param.input_layouts[0];
+    return impl_param.get_input_layout();
 }
 
 std::string lstm_dynamic_inst::to_string(lstm_dynamic_node const& node) {

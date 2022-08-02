@@ -20,7 +20,7 @@ layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params c
            "Output data type forcing is not supported for crop_node!");
     auto desc = impl_param.typed_desc<crop>();
     const auto& ref_in_sizes = desc->reference_input;
-    const auto in_layout = impl_param.input_layouts[0];
+    const auto in_layout = impl_param.get_input_layout();
     const auto& in_sizes = in_layout.get_tensor();
     const auto& offsets = desc->offsets;
 

@@ -18,7 +18,7 @@ primitive_type_id depth_to_space::type_id() {
 layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<depth_to_space>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
     const size_t block_size = desc->block_size;

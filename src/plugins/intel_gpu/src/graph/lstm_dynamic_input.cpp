@@ -21,8 +21,8 @@ primitive_type_id lstm_dynamic_input::type_id() {
 layout lstm_dynamic_input_inst::calc_output_layout(lstm_dynamic_input_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
-    auto input_layout = impl_param.input_layouts[0];
-    auto weight_layout = impl_param.input_layouts[2];
+    auto input_layout = impl_param.get_input_layout(0);
+    auto weight_layout = impl_param.get_input_layout(2);
     auto batch = input_layout.batch();
     auto direction = weight_layout.feature();
     auto output_sequence = input_layout.feature();

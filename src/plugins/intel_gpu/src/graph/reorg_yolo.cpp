@@ -17,7 +17,7 @@ layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node, kernel_i
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for "
            "reorg_yolo_node!");
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<reorg_yolo>();
     auto stride = desc->stride;
 

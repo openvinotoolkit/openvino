@@ -26,7 +26,7 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
                           static_cast<size_t>(3),
                           "");
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     // Batch size and feature size are 1.
     // Number of bounding boxes to be kept is set to keep_top_k*batch size.

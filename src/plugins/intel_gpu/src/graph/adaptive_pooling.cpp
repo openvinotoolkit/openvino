@@ -15,7 +15,7 @@ primitive_type_id adaptive_pooling::type_id() {
 }
 
 layout adaptive_pooling_inst::calc_output_layout(const adaptive_pooling_node& node, kernel_impl_params const& impl_param) {
-    const auto data_layout = impl_param.input_layouts[0];
+    const auto data_layout = impl_param.get_input_layout();
     const auto prim = impl_param.typed_desc<adaptive_pooling>();
     return {data_layout.data_type, data_layout.format, prim->output_size};
 }

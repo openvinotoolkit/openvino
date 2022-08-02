@@ -19,7 +19,7 @@ slice_inst::typed_primitive_inst(network& network, slice_node const& node)
 
 layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<slice>();
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     return {input_layout.data_type, input_layout.format, primitive->output_shape};
 }
 

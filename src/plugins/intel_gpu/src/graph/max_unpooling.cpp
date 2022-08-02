@@ -26,8 +26,8 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node, ke
            "Output data type forcing is not supported for max_unpooling_node!");
     auto desc = impl_param.typed_desc<max_unpooling>();
 
-    auto input_layout = impl_param.input_layouts[0];
-    auto argmax_layout = impl_param.input_layouts[1];
+    auto input_layout = impl_param.get_input_layout(0);
+    auto argmax_layout = impl_param.get_input_layout(1);
 
     CLDNN_ERROR_NOT_EQUAL(desc->id,
                           "Argmax data type",

@@ -17,7 +17,7 @@ primitive_type_id bucketize::type_id() {
 }
 
 layout bucketize_inst::calc_output_layout(const bucketize_node& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto primitive = impl_param.desc;
     return {*primitive->output_data_type, input_layout.format, input_layout.get_tensor()};
 }

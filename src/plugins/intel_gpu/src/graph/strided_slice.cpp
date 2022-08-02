@@ -18,7 +18,7 @@ primitive_type_id strided_slice::type_id() {
 
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto output_format = format::get_default_format(desc->out_size.size());
     auto out_shape = desc->out_size;
     std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());

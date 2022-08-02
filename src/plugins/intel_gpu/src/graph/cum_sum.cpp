@@ -16,7 +16,7 @@ primitive_type_id cum_sum::type_id() {
 }
 
 layout cum_sum_inst::calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param) {
-    return impl_param.input_layouts[0];
+    return impl_param.get_input_layout();
 }
 
 std::string cum_sum_inst::to_string(cum_sum_node const& node) {

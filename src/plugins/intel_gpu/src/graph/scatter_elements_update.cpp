@@ -19,9 +19,9 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
     auto desc = impl_param.typed_desc<scatter_elements_update>();
 
     const int32_t axis = desc->axis;
-    const size_t input_number_of_dims = impl_param.input_layouts[0].get_tensor().sizes().size();
+    const size_t input_number_of_dims = impl_param.get_input_layout().get_tensor().sizes().size();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto output_shape = input_layout.get_tensor();
     auto input_format = input_layout.format;

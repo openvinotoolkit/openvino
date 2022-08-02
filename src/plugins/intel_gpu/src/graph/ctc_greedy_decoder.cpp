@@ -14,7 +14,7 @@ primitive_type_id ctc_greedy_decoder::type_id() {
 }
 
 layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param) {
-    auto input_node_layout = impl_param.input_layouts[0];
+    auto input_node_layout = impl_param.get_input_layout();
     auto prim = impl_param.typed_desc<ctc_greedy_decoder>();
     auto output_type = prim->output_data_type ? *prim->output_data_type : input_node_layout.data_type;
 
