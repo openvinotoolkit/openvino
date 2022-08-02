@@ -135,10 +135,10 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
 }
 
 void LoadNetworkCacheTestBase::SetUp() {
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::CRASHED);
     nGraphFunctionWithName funcPair;
     std::tie(funcPair, m_precision, m_batchSize, targetDevice) = GetParam();
+    target_device  = targetDevice;
+    APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
     try {
@@ -148,7 +148,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     }
 
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(GetTestName());
+    auto hash = std::hash<std::string>()(LayerTestsUtils::LayerTestsCommon::GetTestName());
     ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
     for (auto& iter : configuration) {
         ss << "_" << iter.first << "_" << iter.second << "_";
@@ -161,14 +161,7 @@ void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
-    auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
-    if (this->HasFailure()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::FAILED);
-    } else if (this->IsSkipped()) {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::SKIPPED);
-    } else {
-        apiSummary.updateStat(ov::test::utils::ov_entity::ie_plugin, targetDevice, ov::test::utils::PassRate::Statuses::PASSED);
-    }
+    APIBaseTest::TearDown();
 }
 
 void LoadNetworkCacheTestBase::Run() {

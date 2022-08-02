@@ -13,6 +13,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -33,7 +34,8 @@ using compileModelCacheParams = std::tuple<
 >;
 
 class CompileModelCacheTestBase : public testing::WithParamInterface<compileModelCacheParams>,
-                                  virtual public SubgraphBaseTest {
+                                  virtual public SubgraphBaseTest,
+                                  virtual public OVPluginTestBase {
     std::string m_cacheFolderName;
     std::string m_functionName;
     ov::element::Type m_precision;
@@ -56,6 +58,7 @@ using compileKernelsCacheParams = std::tuple<
         std::pair<ov::AnyMap, std::string>    // device and cache configuration
 >;
 class CompiledKernelsCacheTest : virtual public SubgraphBaseTest,
+                                 virtual public OVPluginTestBase,
                                  public testing::WithParamInterface<compileKernelsCacheParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);

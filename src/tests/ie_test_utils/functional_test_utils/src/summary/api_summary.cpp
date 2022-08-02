@@ -65,8 +65,10 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
     if (cur_stat.find(real_device) == cur_stat.end()) {
         cur_stat.insert({real_device, PassRate()});
     }
-    if (isCrashReported)
+    if (isCrashReported) {
         cur_stat[real_device].crashed--;
+        isCrashReported = false;
+    }
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
@@ -90,9 +92,8 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         case PassRate::Statuses::CRASHED:
             cur_stat[real_device].crashed++;
             isCrashReported = true;
-            return;
+            break;
     }
-    isCrashReported = false;
 }
 
 ov_entity ApiSummary::getOvEntityByName(const std::string& name) {

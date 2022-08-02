@@ -49,6 +49,9 @@ public:
     }
 
     void TearDown() override {
+        if (api_entity == ov::test::utils::ov_entity::undefined) {
+            set_api_entity();
+        }
         if (this->HasFailure()) {
             api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::FAILED);
         } else if (this->IsSkipped()) {

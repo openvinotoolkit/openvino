@@ -766,7 +766,7 @@ typedef std::tuple<
 > PreprocessSetBlobCheckParams;
 
 class InferRequestPreprocessDynamicallyInSetBlobTest : public testing::WithParamInterface<PreprocessSetBlobCheckParams>,
-                                                       public CommonTestUtils::TestsCommon {
+                                                       public BehaviorTestsUtils::IEPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessSetBlobCheckParams> obj) {
         InferenceEngine::Precision netPrecision;
@@ -823,12 +823,14 @@ public:
                  netLayout, changeILayout, changeOLayout,
                  setInputBlob, setOutputBlob,
                  target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        APIBaseTest::TearDown();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -837,7 +839,6 @@ public:
     InferenceEngine::Layout netLayout;
     bool changeILayout, changeOLayout;
     bool setInputBlob, setOutputBlob;
-    std::string target_device;
     std::map<std::string, std::string> configuration;
 };
 
