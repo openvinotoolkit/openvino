@@ -911,6 +911,7 @@ def test_array_like_input_async_infer_queue(device):
     for i in range(jobs):
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
 
+
 def test_convert_infer_request(device):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
     inputs = [arr_1, arr_2]
