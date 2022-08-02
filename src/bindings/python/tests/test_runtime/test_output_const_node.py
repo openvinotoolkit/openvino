@@ -159,5 +159,5 @@ def test_deepcopy():
     node = ops.relu(5)
     output_node = node.outputs()[0]
     with pytest.raises(TypeError) as e:
-        out_copy = deepcopy(output_node)
+        deepcopy(output_node)
     assert "cannot copy 'openvino.runtime.ConstOutput' object." in str(e)
