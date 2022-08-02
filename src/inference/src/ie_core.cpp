@@ -1292,8 +1292,6 @@ public:
             }
         }
         for (auto& plugin : created_plugins) {
-            if (IsHiddenDevice(plugin.first))
-                continue;
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
