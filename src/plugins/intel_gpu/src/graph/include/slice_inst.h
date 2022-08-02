@@ -26,7 +26,7 @@ class typed_primitive_inst<slice> : public typed_primitive_inst_base<slice> {
     using parent = typed_primitive_inst_base<slice>;
 
 public:
-    static layout calc_output_layout(slice_node const& node);
+    static layout calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(slice_node const& node);
 
 public:
