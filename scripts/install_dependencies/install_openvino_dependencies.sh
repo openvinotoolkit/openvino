@@ -8,7 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-default_comp=(dev python myriad cl_compiler)
+default_comp=(core dev python myriad cl_compiler)
 all_comp=(${default_comp[@]} opencv_req opencv_opt)
 os=${os:-auto}
 
@@ -99,6 +99,7 @@ extra_repos=()
 
 if [ "$os" == "ubuntu18.04" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
@@ -120,6 +121,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
@@ -144,6 +146,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
 
 elif [ "$os" == "rhel8" ] ; then
 
+    pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python3 python3-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config gflags-devel.i686 zlib-devel.i686 curl sudo)

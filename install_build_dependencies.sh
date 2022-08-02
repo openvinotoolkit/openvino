@@ -47,6 +47,7 @@ if [ -f /etc/lsb-release ]; then
             patchelf \
             `# openvino` \
             libtbb-dev \
+            libpugixml-dev \
             `# python` \
             python3-pip \
             python3-enchant \
