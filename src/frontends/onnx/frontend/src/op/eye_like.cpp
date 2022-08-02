@@ -90,14 +90,16 @@ Output<ngraph::Node> square_identity_matrix(const Output<ngraph::Node>& matrix_s
     const auto one_followed_by_zeros = std::make_shared<default_opset::Concat>(OutputVector{one, zeros}, 0);
 
     // The identity matrix as a 1D representation.
-    const auto one_int = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {1});
-    const auto size_minus_one = std::make_shared<default_opset::Subtract>(matrix_size, one_int);
-    const auto one_d_data = std::make_shared<default_opset::Tile>(one_followed_by_zeros, size_minus_one);
-    const auto one_d_data_concat = std::make_shared<default_opset::Concat>(OutputVector{one_d_data, one}, 0);
+    const auto one_d_data = std::make_shared<default_opset::Tile>(one_followed_by_zeros, matrix_size);
+    const auto zero_int = default_opset::Constant::create(element::i64, Shape{1}, {0});
+    const auto eye_1d = std::make_shared<default_opset::Pad>(one_d_data,
+                                                             zero_int,
+                                                             std::make_shared<default_opset::Negative>(matrix_size),
+                                                             ov::op::PadMode::CONSTANT);
 
     // Reshape the 1D array to a 2D array
     const auto output_shape = std::make_shared<default_opset::Concat>(OutputVector{matrix_size, matrix_size}, 0);
-    const auto diagonal = std::make_shared<default_opset::Reshape>(one_d_data_concat, output_shape, false);
+    const auto diagonal = std::make_shared<default_opset::Reshape>(eye_1d, output_shape, false);
     return diagonal;
 }
 
