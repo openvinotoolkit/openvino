@@ -273,6 +273,9 @@ public:
 
     void set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape);
 
+    /// Set custom output type, usually it is not a tensor, so pshape is set as for a scalar by default
+    void set_output_type(size_t i, ov::Any custom_element_type, const PartialShape& pshape = PartialShape());
+
     /// Sets the number of outputs
     void set_output_size(size_t output_size);
 

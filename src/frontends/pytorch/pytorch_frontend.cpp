@@ -2,17 +2,18 @@
 #include <exception>
 #include <memory>
 
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/frontend/node_context.hpp"
 
+#include "decoder.hpp"
 #include "pytorch_frontend.h"
 
 
-namespace torch {
-namespace jit {
-namespace fuser {
-namespace openvino {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 
 #define OV_FRONTEND_REQUIRE(X) \
@@ -20,274 +21,85 @@ namespace openvino {
         throw std::runtime_error(std::string("[ ERROR ] Failed: ") + #X); \
     } while(false)
 
-ngraph::element::Type to_ngraph_data_type(at::ScalarType dt) {
-    switch (dt) {
-        case at::ScalarType::Float:
-            return ngraph::element::f32;
-        case at::ScalarType::BFloat16:
-            return ngraph::element::bf16;
-        case at::kInt:
-            return ngraph::element::i32;
-        case at::kLong:
-            return ngraph::element::i64;
-        case at::ScalarType::QInt8:
-            return ngraph::element::i8;   // TODO: Is it correct?
-        case at::ScalarType::QUInt8:
-            return ngraph::element::u8;   // TODO: Is it correct?
-        default:
-            TORCH_CHECK(false, "Not support data type ", dt);
-    }
-}
 
-ngraph::PartialShape get_ov_shape(const Value* v) {
-    std::vector<ngraph::Dimension> dims;
-    if (v->type()->isSubtypeOf(TensorType::get())) {
-        const auto &tt = v->type()->cast<TensorType>();
-        //std::cerr << "sizes = " << tt->sizes() << "\n";
-        //std::cerr << "dims = " << tt->dim() << "\n";
+typedef std::map<size_t, Output<Node>> TensorMap;
 
-        const auto &sizes = tt->sizes();
-        if (sizes.sizes())
-            for (auto &d : *sizes.sizes())
-                dims.push_back(d.value_or(-1));
-    } else {
-        auto value = toIValue(v);
-
-        if (value->isIntList()) {
-            auto vec = value->toIntVector();
-            dims = {vec.size()};
-        } else if (value->isInt()) {
-            auto val = value->toInt();
-            dims = {};
-        } else if (value->isDouble()) {
-            auto val = value->toDouble();
-            dims = {};
-        } else {
-            //std::cerr << "[ ERROR ] Cannot retrieve shape for not a tensor value\n";
-            return ngraph::PartialShape::dynamic();
-        }
-    }
-    return ngraph::PartialShape(dims);
-}
-
-ngraph::element::Type get_ov_element_type(const Value* v) {
-    if (v->type()->isSubtypeOf(TensorType::get())) {
-        const auto& tt = v->type()->cast<TensorType>();
-
-        if (tt->scalarType().has_value()) {
-            return to_ngraph_data_type(tt->scalarType().value());
-        } else {
-            return ngraph::element::f32;
-        }
-    } else {
-        //std::cerr << "[ ERROR ] Cannot retrieve type for not a tensor value\n";
-        return ngraph::element::dynamic;
-    }
-}
-
-std::vector<int32_t> get_transpose_order(const Value* v) {
-    std::vector<int32_t> idx;
-    if (v->type()->isSubtypeOf(TensorType::get())) {
-        ngraph::PartialShape dims;
-        const auto& tt = v->type()->cast<TensorType>();
-
-        const auto& strides = tt->strides();
-        if (strides.sizes())
-            for (auto& d : *strides.sizes()) {
-                dims.push_back(d.value_or(-1));
-            }
-        if (dims.is_dynamic()) {
-            throw std::runtime_error("Cannot retrieve transpose order for dynamic strides");
-        }
-        const auto& s = dims.get_shape();
-        idx.resize(s.size());
-        std::iota(idx.begin(), idx.end(), 0);
-        std::stable_sort(idx.begin(), idx.end(), [&s](size_t lhs, size_t rhs) {return s[lhs] > s[rhs];});
-    } else {
-        //std::cerr << "[ ERROR ] Cannot retrieve strides for not a tensor value\n";
-        return {};
-    }
-    return idx;
-}
-
-void mark_node (std::shared_ptr<ngraph::Node> ov_node, const Node* pt_node) {
-    auto& rt_info = ov_node->get_rt_info();
-    auto rt_info_pt = rt_info.find("pt_node");
-    if(rt_info_pt == rt_info.end()) {
-        rt_info_pt = rt_info.insert(std::map<std::string, ov::Any>::value_type("pt_node", std::set<const Node*>())).first;
-    }
-    rt_info_pt->second.as<std::set<const Node*>>().insert(pt_node);
-}
-
-typedef std::map<size_t, ngraph::Output<ngraph::Node>> TensorMap;
-
-class NodeDecoder : public std::enable_shared_from_this<NodeDecoder> {
+class NodeContext : public frontend::NodeContext {
 public:
 
-    NodeDecoder (std::shared_ptr<Graph> _graph, const Node* _node, const TensorMap& _tensor_map, const TensorArgs& _graph_tensors) :
-        graph(_graph), node(_node), tensor_map(_tensor_map), graph_tensors(_graph_tensors) {}
+    NodeContext (std::shared_ptr<Decoder> decoder, const TensorMap& tensor_map) :
+        m_decoder(decoder), m_tensor_map(tensor_map) {}
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
     template <typename T>
     T const_input (size_t index) const;
 
-    // FIXME: This method is provided to support a work-around to prove some perf expectations. It should be deleted.
-    // Extract tensor value from one of the torch graph inputs and represent it as constant node
-    ngraph::Output<ngraph::Node> const_node_input (size_t index) {
-        OV_FRONTEND_REQUIRE(!input_is_none(index));
-        auto id = node->inputs()[index]->unique();
-        // search for id in graph inputs
-        // TODO: Search for a better way
-        for(size_t i = 0; i < graph->inputs().size(); ++i) {
-            if(graph->inputs()[i]->unique() == id) {
-                if(graph_tensors.empty()) {
-                    throw std::runtime_error("const_node_input failed: there are no real input tensors");
-                }
-                return make_constant(graph_tensors[i]);
-            }
-        }
-
-        throw std::runtime_error("const_node_input failed: cannot find input with a given id among graph inputs");
-    }
-
     // Search for input in tensor map and return an output port for already converted op
-    ngraph::Output<ngraph::Node> input (size_t index) const {
+    Output<Node> input (size_t index) const {
         //std::cerr << "Trying to map input to ngraph...";
-        OV_FRONTEND_REQUIRE(!input_is_none(index));
-        return tensor_map.at(node->inputs()[index]->unique());
+        OV_FRONTEND_REQUIRE(!m_decoder->input_is_none(index));
+        return tensor_map.at(m_decoder->input(index));
     }
 
-    ngraph::OutputVector inputs () const {
-        ngraph::OutputVector res;
-        for (auto& input : node->inputs()) {
+    OutputVector inputs () const {
+        OutputVector res;
+        for (size_t input : m_decoder->inputs()) {
             //std::cerr << "Searching for input: " << input->unique() << "\n";
-            OV_FRONTEND_REQUIRE(tensor_map.find(input->unique()) != tensor_map.end());
-            res.push_back(tensor_map.at(input->unique()));
+            OV_FRONTEND_REQUIRE(tensor_map.find(input) != tensor_map.end());
+            res.push_back(tensor_map.at(input));
         }
         return res;
     }
 
     bool input_is_none (size_t index) const {
-        return node->inputs().size() <= index || !node->inputs()[index]->mustNotBeNone();
+        return m_decoder->input_is_none(index);
     }
 
     // Convert the resulting value of this node to ngraph Constant; works correctly only for nodes that produce
     // constant value, naturally for prim::Constant
-    ngraph::OutputVector as_constant ();
+    OutputVector as_constant ();
 
-    torch::jit::NodeKind get_op_type() const {
-        return node->kind();
+    std::string get_op_type() const {
+        return m_decoder->get_op_type();
     }
 
     size_t num_of_outputs () const {
-        return node->outputs().size();
+        return m_decoder->num_of_outputs();
     }
 
-    c10::ArrayRef<const torch::jit::Value*> outputs () const {
-        return node->outputs();
+    std::vector<size_t> outputs () const {
+        return m_decoder->outputs();
     }
 
-    std::shared_ptr<ngraph::Node> mark_node (std::shared_ptr<ngraph::Node> ov_node) const {
-        openvino::mark_node(ov_node, node);
-        return ov_node;
+    std::shared_ptr<Node> mark_node (std::shared_ptr<Node> ov_node) const {
+        return m_decoder->mark_node(ov_node);
     }
 
-    void mark_nodes (std::vector<std::shared_ptr<ngraph::Node>> ov_nodes) const {
-        for (auto& ov_node : ov_nodes) {
-            openvino::mark_node(ov_node, node);
-        }
+    void mark_nodes (std::vector<std::shared_ptr<Node>> ov_nodes) const {
+        return m_decoder->mark_nodes(ov_nodes);
     }
 
-    ngraph::Output<ngraph::Node> mark_output (ngraph::Output<ngraph::Node> ov_output) const {
-        openvino::mark_node(ov_output.get_node_shared_ptr(), node);
-        return ov_output;
+    Output<Node> mark_output (Output<Node> ov_output) const {
+        return m_decoder->mark_nodes(ov_output);
     }
 
 private:
 
-    ngraph::Output<ngraph::Node> make_constant(const at::Tensor& tensor) const;
-
-    std::shared_ptr<Graph> graph;
-    const Node* node;
-    const TensorMap& tensor_map;
-    const TensorArgs& graph_tensors;
+    std::shared_ptr<Decoder> m_decoder;
+    const TensorMap& m_tensor_map;
 };
-
-template <typename Tdst, typename Tsrc>
-std::vector<Tdst> convert_vector (const std::vector<Tsrc>& in) {
-    return std::vector<Tdst>(in.begin(), in.end());
-}
-
-template <>
-std::vector<int64_t> NodeDecoder::const_input<std::vector<int64_t>> (size_t index) const {
-    OV_FRONTEND_REQUIRE(!input_is_none(index));
-    return toIValue(node->input(index))->toIntVector();
-}
-
-template <>
-std::string NodeDecoder::const_input<std::string> (size_t index) const {
-    OV_FRONTEND_REQUIRE(!input_is_none(index));
-    return toIValue(node->input(index))->toString()->string();
-}
-
-template <>
-ngraph::Strides NodeDecoder::const_input<ngraph::Strides> (size_t index) const {
-    return convert_vector<ngraph::Strides::value_type>(const_input<std::vector<int64_t>>(index));
-}
-
-template <>
-ngraph::CoordinateDiff NodeDecoder::const_input<ngraph::CoordinateDiff> (size_t index) const {
-    return convert_vector<ngraph::CoordinateDiff::value_type>(const_input<std::vector<int64_t>>(index));
-}
-
-template <>
-ngraph::Shape NodeDecoder::const_input<ngraph::Shape> (size_t index) const {
-    return convert_vector<ngraph::Shape::value_type>(const_input<std::vector<int64_t>>(index));
-}
-
-template <>
-int64_t NodeDecoder::const_input<int64_t> (size_t index) const {
-    OV_FRONTEND_REQUIRE(!input_is_none(index));
-    return toIValue(node->input(index))->toInt();
-}
-
-template <>
-bool NodeDecoder::const_input<bool> (size_t index) const {
-    OV_FRONTEND_REQUIRE(!input_is_none(index));
-    return toIValue(node->input(index))->toBool();
-}
-
-template <>
-double NodeDecoder::const_input<double> (size_t index) const {
-    OV_FRONTEND_REQUIRE(!input_is_none(index));
-    return toIValue(node->input(index))->toDouble();
-}
-
-template <>
-float NodeDecoder::const_input<float> (size_t index) const {
-    return const_input<double>(index);
-}
-
-ngraph::Output<ngraph::Node> NodeDecoder::make_constant(const at::Tensor& tensor) const {
-    auto shape = convert_vector<ngraph::Shape::value_type>(tensor.sizes().vec());
-    // TODO: Check strides; now, for our first experiments we expect that they are trivial and don't introduce gaps
-    //auto strides = t.strides().vec();
-    auto type = to_ngraph_data_type(tensor.scalar_type());
-    return std::make_shared<ngraph::opset7::Constant>(type, shape, tensor.data_ptr());
-}
-
 
 class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
-    PtFrameworkNode(const std::shared_ptr<NodeDecoder>& decoder, const ngraph::OutputVector& inputs)
+    PtFrameworkNode(const std::shared_ptr<Decoder>& decoder, const ngraph::OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, decoder->num_of_outputs()),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
-        //std::cerr << "[ DEBUG ] Making  PtFrameworkNode for " << m_decoder->get_op_type().toQualString() << "\n";
+        //std::cerr << "[ DEBUG ] Making  PtFrameworkNode for " << m_decoder->get_op_type() << "\n";
         attrs.set_type_name("PTFrameworkNode");
-        attrs["PtTypeName"] = m_decoder->get_op_type().toQualString();
+        attrs["PtTypeName"] = m_decoder->get_op_type();
         set_attrs(attrs);
 
         // Set output shapes and types if recognized
@@ -295,6 +107,7 @@ public:
         auto outputs = decoder->outputs();
         for(size_t i = 0; i < outputs.size(); ++i) {
             ngraph::PartialShape ps;
+            // TODO: Try to decode PT type as a custom type
             ngraph::element::Type et = ngraph::element::dynamic;
             // FIXME: ROUGH
             try {
@@ -321,36 +134,13 @@ public:
         return m_decoder->get_op_type();
     }
 
-    NodeDecoder* get_decoder() const {
+    Decoder* get_decoder() const {
         return m_decoder.get();
     }
 
 private:
     std::shared_ptr<NodeDecoder> m_decoder;
 };
-
-
-ngraph::OutputVector NodeDecoder::as_constant () {
-    auto value = toIValue(node->output(0));
-    std::shared_ptr<ngraph::Node> constant;
-    if (value->type()->isSubtypeOf(TensorType::get())) {
-        // TODO: Too long indirect path; can be shorter if we hold value pointer as a field of the class
-        constant = make_constant(value->toTensor()).get_node_shared_ptr();
-    } else if (value->isIntList()) {
-        auto vec = value->toIntVector();
-        constant = ngraph::opset7::Constant::create(ov::element::i64, {vec.size()}, vec);
-    } else if (value->isInt()) {
-        auto val = value->toInt();
-        constant = ngraph::opset7::Constant::create(ov::element::i64, {}, {val});
-    } else if (value->isDouble()) {
-        auto val = value->toDouble();
-        constant = ngraph::opset7::Constant::create(ov::element::f32, {}, {val});
-    } else {
-        //std::cerr << "[ ERROR ] Constant type " << value->tagKind() << " is not recognized; replaced by PT FrameworkNode\n";
-        constant = std::make_shared<PtFrameworkNode>(shared_from_this(), ngraph::OutputVector{});
-    }
-    return { mark_node(constant) };
-}
 
 
 ngraph::Output<ngraph::Node> make_optional_bias(
@@ -962,7 +752,6 @@ std::shared_ptr<ngraph::Function> convert(std::shared_ptr<Graph> graph, const Te
     return std::make_shared<ngraph::Function>(results, parameters);
 }
 
-}
 }
 }
 }
