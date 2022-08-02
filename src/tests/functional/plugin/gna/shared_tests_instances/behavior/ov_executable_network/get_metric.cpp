@@ -188,19 +188,19 @@ INSTANTIATE_TEST_SUITE_P(
 // TODO: verify hetero interop
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GNA"));
+        ::testing::Values("HETERO:GNA"));
 
 // TODO: verify hetero interop
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
         OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GNA"));
+        ::testing::Values("HETERO:GNA"));
 
 // TODO: verify hetero interop
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassHeteroExecutableNetworlGetMetricTest,
         OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("GNA"));
+        ::testing::Values("HETERO:GNA"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworlGetMetricTest,
         OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::Values("GNA"));
+        ::testing::Values("HETERO:GNA"));
 }  // namespace

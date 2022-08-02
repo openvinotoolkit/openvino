@@ -74,19 +74,19 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkSetConfigTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::Values("GPU"));
+                         ::testing::Values("HETERO:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::Values("GPU"));
+                         ::testing::Values("HETERO:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-                         ::testing::Values("GPU"));
+                         ::testing::Values("HETERO:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-                         ::testing::Values("GPU"));
+                         ::testing::Values("HETERO:GPU"));
 
 } // namespace
 
