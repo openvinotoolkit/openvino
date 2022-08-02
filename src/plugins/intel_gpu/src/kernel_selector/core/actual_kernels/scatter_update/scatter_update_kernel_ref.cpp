@@ -77,7 +77,7 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 }
 
 static inline std::string GetAxisName(size_t size, size_t axis) {
-    std::vector<std::string> axis_names;;
+    std::vector<std::string> axis_names;
     if (size <= 4) {
         axis_names = {"BATCH", "FEATURE", "Y", "X"};
     } else if (size == 5) {

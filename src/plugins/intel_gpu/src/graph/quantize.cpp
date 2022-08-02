@@ -30,7 +30,7 @@ layout quantize_inst::calc_output_layout(quantize_node const& node) {
         output_format = format::b_fs_yx_32fp;
     }
 
-    return layout{out_dt, output_format, input_layout.size};
+    return layout{out_dt, output_format, input_layout.get_tensor()};
 }
 
 std::string quantize_inst::to_string(quantize_node const& node) {

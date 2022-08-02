@@ -16,7 +16,6 @@
 #include "intel_gpu/primitives/permute.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 /*
@@ -119,7 +118,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         bool reshape_fc = shape_a_aligned.size() > 3;
 
         auto reshape_to_2d = [&](const ngraph::Shape& shape, std::string inputName, size_t features, std::string suffix) -> std::string {
-            auto total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            size_t total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
             std::vector<size_t> reshapeSize = { total / features, features };
 
             if (total != reshapeSize[0] * reshapeSize[1])
@@ -312,5 +311,4 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 REGISTER_FACTORY_IMPL(v0, MatMul);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
