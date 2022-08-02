@@ -897,7 +897,9 @@ public:
         } else if (name == ov::cache_dir.name()) {
             return ov::Any(coreConfig.get_cache_dir());
         }
-        return ov::Any();
+
+        IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name
+                   << "'";
     }
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override {
