@@ -55,6 +55,10 @@ ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
 }
 KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORG_YOLO);
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     const reorg_yolo_params& orgParams = static_cast<const reorg_yolo_params&>(params);
 
     DispatchData dispatchData = SetDefault(orgParams);
@@ -73,4 +77,22 @@ KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optio
 KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
+
+bool ReorgYoloKernelRef::Validate(const Params& p, const optional_params& o) const {
+    const reorg_yolo_params& params = static_cast<const reorg_yolo_params&>(p);
+    const auto& input = params.inputs[0];
+
+    if (input.GetDims().size() != 4) {
+        return false;
+    }
+
+    if (!(input.Feature().v >= params.stride * params.stride
+            && input.X().v % params.stride == 0
+            && input.Y().v % params.stride == 0)) {
+        return false;
+    }
+
+    return true;
+}
+
 }  // namespace kernel_selector
