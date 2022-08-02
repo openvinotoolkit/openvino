@@ -1169,7 +1169,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
-                                              (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256) ? 0.001 : 0.01);
+                                              (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256 ? 0.001f : 0.01f));
                 if (abs(ol / (oh - ol) - il / (ih - il)) >= 0.01 && levels != 256)
                     std::cout << getName() << " abs: " << abs(ol / (oh - ol) - il / (ih - il))
                                 << " threshold: 0.01 " << std::endl;
