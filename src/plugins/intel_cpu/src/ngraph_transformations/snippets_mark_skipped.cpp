@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
+#include <cstdint>
 #include <snippets/pass/collapse_subgraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <utils/general_utils.h>
@@ -219,8 +220,17 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
             }
         }
     }
+
     if (num_non_const_inputs != 1)
         return false;
+
+    // Matmul
+    if (can_be_converted_to_FC &&
+        ov::is_type<ngraph::opset1::Add>(node) &&
+        bias_shape.back() == matmul_shape.back() &&
+        bias_shape.back() == shape_size(bias_shape)) {
+        return true;
+    }
 
     // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
@@ -230,36 +240,54 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, Nod
         fusingAxis = matmul_shape.size() == 3 ? 2 : 1;
     else
         fusingAxis = matmul_shape.size() - 1;
+
     if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
         updatedChainType = NodeFusingType::FusedWithMisc;
         return true;
     }
-    //    FullyConnectedBiasFusion
-    if (!(can_be_converted_to_FC && ov::is_type<ngraph::opset1::Add>(node) &&
-        bias_shape.back() == matmul_shape.back() &&
-        bias_shape.back() == shape_size(bias_shape))) {
-        return false;
-    }
-    // Fusing chain must be interrupted after the node, since reshape will be inserted
-    if (bias_shape.size() >= 2)
-        updatedChainType = NodeFusingType::FusedTerminator;
-    return true;
+
+    return false;
 }
-bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
+bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node, const int channelAxis) {
+    // Sum is represented with Add operation
     if (!ov::is_type<ngraph::op::v1::Add>(node))
         return false;
-    auto isFusedBiasNode = [](std::shared_ptr<Node> n){
+    // with two non cost inputs
+    if (getNumNonConstInputs(node) != 2)
+        return false;
+
+    auto isIsSuitableParentWithdBias = [&](std::shared_ptr<Node> n, const NodeFusingType nodeFusingType){
         if (!(ov::is_type<ngraph::op::v1::Add>(n) &&
-              GetNodeFusingType(n) ==  NodeFusingType::FusedWithConvolution))
+              GetNodeFusingType(n) ==  nodeFusingType))
             return false;
-        const auto conv = n->get_input_source_output(0);
+
+        const auto node = n->get_input_source_output(0);
         const auto bias = n->get_input_source_output(1);
-        if (!(ngraph::op::is_constant(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
+        // Bias must be constant
+        if (!(ngraph::op::is_constant(bias.get_node_shared_ptr())))
             return false;
-        const auto conv_shape = conv.get_partial_shape();
+
+        switch (nodeFusingType) {
+        case NodeFusingType::FusedWithConvolution:
+            if (!isSuitableConvolutionParent(node.get_node_shared_ptr()))
+                return false;
+            break;
+        case NodeFusingType::FusedWithMatMul:
+            if (!isSuitableMatMulParent(node.get_node_shared_ptr()))
+                return false;
+            break;
+        }
+
+        const auto node_shape = node.get_partial_shape();
         const auto bias_shape = bias.get_partial_shape();
-        if  (bias_shape.is_dynamic() || conv_shape.is_dynamic() || bias_shape.size() > conv_shape.size())
+
+        // dynamic bias is not supported
+        if  (bias_shape.is_dynamic())
             return false;
+        // bias and activation shapes must have the same size
+        if (bias_shape.size() > node_shape.size())
+            return false;
+
         auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> std::vector<size_t>{
             std::vector<size_t> normalizedDims = dims;
             for (size_t i = 0; i < (ndims - dims.size()); i++) {
@@ -267,23 +295,36 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
             }
             return normalizedDims;
         };
-        const auto bias_norm_dims = getNormalizedDims(bias_shape.get_shape(), conv_shape.size());
-        if (bias_norm_dims.size() < 2 || bias_norm_dims[0] != 1 || conv_shape[1] != bias_norm_dims[1])
+
+        const auto bias_norm_dims = getNormalizedDims(bias_shape.get_shape(), node_shape.size());
+        if (bias_norm_dims.size() < 2 || node_shape[channelAxis] != bias_norm_dims[channelAxis])
             return false;
-        for (size_t i = 2; i < bias_norm_dims.size(); i++) {
-            if (bias_norm_dims[i] != 1)
+
+        // every bias dimention is 1 except the channel one
+        for (int i = 0; i < bias_norm_dims.size(); i++) {
+            if (bias_norm_dims[i] != 1 && i != channelAxis)
                 return false;
         }
+
         return true;
     };
-    int num_conv_parents = 0;
+
+    bool isSuitable = false;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto n = node->get_input_node_shared_ptr(i);
-        //BinaryConvolution allows other ops to be fused before the Add, while Convolution doesn't
-        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) ||
-                             GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
+        /*
+         * - BinaryConvolution allows other ops to be fused before Sum
+         * - Convolution and Matmul can fuse Sum as the first post op or as the second one after bias
+         */
+        isSuitable = (isSuitableConvolutionParent(n) || isIsSuitableParentWithdBias(n, NodeFusingType::FusedWithConvolution) ||
+                      isSuitableMatMulParent(n)      || isIsSuitableParentWithdBias(n, NodeFusingType::FusedWithMatMul) ||
+                      GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
+
+        if (isSuitable)
+            break;
     }
-    return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
+
+    return isSuitable;
 }
 bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_SumActivation(node);
@@ -339,6 +380,8 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             continue;
         } else if (isSuitableMatMulParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
+            const auto& input_shape = node->input(0).get_partial_shape();
+            channelAxis = input_shape.size() - 1;
             continue;
         }
         for (const auto fusingChainType : getContinuableChains(node)) {
@@ -346,22 +389,19 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 PropagateIfHasOnlyChild(node, fusingChainType);
             } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
                        fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
-                if (isSuitableParentForFusingSumActivation(node)) {
-                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolutionSumActivation);
+                if (isSuitableParentForFusingSumActivation(node, channelAxis)) {
+                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithSumActivation);
                     // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
                 } else if (isSuitablePoolChild(node)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 }
-            } else if (fusingChainType == NodeFusingType::FusedWithConvolutionSumActivation &&
-                       isSuitableChildForFusingSumActivation(node)) {
-                // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this point
-                // Set FusedWithConvolution, so the fusing chain could be propagated
-                PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolution);
             } else if (fusingChainType == NodeFusingType::FusedWithMatMul) {
                 // Handle fusings for both MatMul and FullyConnected
                 NodeFusingType updatedChainType = fusingChainType;
                 if (isSuitableChildForFusingMatMul(node, updatedChainType))
                     PropagateIfHasOnlyChild(node, updatedChainType);
+                else if (isSuitableParentForFusingSumActivation(node, channelAxis))
+                    PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithSumActivation);
             } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
                         ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
                 // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts

@@ -39,9 +39,12 @@ public:
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
+    void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+
+    void initDescriptor(const NodeConfig& config) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -63,12 +66,15 @@ private:
     VectorDims makeDummyInputDims() const;
     VectorDims makeDummyOutputDims(const VectorDims& inDims) const;
 
+    InferenceEngine::Precision fusedEltwisePrecision(const Node& fusingNode) const;
+
     VectorDims inDims;
     VectorDims outDims;
 
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
 
     bool withBiases = false;
+    bool withFusedSum = false;
 
     std::string errorPrefix;
     static const size_t DATA_ID = 0;

@@ -4,7 +4,9 @@
 
 #include "graph_optimizer.h"
 
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "nodes/fullyconnected.h"
 #include "nodes/reshape.h"
 #include "nodes/pooling.h"
 #include "nodes/eltwise.h"
@@ -28,6 +30,7 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
+#include <cstdlib>
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 
@@ -99,6 +102,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndSimpleOperation");
     FuseConvolutionAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
+    FuseFullyConnectedAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
@@ -1193,12 +1200,16 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         auto parent1 = graphNode->getParentEdgesAtPort(0)[0]->getParent();
         auto parent2 = graphNode->getParentEdgesAtPort(1)[0]->getParent();
 
-        bool isSuitableParent1 = parent1->getType() == Type::Convolution
-                                    || parent1->getType() == Type::BinaryConvolution;
-        bool isSuitableParent2 = parent2->getType() == Type::Convolution
-                                    || parent2->getType() == Type::BinaryConvolution;
+        char* disableFcSum = std::getenv("DISABLE_FC_SUM");
 
-        auto canFuseSum = [](node::BinaryConvolution *binConv, NodePtr fuseCandidate) {
+        if (one_of(Type::FullyConnected, parent1->getType(), parent2->getType()) &&
+            disableFcSum)
+            continue;
+
+        bool isSuitableParent1 = one_of(parent1->getType(), Type::Convolution, Type::BinaryConvolution, Type::FullyConnected);
+        bool isSuitableParent2 = one_of(parent2->getType(), Type::Convolution, Type::BinaryConvolution, Type::FullyConnected);
+
+        auto canFuseSum = [](std::shared_ptr<BinaryConvolution> binConv, NodePtr fuseCandidate) {
             if (binConv->getImplType() == impl_desc_type::ref)
                 return false;
 
@@ -1217,17 +1228,17 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             return false;
         };
 
-        auto* binConvNode1 = dynamic_cast<node::BinaryConvolution *>(parent1.get());
+        auto binConvNode1 = std::dynamic_pointer_cast<BinaryConvolution>(parent1);
         if (binConvNode1) {
             isSuitableParent1 = isSuitableParent1 && canFuseSum(binConvNode1, graphNode);
         }
 
-        auto* binConvNode2 = dynamic_cast<node::BinaryConvolution *>(parent2.get());
+        auto binConvNode2 = std::dynamic_pointer_cast<BinaryConvolution>(parent2);
         if (binConvNode2) {
             isSuitableParent2 = isSuitableParent2 && canFuseSum(binConvNode2, graphNode);
         }
 
-        auto checkFusedWithSum = [](Convolution* conv) -> bool {
+        auto checkFusedWithSum = [](std::shared_ptr<Convolution> conv) -> bool {
             for (const auto& node : conv->getFusedWith()) {
                 const auto eltwise = std::dynamic_pointer_cast<Eltwise>(node);
                 if (eltwise && eltwise->isSpecialConvolutionAddFusing())
@@ -1236,7 +1247,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             return false;
         };
 
-        auto* convNode1 = dynamic_cast<Convolution *>(parent1.get());
+        auto convNode1 = std::dynamic_pointer_cast<Convolution>(parent1);
         if (convNode1) {
             if (!convNode1->canBeExecutedInInt8()) {
                 isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
@@ -1245,7 +1256,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             }
         }
 
-        auto* convNode2 = dynamic_cast<Convolution *>(parent2.get());
+        auto convNode2 = std::dynamic_pointer_cast<Convolution>(parent2);
         if (convNode2) {
             if (!convNode2->canBeExecutedInInt8()) {
                 isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
@@ -1254,10 +1265,32 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             }
         }
 
+        // @todo brgemm - supports sum post op in any position
+        //         gemm - supports sum only at first position
+        //          ref - supports sum post op in any position (not acceptable performance-wise)
+
+        // auto fcNode1 = std::dynamic_pointer_cast<FullyConnected>(parent1);
+        // if (convNode1) {
+        //     if (!convNode1->canBeExecutedInInt8()) {
+        //         isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
+        //     } else {
+        //         isSuitableParent1 = isSuitableParent1 && !checkFusedWithSum(convNode1);
+        //     }
+        // }
+
+        // auto fcNode2 = std::dynamic_pointer_cast<FullyConnected>(parent2);
+        // if (convNode2) {
+        //     if (!convNode2->canBeExecutedInInt8()) {
+        //         isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
+        //     } else {
+        //         isSuitableParent2 = isSuitableParent2 && !checkFusedWithSum(convNode2);
+        //     }
+        // }
+
         if (!isSuitableParent1 && !isSuitableParent2)
             continue;
 
-        std::shared_ptr<Node> mergedConv;
+        std::shared_ptr<Node> mergedNode;
         std::shared_ptr<Node> peerNode;
 
         if (isSuitableParent1 && isSuitableParent2) {
@@ -1270,44 +1303,46 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                 return (branchPrecision == Precision::I8) || (branchPrecision == Precision::U8);
             };
 
-            const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(0)[0]->getParent());
-            const auto isBranch2Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(1)[0]->getParent());
+            const auto isBranch1Quantized = isBranchQuantized(parent1);
+            const auto isBranch2Quantized = isBranchQuantized(parent2);
             if (isBranch1Quantized || isBranch2Quantized) {
                 // INT8
-                const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1ul;
+                const auto parent1CanBeMerged = parent1->getChildEdges().size() == 1;
 
                 // if both branches are quantized, then parent1 is selected (result is not changed)
-                mergedConv = isBranch2Quantized && parent1CanBeMerged ? parent1 : parent2;
+                mergedNode = isBranch2Quantized && parent1CanBeMerged ? parent1 : parent2;
                 peerNode = isBranch2Quantized && parent1CanBeMerged ? parent2 : parent1;
             } else {
                 // original FP32
-                mergedConv = parent1;
+                mergedNode = parent1;
                 peerNode = parent2;
             }
         } else {
-            mergedConv = isSuitableParent1 ? parent1 : parent2;
+            mergedNode = isSuitableParent1 ? parent1 : parent2;
             peerNode = isSuitableParent1 ? parent2 : parent1;
         }
 
         if (isSuitableParent1 && isSuitableParent2) {
-            if ((peerNode->getType() == Type::Convolution || peerNode->getType() == Type::BinaryConvolution) &&
-                mergedConv->getChildEdges().size() != 1) {
-                mergedConv = parent2;
+            if (one_of(peerNode->getType(), Type::Convolution, Type::BinaryConvolution, Type::FullyConnected) &&
+                mergedNode->getChildEdges().size() != 1) {
+                mergedNode = parent2;
                 peerNode = parent1;
             }
         }
+
         if (peerNode->isConstant())
             continue;
+
         auto sum = graphNode;
 
-        if (mergedConv->isConstant() && !sum->isConstant())
+        if (mergedNode->isConstant() && !sum->isConstant())
             continue;
 
         auto lastNode = sum;
 
-        bool fuse_allowed = mergedConv->getChildEdges().size() == 1;
-        for (size_t j = 0; fuse_allowed && j < mergedConv->getParentEdges().size(); j++)
-            if (mergedConv->getParentEdgesAtPort(j)[0]->getParent() == peerNode)
+        bool fuse_allowed = mergedNode->getChildEdges().size() == 1;
+        for (size_t j = 0; fuse_allowed && j < mergedNode->getParentEdges().size(); j++)
+            if (mergedNode->getParentEdgesAtPort(j)[0]->getParent() == peerNode)
                 fuse_allowed = false;
 
         // Fused Conv+Sum prim will be used inplace. That's mean that input blob will
@@ -1325,20 +1360,20 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                 isFusingSupported(graphNode, graphNode->getChildEdgeAt(0)->getChild())) {
             auto relu_shared = graphNode->getChildEdgeAt(0)->getChild();
             lastNode = relu_shared;
-            if (mergedConv->isConstant() && !lastNode->isConstant())
+            if (mergedNode->isConstant() && !lastNode->isConstant())
                 continue;
-            sum->fuseInto(mergedConv);
+            sum->fuseInto(mergedNode);
         }
 
-        lastNode->fuseInto(mergedConv);
+        lastNode->fuseInto(mergedNode);
 
-        if (mergedConv->fusedWith.size() > 0 &&
-           (mergedConv->fusedWith[0]->getType() == Type::Convolution || mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
+        if (mergedNode->fusedWith.size() > 0 &&
+           (mergedNode->fusedWith[0]->getType() == Type::Convolution || mergedNode->fusedWith[0]->getType() == Type::BinaryConvolution)) {
             // Merged with DW_conv. Shape may change
-            mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
+            mergedNode->inputShapes.push_back(mergedNode->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
             size_t secondTermPort = sum->getFusingPort() == 0 ? 1 : 0;
-            mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(secondTermPort));
+            mergedNode->inputShapes.push_back(sum->getInputShapeAtPort(secondTermPort));
         }
 
         size_t childIdx = 0lu;
@@ -1351,19 +1386,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         int peer_port = peerNode->getChildEdgeAt(childIdx)->getInputNum();
         peerNode->getChildEdgeAt(childIdx)->drop();
 
-        int childPort = 1;
-        auto* mergedConvNode = dynamic_cast<Convolution*>(mergedConv.get());
-        if (mergedConvNode != nullptr)
-            childPort = mergedConvNode->getParentEdges().size();
+        int childPort = mergedNode->getParentEdges().size();
 
-        auto* mergedBinConvNode = dynamic_cast<node::BinaryConvolution*>(mergedConv.get());
-        if (mergedBinConvNode != nullptr)
-            childPort = mergedBinConvNode->getParentEdges().size();
-
-        EdgePtr edgePtr(new Edge(peerNode, mergedConv, peer_port, childPort));
+        EdgePtr edgePtr(new Edge(peerNode, mergedNode, peer_port, childPort));
         graph.GetEdges().push_back(edgePtr);
 
-        mergedConv->addEdge(edgePtr);
+        mergedNode->addEdge(edgePtr);
 
         std::vector<EdgeWeakPtr> edges_to_reconnect = lastNode->getChildEdges();
         for (auto &edge_w : edges_to_reconnect) {
@@ -1377,7 +1405,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
 
             edge->drop();
 
-            EdgePtr newEdge(new Edge(mergedConv, child, idxParent, idxChild));
+            EdgePtr newEdge(new Edge(mergedNode, child, idxParent, idxChild));
             graph.GetEdges().push_back(newEdge);
             child->addEdge(newEdge);
         }

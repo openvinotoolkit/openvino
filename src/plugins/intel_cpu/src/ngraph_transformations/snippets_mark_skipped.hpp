@@ -36,7 +36,7 @@ Order of SnippetsNodeType is important!:
 enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
-    FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
+    FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithSumActivation,
     FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
 
 }   // namespace intel_cpu

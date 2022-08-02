@@ -150,13 +150,21 @@ bool Edge::enforceReorder() {
         }
     }
 
-    if (in_place) {
-        int outNumber = getOutputNum();
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
-            parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
-            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
-            canBeInPlaceConflicts = true;
-    }
+    // if (in_place) {
+    //     int outNumber = getOutputNum();
+    //     if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
+    //         parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
+    //         outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0) {
+    //         const int inputPortInPlace = parentSPD->getConfig().outConfs[inNumber].inPlace();
+    //         const int outputPortInPlace = childSPD->getConfig().inConfs[outNumber].inPlace();
+
+    //         DEBUG_LOG("Can be inplace conficts: ", name(),
+    //                   " . Input port: ", inNumber, " is inplace: ", inputPortInPlace,
+    //                   " and ",
+    //                   "Output port: ", outNumber, " is inplace: ", outputPortInPlace);
+    //         canBeInPlaceConflicts = true;
+    //     }
+    // }
 
     if (canBeInPlaceConflicts) {
         return true;
@@ -559,30 +567,28 @@ void Edge::init() {
  */
 EdgePtr Edge::getBaseEdge(int look) {
     auto parentConfig = getParent()->getSelectedPrimitiveDescriptor()->getConfig();
-    auto childConfig = getChild()->getSelectedPrimitiveDescriptor()->getConfig();
-    int inputNum = getInputNum();
-    int outputNum = getOutputNum();
+    auto childConfig  = getChild()->getSelectedPrimitiveDescriptor()->getConfig();
+    const int inputNum  = getInputNum();
+    const int outputNum = getOutputNum();
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
-        // in case of parentConfig requiring upstream-inplace and childConfig supports downstream-inplace
-        // must further check whether childConfig also supports upstream inplace,
-        // if so, we can safely inplace as upstream
-        auto down_stream_inplace = childConfig.inConfs[outputNum].inPlace();
-        int up_stream_inplace = -1;
-        if (down_stream_inplace >= 0)
-            up_stream_inplace = childConfig.outConfs[down_stream_inplace].inPlace();
+        DEBUG_LOG("Child supports downstream inplace (", childConfig.inConfs[outputNum].inPlace(), ")",
+                  "and Parent supports upstream inplace (", parentConfig.inConfs[inputNum].inPlace());
+
+        const auto down_stream_inplace = childConfig.inConfs[outputNum].inPlace();
+        const auto up_stream_inplace   = childConfig.outConfs[down_stream_inplace].inPlace();
 
         if ((up_stream_inplace >= 0) && (look & LOOK_UP)) {
+            DEBUG_LOG("Child config supports upstream inplace as well (", up_stream_inplace, "). Look UP further");
             look = LOOK_UP;
         } else {
-            DEBUG_LOG(*this, " Danger: Inplace assumption will be broken!");
-            inputNum = getInputNum();
+            DEBUG_LOG(*this, "Warning! upstream", *getParent()->getChildEdgeAt(inputNum));
             return getParent()->getChildEdgeAt(inputNum);
         }
     }
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && (look & LOOK_DOWN)) {
-        int next_port_idx = childConfig.inConfs[outputNum].inPlace();
+        const int next_port_idx = childConfig.inConfs[outputNum].inPlace();
         if (childConfig.outConfs[next_port_idx].inPlace() >= 0) {
             childConfig.outConfs[next_port_idx].inPlace(-1);
             getChild()->initDescriptor(childConfig);
@@ -601,7 +607,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge->getBaseEdge(LOOK_DOWN);
     } else if (parentConfig.outConfs[inputNum].inPlace() >= 0 && (look & LOOK_UP)) {
-        int next_port_idx = parentConfig.outConfs[inputNum].inPlace();
+        const int next_port_idx = parentConfig.outConfs[inputNum].inPlace();
         if (parentConfig.inConfs[next_port_idx].inPlace() >= 0) {
             parentConfig.inConfs[next_port_idx].inPlace(-1);
             getParent()->initDescriptor(parentConfig);

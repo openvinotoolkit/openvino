@@ -3,9 +3,11 @@
 //
 
 #include "fullyconnected.h"
+#include "cpu_types.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "ngraph_transformations/op/fully_connected.hpp"
+#include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <string>
 #include <vector>
@@ -158,9 +160,34 @@ VectorDims FullyConnected::makeDummyOutputDims(const VectorDims& inDims) const {
     return shapeInferGeneric(inShapes).front();
 }
 
+Precision FullyConnected::fusedEltwisePrecision(const Node& fusingNode) const {
+    InferenceEngine::Precision eltwiseNonFusedInPortPrecision;
+
+    int fusingPort = fusingNode.getFusingPort();
+    if (fusingPort == 0) {
+        eltwiseNonFusedInPortPrecision = fusingNode.getOriginalInputPrecisionAtPort(1);
+    } else if (fusingPort == 1) {
+        eltwiseNonFusedInPortPrecision = fusingNode.getOriginalInputPrecisionAtPort(0);
+    } else {
+        IE_THROW() << "Cannot determine Eltwise post op precision for Convolution node with name '" << getName() << "'";
+    }
+
+    return eltwiseNonFusedInPortPrecision;
+}
+
 void FullyConnected::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+    int expectedInputEdgesNum = withBiases ? 3 : 2;
+    for (const auto& fusee : fusedWith) {
+        if (const auto eltwiseNode = std::dynamic_pointer_cast<Eltwise>(fusee)) {
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
+                if (!eltwiseNode->isWithBroadcast()) {
+                    withFusedSum = true;
+                    expectedInputEdgesNum++;
+                }
+            }
+        }
+    }
+
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
@@ -174,6 +201,25 @@ void FullyConnected::getSupportedDescriptors() {
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
+
+    // We need to make sure that fullyconnected output and second input of fused Eltwise operation
+    // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
+    if (withFusedSum && !one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16)) {
+        for (const auto& fusee : fusedWith) {
+            if (fusee->getAlgorithm() == Algorithm::EltwiseAdd) {
+                if (const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusee)) {
+                    if (eltwise->isSpecialConvolutionAddFusing()) {
+                        const auto eltwisePrecision = fusedEltwisePrecision(*eltwise);
+                        if (DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
+                            outputDataType = memory::data_type::f32;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
     //  We have to extend gemm_x8s8s32x_inner_product_fwd_t from oneDNN to support BF16 output data type
@@ -399,7 +445,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
     for (int i = 0; i < fusedWith.size(); i++) {
         auto& node = fusedWith[i];
 
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
+        if (auto fakeQuantizeNode = std::dynamic_pointer_cast<FakeQuantize>(node)) {
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
 
             if (fusedWith.size() == 1 && !scale.empty()) {
@@ -436,7 +482,12 @@ void FullyConnected::setPostOps(dnnl::primitive_attr &attr, const VectorDims &di
             continue;
         }
 
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
+        if (auto eltwiseNode = std::dynamic_pointer_cast<Eltwise>(node)) {
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
+                ops.append_sum(1.0, outputDataType);
+                continue;
+            }
+
             if (eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
                 eltwiseNode->appendPostOps(ops, dims, postOpsArgs);
             } else {
@@ -570,6 +621,10 @@ void FullyConnected::createDescriptor(const std::vector<MemoryDescPtr> &inputDes
                              MemoryDescUtils::convertToDnnlMemoryDesc(outDesc)->getDnnlDesc());
 }
 
+void FullyConnected::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+}
+
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -600,6 +655,11 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(canBeInPlace() ? 0 : -1);
+
+                if (withFusedSum) {
+                    portConfig.inPlace(getParentEdges().size() - 1);
+                }
+
                 portConfig.constant(false);
                 auto desc = getDstMemDesc(itpd, i);
                 if (supportsUndefStridesAndOffset()) {
@@ -608,6 +668,12 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                     portConfig.setMemDesc(desc);
                 }
                 config.outConfs.push_back(portConfig);
+
+                if (withFusedSum) {
+                    portConfig.inPlace(-1);
+                    portConfig.setMemDesc(portConfig.getMemDesc()->cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType)));
+                    config.inConfs.push_back(portConfig);
+                }
             }
 
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -617,6 +683,95 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                 break;
         }
     }
+}
+
+void FullyConnected::initDescriptor(const NodeConfig& config) {
+    if (!getSelectedPrimitiveDescriptor()) {
+        return;
+    }
+    std::vector<MemoryDescPtr> inDescs;
+    for (const auto& inConf : config.inConfs)
+        inDescs.emplace_back(inConf.getMemDesc());
+    std::vector<MemoryDescPtr> outDescs;
+    for (const auto& outConf : config.outConfs)
+        outDescs.emplace_back(outConf.getMemDesc());
+    createDescriptor(inDescs, outDescs);
+
+    AttrPtr attr = initPrimitiveAttr();
+
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    NodeConfig rightConfig = selectedPD->getConfig();
+    size_t selected_count = 0;
+    for (size_t j = 0; j < descs.size(); j++) {
+        const auto &desc = descs[j];
+        primitive_desc_iterator itpd;
+        if (attr == nullptr) {
+            itpd = desc.createPrimitiveDescriptorIterator(getEngine());
+        } else {
+            itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *(attr.get()));
+        }
+        while (static_cast<bool>(itpd)) {
+            NodeConfig cfg;
+            cfg.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                PortConfig dataConfig;
+                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
+                cfg.inConfs.push_back(dataConfig);
+            }
+
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                PortConfig dataConfig;
+                dataConfig.inPlace(-1);
+                dataConfig.constant(false);
+                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
+
+                if (withFusedSum) {
+                    auto eltwiseConfig = dataConfig;
+                    eltwiseConfig.getMemDesc() = eltwiseConfig.getMemDesc()->cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType));
+                    cfg.inConfs.push_back(eltwiseConfig);
+                    dataConfig.inPlace(getParentEdges().size() - 1);
+                }
+
+                cfg.outConfs.push_back(dataConfig);
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+            if (selected_count == selectedPrimitiveDescriptorIndex) {
+                if (impl_type != selectedPD->getImplementationType()) {
+                    IE_THROW() << "Cannot get the original layer configuration!";
+                }
+                rightConfig = cfg;
+            }
+            if (j == descs.size() - 1) {
+                if (impl_type == selectedPD->getImplementationType()) {
+                    rightConfig = config;
+                }
+            }
+            selected_count++;
+            if (!itpd.next_impl())
+                break;
+        }
+    }
+
+    if (descs.empty()) {
+        const auto& selectedConfig = selectedPD->getConfig();
+        if (selectedConfig.inConfs.size() != config.inConfs.size() || selectedConfig.outConfs.size() != config.outConfs.size())
+            return;
+
+        for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
+            if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
+                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
+        }
+
+        for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
+            if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
+                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
+        }
+        rightConfig = config;
+    }
+
+    selectedPD->setConfig(rightConfig);
 }
 
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
