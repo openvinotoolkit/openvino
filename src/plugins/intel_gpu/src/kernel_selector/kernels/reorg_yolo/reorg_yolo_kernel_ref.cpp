@@ -38,17 +38,10 @@ ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& input = params.inputs[0];
-    if (input.GetLayout() == DataLayout::yxfb) {
-        dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
-        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
-                       {Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y}};
-    } else {
-        dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE}};
-    }
+    dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
+    dims_by_gws = {{Tensor::DataChannelName::X},
+                   {Tensor::DataChannelName::Y},
+                   {Tensor::DataChannelName::FEATURE}};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;

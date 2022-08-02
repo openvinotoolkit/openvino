@@ -34,6 +34,7 @@ using ReorgYoloParamsWithLayout = std::tuple<
 
 const std::vector<format::type> dataFormats = {
     format::bfyx,
+    format::yxfb,
     format::b_fs_yx_fsv16,
     format::b_fs_yx_fsv32,
     format::bs_fs_yx_bsv16_fsv16,
@@ -275,6 +276,8 @@ std::string toString(const format::type format) {
     switch(format) {
         case format::bfyx:
             return "bfyx";
+        case format::yxfb:
+            return "yxfb";
         case format::b_fs_yx_fsv16:
             return "b_fs_yx_fsv16";
         case format::b_fs_yx_fsv32:

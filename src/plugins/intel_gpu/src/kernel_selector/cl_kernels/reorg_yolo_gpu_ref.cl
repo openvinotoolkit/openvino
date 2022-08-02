@@ -23,7 +23,7 @@
 #define ih_off (IH * STRIDE)
 #define iw_off (IW * STRIDE)
 
-#if !(defined(OUTPUT_LAYOUT_YXFB) || defined(OUTPUT_LAYOUT_BFYX))
+#if !defined(OUTPUT_LAYOUT_BFYX)
 inline void FUNC(planar_to_bfyx)(const uint planar_index,
                                  const uint batch_num, const uint channel_num, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
@@ -48,24 +48,6 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
     int iw = get_global_id(0);
     for (int b = 0; b < B; b++) {
         int dstIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
-
-        int oc = ic % ic_off;
-        int offset = ic / ic_off;
-
-        int ow = iw * STRIDE + offset % STRIDE;
-        int oh = ih * STRIDE + offset / STRIDE;
-
-        int srcIndex = b*ic_off*ih_off*iw_off + oc*ih_off*iw_off + oh*iw_off + ow;
-
-        output[dstIndex] = input[srcIndex];
-    }
-#elif OUTPUT_LAYOUT_YXFB
-    int ic = get_global_id(0) / B;
-    int ib = get_global_id(0) % B;
-    int ih = get_global_id(2);
-    int iw = get_global_id(1);
-    for (int b = 0; b < B; b++) {
-        int dstIndex = ib + ic*B + ih*IC*B + iw*IH*IC*B;
 
         int oc = ic % ic_off;
         int offset = ic / ic_off;
