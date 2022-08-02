@@ -298,7 +298,8 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
         if (m->match(node->output(0))) {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
             OV_PASS_CALLBACK(m);
-            bool status = callback(*m.get());
+            const bool status = callback(*m.get());
+            NGRAPH_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;
