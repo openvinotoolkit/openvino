@@ -356,4 +356,15 @@ public:
      */
     RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
 };
+
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ *
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+INFERENCE_ENGINE_API_CPP(void) shutdown();
 }  // namespace InferenceEngine

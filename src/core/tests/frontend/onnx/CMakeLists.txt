@@ -4,8 +4,7 @@
 
 set(TARGET_NAME "onnx_frontend_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
