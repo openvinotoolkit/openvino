@@ -33,7 +33,10 @@ class typed_primitive_inst<data> : public typed_primitive_inst_base<data> {
     using parent = typed_primitive_inst_base<data>;
 
 public:
-    static layout calc_output_layout(data_node const& node) { return node.get_attached_memory().get_layout(); }
+    static layout calc_output_layout(data_node const& node, kernel_impl_params const& impl_param) {
+        return node.get_attached_memory().get_layout();
+    }
+
     static std::string to_string(data_node const& node);
 
 public:

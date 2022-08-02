@@ -15,23 +15,23 @@ primitive_type_id resample::type_id() {
     return &instance;
 }
 
-layout resample_inst::calc_output_layout(resample_node const& node) {
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<resample>();
+    auto input_layout = impl_param.input_layouts[0];
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
         && desc->operation_type != resample_type::nearest) {
         output_type = data_types::f32;
     }
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     auto result_sizes = desc->output_size;
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.batch(), "output batch size", result_sizes.batch[0], "");
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.feature(), "output feature size", result_sizes.feature[0], "");
+    CLDNN_ERROR_NOT_EQUAL(desc->id, "Input batch size", input_layout.batch(), "output batch size", result_sizes.batch[0], "");
+    CLDNN_ERROR_NOT_EQUAL(desc->id, "Input feature size", input_layout.feature(), "output feature size", result_sizes.feature[0], "");
 
     auto result = layout({output_type, input_layout.format, result_sizes});
     return result;

@@ -16,15 +16,15 @@ primitive_type_id arg_max_min::type_id() {
     return &instance;
 }
 
-layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
-    auto desc = node.get_primitive();
-    auto input_layout = node.input().get_output_layout();
+layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<arg_max_min>();
+    auto input_layout = impl_param.input_layouts[0];
     bool values_first = desc->values_first;
     data_types output_data_type;
     data_types output_idx_type;
     output_data_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
-    if (node.get_dependencies().size() == 3) {
-        output_idx_type = node.get_dependency(2).get_output_layout().data_type;
+    if (impl_param.input_layouts.size() == 3) {
+        output_idx_type = impl_param.input_layouts[2].data_type;
     } else {
         output_idx_type = *(desc->output_data_type);
     }
@@ -48,7 +48,7 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
         }
 
         if (tensor_size > max_size) {
-            CLDNN_ERROR_GREATER_THAN(node.id(),
+            CLDNN_ERROR_GREATER_THAN(desc->id,
                                      "Reduced tensor size",
                                      tensor_size,
                                      "Maximum output data type value",
