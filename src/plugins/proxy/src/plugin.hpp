@@ -40,6 +40,8 @@ private:
     std::vector<std::string> get_primary_devices() const;
     std::string get_primary_device(size_t idx) const;
     size_t get_device_from_config(const std::map<std::string, std::string>& config) const;
+
+    std::vector<std::string> fallback_order, device_order;
 };
 
 }  // namespace proxy

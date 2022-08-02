@@ -258,14 +258,6 @@ public:
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
-
-    /**
-     * @brief Returns the list of hidden high-level devices
-     *
-     * @param main_device Name of a main device
-     * @return List of devices
-     */
-    virtual std::vector<std::string> GetHiddenDevicesFor(const std::string& main_device) const = 0;
 };
 }  // namespace ov
 

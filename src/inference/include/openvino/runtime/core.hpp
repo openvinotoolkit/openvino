@@ -598,13 +598,11 @@ public:
      *   environment variables depending on the platform.
      *
      * @param device_name Hardware device name to register a plugin for.
-     * @param proxy_name Proxy device name to hide hardware name and map several HW plugins to single proxy device
-     * @param proxy_priority Priority of HW plugins inside proxy
+     * @param config Plugin configuration ontions
      */
     void register_plugin(const std::string& plugin_name,
                          const std::string& device_name,
-                         const std::string& proxy_name = "",
-                         size_t proxy_priority = 0);
+                         const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.

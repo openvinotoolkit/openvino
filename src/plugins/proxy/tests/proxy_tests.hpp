@@ -12,13 +12,32 @@ namespace ov {
 namespace proxy {
 namespace tests {
 
+// <ie>
+//     <plugins>
+//         <plugin name="ABC" location="libmock_abc_plugin.so">
+//             <properties>
+//                 <property key="DEVICE_ID_PROPERTY" value="DEVICE_UUID"/> // The same by default
+//                 <property key="PRIMARY_DEVICE" value="YES"/> // NO by default
+//             </properties>
+//         </plugin>
+//         <plugin name="BDE" location="libmock_bde_plugin.so">
+//         </plugin>
+//         <plugin name="MOCK" location="">
+//             <properties>
+//                 <property key="FALLBACK_PRIORITY" value="ABC,BDE"/>
+//                 <property key="DEVICE_ORDER" value="BDE,BDE"/>
+//             </properties>
+//         </plugin>
+//     </plugins>
+// </ie>
 class ProxyTests : public ::testing::Test {
 public:
     ov::Core core;
     void SetUp() override {
         try {
-            core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC", "MOCK", 1);
-            core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE", "MOCK", 2);
+            core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC");
+            core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE");
+            core.register_plugin("", "MOCK", {{"FALLBACK_PRIORITY", "ABC,BDE"}});
         } catch (const ov::Exception& ex) {
             // Plugin is already registered
         }

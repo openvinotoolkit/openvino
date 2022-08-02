@@ -19,6 +19,19 @@ size_t string_to_size_t(const std::string& s) {
     sstream >> idx;
     return idx;
 }
+
+std::vector<std::string> split(const std::string& str, const std::string& delim = ",") {
+    std::vector<std::string> result;
+    std::string::size_type start(0);
+    std::string::size_type end = str.find(delim);
+    while (end != std::string::npos) {
+        result.emplace_back(str.substr(start, end - start));
+        start = end + delim.size();
+        end = str.find(delim, start);
+    }
+    result.emplace_back(str.substr(start, end - start));
+    return result;
+}
 }  // namespace
 
 ov::proxy::Plugin::Plugin() {}
@@ -33,9 +46,19 @@ size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std
 void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& config) {
     // Set config for primary device
     ov::AnyMap property;
+    auto it = config.find("FALLBACK_PRIORITY");
+    if (it != config.end()) {
+        fallback_order = split(it->second);
+    }
+    it = config.find("DEVICE_ORDER");
+    if (it != config.end()) {
+        device_order = split(it->second);
+    } else if (device_order.empty()) {
+        device_order = fallback_order;
+    }
     for (const auto& it : config) {
         // Skip proxy properties
-        if (ov::device::id.name() == it.first)
+        if (ov::device::id.name() == it.first || it.first == "FALLBACK_PRIORITY" || it.first == "DEVICE_ORDER")
             continue;
         property[it.first] = it.second;
     }
@@ -158,31 +181,63 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     const auto core = GetCore();
     OPENVINO_ASSERT(core != nullptr);
 
-    auto hidden_highlevel_devices = core->GetHiddenDevicesFor(this->_pluginName);
+    std::unordered_map<std::string, size_t> dev_fallback_priority;
+    for (size_t i = 0; i < fallback_order.size(); i++) {
+        dev_fallback_priority[fallback_order[i]] = i;
+    }
     std::map<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>, std::string> first_uuid_dev_map;
-    for (const auto& device : hidden_highlevel_devices) {
+    std::vector<std::vector<std::pair<std::string, size_t>>> ordered_result;
+    // First of all create a vector of primary devices with device order.
+    // after that use FALLBACK_PRIORITY for right fallback order
+    //
+    for (const auto& device : device_order) {
         const std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
+
         for (const auto& device_id : supported_device_ids) {
             const std::string full_device_name = device + '.' + device_id;
             try {
-                ov::device::UUID uuid = core->get_property(full_device_name, ov::device::uuid);
+                std::string unique_property_name = ov::device::uuid.name();
+                try {
+                    unique_property_name =
+                        core->get_property(full_device_name, "DEVICE_ID_PROPERTY", {}).as<std::string>();
+                } catch (...) {
+                }
+                ov::device::UUID uuid = core->get_property(full_device_name, unique_property_name, {});
                 auto it = first_uuid_dev_map.find(uuid.uuid);
                 if (it == first_uuid_dev_map.end()) {
                     // First unique element
-                    result.emplace_back(std::vector<std::string>{full_device_name});
+                    ordered_result.emplace_back(
+                        std::vector<std::pair<std::string, size_t>>{{full_device_name, dev_fallback_priority[device]}});
                     first_uuid_dev_map[uuid.uuid] = full_device_name;
                 } else {
-                    for (size_t i = 0; i < result.size(); i++) {
-                        if (result[i].at(0) != it->second)
+                    for (size_t i = 0; i < ordered_result.size(); i++) {
+                        if (ordered_result[i].at(0).first != it->second)
                             continue;
-                        result[i].emplace_back(full_device_name);
+                        ordered_result[i].emplace_back(
+                            std::pair<std::string, size_t>{full_device_name, dev_fallback_priority[device]});
                     }
                 }
             } catch (...) {
                 // Device doesn't have UUID, so it means that device is unique
-                result.emplace_back(std::vector<std::string>{full_device_name});
+                ordered_result.emplace_back(
+                    std::vector<std::pair<std::string, size_t>>{{full_device_name, dev_fallback_priority[device]}});
             }
         }
+    }
+
+    // Restore the right order
+    for (auto&& devices : ordered_result) {
+        std::sort(devices.begin(),
+                  devices.end(),
+                  [](const std::pair<std::string, size_t>& v1, const std::pair<std::string, size_t>& v2) {
+                      return v1.second < v2.second;
+                  });
+        std::vector<std::string> ordered_devices(devices.size());
+
+        for (size_t i = 0; i < ordered_devices.size(); i++) {
+            ordered_devices[i] = devices[i].first;
+        }
+        result.emplace_back(ordered_devices);
     }
     return result;
 }
