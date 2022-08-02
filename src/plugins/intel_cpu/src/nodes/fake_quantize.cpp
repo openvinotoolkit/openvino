@@ -1127,6 +1127,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 #else
                 inputScale[i] = (levels - 1) / (ih - il);
                 inputShift[i] = -il * (levels - 1) / (ih - il);
+
 #endif
             }
 
@@ -1161,7 +1162,22 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
-            for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+            printf("=========================name = %s=====================\n", getName().c_str());
+            printf("=========================levels = %zu=====================\n", levels);
+
+            printf("%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
+                   "channel",
+                   "Inputshift",
+                   "Inputlow",
+                   "Inputhigh",
+                   "Il/Ih",
+                   "Outputlow",
+                   "Outputhigh",
+                   "Ol/Oh",
+                   "Ol/Oh - Il/Ih");
+            for (int i = 0; i < std::max(inputLowAxisSize,
+                                         std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize)));
+                 i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1170,13 +1186,27 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
                                               (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256 ? 0.001f : 0.01f));
-                if (abs(ol / (oh - ol) - il / (ih - il)) >= 0.01 && levels != 256)
-                    std::cout << getName() << " abs: " << abs(ol / (oh - ol) - il / (ih - il))
-                                << " threshold: 0.01 " << std::endl;
+                if (il < 0 && i % 100 == 0 && (abs( -128.0 / 127.0 - ol / oh) > 0.001f || abs( -128.0 / 127.0 - il / ih) > 0.001f))
+                    printf("%-15d%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f\n",
+                        i,
+                        inputShift[i],
+                        il,
+                        ih,
+                        il / ih,
+                        ol,
+                        oh,
+                        ol / oh,
+                        ol / oh - il / ih);
+
+                /*
+                if (abs(ol / (oh - ol) - il / (ih - il)) >= 0.01) {
+                    DEBUG_LOG(getName(), " abs: ", abs(ol / (oh - ol) - il / (ih - il)),
+                                " threshold: ", (levels == 256 ? 0.001f : 0.01f));
+                }
+                */
             }
 
-            if (levels != 256)
-                    std::cout << levels << "isfqscale"<< static_cast<int>(isFakeQuantizationWithScale) <<std::endl;
+            DEBUG_LOG(getName(), levels, "isfqscale = " , static_cast<int>(isFakeQuantizationWithScale));
             if (isFakeQuantizationWithScale) {
                 for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
@@ -2016,9 +2046,9 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [this, zpErrorThreashold, s8InputZeroPoint](float val) {
-                        if (abs(val - s8InputZeroPoint) >= zpErrorThreashold && levels != 256) {
-                            std::cout << "ish check :" << getName() << " " << val + s8InputZeroPoint << " >= " << zpErrorThreashold
-                            << " levels: " << levels << " value: " << val << std::endl;
+                        if (abs(val - s8InputZeroPoint) >= zpErrorThreashold) {
+                            DEBUG_LOG("ish check :" , getName(), " ", (val + s8InputZeroPoint), " >= " , zpErrorThreashold
+                            , " levels: " , levels, " value: " , val);
                         }
                         return std::abs(val - s8InputZeroPoint) < zpErrorThreashold;
                     }) &&
@@ -2028,9 +2058,9 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
                         return val == 1.f;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [this, zpErrorThreashold, s8OutputZeroPoint](float val) {
-            if (abs(val - s8OutputZeroPoint) >= zpErrorThreashold && levels != 256) {
-                std::cout << "osh check :" << getName() << " " << val - s8OutputZeroPoint << " >= " << zpErrorThreashold
-                          << " levels: " << levels << " value: " << val << std::endl;
+            if (abs(val - s8OutputZeroPoint) >= zpErrorThreashold) {
+                DEBUG_LOG("osh check :" ,  getName() , " " , val - s8OutputZeroPoint,  " >= " , zpErrorThreashold,
+                            " levels: " , levels, " value: " , val);
             }
             return std::abs(val - s8OutputZeroPoint) < zpErrorThreashold;
         })) {
@@ -2038,9 +2068,8 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
         for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
             if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + static_cast<float>(levels - 1) / 255.0 * 128.0) >
             (zpErrorThreashold)) {
-                if (levels != 256)
-                    std::cout << "input low cropcheck :" << getName() << " " << (cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
-                        << " levels: " << levels << " inputzp: " << s8InputZeroPoint << std::endl;
+                    DEBUG_LOG("input low cropcheck :", getName(), " " , (cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i]),
+                         " levels: " , levels, " inputzp: ", s8InputZeroPoint);
                 isCropAligned = false;
             }
         }
@@ -2048,9 +2077,8 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
         for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
             if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - static_cast<float>(levels - 1) / 255.0 * 127.0) >
                 (zpErrorThreashold)) {
-                if (levels != 256)
-                    std::cout << "input high cropcheck :" << getName() << " " << (ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
-                        << " levels: " << levels << " inputzp: " << s8InputZeroPoint << std::endl;
+                    DEBUG_LOG("input high cropcheck :" , getName(), " ", (ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
+                        , " levels: ", levels, " inputzp: ", s8InputZeroPoint);
                 isCropAligned = false;
             }
         }
