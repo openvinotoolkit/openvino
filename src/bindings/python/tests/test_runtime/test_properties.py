@@ -79,6 +79,10 @@ def test_properties_core(properties_to_set):
     core = Core()
     core.set_property(properties_to_set)
 
+    # RW properties without device name
+    assert core.get_property(properties.cache_dir()) == "./"
+    assert core.get_property(properties.force_tbb_terminate()) == False
+
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
     assert core.get_property("CPU", properties.cache_dir()) == "./"
