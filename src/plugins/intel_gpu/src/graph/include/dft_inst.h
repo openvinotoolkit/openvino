@@ -26,7 +26,7 @@ class typed_primitive_inst<dft> : public typed_primitive_inst_base<dft> {
 public:
     using typed_primitive_inst_base::typed_primitive_inst_base;
 
-    static layout calc_output_layout(const dft_node& node);
+    static layout calc_output_layout(const dft_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const dft_node& node);
 };
 

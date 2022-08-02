@@ -37,7 +37,7 @@ class typed_primitive_inst<lstm_dynamic> : public typed_primitive_inst_base<lstm
     using parent = typed_primitive_inst_base<lstm_dynamic>;
 
 public:
-    static layout calc_output_layout(lstm_dynamic_node const& node);
+    static layout calc_output_layout(lstm_dynamic_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_dynamic_node const& node);
 
     typed_primitive_inst(network& network, lstm_dynamic_node const& node);

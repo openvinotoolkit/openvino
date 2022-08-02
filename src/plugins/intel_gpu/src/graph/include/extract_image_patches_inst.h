@@ -25,7 +25,7 @@ class typed_primitive_inst<extract_image_patches> : public typed_primitive_inst_
     using parent = typed_primitive_inst_base<extract_image_patches>;
 
 public:
-    static layout calc_output_layout(extract_image_patches_node const& node);
+    static layout calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(extract_image_patches_node const& node);
 
 public:

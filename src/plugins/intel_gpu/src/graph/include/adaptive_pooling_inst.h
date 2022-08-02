@@ -35,7 +35,7 @@ class typed_primitive_inst<adaptive_pooling> : public typed_primitive_inst_base<
     using parent = typed_primitive_inst_base<adaptive_pooling>;
 
 public:
-    static layout calc_output_layout(const adaptive_pooling_node& node);
+    static layout calc_output_layout(const adaptive_pooling_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const adaptive_pooling_node& node);
 
     typed_primitive_inst(network& network, const adaptive_pooling_node& node)

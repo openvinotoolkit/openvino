@@ -61,7 +61,7 @@ class typed_primitive_inst<binary_convolution> : public typed_primitive_inst_bas
     using parent = typed_primitive_inst_base<binary_convolution>;
 
 public:
-    static layout calc_output_layout(binary_convolution_node const& node);
+    static layout calc_output_layout(binary_convolution_node const& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(binary_convolution_node const& node);
 

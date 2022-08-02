@@ -36,7 +36,7 @@ struct primitive_type {
     virtual bool does_possible_implementation_exist(const program_node& node) const = 0;
     virtual bool does_possible_implementation_exist(const program_node& node, std::shared_ptr<kernel_impl_params> params) const = 0;
 
-    virtual layout calc_output_layout(const program_node& node) const = 0;
+    virtual layout calc_output_layout(const program_node& node, const kernel_impl_params& params) const = 0;
     virtual std::string to_string(const program_node& node) const = 0;
 };
 }  // namespace cldnn

@@ -14,14 +14,14 @@ primitive_type_id normalize::type_id() {
     return &instance;
 }
 
-layout normalize_inst::calc_output_layout(normalize_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout normalize_inst::calc_output_layout(normalize_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for normalize_node!");
-    auto input_node_layout = node.input().get_non_padded_output_layout();
+    auto input_node_layout = impl_param.get_non_padded_input_layout();
     auto output_type = input_node_layout.data_type;
 
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
         output_type = data_types::f32;
     }

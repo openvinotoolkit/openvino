@@ -93,7 +93,7 @@ public:
         : parent(network, node)
     {}
 
-    static layout calc_output_layout(non_max_suppression_node const& node);
+    static layout calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(non_max_suppression_node const& node);
 
     memory::ptr input_boxes_mem() const {

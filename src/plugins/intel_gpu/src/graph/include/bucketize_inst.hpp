@@ -29,7 +29,7 @@ public:
     using parent = typed_primitive_inst_base<bucketize>;
     using parent::parent;
 
-    static layout calc_output_layout(const bucketize_node& node);
+    static layout calc_output_layout(const bucketize_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const bucketize_node& node);
 };
 

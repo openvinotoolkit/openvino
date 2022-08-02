@@ -27,15 +27,15 @@ static bool is_output_bfzyx(const layout& input, int32_t axis) {
     return false;
 }
 
-layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_params const& impl_param) {
+    auto input_layout = impl_param.input_layouts[0];
+    auto desc = impl_param.typed_desc<one_hot>();
 
     auto dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {
-        CLDNN_ERROR_MESSAGE(node.id(),
+        CLDNN_ERROR_MESSAGE(desc->id,
                             "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
     }
 

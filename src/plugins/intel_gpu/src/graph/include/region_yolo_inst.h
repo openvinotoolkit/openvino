@@ -17,7 +17,7 @@ class typed_primitive_inst<region_yolo> : public typed_primitive_inst_base<regio
     using parent = typed_primitive_inst_base<region_yolo>;
 
 public:
-    static layout calc_output_layout(region_yolo_node const& node);
+    static layout calc_output_layout(region_yolo_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(region_yolo_node const& node);
 
 public:

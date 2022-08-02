@@ -20,8 +20,8 @@ read_value_inst::typed_primitive_inst(network& network, const read_value_node& n
     memory_state::variable{node.get_primitive()->variable_id} {
 }
 
-layout read_value_inst::calc_output_layout(const read_value_node& node) {
-    return node.get_primitive()->output_layout;
+layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
+    return impl_param.typed_desc<read_value>()->output_layout;
 }
 
 std::string read_value_inst::to_string(const read_value_node& node) {

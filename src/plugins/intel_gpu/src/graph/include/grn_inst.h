@@ -28,7 +28,7 @@ class typed_primitive_inst<grn> : public typed_primitive_inst_base<grn> {
     using parent = typed_primitive_inst_base<grn>;
 
 public:
-    static layout calc_output_layout(grn_node const& node);
+    static layout calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(grn_node const& node);
 
 public:

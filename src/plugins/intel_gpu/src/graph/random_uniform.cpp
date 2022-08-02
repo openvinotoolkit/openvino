@@ -19,8 +19,8 @@ random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node 
 : parent(network, node) {
 }
 
-layout random_uniform_inst::calc_output_layout(random_uniform_node const &node) {
-    auto primitive = node.get_primitive();
+layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param) {
+    auto primitive = impl_param.typed_desc<random_uniform>();
     return {*primitive->output_data_type, primitive->output_format, primitive->output_shape};
 }
 
