@@ -47,12 +47,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _pd(pd),
           _prim(pd) { }
 
-    typed_primitive_onednn_impl(const typed_program_node<PType>& arg,
-                                const PrimDescType& pd)
-        : typed_primitive_impl<PType>({}, arg.can_be_optimized()?"undef":pd.impl_info_str()),
+    typed_primitive_onednn_impl(const typed_program_node<PType>& arg)
+        : typed_primitive_impl<PType>({}, "undef"),
           _outer(arg),
           _pd(),
-          _prim() { }
+          _prim() {
+        assert(arg.can_be_optimized());
+    }
 
     bool is_cpu() const override { return false; }
 

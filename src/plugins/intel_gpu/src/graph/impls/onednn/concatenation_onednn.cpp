@@ -64,7 +64,7 @@ protected:
 public:
     static primitive_impl* create(const concatenation_node& arg) {
         if (arg.can_be_optimized())
-            return new concatenation_onednn(arg, {});
+            return new concatenation_onednn(arg);
         auto desc = get_concatenation_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
 
