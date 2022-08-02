@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <future>
+
 #include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {

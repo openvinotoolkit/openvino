@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <future>
 #include "base/ov_behavior_test_utils.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 

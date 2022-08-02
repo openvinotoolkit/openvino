@@ -15,6 +15,7 @@
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "base/behavior_test_utils.hpp"
 
 #include <gtest/gtest.h>
 #include <thread>
