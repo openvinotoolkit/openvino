@@ -13,19 +13,19 @@
 #include "test_model_repo.hpp"
 #include <fstream>
 
-std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
+static std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
             input_image_std = TestDataHelpers::generate_image_path("224x224", "dog.bmp"),
             input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
 
-const char* xml = xml_std.c_str();
-const char* bin = bin_std.c_str();
-const char* input_image = input_image_std.c_str();
-const char* input_image_nv12 = input_image_nv12_std.c_str();
+static const char* xml = xml_std.c_str();
+static const char* bin = bin_std.c_str();
+static const char* input_image = input_image_std.c_str();
+static const char* input_image_nv12 = input_image_nv12_std.c_str();
 
-std::mutex m;
-bool ready = false;
-std::condition_variable condVar;
+static std::mutex m;
+static bool ready = false;
+static std::condition_variable condVar;
 #ifdef _WIN32
     #ifdef __MINGW32__
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
@@ -35,9 +35,9 @@ std::condition_variable condVar;
 #elif defined __APPLE__
         std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_apple.xml");
 #else
-        std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
+        static std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins.xml");
 #endif
-const char* plugins_xml = plugins_xml_std.c_str();
+static const char* plugins_xml = plugins_xml_std.c_str();
 
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
