@@ -144,8 +144,18 @@ struct kernel_impl_params {
                          activations_zero_points_layout(_activations_zero_points_layout),
                          compensation_layout(_compensation_layout) {}
 
+    layout get_input_layout(size_t idx = 0) const {
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
+                                       "the size of input layouts",
+                                       input_layouts.size(),
+                                       "requested index: " + std::to_string(idx),
+                                       idx,
+                                       "The size of input layouts must be greater than the requested index.");
+        return input_layouts[idx];
+    }
+
     layout get_non_padded_input_layout(size_t idx = 0) const {
-        auto input_layout = input_layouts[idx];
+        auto input_layout = get_input_layout(idx);
         auto result = layout({input_layout.data_type, input_layout.format, input_layout.get_tensor()});
         return result;
     }
