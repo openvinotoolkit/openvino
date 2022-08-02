@@ -17,10 +17,10 @@ primitive_type_id reduce::type_id() {
     return &instance;
 }
 
-layout reduce_inst::calc_output_layout(reduce_node const& node) {
-    auto desc = node.get_primitive();
+layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<reduce>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.input_layouts[0];
     auto input_format = input_layout.format;
     auto format_dim = input_format.dimension();
     auto output_type = input_layout.data_type;
@@ -67,8 +67,8 @@ layout reduce_inst::calc_output_layout(reduce_node const& node) {
     if (desc->output_data_type)
         output_type = *desc->output_data_type;
 
-    if (node.has_fused_primitives())
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives())
+        output_type = impl_param.get_fused_output_layout().data_type;
 
     if (format_dim == 6)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};

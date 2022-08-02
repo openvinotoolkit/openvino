@@ -15,10 +15,10 @@ primitive_type_id gather::type_id() {
     return &instance;
 }
 
-layout gather_inst::calc_output_layout(gather_node const& node) {
-    auto desc = node.get_primitive();
+layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<gather>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.input_layouts[0];
     std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++)
@@ -53,8 +53,8 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
         }
     }
     auto output_type = input_layout.data_type;
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout{output_type,
