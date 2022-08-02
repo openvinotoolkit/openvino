@@ -145,12 +145,10 @@ struct kernel_impl_params {
                          compensation_layout(_compensation_layout) {}
 
     layout get_input_layout(size_t idx = 0) const {
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                       "the size of input layouts",
-                                       input_layouts.size(),
-                                       "requested index: " + std::to_string(idx),
-                                       idx,
-                                       "The size of input layouts must be greater than the requested index.");
+        OPENVINO_ASSERT(input_layouts.size() > idx,
+                        "The size of input layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ", ",
+                        "but the size of input layouts is ", input_layouts.size());
         return input_layouts[idx];
     }
 
