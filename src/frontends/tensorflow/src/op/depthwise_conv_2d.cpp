@@ -36,7 +36,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input);
 
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
@@ -71,7 +71,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
                                                       ng_dilations);
     auto ng_conv = ng_conv_node->output(0);
 
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_conv);
+    convert_nchw_to_nhwc(is_nhwc, ng_conv);
     set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
     return {ng_conv};
 }
