@@ -263,12 +263,10 @@ int main(int argc, char* argv[]) {
         }
 
         // If set batch size, disable the auto batching
-        if (FLAGS_b > 0) {
+        if (FLAGS_b == 1) {
             for (auto& device : devices) {
                 if (device == "AUTO") {
                     core.set_property(device, ov::hint::allow_auto_batching(false));
-                } else {
-                    core.set_property(device, {{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(NO)}});
                 }
             }
         }
