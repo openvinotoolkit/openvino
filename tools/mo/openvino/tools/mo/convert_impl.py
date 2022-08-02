@@ -528,9 +528,6 @@ def _convert(**args):
         show_mo_convert_help()
         return
 
-    if 'input_model' not in args:
-        raise Exception("Path to input model is required.\n")
-
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
