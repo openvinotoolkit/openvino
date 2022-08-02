@@ -23,7 +23,17 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<broadcast>();
 
-    return {input_layout.data_type, input_layout.format, desc->broadcast_sizes};
+    if (!desc->target_shape.empty()) {
+        std::vector<tensor::value_type> dims_converted(desc->target_shape.begin(), desc->target_shape.end());
+        for (size_t i = dims_converted.size(); i < 4; i++)
+            dims_converted.push_back(1);  // extend shape to 4d
+
+        return { input_layout.data_type,
+                 input_layout.format,
+                 tensor(format::get_default_format(dims_converted.size()), dims_converted) };
+    } else {
+        return { input_layout.data_type, input_layout.format, desc->broadcast_sizes };
+    }
 }
 
 std::string broadcast_inst::to_string(broadcast_node const& node) {
