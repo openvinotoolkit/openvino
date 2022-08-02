@@ -96,13 +96,11 @@ public:
 
         auto concat = new concatenation_impl(arg, best_kernels[0]);
         concat->_can_be_optimized = arg.can_be_optimized();
-        concat->_inputs_count = arg.inputs_count();
         return concat;
     }
 
 private:
     bool _can_be_optimized;
-    size_t _inputs_count;
 };
 
 namespace detail {

@@ -24,12 +24,12 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
 
 protected:
     // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
+    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
         bool res = true;
 
         CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
-                              _filling_value,
+                              instance.node.get_output_layout().data_padding.filling_value(),
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
@@ -105,7 +105,6 @@ public:
         auto deconv = new deconvolution_impl(arg, best_kernels[0]);
         deconv->_split = arg.get_split();
         deconv->_groups = arg.get_groups();
-        deconv->_filling_value = arg.get_output_layout().data_padding.filling_value();
 
         return deconv;
     }
@@ -113,7 +112,6 @@ public:
 private:
     int32_t _split;
     uint32_t _groups;
-    float _filling_value;
 };
 
 namespace detail {

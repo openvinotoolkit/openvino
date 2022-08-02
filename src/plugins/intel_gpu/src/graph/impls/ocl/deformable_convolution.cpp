@@ -159,10 +159,6 @@ public:
 
         return conv;
     }
-
-private:
-    int32_t _split;
-    uint32_t _groups;
 };
 
 namespace detail {
