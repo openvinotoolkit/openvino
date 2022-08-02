@@ -83,7 +83,7 @@ jobs:
 
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.7'
+      versionSpec: '3.10'
 
   - script: |
       brew install cython
