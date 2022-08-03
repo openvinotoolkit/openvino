@@ -182,7 +182,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
 private:
     const primitive_id& _node_id;
-    const primitive_id& _current_iteration_id;   
+    const primitive_id& _current_iteration_id;
     const primitive_id& _trip_count_id;
     const primitive_id& _initial_execution_id;
     const primitive_id& _condition_id;
