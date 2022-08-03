@@ -102,7 +102,6 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
-# TODO: dpkg-shlibdeps does not work otherwise
 set_target_properties(${TARGET_NAME} PROPERTIES
     SOVERSION ${OpenVINO_SOVERSION}
     VERSION ${OpenVINO_VERSION})
