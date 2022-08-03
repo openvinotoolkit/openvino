@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
+#include "concatenation_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
@@ -860,16 +861,9 @@ public:
         }
         concat_network.execute();
 
-        for (auto i : concat_network.get_primitives_info()) {
-            // std::cout << "  " << i.original_id << " " << i.kernel_id << std::endl;
-            if (i.original_id == "concat") {
-                if (options.get<build_option_type::optimize_data>()->enabled()) {
-                    EXPECT_TRUE(i.kernel_id == "undef");
-                } else {
-                    EXPECT_FALSE(i.kernel_id == "undef");
-                }
-            }
-        }
+        bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
     }
@@ -1079,16 +1073,9 @@ public:
         }
         concat_network.execute();
 
-        for (auto i : concat_network.get_primitives_info()) {
-            // std::cout << "  " << i.original_id << " " << i.kernel_id << std::endl;
-            if (i.original_id == "concat") {
-                if (options.get<build_option_type::optimize_data>()->enabled()) {
-                    EXPECT_TRUE(i.kernel_id == "undef");
-                } else {
-                    EXPECT_FALSE(i.kernel_id == "undef");
-                }
-            }
-        }
+        bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
     }
