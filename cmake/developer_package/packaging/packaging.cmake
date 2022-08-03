@@ -134,17 +134,16 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_CONTACT "OpenVINO Developers <openvino@intel.com>")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
-    # TODO: set proper license file
+    # TODO: set proper license file for Windows installer
     set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
-    # TODO: check whether we need it
     # default permissions for directories creation
     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
         OWNER_READ OWNER_WRITE OWNER_EXECUTE
-        GROUP_READ GROUP_EXECUTE
+        GROUP_READ GROUP_EXECUTE OWNER_EXECUTE
         WORLD_READ WORLD_EXECUTE)
 
-    # archive operations can be run in parallels since CMake 3.20
+    # archive operations can be run in parallel since CMake 3.20
     set(CPACK_THREADS 8)
 
     if(NOT DEFINED CPACK_STRIP_FILES)
