@@ -61,7 +61,7 @@ private:
         size_t batchSize = shape[0];
         std::vector<unsigned> indexes(input.get_size() / batchSize);
 
-        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input.get_size()));
+        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input.get_size() / batchSize));
         output.resize(n * batchSize);
 
         for (size_t i = 0; i < batchSize; i++) {
