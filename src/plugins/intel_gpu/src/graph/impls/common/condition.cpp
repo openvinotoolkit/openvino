@@ -17,6 +17,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         return make_unique<condition_impl>(*this);
     }
 
+    condition_impl(const condition_impl& other) : typed_primitive_impl<condition>(other),
+        _node_id(other._node_id) {}
+
     explicit condition_impl(const condition_node& outer) : _node_id(outer.id()) {}
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {

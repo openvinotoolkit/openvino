@@ -23,6 +23,12 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
         return make_unique<scale_impl>(*this);
     }
 
+    explicit scale_impl(const scale_impl& other) : parent(other),
+        _has_bias_term(other._has_bias_term) {}
+
+    scale_impl(const scale_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _has_bias_term(arg.bias_term()) {}
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
@@ -65,7 +71,6 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto scale = new scale_impl(arg, best_kernels[0]);
-        scale->_has_bias_term = arg.bias_term();
 
         return scale;
     }

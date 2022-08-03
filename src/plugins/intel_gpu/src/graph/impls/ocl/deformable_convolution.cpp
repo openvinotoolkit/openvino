@@ -23,6 +23,14 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         return make_unique<deformable_conv_impl>(*this);
     }
 
+    explicit deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
+        _split(other._split),
+        _groups(other._groups) {}
+
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _split(arg.get_split()),
+        _groups(arg.get_groups()) {}
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
@@ -73,8 +81,6 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto conv = new deformable_conv_impl(arg, best_kernels[0]);
-        conv->_split = arg.get_split();
-        conv->_groups = arg.get_groups();
 
         return conv;
     }

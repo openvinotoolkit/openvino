@@ -52,6 +52,9 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
     explicit detection_output_impl(const detection_output_node& outer) :
         nms_type(outer.get_primitive()->decrease_label_id ? MXNET : CAFFE) {}
 
+    detection_output_impl(const detection_output_impl& other) : typed_primitive_impl<detection_output>(other),
+        nms_type(other.nms_type) {}
+
     static inline void intersect_bbox(const bounding_box& bbox1,
                                       const bounding_box& bbox2,
                                       bounding_box& intersect_bbox) {

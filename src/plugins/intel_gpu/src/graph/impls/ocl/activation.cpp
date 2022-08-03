@@ -21,6 +21,12 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return make_unique<activation_impl>(*this);
     }
 
+    explicit activation_impl(const activation_impl& other) : parent(other),
+        _is_parameterized(other._is_parameterized) {}
+
+    activation_impl(const activation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _is_parameterized(arg.is_parameterized()) {}
+
     kernel_arguments_data get_arguments(typed_primitive_inst<activation>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
@@ -63,7 +69,6 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
                          "Cannot find a proper kernel with this arguments");
 
         auto activation = new activation_impl(arg, best_kernels[0]);
-        activation->_is_parameterized = arg.is_parameterized();
 
         return activation;
     }

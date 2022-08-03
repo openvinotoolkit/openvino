@@ -21,6 +21,14 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
+    explicit reorder_impl(const reorder_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized),
+        _has_mean(other._has_mean) {}
+
+    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _can_be_optimized(arg.can_be_optimized()),
+        _has_mean(arg.has_mean()) {}
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;
@@ -109,8 +117,6 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto reorder = new reorder_impl(arg, best_kernels[0]);
-        reorder->_can_be_optimized = arg.can_be_optimized();
-        reorder->_has_mean = arg.has_mean();
 
         return reorder;
     }

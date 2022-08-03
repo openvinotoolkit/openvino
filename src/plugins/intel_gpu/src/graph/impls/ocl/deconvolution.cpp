@@ -22,6 +22,14 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         return make_unique<deconvolution_impl>(*this);
     }
 
+    explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
+        _split(other._split),
+        _groups(other._groups) {}
+
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _split(arg.get_split()),
+        _groups(arg.get_groups()) {}
+
 protected:
     // TODO: share it with convolution and fully connected
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
@@ -103,8 +111,6 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto deconv = new deconvolution_impl(arg, best_kernels[0]);
-        deconv->_split = arg.get_split();
-        deconv->_groups = arg.get_groups();
 
         return deconv;
     }

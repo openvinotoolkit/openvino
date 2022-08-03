@@ -21,6 +21,16 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
 
+    explicit convolution_impl(const convolution_impl& other) : parent(other),
+      _split(other._split),
+      _groups(other._groups),
+      _depthwise_sep_opt(other._depthwise_sep_opt) {}
+
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+      _split(arg.get_split()),
+      _groups(arg.get_groups()),
+      _depthwise_sep_opt(arg.get_depthwise_sep_opt()) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
     }
@@ -153,9 +163,6 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
         auto conv = new convolution_impl(arg, best_kernels[0]);
-        conv->_split = arg.get_split();
-        conv->_groups = arg.get_groups();
-        conv->_depthwise_sep_opt = arg.get_depthwise_sep_opt();
 
         return conv;
     }

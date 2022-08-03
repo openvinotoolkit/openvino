@@ -21,6 +21,12 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
         return make_unique<crop_impl>(*this);
     }
 
+    explicit crop_impl(const crop_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized) {}
+
+    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _can_be_optimized(arg.can_be_optimized()) {}
+
 protected:
     bool optimized_out(crop_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;
@@ -48,7 +54,6 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto crop = new crop_impl(arg, best_kernels[0]);
-        crop->_can_be_optimized = arg.can_be_optimized();
 
         return crop;
     }

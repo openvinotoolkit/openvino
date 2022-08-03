@@ -52,7 +52,11 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
         return make_unique<concatenation_impl>(*this);
     }
 
-    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    explicit concatenation_impl(const concatenation_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized) {}
+
+    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
+        _can_be_optimized(arg.can_be_optimized()) {
         if (!arg.can_be_optimized()) {
             CLDNN_ERROR_NOT_EQUAL(arg.id(),
                                   "Input count",
@@ -95,7 +99,7 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         auto concat = new concatenation_impl(arg, best_kernels[0]);
-        concat->_can_be_optimized = arg.can_be_optimized();
+
         return concat;
     }
 
