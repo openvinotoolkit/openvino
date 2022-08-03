@@ -1377,6 +1377,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             format::bs_fs_yx_bsv8_fsv2,
             format::bs_fs_zyx_bsv16_fsv16,
             format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv32,
             format::bs_fs_zyx_bsv32_fsv16,
             format::bs_fs_yx_bsv32_fsv16,
             format::bs_fs_zyx_bsv32_fsv32,

@@ -20,6 +20,11 @@
     std::make_tuple(data_types::dt1, format::fmt), \
     std::make_tuple(data_types::dt2, format::fmt)
 
+#define MAKE_TUPLE3(fmt, dt1, dt2, dt3) \
+    std::make_tuple(data_types::dt1, format::fmt), \
+    std::make_tuple(data_types::dt2, format::fmt), \
+    std::make_tuple(data_types::dt3, format::fmt)
+
 #define MAKE_TUPLE4(fmt, dt1, dt2, dt3, dt4) \
     std::make_tuple(data_types::dt1, format::fmt), \
     std::make_tuple(data_types::dt2, format::fmt), \
