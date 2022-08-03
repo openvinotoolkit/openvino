@@ -99,7 +99,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     auto setTputAsDefault = [&](const std::string& targetDevice,
                                std::map<std::string, std::string>& deviceConfig,
                                const std::map<std::string, std::string>& mergedConfig) {
-        if (GetName() == "AUTO" && deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end() &&
+        if (GetName() == "AUTO" && mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == mergedConfig.end() &&
             mergedConfig.find(targetDevice) == mergedConfig.end()) {
             // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
             // specified for target device.
