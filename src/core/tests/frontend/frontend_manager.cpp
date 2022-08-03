@@ -253,6 +253,8 @@ TEST(FrontEndManagerTest, testDefaultPlace) {
     ASSERT_ANY_THROW(place->is_equal_data(nullptr));
 }
 
+// clang-format off
+
 TEST(FrontEndExceptionTest, frontend_general_error_no_throw) {
     EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true));
 }
