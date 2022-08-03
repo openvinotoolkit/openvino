@@ -72,7 +72,7 @@ def add(
     :param left_node: The first input node for add operation.
     :param right_node: The second input node for add operation.
     :param auto_broadcast: The type of broadcasting specifies rules used for
-                           auto-broadcasting of input tensors.
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional name for output new node.
     :return: The node performing element-wise addition.
     """
@@ -1658,7 +1658,7 @@ def maximum(
     :param left_node: The first input node for maximum operation.
     :param right_node: The second input node for maximum operation.
     :param auto_broadcast: The type of broadcasting specifies rules used for
-                           auto-broadcasting of input tensors.
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional name for output new node.
     :return: The node performing element-wise maximum operation.
     """
@@ -1679,7 +1679,7 @@ def minimum(
     :param left_node: The first input node for minimum operation.
     :param right_node: The second input node for minimum operation.
     :param auto_broadcast: The type of broadcasting specifies rules used for
-                           auto-broadcasting of input tensors.
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional name for output new node.
     :return: The node performing element-wise minimum operation.
     """
@@ -1720,7 +1720,7 @@ def multiply(
     :param left_node: The first input node for multiply operation.
     :param right_node: The second input node for multiply operation.
     :param auto_broadcast: The type of broadcasting specifies rules used for
-                           auto-broadcasting of input tensors.
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
     :param name: The optional name for output new node.
     :return: The node performing element-wise multiplication.
     """
@@ -1885,7 +1885,7 @@ def parameter(
     """Return an openvino Parameter object.
 
     :param shape: The shape of the output tensor.
-    :param dtype: The type of elements of the output tensor.
+    :param dtype: The type of elements of the output tensor. Defaults to np.float32.
     :param name: The optional name for output new node.
     :return: The node that specifies input to the model.
     """
