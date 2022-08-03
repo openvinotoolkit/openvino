@@ -247,6 +247,8 @@ public:
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
+    void remove_kernel(kernel_id id);
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;

@@ -75,6 +75,7 @@ private:
     engine& _engine;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
+    size_t _kernel_idx = 0;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
@@ -97,6 +98,9 @@ public:
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();
+    void remove_kernel(kernel_id id) {
+        _kernels.erase(id);
+    }
 };
 
 }  // namespace cldnn

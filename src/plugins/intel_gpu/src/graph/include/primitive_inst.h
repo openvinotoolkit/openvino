@@ -49,6 +49,9 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual void init_kernels() = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
+    virtual std::vector<std::string> get_kernel_ids() {
+        return {};
+    }
 
 protected:
     std::string _kernel_name;

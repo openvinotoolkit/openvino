@@ -73,6 +73,10 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
     }
+
+    std::vector<std::string> get_kernel_ids() override {
+        return {_kernel_id};
+    }
 };
 
 static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
