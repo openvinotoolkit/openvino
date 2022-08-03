@@ -30,7 +30,7 @@ jobs:
       #   PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "not dynamic_library" # and not template_plugin" # jiwaszki: CONSIDER!
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     maxParallel: 2
 
   # About 150% of total time
@@ -256,7 +256,7 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
-    displayName: 'Python API 2.0 Tests'                                                     # jiwaszki: Here! ^^^
+    displayName: 'Python API 2.0 Tests'
     continueOnError: false
 
   - script: |
