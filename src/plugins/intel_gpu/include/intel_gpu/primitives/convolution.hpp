@@ -511,6 +511,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides stride = {1, 1},
                 ov::CoordinateDiff pad = {0, 0},
                 ov::Strides dilation = {1, 1},
+                tensor output_size = {0, 0, 0, 0},
                 bool grouped_weights_shape = false,
                 const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
@@ -518,7 +519,8 @@ struct convolution : public primitive_base<convolution> {
           pad(pad),
           stride(stride),
           dilation(dilation),
-          with_output_size(false),
+          with_output_size(output_size.count() > 0 ? true : false),
+          output_size(output_size),
           groups(groups),
           deformable_groups(1),
           padding_above(stride.size(), 0),
