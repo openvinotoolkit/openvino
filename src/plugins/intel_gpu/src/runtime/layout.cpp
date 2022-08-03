@@ -10,6 +10,18 @@
 
 namespace cldnn {
 
+// The definitions below are needed to follow ODR
+// Otherwise statements like
+//     optional_value ov = type_to_data_type<float>::value;
+//     optional_value ov(type_to_data_type<float>::value);
+// violate ODR and leads to undefined behavior
+const data_types type_to_data_type<int8_t>::value;
+const data_types type_to_data_type<uint8_t>::value;
+const data_types type_to_data_type<int32_t>::value;
+const data_types type_to_data_type<int64_t>::value;
+const data_types type_to_data_type<half_t>::value;
+const data_types type_to_data_type<float>::value;
+
 size_t layout::get_rank() const {
     return format.dimension();
 }

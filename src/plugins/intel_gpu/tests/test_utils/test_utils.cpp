@@ -8,6 +8,11 @@
 #include "float16.h"
 #include <iostream>
 
+
+namespace cldnn {
+const cldnn::data_types type_to_data_type<FLOAT16>::value;
+}  // namespace cldnn
+
 using namespace cldnn;
 
 namespace tests {
