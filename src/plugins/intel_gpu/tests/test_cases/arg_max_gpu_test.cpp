@@ -13,301 +13,15 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template <typename Tin, typename Tout>
-void generic_arg_max_test_xyf(int input_b, int input_f, int input_y, int input_x, arg_max_min::out_type mode, bool expect_throw = false) {
-    auto axis = arg_max_min::axis_name::xyf;
-    auto sort_type = arg_max_min::sort_type::sort_by_values;
-    auto test_input_fmt = format::bfyx;
-    auto& engine = get_test_engine();
-
-    tensor input_tensor(input_b, input_f, input_x, input_y);
-    auto input = engine.allocate_memory({ type_to_data_type<Tin>::value, test_input_fmt, input_tensor });
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, mode, 1U, axis, sort_type, false, "", padding(), type_to_data_type<Tout>::value));
-
-    int min_random = -2, max_random = 2;
-    VVVVF<Tin> input_rnd = generate_random_4d<Tin>(input_b, input_f, input_y, input_x, min_random, max_random);
-    VF<Tin> input_rnd_vec = flatten_4d<Tin>(test_input_fmt, input_rnd);
-
-    set_values(input, input_rnd_vec);
-
-    if (expect_throw) {
-        std::string msg_to_find = "Current output data type is unable to hold maximum index of a tensor.";
-        EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
-        return;
-    }
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
-
-    int out_size = input_x * input_y * input_f;
-
-    auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<Tout> output_ptr(output, get_test_stream());
-
-    Tout index;
-    Tin value;
-    for (auto i = 0; i < input_b; i++) {
-        index = get_value<Tout>(output_ptr.data(), i);
-        EXPECT_GE(index, (Tout)0);
-        EXPECT_LT(index, (Tout)out_size);
-        value = input_rnd_vec[i*out_size + (int)index];
-        for (auto j = 0; j < out_size; j++) {
-            if (mode == arg_max_min::out_type::max) {
-                EXPECT_LE(input_rnd_vec[i*out_size + j], value);
-            }
-            else {
-                EXPECT_GE(input_rnd_vec[i*out_size + j], value);
-            }
-        }
-    }
-}
-
-TEST(arg_max_gpu_batch_one, base) {
-    //  Input  : 2x3x2x2
-    static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 1, top_k = 8;
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
-
-    std::vector<float> input_vec = {
-        //y0x0 y0x1 y1x0 y1x1
-        /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
-        /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
-        /*b0f2*/0.2f, 0.2f,  -10.f, 5.2f,
-        /*b0f3*/0.2f, 0.2f,  -10.f, 4.2f,
-        /*b0f3*/0.1f, 0.3f,  -11.f, 15.0f
-    };
-    set_values(input, input_vec);
-
-    network network(engine, topology);
-
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
-
-    auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    float out_buffer[batch_num * top_k];
-    for (uint32_t i = 0; i < batch_num * top_k; i++) {
-        out_buffer[i] = get_value<float>(output_ptr.data(), i);
-    }
-     int size = x_size * y_size * feature_num;
-     int index;
-     float value;
-     for (int i = 0; i < batch_num; i++) {
-         int count = 0;
-         int amount = 0;
-         int same_values = 1;
-         int j;
-         for (j = 0; j < top_k; j++) {
-             EXPECT_GE((int)out_buffer[i*top_k + j], 0);
-             EXPECT_LT((int)out_buffer[i*top_k + j], size);
-             if (top_k - 1 == j) {
-                 if (input_vec[i*size + (int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)out_buffer[i*top_k + j - 1]]) {
-                     amount += j;
-                 }
-                 else
-                     amount += same_values * (j - same_values + 1);
-             } else if (input_vec[i*size + (int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)out_buffer[i*top_k + j + 1]]) {
-                 if (same_values != j + 1) {
-                     amount += same_values * (j - same_values + 1);
-                     same_values = 1;
-                 }
-             }
-             else
-                 same_values++;
-         }
-         EXPECT_GE(out_buffer[i*top_k + top_k - 1], 0);
-         EXPECT_LT(out_buffer[i*top_k + top_k - 1], size);
-         for (int j = 0; j < top_k; j++) {
-             index = (int)out_buffer[i*top_k + j];
-             value = input_vec[i*size + index];
-             for (int k = 0; k < size; k++) {
-                 if (input_vec[i*size + k] > value)
-                     count++;
-             }
-         }
-         EXPECT_EQ(count, amount);
-     }
-}
-
-TEST(arg_max_gpu_top_k, base) {
-	//  Input  : 2x3x2x2
-	static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 2;
-	auto& engine = get_test_engine();
-	const int top_k = 8;
-	auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-	topology topology;
-	topology.add(input_layout("input", input->get_layout()));
-	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
-
-	std::vector<float> input_vec = {
-		//y0x0 y0x1 y1x0 y1x1
-		/*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
-		/*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*b0f2*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*b0f3*/0.2f, 0.2f,  -10.f, 4.2f,
-		/*b0f3*/0.1f, 0.3f,  -11.f, 15.0f,
-
-		/*b1f0*/3.f,  0.5f,  7.f,   10.f,
-		/*b1f1*/4.f,  0.5f,  8.f,   8.2f,
-		/*b1f2*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*b1f3*/4.f,  0.5f,  8.f,   8.2f,
-		/*b0f3*/0.1f, 0.3f,  -11.f, 15.0f,
-	};
-	set_values(input, input_vec);
-
-	network network(engine, topology);
-
-	network.set_input_data("input", input);
-	auto outputs = network.execute();
-
-	EXPECT_EQ(outputs.size(), size_t(1));
-	EXPECT_EQ(outputs.begin()->first, "arg_max");
-
-	auto output = outputs.at("arg_max").get_memory();
-	cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-	float out_buffer[batch_num * top_k];
-	for (uint32_t i = 0; i < batch_num * top_k; i++) {
-		out_buffer[i] = get_value<float>(output_ptr.data(), i);
-	}
-	int size = x_size * y_size * feature_num;
-	int index;
-	float value;
-	for (int i = 0; i < batch_num; i++) {
-		int count = 0;
-		int amount = 0;
-		int same_values = 1;
-		int j;
-		for (j = 0; j < top_k; j++) {
-			EXPECT_GE((int)out_buffer[i*top_k + j], 0);
-			EXPECT_LT((int)out_buffer[i*top_k + j], size);
-			if (top_k - 1 == j) {
-				if (input_vec[i*size + (int)(int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)(int)out_buffer[i*top_k + j - 1]]) {
-					amount += j;
-				}
-				else
-					amount += same_values * (j - same_values + 1);
-			} else if (input_vec[i*size + (int)(int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)(int)out_buffer[i*top_k + j + 1]]) {
-				if (same_values != j+1) {
-					amount += same_values * (j - same_values + 1);
-					same_values = 1;
-				}
-			} else {
-				same_values++;
-            }
-		}
-		EXPECT_GE(out_buffer[i*top_k + top_k - 1], 0);
-		EXPECT_LT(out_buffer[i*top_k + top_k - 1], size);
-		for (int j = 0; j < top_k; j++) {
-			index = (int)out_buffer[i*top_k + j];
-			value = input_vec[i*size + index];
-			for (int k = 0; k < size; k++) {
-				if (input_vec[i*size + k] > value)
-					count++;
-			}
-		}
-		EXPECT_EQ(count, amount);
-	}
-}
-
-TEST(arg_max_gpu_min_top_k, base) {
-	//  Input  : 2x3x2x2
-	static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
-	auto& engine = get_test_engine();
-	const int top_k = 3;
-	auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-	topology topology;
-	topology.add(input_layout("input", input->get_layout()));
-	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k));
-
-	std::vector<float> input_vec = {
-		        //f0b0 f0b1 f1b0 f1b1
-		/*x0y0*/0.1f, -0.1f, 0.9f,  1.5f,
-		/*x0y1*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*x0y2*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*x0f3*/0.2f, 0.2f,  -10.f, 4.2f,
-
-		/*x1y0*/3.f,  0.5f,  7.f,   10.f,
-		/*x1y1*/4.f,  0.5f,  8.f,   8.2f,
-		/*x1y2*/0.2f, 0.2f,  -10.f, 5.2f,
-		/*x1y3*/4.f,  0.5f,  8.f,   8.2f
-	};
-	set_values(input, input_vec);
-
-	network network(engine, topology);
-
-	network.set_input_data("input", input);
-	auto outputs = network.execute();
-
-	EXPECT_EQ(outputs.size(), size_t(1));
-	EXPECT_EQ(outputs.begin()->first, "arg_max");
-
-	auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-	float out_buffer[batch_num * top_k];
-	for (uint32_t i = 0; i < batch_num * top_k; i++) {
-		out_buffer[i] = get_value<float>(output_ptr.data(), i);
-	}
-	int size = x_size * y_size * feature_num;
-	int index;
-	float value;
-	for (int i = 0; i < batch_num; i++) {
-		int count = 0;
-		int amount = 0;
-		int same_values = 1;
-		int j;
-		for (j = 0; j < top_k; j++) {
-			EXPECT_GE((int)out_buffer[i*top_k + j], 0);
-			EXPECT_LT((int)out_buffer[i*top_k + j], size);
-			if (top_k - 1 == j) {
-				if (input_vec[i*size + (int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)out_buffer[i*top_k + j - 1]]) {
-					amount += j;
-				}
-				else
-					amount += same_values * (j - same_values + 1);
-			} else if (input_vec[i*size + (int)out_buffer[i*top_k + j]] != input_vec[i*size + (int)out_buffer[i*top_k + j + 1]]) {
-				if (same_values != j + 1) {
-					amount += same_values * (j - same_values + 1);
-					same_values = 1;
-				}
-			} else {
-				same_values++;
-            }
-		}
-		EXPECT_GE(out_buffer[i*top_k + top_k - 1], 0);
-		EXPECT_LT(out_buffer[i*top_k + top_k - 1], size);
-		for (int j = 0; j < top_k; j++) {
-			index = (int)out_buffer[i*top_k + j];
-			value = input_vec[i*size + index];
-			for (int k = 0; k < size; k++) {
-				if (input_vec[i*size + k] < value)
-					count++;
-			}
-		}
-		EXPECT_EQ(count, amount);
-	}
-}
-
 TEST(arg_max_gpu_min_axis_batch, base) {
-    //  Input  : 2x3x2x2
+    //  Input  : 2x4x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MIN, top_k, 0));
 
     std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
@@ -342,59 +56,15 @@ TEST(arg_max_gpu_min_axis_batch, base) {
     }
 }
 
-TEST(arg_max_gpu, f32) {
-    generic_arg_max_test_xyf<float, float>(50, 25, 25, 25, arg_max_min::out_type::max);
-}
-
-TEST(arg_max_gpu_min, f32) {
-    generic_arg_max_test_xyf<float, float>(50, 25, 25, 25, arg_max_min::out_type::min);
-}
-
-TEST(arg_max_gpu, u8) {
-    generic_arg_max_test_xyf<float, uint8_t>(4, 2, 2, 2, arg_max_min::out_type::max);
-}
-
-TEST(arg_max_gpu_min, u8) {
-    generic_arg_max_test_xyf<float, uint8_t>(4, 2, 2, 2, arg_max_min::out_type::min);
-}
-
-TEST(arg_max_gpu, i8) {
-    generic_arg_max_test_xyf<float, int8_t>(4, 2, 2, 2, arg_max_min::out_type::max);
-}
-
-TEST(arg_max_gpu_bad_sizes, i8) {
-    generic_arg_max_test_xyf<float, uint8_t>(50, 25, 25, 25, arg_max_min::out_type::max, true);
-}
-
-TEST(arg_max_gpu_min, i8) {
-    generic_arg_max_test_xyf<float, int8_t>(4, 2, 2, 2, arg_max_min::out_type::min);
-}
-
-TEST(arg_max_gpu, i32) {
-    generic_arg_max_test_xyf<float, int32_t>(50, 25, 25, 25, arg_max_min::out_type::max);
-}
-
-TEST(arg_max_gpu_min, i32) {
-    generic_arg_max_test_xyf<float, int32_t>(50, 25, 25, 25, arg_max_min::out_type::min);
-}
-
-TEST(arg_max_gpu, i64) {
-    generic_arg_max_test_xyf<float, int64_t>(50, 25, 25, 25, arg_max_min::out_type::max);
-}
-
-TEST(arg_max_gpu_min, i64) {
-    generic_arg_max_test_xyf<float, int64_t>(50, 25, 25, 25, arg_max_min::out_type::min);
-}
-
 TEST(arg_max_gpu_min_axis_batch, i32) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MIN, top_k, 0, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::i32));
 
     std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
@@ -434,10 +104,10 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     static const int32_t x_size = 2, y_size = 2, z_size = 1, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size , y_size, z_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ batch_num, feature_num, x_size, y_size, z_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MIN, top_k, 0, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::i32));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -476,10 +146,10 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MAX, top_k, 2, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -540,10 +210,10 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MAX, top_k, 0, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -604,10 +274,10 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MAX, top_k, 2, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -678,14 +348,14 @@ TEST(top_k_layer_tests, second_output) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
-    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, { top_k, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::min, top_k, arg_max_min::batch));
+    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, ov::op::TopKMode::MIN, top_k, 0));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -729,14 +399,14 @@ TEST(top_k_layer_tests, second_output2) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 1;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
-    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
-    auto second_output = engine.allocate_memory({ data_types::f32, format::yxfb, { top_k, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto second_output = engine.allocate_memory({ data_types::f32, format::yxfb, { top_k, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, ov::op::TopKMode::MAX, top_k, 0, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -823,10 +493,10 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MAX, top_k, 2, ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -897,10 +567,10 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_indices, false, "", padding(), data_types::f32));
+    topology.add(arg_max_min("arg_max", { "input" }, ov::op::TopKMode::MAX, top_k, 2, ov::op::TopKSortType::SORT_INDICES, false, "", padding(), data_types::f32));
 
     std::vector<float> input_vec = {
             0.1f, -0.1f,
@@ -972,11 +642,11 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
     static const int32_t x_size = 10, y_size = 1, feature_num = 1, batch_num = 1;
     auto& engine = get_test_engine();
     const int top_k = 5;
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", { "input"}, arg_max_min::max, top_k, arg_max_min::x,
-                             arg_max_min::sort_by_values, false, "", padding(), data_types::i32));
+    topology.add(arg_max_min("arg_max", { "input"}, ov::op::TopKMode::MAX, top_k, 3,
+                             ov::op::TopKSortType::SORT_VALUES, false, "", padding(), data_types::i32));
 
     std::vector<float> input_vec = {
            0.9f,
@@ -2040,7 +1710,7 @@ TEST(top_k_layer_tests, md_sync) {
     topology.add(mutable_data("arg_max_md_write", shared_memory));
     topology.add(data("const", top_k_input));
     topology.add(arg_max_min("arg_max.0", { "input1", "const", "arg_max_md_write" },
-        arg_max_min::max, top_k, arg_max_min::feature, arg_max_min::sort_by_indices, true));
+        ov::op::TopKMode::MAX, top_k, 1, ov::op::TopKSortType::SORT_INDICES, true));
     topology.add(mutable_data("arg_max.1", { "arg_max.0" }, shared_memory));
 
     network network(engine, topology);
