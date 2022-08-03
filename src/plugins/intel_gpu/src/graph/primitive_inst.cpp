@@ -294,9 +294,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    auto use_lockable_memory = is_output_buffer(_node) || _node.get_selected_impl()->is_cpu() || is_any_user_cpu(_node.get_users()) ||
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
-
     GPU_DEBUG_GET_INSTANCE(debug_config);
     const auto& lockable_mem_type = _engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type

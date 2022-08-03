@@ -145,6 +145,10 @@ public:
         return _mem_allocated;
     }
 
+    bool is_dynamic() const {
+        return _node.is_dynamic();
+    }
+
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool,
                                         const program_node& _node, uint32_t net_id, bool is_internal);
@@ -277,6 +281,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
+        if (typ_node.is_dynamic())
+            return false;
+
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;
