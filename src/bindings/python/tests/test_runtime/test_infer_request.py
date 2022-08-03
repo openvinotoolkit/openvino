@@ -203,7 +203,7 @@ def test_set_tensors(device):
 
 
 @pytest.mark.dynamic_library()
-@pytest.mark.template_extension()
+@pytest.mark.template_plugin()
 def test_batched_tensors(device):
     core = Core()
     # TODO: remove when plugins will support set_input_tensors
