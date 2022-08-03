@@ -281,9 +281,9 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
     }
 
     // Due to performance issue, brgconv will only be enabled by default:
-    // 1, support amx
+    // 1, support avx512
     // 2, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-    shouldTryBrgconv = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && !isDynamicNode();
+    shouldTryBrgconv = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !isDynamicNode();
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -375,6 +375,23 @@ void Convolution::getSupportedDescriptors() {
 
     withBiases = getOriginalInputsNumber() == 3;
 
+    // should remove after binary postops performance issue resolved
+    // heuristics: if it's int8 model and it has binary post ops we will not use brgconv
+    auto tryDisableBrgInt8 = [&]() {
+        if (shouldTryBrgconv && canBeExecutedInInt8()) {
+            dnnl::primitive_attr attrs;
+            setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+            const auto& ops = attrs.get_post_ops();
+            for (int i = 0; i < ops.len(); i++) {
+                if (ops.kind(i) == dnnl::primitive::kind::binary) {
+                    shouldTryBrgconv = false;
+                    break;
+                }
+            }
+        }
+    };
+    tryDisableBrgInt8();
+
     if (!implPriorities.empty()) {
         isPrimitivesPriorityDefined = true;
         // winograd support only constant weights and bias
@@ -383,7 +400,7 @@ void Convolution::getSupportedDescriptors() {
                  getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
                  (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
 
-        // AVX512 brconv is disabled by default due to performance issues. User can force it via Primitives priority mechanism.
+        // AVX512 brconv may be disabled by heuristics due to performance issues. User can force it via Primitives priority mechanism.
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             std::for_each(implPriorities.begin(), implPriorities.end(), [&](const impl_desc_type& desc_type) {
                 if (desc_type & impl_desc_type::brgconv_avx512) {
