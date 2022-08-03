@@ -97,9 +97,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     auto getPluginXml = [&] () -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
-        std::string pluginsXML = InferenceEngine::getIELibraryPath() +
-            ov::util::FileTraits<char>::file_separator +
-            "test_plugins" + indexStr + ".xml";
+        std::string pluginsXML = "test_plugins" + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";

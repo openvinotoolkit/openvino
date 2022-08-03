@@ -16,6 +16,7 @@ if(NOT WIN32)
     target_link_libraries(${TARGET_NAME}
             PUBLIC
             Threads::Threads
+            rt
             ${LIBUSB_LIBRARY})
 endif()
 

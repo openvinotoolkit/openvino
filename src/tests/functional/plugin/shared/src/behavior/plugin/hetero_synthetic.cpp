@@ -119,7 +119,7 @@ void HeteroSyntheticTest::SetUp() {
                 + IE_BUILD_POSTFIX, pluginParameter._name);
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
-                                             + "\"  is already registered in the InferenceEngine")
+                                             + "\"  is already registered in the OpenVINO Runtime")
                 == std::string::npos) {
                 throw ex;
             } else {

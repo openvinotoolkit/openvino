@@ -123,14 +123,16 @@ if(BUILD_SHARED_LIBS)
             DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE})
 
-    # for InferenceEngineUnitTest
-    # For public tests
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    # For private tests
-    if (NOT WIN32)
+    if(ENABLE_TESTS)
+        # for InferenceEngineUnitTest
+        # For public tests
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        # For private tests
+        if (NOT WIN32)
+            install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+                    DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+        endif()
     endif()
 endif()
 
