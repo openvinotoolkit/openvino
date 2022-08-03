@@ -54,8 +54,10 @@ void regclass_graph_Output(py::module m, std::string typestring)
         return ov::Output<VT>(self);
     });
 
-    output.def("__deepcopy__", [](ov::Output<VT>& self, py::dict& memo) {
-        PyErr_SetString(PyExc_TypeError, "cannot copy 'openvino.runtime.ConstOutput' object.");
+    output.def("__deepcopy__", [typestring](ov::Output<VT>& self, py::dict& memo) {
+        auto error_message = py::detail::c_str(std::string("cannot deepcopy 'openvino.runtime.")
+                                                + typestring + std::string("Output' object."));
+        PyErr_SetString(PyExc_TypeError, error_message);
         throw py::error_already_set();
     });
 
