@@ -104,27 +104,35 @@ protected:
         return args;
     }
 
+    template <typename T>
+    static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs, cldnn::data_node& node) {
+        int32_t zp_val = DNNL_RUNTIME_S32_VAL;
+        bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
+        if (is_per_tensor) {
+            attrs->set_zero_points(DNNL_ARG_SRC, 0, {zp_val});
+        } else {
+            memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+            node.attach_memory(s32_mem, false);
+            attrs->set_zero_points(DNNL_ARG_SRC, 2, {DNNL_RUNTIME_S32_VAL});
+        }
+    }
+
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
         auto attrs = arg.get_onednn_primitive_attributes();
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
+            auto a_zp_dtype = a_zp.get_output_layout().data_type;
 
-            memory::ptr s32_mem;
-            if (a_zp.get_output_layout().data_type == data_types::i8) {
-                onednn::make_per_tensor_if_possible<data_type_to_type<data_types::i8>::type>(a_zp.as<data>());
-                s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::i8>::type>(a_zp.as<data>().get_attached_memory_ptr());
-            } else if (a_zp.get_output_layout().data_type == data_types::u8) {
-                onednn::make_per_tensor_if_possible<data_type_to_type<data_types::u8>::type>(a_zp.as<data>());
-                s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::u8>::type>(a_zp.as<data>().get_attached_memory_ptr());
-            } else {
+            if (!data_type_traits::is_i8_u8(a_zp_dtype)) {
                 throw std::runtime_error("Unsupported data type for activations zero points for oneDNN convolution");
             }
-            a_zp.as<data>().attach_memory(s32_mem, false);
 
-            int mask = a_zp.get_output_layout().count() > 1 ? 2 : 0;
-
-            attrs->set_zero_points(DNNL_ARG_SRC, mask, {DNNL_RUNTIME_S32_VAL});
+            if (a_zp_dtype == data_types::i8) {
+                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>());
+            } else { // if (a_zp_dtype == data_types::u8)
+                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>());
+            }
         }
 
         if (arg.weights_zero_points_term()) {
@@ -150,7 +158,20 @@ protected:
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(arg, r_params);
+        const auto& param_info = kernel_impl_params(arg.get_program(), cldnn_prim, arg.get_unique_id(),
+                                                    arg.get_input_layouts(), arg.get_output_layout(),
+                                                    arg.get_fused_primitives(),
+                                                    arg.get_fused_activations_funcs(), arg.get_fused_activations_params(),
+                                                    optional_layout(weights_layout),
+                                                    arg.bias_term() ? optional_layout(arg.bias().get_output_layout()) : optional_layout(),
+                                                    arg.weights_zero_points_term() ? optional_layout(arg.weights_zero_points().get_output_layout())
+                                                        : optional_layout(),
+                                                    arg.activations_zero_points_term() ? optional_layout(arg.activations_zero_points().get_output_layout())
+                                                        : optional_layout(),
+                                                    arg.compensation_term() ? optional_layout(arg.compensation().get_output_layout())
+                                                        : optional_layout());
+
+        set_params(param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
         r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
@@ -226,7 +247,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convolution_node& arg) {
+    static primitive_impl* create(const convolution_node& arg, std::shared_ptr<kernel_impl_params>) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_convolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);

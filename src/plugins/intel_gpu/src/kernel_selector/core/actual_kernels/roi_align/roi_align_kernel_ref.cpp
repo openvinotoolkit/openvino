@@ -10,11 +10,13 @@ ParamsKey ROIAlignKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -70,21 +72,36 @@ bool ROIAlignKernelRef::Validate(const Params& p, const optional_params& o) cons
     if (params.inputs.size() != 3)
         return false;
 
-    if (params.outputs[0].Dimentions() > 4 || params.inputs[0].Dimentions() > 4 || params.inputs[1].Dimentions() > 2)
-        return false;
-
     return true;
 }
 
-JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params &params) const {
+JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
     jit.AddConstant(MakeJitConstant("SPATIAL_SCALE", params.spatial_scale));
     jit.AddConstant(MakeJitConstant("SAMPLING_RATIO", params.sampling_ratio));
-    if (params.mode == PoolType::MAX)
+
+    if (params.pooling_mode == PoolType::MAX) {
         jit.AddConstant(MakeJitConstant("MAX_POOL", true));
-    else if (params.mode == PoolType::AVG)
+    } else if (params.pooling_mode == PoolType::AVG) {
         jit.AddConstant(MakeJitConstant("AVG_POOL", true));
+    }
+
+    if (params.aligned_mode == roi_aligned_mode::ASYMMETRIC) {
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", 0.f));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0f));
+    } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL_FOR_NN) {
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
+    } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL) {
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5f));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
+    }
+
     return jit;
 }
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

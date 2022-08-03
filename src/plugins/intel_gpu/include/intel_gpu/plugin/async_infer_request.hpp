@@ -10,7 +10,6 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
@@ -32,5 +31,4 @@ private:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

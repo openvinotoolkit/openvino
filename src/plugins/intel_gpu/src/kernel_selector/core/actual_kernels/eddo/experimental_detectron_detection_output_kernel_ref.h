@@ -11,13 +11,13 @@ struct experimental_detectron_detection_output_params : public base_params {
     experimental_detectron_detection_output_params()
         : base_params(KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {}
 
-    float score_threshold;
-    float nms_threshold;
-    float max_delta_log_wh;
-    int num_classes;
-    int post_nms_count;
-    int max_detections_per_image;
-    bool class_agnostic_box_regression;
+    float score_threshold{0.0f};
+    float nms_threshold{0.0f};
+    float max_delta_log_wh{0.0f};
+    int num_classes{0};
+    int post_nms_count{0};
+    int max_detections_per_image{0};
+    bool class_agnostic_box_regression{false};
     std::vector<float> deltas_weights;
 };
 

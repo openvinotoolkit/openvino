@@ -216,15 +216,14 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
-    "CumSum",     // Const inference function for CumSum is not implemented
-    "Convolution", // Const inference function for Convolution is not implemented
-    "Eltwise",  // Const inference function for Eltwise is not implemented
+    "CumSum",       // Const inference function for CumSum is not implemented
+    "Convolution",  // Const inference function for Convolution is not implemented
+    "Eltwise",      // Const inference function for Eltwise is not implemented
     "FullyConnected",
     "Squeeze",
     "TensorIterator",
     "LSTMSequence",
-    "MVN"
-};
+    "MVN"};
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
     std::map<std::string, bool> mapConstLayers;

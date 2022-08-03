@@ -96,7 +96,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check) {
     EXPECT_EQ(additions.size(), 2);
     EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
     EXPECT_EQ(additions.at(0)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"X"});
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
     EXPECT_EQ(additions.at(1)->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"Y"});
 }
 
@@ -974,6 +974,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_center_point_box_forma
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_single_box) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_single_box.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input(std::vector<float>({0.0f, 0.0f, 1.0f, 1.0f}));  // boxes
+    test_case.add_input(std::vector<float>({0.9f}));                    // scores
+    test_case.add_input(std::vector<int64_t>({3}));                     // max_output_boxes_per_class
+    test_case.add_input(std::vector<float>({0.5f}));                    // iou_threshold
+    test_case.add_input(std::vector<float>({0.0f}));                    // score_threshold
+
+    test_case.add_expected_output<int64_t>(Shape{1, 3}, {0, 0, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_v9_single_box) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_v9_single_box.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
