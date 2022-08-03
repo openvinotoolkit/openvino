@@ -27,10 +27,10 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(is_nhwc, ng_input);
     auto ng_mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
     Output<Node> res = make_shared<DepthToSpace>(ng_input, ng_mode, block_size)->output(0);
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

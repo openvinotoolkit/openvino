@@ -34,7 +34,7 @@ class typed_primitive_inst<experimental_detectron_generate_proposals_single_imag
     using parent = typed_primitive_inst_base<experimental_detectron_generate_proposals_single_image>;
 
 public:
-    static layout calc_output_layout(const experimental_detectron_generate_proposals_single_image_node& node);
+    static layout calc_output_layout(const experimental_detectron_generate_proposals_single_image_node& node, kernel_impl_params const& impl_param);
     static std::string to_string(const experimental_detectron_generate_proposals_single_image_node& node);
 
     typed_primitive_inst(network& network, const experimental_detectron_generate_proposals_single_image_node& node)

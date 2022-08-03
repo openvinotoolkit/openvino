@@ -1356,6 +1356,66 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
     }
 }
 
+TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_opt_build) {
+    //Same params as convolution_f32_fw_gpu, basic_convolution but with bfyx optimized data and weights set as input_layout
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 5, 4 }
+    });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 3, 2 }
+    });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 1, 1 }
+    });
+    set_values(input,
+    { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }
+    );
+    set_values(weights,
+    { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f }
+    );
+    set_values(biases,
+    { 1.0f }
+    );
+    VVF<float> output_vec = {
+        { 21.0f, 28.0f, 39.0f }
+        ,
+        { 18.0f, 20.0f, 20.0f }
+    };
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("weights", weights->get_layout()),
+        data("biases", biases),
+        convolution("conv", "input", { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }));
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(false));
+    network network(engine, topology, options, true);
+    network.set_input_data("input", input);
+    network.set_input_data("weights", weights);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 3);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            EXPECT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+        }
+    }
+}
+
 TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
     //  Filter : 2x2
     //  Stride : 1x1
