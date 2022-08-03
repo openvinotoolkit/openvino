@@ -32,7 +32,7 @@ class typed_primitive_inst<ctc_greedy_decoder> : public typed_primitive_inst_bas
     using parent = typed_primitive_inst_base<ctc_greedy_decoder>;
 
 public:
-    static layout calc_output_layout(ctc_greedy_decoder_node const& node);
+    static layout calc_output_layout(ctc_greedy_decoder_node const& node, int32_t idx);
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
 public:

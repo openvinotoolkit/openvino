@@ -15,7 +15,7 @@ primitive_type_id pooling::type_id() {
     return &instance;
 }
 
-layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
+layout pooling_inst::calc_output_layout(parent::typed_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();

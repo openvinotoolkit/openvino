@@ -29,7 +29,7 @@ class typed_primitive_inst<roi_pooling> : public typed_primitive_inst_base<roi_p
     using parent = typed_primitive_inst_base<roi_pooling>;
 
 public:
-    static layout calc_output_layout(roi_pooling_node const& node);
+    static layout calc_output_layout(roi_pooling_node const& node, int32_t idx);
     static std::string to_string(roi_pooling_node const& node);
 
 public:

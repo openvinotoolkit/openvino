@@ -546,7 +546,7 @@ private:
         const int64_t bytes_iteration_initial_offset;
     };
 
-    static layout calc_output_layout(const loop_node& node);
+    static layout calc_output_layout(const loop_node& node, int32_t idx);
     bool preproc_memories_done;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;

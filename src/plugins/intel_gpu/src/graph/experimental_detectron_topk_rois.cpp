@@ -19,7 +19,7 @@ experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, ex
 : parent(network, node) {
 }
 
-layout experimental_detectron_topk_rois_inst::calc_output_layout(experimental_detectron_topk_rois_node const &node) {
+layout experimental_detectron_topk_rois_inst::calc_output_layout(experimental_detectron_topk_rois_node const &node, int32_t idx) {
     auto primitive = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
 

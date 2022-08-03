@@ -14,7 +14,7 @@ primitive_type_id scale::type_id() {
     return &instance;
 }
 
-layout scale_inst::calc_output_layout(scale_node const& node) {
+layout scale_inst::calc_output_layout(scale_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
     auto result = node.input().get_non_padded_output_layout();
 

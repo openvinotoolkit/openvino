@@ -59,27 +59,6 @@ public:
         offset += has_score_threshold();
         return *get_dependency(offset).first;
     }
-
-    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
-    program_node& second_output_node() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        return *get_dependency(offset).first;
-    }
-
-    bool has_third_output() const { return !get_primitive()->third_output.empty(); }
-    program_node& third_output_node() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        offset += has_second_output();
-        return *get_dependency(offset).first;
-    }
 };
 
 using non_max_suppression_node = typed_program_node<non_max_suppression>;
@@ -93,7 +72,7 @@ public:
         : parent(network, node)
     {}
 
-    static layout calc_output_layout(non_max_suppression_node const& node);
+    static layout calc_output_layout(non_max_suppression_node const& node, int32_t idx);
     static std::string to_string(non_max_suppression_node const& node);
 
     memory::ptr input_boxes_mem() const {
@@ -130,27 +109,6 @@ public:
         offset += has_num_select_per_class();
         offset += has_iou_threshold();
         offset += has_score_threshold();
-        return dep_memory_ptr(offset);
-    }
-
-    bool has_second_output() const { return node.has_second_output(); }
-    memory::ptr second_output_mem() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        return dep_memory_ptr(offset);
-    }
-
-    bool has_third_output() const { return node.has_third_output(); }
-    memory::ptr third_output_mem() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        offset += has_second_output();
         return dep_memory_ptr(offset);
     }
 };

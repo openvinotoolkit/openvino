@@ -32,7 +32,7 @@ class typed_primitive_inst<resample> : public typed_primitive_inst_base<resample
     using parent = typed_primitive_inst_base<resample>;
 
 public:
-    static layout calc_output_layout(resample_node const& node);
+    static layout calc_output_layout(resample_node const& node, int32_t idx);
     static std::string to_string(resample_node const& node);
 
 public:

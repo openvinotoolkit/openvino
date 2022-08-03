@@ -78,7 +78,7 @@ static void validate_backedges(loop_node const & node) {
     }
 }
 
-layout loop_inst::calc_output_layout(loop_node const & node) {
+layout loop_inst::calc_output_layout(loop_node const & node, int32_t idx) {
     // body program should be built here to calculate body input layout
     // from outputs of loop's dependency and calculate loop output layout
     // from the outputs of body program

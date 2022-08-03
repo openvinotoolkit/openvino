@@ -15,7 +15,7 @@ primitive_type_id scatter_elements_update::type_id() {
     return &instance;
 }
 
-layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_node const& node) {
+layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     const int32_t axis = desc->axis;

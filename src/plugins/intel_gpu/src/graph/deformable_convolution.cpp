@@ -16,7 +16,7 @@ primitive_type_id deformable_conv::type_id() {
     return &instance;
 }
 
-layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node) {
+layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -62,7 +62,7 @@ primitive_type_id deformable_interp::type_id() {
     return &instance;
 }
 
-layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node) {
+layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();

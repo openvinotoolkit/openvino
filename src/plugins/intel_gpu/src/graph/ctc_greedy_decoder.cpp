@@ -13,7 +13,7 @@ primitive_type_id ctc_greedy_decoder::type_id() {
     return &instance;
 }
 
-layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node) {
+layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, int32_t idx) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
     auto prim = node.get_primitive();
     auto output_type = prim->output_data_types.at(0) ? *prim->output_data_types.at(0) : input_node_layout.data_type;

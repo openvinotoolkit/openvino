@@ -88,7 +88,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
 
 }  // namespace
 
-layout fully_connected_inst::calc_output_layout(fully_connected_node const& node) {
+layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();

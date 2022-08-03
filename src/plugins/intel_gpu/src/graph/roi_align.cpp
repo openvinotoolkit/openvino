@@ -17,7 +17,7 @@ primitive_type_id roi_align::type_id() {
 roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node)
     : parent(network, node) {}
 
-layout roi_align_inst::calc_output_layout(roi_align_node const& node) {
+layout roi_align_inst::calc_output_layout(roi_align_node const& node, int32_t idx) {
     auto primitive = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
     auto rois_layout = node.input(1).get_output_layout();

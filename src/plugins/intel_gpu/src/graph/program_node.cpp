@@ -33,7 +33,9 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (int i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout(data_types::f32, format::bfyx, tensor());
-            output_layout.data_padding = prim->output_paddings[i];
+            // TODO(kelvin): Need to update for multiple output.
+            // Apply each output padding by output index. ex) output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->output_paddings[0];
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }

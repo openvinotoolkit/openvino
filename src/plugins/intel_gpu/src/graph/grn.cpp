@@ -13,7 +13,7 @@ primitive_type_id grn::type_id() {
     return &instance;
 }
 
-layout grn_inst::calc_output_layout(grn_node const& node) {
+layout grn_inst::calc_output_layout(grn_node const& node, int32_t idx) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
     auto output_type = node.get_primitive()->output_data_types.at(0) ? *node.get_primitive()->output_data_types.at(0) : input_node_layout.data_type;
 

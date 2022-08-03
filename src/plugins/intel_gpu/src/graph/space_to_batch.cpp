@@ -17,7 +17,7 @@ primitive_type_id cldnn::space_to_batch::type_id() {
     return &instance;
 }
 
-layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node) {
+layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();

@@ -21,7 +21,7 @@ primitive_type_id lstm_dynamic::type_id() {
 // init_hidden:    [b: batch, f: 1, x: hidden_size, y: direction]
 // init_cell:      [b: batch, f: 1, x: hidden_size, y: direction]
 // output_tensor:  [b: batch, f: max_sequence_length, x: hidden_size, y: direction]
-layout lstm_dynamic_inst::calc_output_layout(lstm_dynamic_node const& node) {
+layout lstm_dynamic_inst::calc_output_layout(lstm_dynamic_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
     /*

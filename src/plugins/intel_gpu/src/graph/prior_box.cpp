@@ -355,7 +355,7 @@ void prior_box_node::calc_result() {
                                                                              *typed_desc());
 }
 
-layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
+layout prior_box_inst::calc_output_layout(prior_box_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
 

@@ -14,14 +14,21 @@ primitive_type_id non_max_suppression::type_id() {
     return &instance;
 }
 
-layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node) {
+layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto output_type = desc->output_data_types.at(0) ? *desc->output_data_types.at(0) : data_types::i32;
-
     auto output_size = tensor(batch(desc->selected_indices_num), feature(3));
 
-    return layout(output_type, format::bfyx, output_size);
+    if (idx == 1) {     // selected_scores
+        output_type = node.input_scores().get_output_layout().data_type;
+    }
+
+    if (idx == 2) {     // valid_outputs
+        output_size = tensor(batch(1));
+    }
+
+    return layout(output_type, format::bfyx, output_size, padding());
 }
 
 std::string non_max_suppression_inst::to_string(non_max_suppression_node const& node) {

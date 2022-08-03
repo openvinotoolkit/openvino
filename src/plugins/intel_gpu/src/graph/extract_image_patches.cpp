@@ -15,7 +15,7 @@ primitive_type_id extract_image_patches::type_id() {
     return &instance;
 }
 
-layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node) {
+layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();

@@ -359,17 +359,9 @@ void run(non_max_suppression_inst& instance) {
 
     auto result = run_nms(boxes, scores, num_select_per_class, score_threshold, iou_threshold, soft_nms_sigma, prim->sort_result_descending);
 
-    if (instance.has_third_output()) {
-        store_third_output(stream, instance.third_output_mem(), result);
-    }
-
-    if (instance.has_second_output()) {
-        store_second_output(stream, instance.second_output_mem(), result);
-        store_first_output(stream, instance.output_memory_ptr(), result);
-        return;
-    }
-
-    store_result(stream, instance.output_memory_ptr(), result);
+    store_third_output(stream, instance.output_memory_ptr(2), result);
+    store_second_output(stream, instance.output_memory_ptr(1), result);
+    store_result(stream, instance.output_memory_ptr(0), result);
 }
 
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {

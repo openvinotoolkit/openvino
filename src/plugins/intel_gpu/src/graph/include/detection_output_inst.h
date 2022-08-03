@@ -35,7 +35,7 @@ class typed_primitive_inst<detection_output> : public typed_primitive_inst_base<
     using parent = typed_primitive_inst_base<detection_output>;
 
 public:
-    static layout calc_output_layout(detection_output_node const& node);
+    static layout calc_output_layout(detection_output_node const& node, int32_t idx);
     static std::string to_string(detection_output_node const& node);
 
 public:

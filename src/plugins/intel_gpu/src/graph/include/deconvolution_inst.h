@@ -86,7 +86,7 @@ class typed_primitive_inst<deconvolution> : public typed_primitive_inst_base<dec
     using parent = typed_primitive_inst_base<deconvolution>;
 
 public:
-    static layout calc_output_layout(deconvolution_node const& node);
+    static layout calc_output_layout(deconvolution_node const& node, int32_t idx);
     static std::string to_string(deconvolution_node const& node);
 
 public:

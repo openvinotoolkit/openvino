@@ -24,8 +24,7 @@ struct non_max_suppression_params : public base_params {
     num_select_per_class_type(NmsArgType::None), num_select_per_class(0),
     iou_threshold_type(NmsArgType::None), iou_threshold(0.0f),
     score_threshold_type(NmsArgType::None), score_threshold(0.0f),
-    soft_nms_sigma_type(NmsArgType::None), soft_nms_sigma(0.0f),
-    has_second_output(false), has_third_output(false) {}
+    soft_nms_sigma_type(NmsArgType::None), soft_nms_sigma(0.0f) {}
 
     BoxEncodingType box_encoding;
     bool sort_result_descending;
@@ -37,8 +36,6 @@ struct non_max_suppression_params : public base_params {
     float score_threshold;
     NmsArgType soft_nms_sigma_type;
     float soft_nms_sigma;
-    bool has_second_output;
-    bool has_third_output;
 
     uint32_t GetIndexNumSelectPerClass() const {
         uint32_t input_idx = 2;
@@ -60,18 +57,6 @@ struct non_max_suppression_params : public base_params {
     uint32_t GetIndexSoftNmsSigma() const {
         uint32_t input_idx = GetIndexScoreThreshold();
         if (score_threshold_type == NmsArgType::Input) input_idx++;
-        return input_idx;
-    }
-
-    uint32_t GetIndexSecondOutput() const {
-        uint32_t input_idx = GetIndexSoftNmsSigma();
-        if (soft_nms_sigma_type == NmsArgType::Input) input_idx++;
-        return input_idx;
-    }
-
-    uint32_t GetIndexThirdOutput() const {
-        uint32_t input_idx = GetIndexSecondOutput();
-        if (has_second_output) input_idx++;
         return input_idx;
     }
 };

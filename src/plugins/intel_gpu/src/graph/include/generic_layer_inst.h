@@ -30,7 +30,7 @@ class typed_primitive_inst<generic_layer> : public typed_primitive_inst_base<gen
     using parent = typed_primitive_inst_base<generic_layer>;
 
 public:
-    static layout calc_output_layout(generic_layer_node const& node) { return node.get_primitive()->output_layout; }
+    static layout calc_output_layout(generic_layer_node const& node, int32_t idx) { return node.get_primitive()->output_layout; }
 
     static std::string to_string(generic_layer_node const& node);
 

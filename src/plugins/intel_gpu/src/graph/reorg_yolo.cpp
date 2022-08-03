@@ -13,7 +13,7 @@ primitive_type_id reorg_yolo::type_id() {
     return &instance;
 }
 
-layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node) {
+layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for "
            "reorg_yolo_node!");

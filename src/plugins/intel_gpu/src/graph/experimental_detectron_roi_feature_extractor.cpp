@@ -30,7 +30,7 @@ void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_secon
     second_output_memory()->copy_from(get_network().get_stream(), *rois_memory());
 }
 
-layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node) {
+layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
     layout rois_layout = node.input(0).get_output_layout();

@@ -15,7 +15,7 @@ primitive_type_id pyramid_roi_align::type_id() {
     return &instance;
 }
 
-layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& node) {
+layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for "
            "pyramid_roi_align node!");

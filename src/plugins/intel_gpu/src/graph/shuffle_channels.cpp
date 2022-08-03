@@ -15,7 +15,7 @@ primitive_type_id shuffle_channels::type_id() {
     return &instance;
 }
 
-layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node) {
+layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();

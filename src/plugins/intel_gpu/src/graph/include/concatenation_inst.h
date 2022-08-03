@@ -34,7 +34,7 @@ class typed_primitive_inst<concatenation> : public typed_primitive_inst_base<con
     using parent = typed_primitive_inst_base<concatenation>;
 
 public:
-    static layout calc_output_layout(concatenation_node const& node);
+    static layout calc_output_layout(concatenation_node const& node, int32_t idx);
     static std::string to_string(concatenation_node const& node);
 
 public:

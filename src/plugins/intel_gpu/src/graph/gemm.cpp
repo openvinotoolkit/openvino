@@ -17,7 +17,7 @@ primitive_type_id gemm::type_id() {
     return &instance;
 }
 
-layout gemm_inst::calc_output_layout(gemm_node const& node) {
+layout gemm_inst::calc_output_layout(gemm_node const& node, int32_t idx) {
     auto prim = node.get_primitive();
 
     auto input0_layout = node.input(0).get_output_layout();

@@ -28,7 +28,7 @@ class typed_primitive_inst<average_unpooling> : public typed_primitive_inst_base
 
 public:
     typed_primitive_inst(network& network, average_unpooling_node const& desc);
-    static layout calc_output_layout(average_unpooling_node const& node);
+    static layout calc_output_layout(average_unpooling_node const& node, int32_t idx);
     static std::string to_string(average_unpooling_node const& node);
 };
 

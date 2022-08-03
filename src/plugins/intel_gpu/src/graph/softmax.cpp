@@ -13,7 +13,7 @@ primitive_type_id softmax::type_id() {
     return &instance;
 }
 
-layout softmax_inst::calc_output_layout(softmax_node const& node) {
+layout softmax_inst::calc_output_layout(softmax_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for softmax_node!");
     return node.input().get_output_layout();

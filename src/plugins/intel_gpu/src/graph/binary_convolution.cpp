@@ -18,7 +18,7 @@ primitive_type_id binary_convolution::type_id() {
     return &instance;
 }
 
-layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node) {
+layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto output_type = *node.get_primitive()->output_data_types.at(0);

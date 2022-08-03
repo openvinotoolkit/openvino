@@ -32,7 +32,7 @@ class typed_primitive_inst<pooling> : public typed_primitive_inst_base<pooling> 
     using parent = typed_primitive_inst_base<pooling>;
 
 public:
-    static layout calc_output_layout(pooling_node const& node);
+    static layout calc_output_layout(pooling_node const& node, int32_t idx);
     static std::string to_string(pooling_node const& node);
 
 public:

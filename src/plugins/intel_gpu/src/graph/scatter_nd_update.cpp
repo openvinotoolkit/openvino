@@ -16,7 +16,7 @@ primitive_type_id scatter_nd_update::type_id() {
 }
 
 
-layout scatter_nd_update_inst::calc_output_layout(scatter_nd_update_node const& node) {
+layout scatter_nd_update_inst::calc_output_layout(scatter_nd_update_node const& node, int32_t idx) {
     auto input_layout = node.input(0).get_output_layout();
 
     auto output_shape = input_layout.size;

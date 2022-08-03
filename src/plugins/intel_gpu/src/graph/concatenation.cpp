@@ -17,7 +17,7 @@ primitive_type_id concatenation::type_id() {
     return &instance;
 }
 
-layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
+layout concatenation_inst::calc_output_layout(concatenation_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();

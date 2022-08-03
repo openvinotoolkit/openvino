@@ -15,7 +15,7 @@ primitive_type_id resample::type_id() {
     return &instance;
 }
 
-layout resample_inst::calc_output_layout(resample_node const& node) {
+layout resample_inst::calc_output_layout(resample_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
 

@@ -29,7 +29,7 @@ class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
     using parent = typed_primitive_inst_base<tile>;
 
 public:
-    static layout calc_output_layout(tile_node const& node);
+    static layout calc_output_layout(tile_node const& node, int32_t idx);
     static std::string to_string(tile_node const& node);
 
 public:

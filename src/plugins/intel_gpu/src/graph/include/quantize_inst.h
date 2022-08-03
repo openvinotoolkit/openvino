@@ -130,7 +130,7 @@ class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize
     using parent = typed_primitive_inst_base<quantize>;
 
 public:
-    static layout calc_output_layout(quantize_node const& node);
+    static layout calc_output_layout(quantize_node const& node, int32_t idx);
     static std::string to_string(quantize_node const& node);
 
 public:

@@ -296,14 +296,14 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs() {
 //    return allocate_outputs(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
     std::vector<memory::ptr> outputs;
     for (auto i = 0; i < get_node().get_outputs_count() ; ++i) {
-        // TODO(taylor) : temporal solution for argmax. Future impl should take care of different layouts
-        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal()));
+        // TODO(taylor) : temporal solution for argmax/NMS. Future impl should take care of different layouts
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal(), i));
     }
     return outputs;
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
-        bool is_internal) {
+        bool is_internal, const int32_t output_idx) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
         if (_engine.configuration().use_memory_pool)
@@ -312,7 +312,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     };
 
     // TODO(taylor) : temporal solution for argmax. Future impl should take care of different layouts
-    auto layout = _node.get_output_layout(0);
+    auto layout = _node.get_output_layout(output_idx);
     // TODO: Add a preprocessing step to do  alloc_type check before actual allocation
     const auto& node_deps = _node.get_dependencies();
     auto device_mem_acc = [&](size_t a, std::pair<program_node*, int32_t> b) {
@@ -396,9 +396,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 false);
 #endif
     }
-}
-memory::ptr primitive_inst::allocate_output() {
-    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
 }
 
 std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> primitive_inst::build_exec_deps(

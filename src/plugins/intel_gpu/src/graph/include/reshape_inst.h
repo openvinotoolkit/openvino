@@ -42,7 +42,7 @@ class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> 
     using parent = typed_primitive_inst_base<reshape>;
 
 public:
-    static layout calc_output_layout(reshape_node const& node);
+    static layout calc_output_layout(reshape_node const& node, int32_t idx);
     static std::string to_string(reshape_node const& node);
 
 public:

@@ -16,7 +16,7 @@ primitive_type_id deconvolution::type_id() {
     return &instance;
 }
 
-layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
+layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for deconvolution_node!");
     auto desc = node.get_primitive();

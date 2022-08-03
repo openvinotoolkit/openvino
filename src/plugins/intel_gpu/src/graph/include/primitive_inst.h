@@ -166,7 +166,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool,
-                                        const program_node& _node, bool is_internal);
+                                        const program_node& _node, bool is_internal, const int32_t output_idx);
     static std::vector<memory::ptr> allocate_outputs(engine& engine, memory_pool& pool,
                                         const program_node& _node, bool is_internal);
 

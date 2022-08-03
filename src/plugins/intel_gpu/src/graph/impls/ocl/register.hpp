@@ -123,7 +123,9 @@ REGISTER_OCL(lstm_elt);
 REGISTER_OCL(max_unpooling);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
+#endif
 REGISTER_OCL(non_max_suppression);
+#if 0 // TODO(taylor)
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 #endif

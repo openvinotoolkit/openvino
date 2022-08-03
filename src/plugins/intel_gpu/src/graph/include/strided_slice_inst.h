@@ -78,7 +78,7 @@ class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<str
     using parent = typed_primitive_inst_base<strided_slice>;
 
 public:
-    static layout calc_output_layout(strided_slice_node const& node);
+    static layout calc_output_layout(strided_slice_node const& node, int32_t idx);
     static std::string to_string(strided_slice_node const& node);
 
 public:

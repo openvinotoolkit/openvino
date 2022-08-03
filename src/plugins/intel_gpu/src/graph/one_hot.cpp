@@ -27,7 +27,7 @@ static bool is_output_bfzyx(const layout& input, int32_t axis) {
     return false;
 }
 
-layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
+layout one_hot_inst::calc_output_layout(one_hot_node const& node, int32_t idx) {
     auto input_layout = node.input().get_output_layout();
     auto desc = node.get_primitive();
 

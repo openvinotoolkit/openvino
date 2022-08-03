@@ -21,7 +21,7 @@ max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim
     can_share_buffer(false);  // for max_unpooling initial zero values are significant
 }
 
-layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
+layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for max_unpooling_node!");
     auto desc = node.get_primitive();

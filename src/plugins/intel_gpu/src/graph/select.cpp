@@ -15,7 +15,7 @@ primitive_type_id select::type_id() {
     return &instance;
 }
 
-layout select_inst::calc_output_layout(select_node const& node) {
+layout select_inst::calc_output_layout(select_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for select_node!");
 

@@ -136,7 +136,7 @@ class typed_primitive_inst<convolution> : public typed_primitive_inst_base<convo
     using parent = typed_primitive_inst_base<convolution>;
 
 public:
-    static layout calc_output_layout(convolution_node const& node);
+    static layout calc_output_layout(convolution_node const& node, int32_t idx);
     static std::string to_string(convolution_node const& node);
 
 public:

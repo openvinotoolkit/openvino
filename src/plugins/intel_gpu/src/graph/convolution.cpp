@@ -17,7 +17,7 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
-layout convolution_inst::calc_output_layout(convolution_node const& node) {
+layout convolution_inst::calc_output_layout(convolution_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();

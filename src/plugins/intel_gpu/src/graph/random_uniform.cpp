@@ -19,7 +19,7 @@ random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node 
 : parent(network, node) {
 }
 
-layout random_uniform_inst::calc_output_layout(random_uniform_node const &node) {
+layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, int32_t idx) {
     auto primitive = node.get_primitive();
     return {*primitive->output_data_types.at(0), primitive->output_format, primitive->output_shape};
 }

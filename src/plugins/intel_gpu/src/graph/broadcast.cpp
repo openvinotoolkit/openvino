@@ -17,7 +17,7 @@ primitive_type_id broadcast::type_id() {
     return &instance;
 }
 
-layout broadcast_inst::calc_output_layout(broadcast_node const& node) {
+layout broadcast_inst::calc_output_layout(broadcast_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for broadcast_node!");
     auto input_layout = node.input().get_output_layout();

@@ -18,7 +18,7 @@ primitive_type_id reorder::type_id() {
     return &instance;
 }
 
-layout reorder_inst::calc_output_layout(reorder_node const& node) {
+layout reorder_inst::calc_output_layout(reorder_node const& node, int32_t idx) {
     auto input_layout = node.input().get_output_layout();
     auto ifmt = input_layout.format;
 

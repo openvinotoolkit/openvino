@@ -29,7 +29,7 @@ class typed_primitive_inst<normalize> : public typed_primitive_inst_base<normali
     using parent = typed_primitive_inst_base<normalize>;
 
 public:
-    static layout calc_output_layout(normalize_node const& node);
+    static layout calc_output_layout(normalize_node const& node, int32_t idx);
     static std::string to_string(normalize_node const& node);
 
 public:

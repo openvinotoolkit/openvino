@@ -63,7 +63,7 @@ public:
         image_info_scale_depth_index,
     };
 
-    static layout calc_output_layout(proposal_node const& node);
+    static layout calc_output_layout(proposal_node const& node, int32_t idx);
     static std::string to_string(proposal_node const& node);
 
 public:

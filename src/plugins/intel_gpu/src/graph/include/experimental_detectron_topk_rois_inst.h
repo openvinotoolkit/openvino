@@ -26,7 +26,7 @@ class typed_primitive_inst<experimental_detectron_topk_rois> : public typed_prim
     using parent = typed_primitive_inst_base<experimental_detectron_topk_rois>;
 
 public:
-    static layout calc_output_layout(experimental_detectron_topk_rois_node const &node);
+    static layout calc_output_layout(experimental_detectron_topk_rois_node const &node, int32_t idx);
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
 

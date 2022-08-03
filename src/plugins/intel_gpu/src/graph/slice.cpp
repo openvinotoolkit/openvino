@@ -17,7 +17,7 @@ primitive_type_id slice::type_id() {
 slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}
 
-layout slice_inst::calc_output_layout(slice_node const& node) {
+layout slice_inst::calc_output_layout(slice_node const& node, int32_t idx) {
     auto primitive = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
     return {input_layout.data_type, input_layout.format, primitive->output_shape};

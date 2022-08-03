@@ -22,7 +22,7 @@ primitive_type_id condition::type_id() {
     In this both cases, we need to recalc branch_true and branch_false.
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
-layout condition_inst::calc_output_layout(condition_node const& node) {
+layout condition_inst::calc_output_layout(condition_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for condition_node!");
     node.set_branches();

@@ -38,7 +38,7 @@ static size_t GetNonEmptyDimsNumber(const layout& layout) {
     }
 }
 
-layout scatter_update_inst::calc_output_layout(scatter_update_node const& node) {
+layout scatter_update_inst::calc_output_layout(scatter_update_node const& node, int32_t idx) {
     auto desc = node.get_primitive();
 
     const int32_t axis = desc->axis;

@@ -13,7 +13,7 @@ primitive_type_id region_yolo::type_id() {
     return &instance;
 }
 
-layout region_yolo_inst::calc_output_layout(region_yolo_node const& node) {
+layout region_yolo_inst::calc_output_layout(region_yolo_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for "
            "region_yolo_node!");

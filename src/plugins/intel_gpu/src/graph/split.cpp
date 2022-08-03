@@ -15,7 +15,7 @@ primitive_type_id split::type_id() {
     return &instance;
 }
 
-layout split_inst::calc_output_layout(split_node const& node) {
+layout split_inst::calc_output_layout(split_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for split_node!");
     auto output_ids = node.get_primitive()->output_ids;

@@ -21,7 +21,7 @@ primitive_type_id range::type_id() {
     return &instance;
 }
 
-layout range_inst::calc_output_layout(range_node const& node) {
+layout range_inst::calc_output_layout(range_node const& node, int32_t idx) {
     return node.get_primitive()->output_layout;
 }
 

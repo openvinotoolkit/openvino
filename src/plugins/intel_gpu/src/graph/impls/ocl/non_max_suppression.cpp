@@ -44,11 +44,9 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        args.output = instance.output_memory_ptr();
-        if (instance.has_second_output())
-            args.inputs.push_back(instance.second_output_mem());
-        if (instance.has_third_output())
-            args.inputs.push_back(instance.third_output_mem());
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
 
         return args;
     }
@@ -106,15 +104,8 @@ public:
             }
         }
 
-        if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.second_output_node().get_output_layout()));
-            params.has_second_output = true;
-        }
-
-        if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
-            params.has_third_output = true;
-        }
+        params.outputs.push_back(convert_data_tensor(arg.get_output_layout(1)));
+        params.outputs.push_back(convert_data_tensor(arg.get_output_layout(2)));
 
         params.sort_result_descending = primitive->sort_result_descending;
         params.box_encoding = primitive->center_point_box ?

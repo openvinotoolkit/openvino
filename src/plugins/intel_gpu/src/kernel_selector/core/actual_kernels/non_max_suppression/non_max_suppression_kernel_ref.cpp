@@ -106,6 +106,8 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", params.soft_nms_sigma));
     }
 
+    // TODO(kelvin)
+    #if 0
     if (params.has_second_output) {
         jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexSecondOutput())));
         jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexSecondOutput())));
@@ -115,6 +117,7 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexThirdOutput())));
         jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexThirdOutput())));
     }
+    #endif
 
     return jit;
 }
@@ -224,10 +227,9 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
 
-        if (params.has_second_output)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
-        if (params.has_third_output)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
+        // TODO(kelvin): Need to check this works properly
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 1 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 2 });
         break;
 
     default:

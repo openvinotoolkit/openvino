@@ -16,7 +16,7 @@ primitive_type_id arg_max_min::type_id() {
     return &instance;
 }
 
-layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
+layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, int32_t idx) {
     // TODO(taylor) : temporarily set same as first output type. TBD for different second ouutput dtype
     auto desc = node.get_primitive();
     auto input_layout = node.get_dependency(0).first->get_output_layout();
