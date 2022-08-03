@@ -10,7 +10,11 @@ LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 
 def convert(**args):
     """
-    Converts the model from original framework to nGraph function.
+    Converts the model from original framework to OpenVino Model.
+
     Run convert() to list available parameter.
+
+    Returns:
+        openvino.pyopenvino.Model
     """
     return _convert(**args)
