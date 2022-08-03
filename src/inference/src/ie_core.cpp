@@ -1880,13 +1880,15 @@ Core::Core(const std::string& xmlConfigFile) {
 #endif
 }
 
-std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {OV_CORE_CALL_STATEMENT({
-    std::map<std::string, Version> versions;
-    for (auto&& kvp : _impl->GetVersions(deviceName)) {
-        versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
-    }
-    return versions;
-})}
+std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
+    OV_CORE_CALL_STATEMENT({
+        std::map<std::string, Version> versions;
+        for (auto&& kvp : _impl->GetVersions(deviceName)) {
+            versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
+        }
+        return versions;
+    })
+}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(

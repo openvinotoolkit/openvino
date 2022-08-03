@@ -299,8 +299,7 @@ public:
      * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
      * plugin itself.
      */
-    void RegisterPlugin(const std::string& pluginName,
-                        const std::string& deviceName);
+    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine
