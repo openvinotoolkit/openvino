@@ -158,8 +158,10 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::InferencePlugin> plugins;
+    // Mutex is needed to prevent changes of dev mutexes map from different threads
     mutable std::mutex global_mutex;
-    // to lock parallel access to pluginRegistry and plugins
+    // Global mutex "" locks parallel access to pluginRegistry and plugins
+    // Plugin mutexes "plugin_name" lock access to code which changes configuration of particular plugin
     mutable std::unordered_map<std::string, std::mutex> dev_mutexes;
     std::mutex& get_mutex(const std::string& dev_name = "") const {
         std::lock_guard<std::mutex> lock(global_mutex);
@@ -1091,6 +1093,7 @@ public:
                 });
             }
 
+            std::lock_guard<std::mutex> g_lock(get_mutex());
             // add plugin as extension itself
             if (desc.extensionCreateFunc) {  // static OpenVINO case
                 try {
@@ -1104,7 +1107,6 @@ public:
                 TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             }
 
-            std::lock_guard<std::mutex> g_lock(get_mutex());
             return plugins.emplace(deviceName, plugin).first->second;
         } catch (const ie::Exception& ex) {
             IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation) << " for device "
@@ -1825,7 +1827,6 @@ std::map<std::string, Version> Core::get_versions(const std::string& deviceName)
         return versions;
     })
 }
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
