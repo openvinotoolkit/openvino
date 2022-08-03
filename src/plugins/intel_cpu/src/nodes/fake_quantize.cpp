@@ -1162,8 +1162,13 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
+
             printf("=========================name = %s=====================\n", getName().c_str());
-            printf("=========================levels = %zu=====================\n", levels);
+            printf("=========================levels = %zu channels = %zu =====================\n", levels, std::max(inputLowAxisSize,
+                                         std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
+            bool symmetricToAsymmetric = false;
+            bool asymmetric = false;
+            bool levelNot256 = false;
 
             printf("%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
                    "channel",
@@ -1182,11 +1187,20 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+                if (il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.01f && ol == 0.0f)
+                    symmetricToAsymmetric = true;
+                else if ((il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.1f) || il > 0.0f)
+                    asymmetric = true;
+                if (levels != 256)
+                    levelNot256 = true;
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
                                               (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256 ? 0.001f : 0.01f));
-                if (il < 0 && i % 100 == 0 && (abs( -128.0 / 127.0 - ol / oh) > 0.001f || abs( -128.0 / 127.0 - il / ih) > 0.001f))
+                if (il < 0 && i % 100 == 0 && ((il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.01f && ol == 0.0f) ||
+                                                (il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.1f) ||
+                                                (il > 0.0f) ||
+                                                levels != 256))
                     printf("%-15d%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f\n",
                         i,
                         inputShift[i],
@@ -1206,7 +1220,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 */
             }
 
-            DEBUG_LOG(getName(), levels, "isfqscale = " , static_cast<int>(isFakeQuantizationWithScale));
+            //DEBUG_LOG(getName(), levels, "isfqscale = " , static_cast<int>(isFakeQuantizationWithScale));
             if (isFakeQuantizationWithScale) {
                 for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
@@ -1220,6 +1234,12 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
             algorithm = quantizationOnly ? Algorithm::FQQuantization :
                         (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;
+            if (symmetricToAsymmetric || asymmetric || levelNot256)
+                printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n",
+                       getName().c_str(),
+                       symmetricToAsymmetric ? "symmetric_to_asymmetric=true" : "",
+                       asymmetric ? "POT_input_zp=true" : "",
+                       levelNot256 ? "level_changed=true" : "");
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
