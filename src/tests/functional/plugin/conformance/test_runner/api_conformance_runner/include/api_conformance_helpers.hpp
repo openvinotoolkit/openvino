@@ -75,7 +75,7 @@ inline const std::string generate_complex_device_name(const std::string& deviceN
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
-static const std::vector<std::string> return_all_possible_device_combination() {
+inline const std::vector<std::string> return_all_possible_device_combination() {
     std::vector<std::string> res{ov::test::conformance::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO,
                                      CommonTestUtils::DEVICE_BATCH, CommonTestUtils::DEVICE_MULTI};
@@ -85,6 +85,7 @@ static const std::vector<std::string> return_all_possible_device_combination() {
     return res;
 }
 
+// generate vector of pair { device_name, plugin_library_name} for all possible devices
 inline std::vector<std::pair<std::string, std::string>> generate_pairs_plugin_name_by_device() {
     std::vector<std::pair<std::string, std::string>> res;
     for (const auto& device : return_all_possible_device_combination()) {

@@ -71,7 +71,7 @@ protected:
 
 public:
     void SetUp() override {
-        target_device = GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;;
+        target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();

@@ -71,11 +71,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 class IEClassSetConfigTestHETERO : public BehaviorTestsUtils::IEClassNetworkTest,
                                    public BehaviorTestsUtils::IEPluginTestBase {
-public:
     void SetUp() override {
-        target_device = CommonTestUtils::DEVICE_HETERO;
-        APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
+        IEPluginTestBase::SetUp();
     }
 };
 
@@ -125,13 +123,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTest,
                                      public BehaviorTestsUtils::IEPluginTestBase {
-public:
     void SetUp() override {
-        target_device = CommonTestUtils::DEVICE_TEMPLATE;
-        APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
+        IEPluginTestBase::SetUp();
     }
-
 };
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
