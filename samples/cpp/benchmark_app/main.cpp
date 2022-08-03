@@ -81,6 +81,12 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
         throw std::logic_error(err);
     }
+    
+    if (FLAGS_warmup != 0 && FLAGS_t != 0 && FLAGS_warmup >= FLAGS_t) {
+        std::string err = "Warmup window (" + std::to_string(FLAGS_warmup) + "s) cannot be longer then test duration (" + std::to_string(FLAGS_t) + "s)";
+        throw std::logic_error(err);
+    }
+
     return true;
 }
 
@@ -762,6 +768,12 @@ int main(int argc, char* argv[]) {
         }
         uint64_t duration_nanoseconds = get_duration_in_nanoseconds(duration_seconds);
 
+        uint32_t warmup_duration_seconds = 0;
+        if (FLAGS_warmup != 0) {
+            warmup_duration_seconds = FLAGS_warmup;
+        }
+        uint64_t warmup_duration_nanoseconds = get_duration_in_nanoseconds(warmup_duration_seconds);
+
         if (statistics) {
             statistics->add_parameters(
                 StatisticsReport::Category::RUNTIME_CONFIG,
@@ -1028,7 +1040,13 @@ int main(int argc, char* argv[]) {
             ++iteration;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-            processedFramesN += batchSize;
+            if (warmup_duration_nanoseconds != 0LL && (uint64_t)execTime < warmup_duration_nanoseconds) {
+                // still warmup
+                inferRequestsQueue.reset_times();
+            } else {
+                // measurement
+                processedFramesN += batchSize;
+            }
 
             if (niter > 0) {
                 progressBar.add_progress(1);
