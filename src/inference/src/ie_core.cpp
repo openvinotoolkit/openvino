@@ -98,7 +98,7 @@ std::string findPluginXML(const std::string& xmlFile) {
 
 #endif
 
-ov::util::FilePath getPluginPath(const std::string & pluginName, const bool needAddSuffixes = false) {
+ov::util::FilePath getPluginPath(const std::string& pluginName, const bool needAddSuffixes = false) {
     const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
 
     auto pluginPath = ov::util::to_file_path(pluginName.c_str());

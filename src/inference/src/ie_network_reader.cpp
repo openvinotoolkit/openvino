@@ -101,8 +101,7 @@ public:
         OPENVINO_ASSERT(ptr != nullptr, "Failed to create static version of IR v7 reader");
 #    else
         ov::util::FilePath libraryPath = ov::util::to_file_path(FileUtils::makePluginLibraryName({}, location));
-        ov::util::FilePath readersLibraryPath =
-            FileUtils::makePath(getInferenceEngineLibraryPath(), libraryPath);
+        ov::util::FilePath readersLibraryPath = FileUtils::makePath(getInferenceEngineLibraryPath(), libraryPath);
 
         if (FileUtils::fileExist(readersLibraryPath)) {
             libraryPath = readersLibraryPath;
@@ -152,8 +151,9 @@ void registerReaders() {
 
     // try to load IR reader v7 if library exists
     try {
-        reader_irv7 = std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
-    } catch (const std::runtime_error &) {
+        reader_irv7 =
+            std::make_shared<Reader>(std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
+    } catch (const std::runtime_error&) {
         // runtime error is thrown in case of library cannot be loaded
     }
 }
@@ -165,7 +165,8 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
     if (!isIRv7 || reader_irv7)
         return;
 
-    IE_THROW() << "The support of IR v" << irVersion << " has been removed from the product. "
+    IE_THROW() << "The support of IR v" << irVersion
+               << " has been removed from the product. "
                   "Please, convert the original model using the Model Optimizer which comes with this "
                   "version of the OpenVINO to generate supported IR version.";
 }
