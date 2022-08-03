@@ -63,8 +63,16 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
         m_inputModel = m_frontEnd->load(m_param.m_modelName);
         function = m_frontEnd->convert(m_inputModel);
-        EXPECT_EQ(m_test_telemetry.m_event_cnt, m_param.m_expected_events.size());
-        EXPECT_EQ(m_test_telemetry.m_received_events, m_param.m_expected_events);
+        bool is_found = false;
+        for (const auto m_expected_events : m_param.m_expected_events) {
+            is_found = false;
+            is_found = (m_test_telemetry.m_event_cnt == m_expected_events.size()) &&
+                       (m_test_telemetry.m_received_events == m_expected_events);
+            if (is_found) {
+                break;
+            }
+        }
+        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry.";
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
 
@@ -73,8 +81,15 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
         m_inputModel = m_frontEnd->load(m_param.m_modelName);
         function = m_frontEnd->decode(m_inputModel);
-        EXPECT_EQ(m_test_telemetry.m_event_cnt, m_param.m_expected_events.size());
-        EXPECT_EQ(m_test_telemetry.m_received_events, m_param.m_expected_events);
+        for (const auto m_expected_events : m_param.m_expected_events) {
+            is_found = false;
+            is_found = (m_test_telemetry.m_event_cnt == m_expected_events.size()) &&
+                       (m_test_telemetry.m_received_events == m_expected_events);
+            if (is_found) {
+                break;
+            }
+        }
+        EXPECT_TRUE(is_found) << "Unexpected set of operations received from telemetry.";
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
     }
