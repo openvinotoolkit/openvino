@@ -37,7 +37,7 @@ public:
         // if the output layout format was set to any, it means the layer output format will be the same as the first
         // input
         if (output_layout.format == format::any) {
-            output_layout.format = impl_param.input_layouts[0].format;
+            output_layout.format = impl_param.get_input_layout().format;
         }
         return output_layout;
     }

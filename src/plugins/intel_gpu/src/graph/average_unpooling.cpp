@@ -21,7 +21,7 @@ layout average_unpooling_inst::calc_output_layout(average_unpooling_node const& 
            "average_unpooling_node!");
     auto desc = impl_param.typed_desc<average_unpooling>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto stride = desc->stride;
     auto window_size = desc->size;

@@ -16,7 +16,7 @@ primitive_type_id experimental_detectron_generate_proposals_single_image::type_i
 
 layout experimental_detectron_generate_proposals_single_image_inst::calc_output_layout(
         const experimental_detectron_generate_proposals_single_image_node& node, kernel_impl_params const& impl_param) {
-    const layout data_layout = impl_param.input_layouts[0];
+    const layout data_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
 
     return layout(data_layout.data_type, format::bfyx, {static_cast<int>(desc->post_nms_count), 4, 1, 1});

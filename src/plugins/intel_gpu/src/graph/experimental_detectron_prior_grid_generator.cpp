@@ -16,7 +16,7 @@ primitive_type_id experimental_detectron_prior_grid_generator::type_id() {
 
 layout experimental_detectron_prior_grid_generator_inst::calc_output_layout(
     const experimental_detectron_prior_grid_generator_node& node, kernel_impl_params const& impl_param) {
-    const layout data_layout = impl_param.input_layouts[0];
+    const layout data_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<experimental_detectron_prior_grid_generator>();
     if (desc->flatten) {
         return layout(data_layout.data_type,
