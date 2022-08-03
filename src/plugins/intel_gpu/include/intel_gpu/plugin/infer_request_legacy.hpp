@@ -15,16 +15,16 @@
 namespace ov {
 namespace intel_gpu {
 
-struct buf_info {
+struct buf_info_legacy {
     size_t buf_offset;
     size_t buf_size;
 };
 
 class CompiledModel;
 
-class InferRequest : public InferenceEngine::IInferRequestInternal {
+class InferRequestLegacy : public InferenceEngine::IInferRequestInternal {
 public:
-    using Ptr = std::shared_ptr<InferRequest>;
+    using Ptr = std::shared_ptr<InferRequestLegacy>;
     // make sure all blobs and cldnn::memory objects
     // are in place and valid
     void checkBlobs() override;
@@ -32,15 +32,15 @@ public:
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
-    InferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
+    InferRequestLegacy(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
                  const std::shared_ptr<CompiledModel>& execNetwork);
-    InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    InferRequestLegacy(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                  const std::shared_ptr<CompiledModel>& execNetwork);
 
-    InferRequest(const InferRequest &) = delete;
+    InferRequestLegacy(const InferRequestLegacy &) = delete;
 
-    virtual ~InferRequest() = default;
+    virtual ~InferRequestLegacy() = default;
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
@@ -81,8 +81,8 @@ private:
     std::shared_ptr<Graph> m_graph;
 
     // dynamic batch stuff
-    std::map<std::string, std::vector<buf_info>> batchInputs;
-    std::map<std::string, std::vector<buf_info>> batchOutputs;
+    std::map<std::string, std::vector<buf_info_legacy>> batchInputs;
+    std::map<std::string, std::vector<buf_info_legacy>> batchOutputs;
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
     void prepare_input(const cldnn::primitive_id &inputName, InferenceEngine::Blob::Ptr &inputBlob,
@@ -91,20 +91,18 @@ private:
 
     InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc,
                                                 std::shared_ptr<InferenceEngine::IAllocator> alloc = nullptr);
-    InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc);
+    InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
-    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
+    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info_legacy* bi = nullptr);
     void copy_input_data(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id &inputName,
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
-                         buf_info* bi = nullptr);
+                         buf_info_legacy* bi = nullptr);
 
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
-
-    InferenceEngine::Blob::Ptr reinterpret_device_blob(InferenceEngine::Blob::Ptr data, const InferenceEngine::TensorDesc& new_desc);
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;

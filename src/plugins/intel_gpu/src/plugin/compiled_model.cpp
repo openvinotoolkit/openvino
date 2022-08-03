@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/async_infer_request_legacy.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <description_buffer.hpp>
@@ -66,8 +67,8 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                  OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    auto ptr = std::make_shared<InferRequest>(networkInputs, networkOutputs,
-                                              std::static_pointer_cast<CompiledModel>(shared_from_this()));
+    auto ptr = std::make_shared<InferRequestLegacy>(networkInputs, networkOutputs,
+                                                    std::static_pointer_cast<CompiledModel>(shared_from_this()));
     if (m_config.throughput_streams > 1) {
         ptr->EnableStreams();
     }
@@ -120,8 +121,14 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
     if (this->_plugin && _plugin->IsNewAPI()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
     }
-    if (!internalRequest)
+    if (!internalRequest) {
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+        internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
+        return std::make_shared<AsyncInferRequestLegacy>(std::static_pointer_cast<InferRequestLegacy>(internalRequest),
+                                                         m_taskExecutor,
+                                                         m_waitExecutor,
+                                                         _callbackExecutor);
+    }
     internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AsyncInferRequest>(std::static_pointer_cast<InferRequest>(internalRequest),
                                                m_taskExecutor,
