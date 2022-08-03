@@ -76,17 +76,32 @@ public:
 namespace detail {
 
 attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
-    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-    });
+    const auto types = {data_types::f16, data_types::f32, data_types::i32};
+    const auto formats = {
+            format::bfyx,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bfzyx,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_zyx_fsv32,
+            format::bs_fs_zyx_bsv16_fsv32,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv32_fsv32,
+            format::bs_fs_zyx_bsv32_fsv16,
+            format::bfwzyx
+    };
+
+    std::set<std::tuple<data_types, format::type>> keys;
+    for (const auto& t : types) {
+        for (const auto& f : formats) {
+            keys.emplace(t, f);
+        }
+    }
+
+    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, keys);
 }
 
 }  // namespace detail
