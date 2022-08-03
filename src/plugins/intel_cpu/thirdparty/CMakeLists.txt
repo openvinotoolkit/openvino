@@ -34,11 +34,11 @@ function(ie_add_onednn)
     set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
     set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
 
+    # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
     if (ENABLE_CPU_DEBUG_CAPS)
         set(DNNL_VERBOSE "ON" CACHE STRING "" FORCE)
-    else()
-        set(DNNL_VERBOSE "OFF" CACHE STRING "" FORCE)
     endif()
+
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
