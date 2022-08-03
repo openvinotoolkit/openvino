@@ -81,9 +81,10 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
         throw std::logic_error(err);
     }
-    
-    if (FLAGS_warmup != 0 && FLAGS_t != 0 && FLAGS_warmup >= FLAGS_t) {
-        std::string err = "Warmup window (" + std::to_string(FLAGS_warmup) + "s) cannot be longer then test duration (" + std::to_string(FLAGS_t) + "s)";
+
+    if (FLAGS_window != 0 && FLAGS_t != 0 && FLAGS_window >= FLAGS_t) {
+        std::string err = "Measurement window (" + std::to_string(FLAGS_window) +
+                          "s) cannot be longer then test duration (" + std::to_string(FLAGS_t) + "s)";
         throw std::logic_error(err);
     }
 
@@ -768,11 +769,12 @@ int main(int argc, char* argv[]) {
         }
         uint64_t duration_nanoseconds = get_duration_in_nanoseconds(duration_seconds);
 
-        uint32_t warmup_duration_seconds = 0;
-        if (FLAGS_warmup != 0) {
-            warmup_duration_seconds = FLAGS_warmup;
+        uint32_t window_duration_seconds = 0;
+        if (FLAGS_window != 0) {
+            window_duration_seconds = FLAGS_window;
         }
-        uint64_t warmup_duration_nanoseconds = get_duration_in_nanoseconds(warmup_duration_seconds);
+        uint64_t window_duration_nanoseconds = get_duration_in_nanoseconds(window_duration_seconds);
+        uint64_t warmup_duration_nanoseconds = (duration_nanoseconds - window_duration_nanoseconds) / 2;
 
         if (statistics) {
             statistics->add_parameters(
@@ -956,7 +958,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (FLAGS_api == "sync") {
-            inferRequest->infer();
+            inferRequest->infer(true);
         } else {
             inferRequest->start_async();
         }
@@ -988,6 +990,11 @@ int main(int argc, char* argv[]) {
             if (!inferRequest) {
                 IE_THROW() << "No idle Infer Requests!";
             }
+
+            bool inside_measurement_window =
+                ((window_duration_nanoseconds != 0LL) &&
+                ((uint64_t)execTime >= warmup_duration_nanoseconds) &&
+                ((uint64_t)execTime <= warmup_duration_nanoseconds + window_duration_nanoseconds));
 
             if (!inferenceOnly) {
                 auto inputs = app_inputs_info[iteration % app_inputs_info.size()];
@@ -1026,7 +1033,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (FLAGS_api == "sync") {
-                inferRequest->infer();
+                inferRequest->infer(inside_measurement_window);
             } else {
                 // As the inference request is currently idle, the wait() adds no
                 // additional overhead (and should return immediately). The primary
@@ -1040,11 +1047,7 @@ int main(int argc, char* argv[]) {
             ++iteration;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-            if (warmup_duration_nanoseconds != 0LL && (uint64_t)execTime < warmup_duration_nanoseconds) {
-                // still warmup
-                inferRequestsQueue.reset_times();
-            } else {
-                // measurement
+            if (inside_measurement_window) {
                 processedFramesN += batchSize;
             }
 

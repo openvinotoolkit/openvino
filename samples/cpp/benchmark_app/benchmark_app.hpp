@@ -202,8 +202,9 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
 static const char inference_precision_message[] = "Optional. Inference precission";
 
 // @brief message for waiting window before measurement
-static const char infer_requests_warmup_message[] =
-    "Optional. Number of seconds to wait before measuring inference. Default value is 0 (start measuring right away).";
+static const char infer_requests_window_message[] =
+    "Optional. Measurement window inseconds, centered in execution duration. "
+    "By default measurement takes all duration.";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
@@ -367,8 +368,8 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Warmup time to wait before measuring inference
-DEFINE_uint32(warmup, 0, infer_requests_warmup_message);
+/// @brief Measurement window
+DEFINE_uint32(window, 0, infer_requests_window_message);
 
 /**
  * @brief This function show a help message
@@ -404,7 +405,7 @@ static void show_usage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
               << infer_threads_pinning_message << std::endl;
-    std::cout << "    -warmup \"<integer>\"     " << infer_requests_warmup_message << std::endl;
+    std::cout << "    -window \"<integer>\"     " << infer_requests_window_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif

@@ -23,7 +23,7 @@
 #include "utils.hpp"
 // clang-format on
 
-typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
+typedef std::function<void(size_t id, size_t group_id, const double latency, const bool save_latency, const std::exception_ptr& ptr)>
     QueueCallbackFunction;
 
 /// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
@@ -42,7 +42,7 @@ public:
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
             _endTime = Time::now();
-            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), ptr);
+            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), false, ptr);
         });
     }
 
@@ -55,11 +55,11 @@ public:
         _request.wait();
     }
 
-    void infer() {
+    void infer(bool save_latency) {
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), nullptr);
+        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), save_latency, nullptr);
     }
 
     std::vector<ov::ProfilingInfo> get_performance_counts() {
@@ -117,7 +117,8 @@ public:
                                                                         std::placeholders::_1,
                                                                         std::placeholders::_2,
                                                                         std::placeholders::_3,
-                                                                        std::placeholders::_4)));
+                                                                        std::placeholders::_4,
+                                                                        std::placeholders::_5)));
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);
@@ -150,14 +151,17 @@ public:
     void put_idle_request(size_t id,
                           size_t lat_group_id,
                           const double latency,
+                          const bool save_latency,
                           const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
         if (ptr) {
             inferenceException = ptr;
         } else {
-            _latencies.push_back(latency);
-            if (enable_lat_groups) {
-                _latency_groups[lat_group_id].push_back(latency);
+            if (save_latency) {
+                _latencies.push_back(latency);
+                if (enable_lat_groups) {
+                    _latency_groups[lat_group_id].push_back(latency);
+                }
             }
             _idleIds.push(id);
             _endTime = std::max(Time::now(), _endTime);
