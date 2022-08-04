@@ -48,13 +48,13 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
     convert_nhwc_to_hw(is_ndhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_ndhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_ndhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(node.get_name(), is_ndhwc, ng_input);
+    convert_nhwc_to_nchw(is_ndhwc, ng_input);
 
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
-    transpose_3d<4, 3, 0, 1, 2>(ng_filter);
+    ng_filter = make_transpose(ng_filter, {4, 3, 0, 1, 2});
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -70,7 +70,7 @@ OutputVector translate_conv_3d_op(const NodeContext& node) {
         make_shared<Convolution>(ng_input, ng_filter, ng_strides, ng_padding_below, ng_padding_above, ng_dilations);
     auto res = res_node->output(0);
 
-    convert_nchw_to_nhwc(node.get_name(), is_ndhwc, res);
+    convert_nchw_to_nhwc(is_ndhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
