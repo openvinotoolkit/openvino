@@ -4,13 +4,12 @@
 
 set(TARGET_NAME "paddle_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE cnpy frontend_shared_test_classes
-        openvino_paddle_frontend openvino::runtime)
+    openvino_paddle_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
