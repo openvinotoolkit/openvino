@@ -27,7 +27,7 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    PYTHON_ARM_VERSION: "3.10"
+    PYTHON_ARM_VERSION: "3.10.6"
     PYTHON_EXEC: "python3.10"
     OPENVINO_ARCH: 'aarch64'
     NUM_PROC: 1
