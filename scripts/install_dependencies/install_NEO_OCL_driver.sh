@@ -377,7 +377,7 @@ _check_distro_version()
         RHEL_MINOR_VERSION_SUPPORTED="[3-5]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
-            echo "Warning: This runtime can be installed only on RHEL 8.3 or RHEL 8.4"
+            echo "Warning: This runtime can be installed only on RHEL 8.3, RHEL8.4 or RHEL 8.5"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
