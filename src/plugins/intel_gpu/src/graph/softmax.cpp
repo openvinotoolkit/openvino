@@ -17,7 +17,7 @@ layout softmax_inst::calc_output_layout(softmax_node const& node, kernel_impl_pa
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for softmax_node!");
 
-    auto output_layout = impl_param.input_layouts[0];
+    auto output_layout = impl_param.get_input_layout();
 
     if (impl_param.has_fused_primitives())
         output_layout.data_type = impl_param.get_fused_output_layout().data_type;

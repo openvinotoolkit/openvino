@@ -29,7 +29,7 @@ layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for proposal_node!");
     auto desc = impl_param.typed_desc<proposal>();
-    layout input_layout = impl_param.input_layouts[cls_scores_index];
+    layout input_layout = impl_param.get_input_layout(cls_scores_index);
 
     return layout(input_layout.data_type,
                   format::bfyx,

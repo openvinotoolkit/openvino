@@ -198,6 +198,9 @@ void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Nod
     values_from_const_node<T, VecT>(node, &ng_shape, &const_values);
     ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
 };
+
+ov::op::PadType convert_conv_tf_padding(const NodeContext& node, const std::string& tf_padding);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
