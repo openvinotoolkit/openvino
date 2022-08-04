@@ -14,6 +14,9 @@ NamedOutputs tile(const NodeContext& node) {
     Output<Node> repeats;
     if (node.has_input("RepeatTimes")) {
         repeats = node.get_input("RepeatTimes");
+    } else if (node.has_input("repeat_times_tensor")) {
+        auto repeats_list = node.get_ng_inputs("repeat_times_tensor");
+        repeats = std::make_shared<default_opset::Concat>(repeats_list, 0);
     } else {
         std::vector<int32_t> repeats_vector = node.get_attribute<std::vector<int32_t>>("repeat_times", {});
         repeats = default_opset::Constant::create(ov::element::i32, Shape{repeats_vector.size()}, repeats_vector);
