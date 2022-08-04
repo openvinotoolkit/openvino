@@ -57,6 +57,6 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # Install rules
 
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

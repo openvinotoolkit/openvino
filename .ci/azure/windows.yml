@@ -264,7 +264,9 @@ jobs:
     displayName: 'MULTI UT'
     continueOnError: true
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: |
+      set PATH=$(PATH);$(INSTALL_TEST_DIR)\lib
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: true
 
