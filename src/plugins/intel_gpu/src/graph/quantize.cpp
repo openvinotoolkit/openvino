@@ -20,7 +20,7 @@ primitive_type_id quantize::type_id() {
 layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<quantize>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
     auto out_dt = input_layout.data_type;
     if (desc->output_data_type)
