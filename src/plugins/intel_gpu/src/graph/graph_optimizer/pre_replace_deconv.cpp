@@ -223,11 +223,11 @@ void pre_replace_deconv::run(program& p) {
 
                      if (weights_data_type == data_types::f16) {
                          mem_lock<half_t, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.size.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
                          mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.size.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
 

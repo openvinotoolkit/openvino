@@ -486,10 +486,20 @@ private:
         topk_heap_load(reg_heap_top_k, 1);
         mov(reg_zero, 0);
 
+        // Heapify the only node, or start from the last non-leaf node to the root,
+        Xbyak::Label topk_heapify_set_label;
+        Xbyak::Label topk_heapify_set_end_label;
+        cmp(reg_heap_top_k, 1);
+        jg(topk_heapify_set_label, T_NEAR);
+        mov(reg_end, 0);
+        jmp(topk_heapify_set_end_label, T_NEAR);
+        L(topk_heapify_set_label);
+        reg_sub_shr(reg_end, reg_heap_top_k, 2, 1);
+        L(topk_heapify_set_end_label);
+
         // heapify
         Xbyak::Label topk_heapify_loop_label;
         Xbyak::Label topk_heapify_loop_end_label;
-        reg_sub_shr(reg_end, reg_heap_top_k, 2, 1);
         mov(reg_i, reg_end);
         sub(reg_heap_top_k, 1);
         L(topk_heapify_loop_label);

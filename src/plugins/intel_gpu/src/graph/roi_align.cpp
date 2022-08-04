@@ -6,6 +6,7 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
+#include "openvino/core/enum_names.hpp"
 
 namespace cldnn {
 
@@ -23,7 +24,9 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node) {
     auto rois_layout = node.input(1).get_output_layout();
     auto num_rois = rois_layout.batch();
     auto num_channels = input_layout.feature();
-    return layout(input_layout.data_type, format::bfyx, {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
+    return layout(input_layout.data_type,
+                  input_layout.format,
+                  {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
 
 std::string roi_align_inst::to_string(roi_align_node const& node) {
@@ -36,11 +39,29 @@ std::string roi_align_inst::to_string(roi_align_node const& node) {
     roi_align_info.add("pooled_w", node.get_primitive()->pooled_w);
     roi_align_info.add("sampling_ratio", node.get_primitive()->sampling_ratio);
     roi_align_info.add("spatial_scale", node.get_primitive()->spatial_scale);
-    roi_align_info.add("mode", node.get_primitive()->mode == roi_align::PoolingMode::Max ? "Max" : "Avg");
+    roi_align_info.add("pooling_mode", ov::as_string(node.get_primitive()->pooling_mode));
+    roi_align_info.add("aligned_mode", ov::as_string(node.get_primitive()->aligned_mode));
     node_info->add("roi_align info", roi_align_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
     return primitive_description.str();
 }
 
-} // namespace cldnn
+}  // namespace cldnn
+
+namespace ov {
+template <> EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
+  static auto enum_names =
+      EnumNames<roi_align::PoolingMode>("PoolingMode", {{"max", roi_align::PoolingMode::max},
+                                                        {"avg", roi_align::PoolingMode::avg}});
+  return enum_names;
+}
+
+template <> EnumNames<roi_align::AlignedMode>& EnumNames<roi_align::AlignedMode>::get() {
+  static auto enum_names =
+      EnumNames<roi_align::AlignedMode>("AlignedMode", {{"asymmetric", roi_align::AlignedMode::asymmetric},
+                                                        {"half_pixel_for_nn", roi_align::AlignedMode::half_pixel_for_nn},
+                                                        {"half_pixel", roi_align::AlignedMode::half_pixel}});
+  return enum_names;
+}
+} // namespace ov
