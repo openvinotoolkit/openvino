@@ -493,6 +493,23 @@ IEStatusCode ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_conf
     return status;
 }
 
+IEStatusCode ie_core_set_core_config(ie_core_t *core, const ie_config_t *ie_core_config) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || ie_core_config == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    const std::map<std::string, std::string> conf_map = config2Map(ie_core_config);
+
+    try {
+        core->object.SetConfig(conf_map);
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
 IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name ) {
     IEStatusCode status = IEStatusCode::OK;
 

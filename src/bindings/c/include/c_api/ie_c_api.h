@@ -478,6 +478,18 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_from_file
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name);
 
 /**
+ * @brief Sets configuration for ie core.
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param ie_core_config ie core configuration.
+ * the config is set for ie core.
+ * @return Status code of the operation: OK(0) for success.
+ */
+
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_set_core_config(ie_core_t *core, const ie_config_t *ie_core_config);
+
+
+/**
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
