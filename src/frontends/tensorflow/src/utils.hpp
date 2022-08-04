@@ -41,6 +41,8 @@ void set_out_name(const std::string& out_name, const Output<Node>& output);
 
 void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
+bool is_conditional_edge(const std::string& input_tensor_name);
+
 static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
     return a == b;
 }

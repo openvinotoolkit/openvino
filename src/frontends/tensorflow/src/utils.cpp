@@ -27,3 +27,7 @@ void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const
 void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const ov::Output<ov::Node>& output) {
     output.get_tensor().add_names({out_name});
 }
+
+bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
+    return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
+}
