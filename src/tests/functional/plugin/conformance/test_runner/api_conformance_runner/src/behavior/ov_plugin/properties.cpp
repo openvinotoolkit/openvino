@@ -8,6 +8,7 @@
 #include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
+using namespace ov::test::conformance;
 
 namespace {
 
