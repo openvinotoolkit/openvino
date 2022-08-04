@@ -703,14 +703,12 @@ program::nodes_ordering& program::get_processing_order() { return processing_ord
 
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
 void program::prepare_memory_dependencies() {
-#if 0 // (taylor)
     if (!get_engine().configuration().use_memory_pool)
         return;
 
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
-#endif
 }
 
 #if 0 // TODO(andrew)

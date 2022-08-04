@@ -21,7 +21,7 @@ using namespace cldnn;
 void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
-    std::vector<primitive_id> past_outputs;
+    std::vector<input_info> past_outputs;
     while (itr != p.get_processing_order().end()) {
         auto& node = *itr;
         itr++;
@@ -32,8 +32,8 @@ void basic_memory_dependencies::run(program& p) {
 
         // add my dependencies to restriction list (can't share input.output buffers)
         for (auto it : node->get_dependencies()) {
-            add_memory_dependency(node, it);
-            add_memory_dependency(it, node);
+            add_memory_dependency(node, it.first);
+            add_memory_dependency(it.first, node);
         }
 
         if (node->is_type<convolution>() && node->get_preferred_impl_type() == impl_types::onednn) {
@@ -43,7 +43,7 @@ void basic_memory_dependencies::run(program& p) {
 
             for (auto& fused_op : conv.get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto eltw_in_layout = conv.get_dependency(fused_op.dep_start_idx).get_output_layout();
+                    auto eltw_in_layout = conv.get_dependency(fused_op.dep_start_idx).first->get_output_layout();
                     auto conv_out_layout = node->get_output_layout();
                     if (eltw_dep > 0) {
                         can_reuse_eltwise_mem = false;
@@ -61,11 +61,11 @@ void basic_memory_dependencies::run(program& p) {
             }
 
             if (can_reuse_eltwise_mem) {
-                auto& eltw_node = conv.get_dependency(eltw_dep);
-                eltw_node.can_share_buffer(false);
+                auto eltw_node = conv.get_dependency(eltw_dep).first;
+                eltw_node->can_share_buffer(false);
                 conv.can_share_buffer(false);
                 for (auto& user : conv.get_users()) {
-                    add_memory_dependency(user, &eltw_node);
+                    add_memory_dependency(user, eltw_node);
                     add_memory_dependency(user, &conv);
                 }
             }

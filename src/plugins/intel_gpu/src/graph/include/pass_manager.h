@@ -349,7 +349,7 @@ public:
     concat_input_order() : base_pass("concat_input_order") {}
     void run(program& p) override;
 };
-#if 0 // TODO(andrew)
+
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
@@ -361,8 +361,8 @@ public:
                 return;
             }
             for (auto subdep : dep->get_dependencies()) {
-                add_memory_dependency(node, subdep);
-                add_memory_dependency(subdep, node);
+                add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
             }
         }
     }
@@ -384,7 +384,7 @@ public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
     void run(program& p) override;
 };
-#endif
+
 class update_loop_primitive_map : public base_pass {
 public:
     update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}

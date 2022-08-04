@@ -102,7 +102,7 @@ void oooq_memory_dependencies::run(program& p) {
 
         size_t num_dep_nodes = 0;
         for (const auto& dep : node.first->get_dependencies()) {
-            if (!dep->is_constant()) {
+            if (!dep.first->is_constant()) {
                 ++num_dep_nodes;
             }
         }
@@ -140,7 +140,7 @@ void oooq_memory_dependencies::run(program& p) {
         if (suspect_nodes.is_set(A)) {
             std::vector<std::pair<program_node*, unsigned int>> deps;
             for (const auto& dep : (*itr_A)->get_dependencies()) {
-                deps.emplace_back(dep, user_map.at(dep));
+                deps.emplace_back(dep.first, user_map.at(dep.first));
             }
 
             std::sort(deps.begin(), deps.end(),

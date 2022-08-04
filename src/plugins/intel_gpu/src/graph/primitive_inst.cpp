@@ -342,6 +342,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     for (const auto& d : _node.get_memory_dependencies()) {
         dep_pids.insert(d.pid);
     }
+
 #if 0 // TODO(taylor)
     if (is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
 #else
@@ -380,21 +381,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         }
         return _engine.allocate_memory(layout, alloc_type);
     } else {
-#if 0 // TODO (taylor) turn on this once required memory reuse support is enabled for multiple output
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
                 dep_pids,
                 alloc_type,
                 true);
-#else
-        return get_memory_from_pool(_engine,
-                layout,
-                _node.id(),
-                dep_pids,
-                alloc_type,
-                false);
-#endif
     }
 }
 
