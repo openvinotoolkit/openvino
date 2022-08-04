@@ -18,13 +18,13 @@ namespace op {
 
 OutputVector translate_concat_op(const NodeContext &node) {
   size_t axis_idx, concat_idx_start, concat_idx_stop;
+  // Note that axis is going to different input ports to Concat and ConcatV2:
+  // 0 - For Concat, N-1 - for ConcatV2
   if (node.get_op_type() == "ConcatV2") {
-    // For ConcatV2, axis is going to input port N-1
     axis_idx = node.get_input_size() - 1;
     concat_idx_start = 0;
     concat_idx_stop = node.get_input_size() - 1;
   } else if (node.get_op_type() == "Concat") {
-    // For Concat, axis is going to input port 0
     axis_idx = 0;
     concat_idx_start = 1;
     concat_idx_stop = node.get_input_size();
@@ -40,7 +40,7 @@ OutputVector translate_concat_op(const NodeContext &node) {
   }
   int64_t concat_axis = tf_concat_axis_vec[0];
 
-  // Excluding zero-dim inputs
+  // Excluding empty input tensors
   OutputVector args;
   for (int i = concat_idx_start; i < concat_idx_stop; i++) {
     Output<Node> arg = node.get_input(i);
