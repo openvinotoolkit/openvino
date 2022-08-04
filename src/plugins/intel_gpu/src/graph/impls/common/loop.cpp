@@ -18,7 +18,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         return make_unique<loop_impl>(*this);
     }
 
-    void init_kernels(const program&) override {}
+    void init_kernels(const kernels_cache&) override {}
 
     loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
         _node_id(other._node_id),
