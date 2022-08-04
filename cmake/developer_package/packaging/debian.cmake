@@ -55,7 +55,7 @@ macro(ov_override_component_names)
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
+    # set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
     # move requirements.txt to core-dev
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
@@ -101,6 +101,8 @@ macro(ov_debian_specific_settings)
     set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY "=")
     # naming convention for debian package files
     set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+    # need to update this version once we rebuild the same package with additional fixes
+    # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
 endmacro()
 
 ov_debian_specific_settings()
@@ -108,10 +110,10 @@ ov_debian_specific_settings()
 # needed to override cmake auto generated files
 set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
 set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
-set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers/${package_name}/triggers")
+set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
 
 set(triggers_content "activate-noawait ldconfig\n\n")
-set(post_content "#!/bin/sh\n\nset -e\n\n")
+set(post_content "#!/bin/sh\n\nset -e;\nset -e\n\n")
 
 file(REMOVE ${def_postinst} ${def_postrm} ${def_triggers})
 file(WRITE "${def_postinst}" "${post_content}")
@@ -123,18 +125,59 @@ file(WRITE "${def_triggers}" "${triggers_content}")
 #
 
 #
-# ov_add_lintian_suppression(<comp name> <suppression1, suppression2, ...>)
+# ov_debian_add_changelog_and_copyright(<comp name>)
 #
-function(ov_add_lintian_suppression comp)
+function(ov_debian_add_changelog_and_copyright comp)
+    string(TOUPPER "${comp}" ucomp)
+    if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
+        message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
+    else()
+        set(package_name "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+    endif()
+    set(package_name "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+
+    # copyright
+
+    install(FILES "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/copyright"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
+            COMPONENT ${comp})
+
+    # create changelog.gz
+
+    find_host_program(gzip_PROGRAM NAMES gzip DOC "Path to gzip tool")
+    if(NOT gzip_PROGRAM)
+        message(FATAL_ERROR "Failed to find gzip tool")
+    endif()
+
+    set(changelog_src "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog")
+    set(package_bin_dir "${OpenVINO_BINARY_DIR}/_CPack_Packages/${package_name}")
+    set(changelog_output "${package_bin_dir}/changelog")
+
+    file(REMOVE "${changelog_output}")
+    file(REMOVE "${changelog_output}.gz")
+
+    file(MAKE_DIRECTORY "${package_bin_dir}")
+    configure_file("${changelog_src}" "${changelog_output}" COPYONLY)
+
+    execute_process(COMMAND gzip -n -9 "${changelog_output}"
+        WORKING_DIRECTORY "${package_bin_dir}"
+        OUTPUT_VARIABLE output_message
+        ERROR_VARIABLE error_message
+        RESULT_VARIABLE exit_code
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # install changelog.gz
+
+    install(FILES "${changelog_output}.gz"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
+            COMPONENT ${comp})
+endfunction()
+
+#
+# ov_debian_add_lintian_suppression(<comp name> <suppression1, suppression2, ...>)
+#
+function(ov_debian_add_lintian_suppression comp)
     set(lines ${ARGN})
-    list(APPEND lines "copyright-file-contains-full-apache-2-license")
-    list(APPEND lines "copyright-should-refer-to-common-license-file-for-apache-2")
-    list(APPEND lines "copyright-without-copyright-notice")
-    # TODO: fix
-    list(APPEND lines "changelog-file-missing-in-native-package")
-    # TODO: remove them
-    list(APPEND lines "maintainer-script-empty postinst")
-    list(APPEND lines "maintainer-script-empty postrm")
 
     string(TOUPPER "${comp}" ucomp)
     if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
@@ -155,34 +198,69 @@ function(ov_add_lintian_suppression comp)
     set(lintian_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/lintian/${package_name}")
     file(REMOVE ${lintian_override_file})
     file(WRITE ${lintian_override_file} ${content})
+
     install(FILES ${lintian_override_file}
             DESTINATION ${CMAKE_INSTALL_DATADIR}/lintian/overrides/
             COMPONENT ${comp})
 endfunction()
 
 #
-# ov_add_latest_component(<comp>)
+# ov_debian_generate_conflicts(<comp name>)
+#
+function(ov_debian_generate_conflicts comp)
+    set(versions ${ARGN})
+    string(TOUPPER "${comp}" ucomp)
+
+    # sanity check
+    if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
+        message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
+    else()
+        if(NOT DEFINED CPACK_PACKAGE_VERSION)
+            message(FATAL_ERROR "CPACK_PACKAGE_VERSION is not defined")
+        endif()
+
+        string(REPLACE "${CPACK_PACKAGE_VERSION}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+    endif()
+
+    foreach(version IN LISTS versions)
+        if(package_names)
+            set(package_names "${package_names}, ${package_name_base}${version}")
+        else()
+            set(package_names "${package_name_base}${version}")
+        endif()
+    endforeach()
+
+    set(CPACK_DEBIAN_${ucomp}_PACKAGE_CONFLICTS "${package_names}" PARENT_SCOPE)
+endfunction()
+
+#
+# ov_debian_add_latest_component(<comp>)
 #
 # Adds latest component for `comp`, but without a version
 # Description and other stuff (arch) is taken from the main component
 #
-macro(ov_add_latest_component comp)
+macro(ov_debian_add_latest_component comp)
     string(TOUPPER "${comp}" ucomp)
-    set(latest "${ucomp}_LATEST")
+    set(comp_name "${comp}_latest")
+    set(upper_case "${ucomp}_LATEST")
 
-    set(CPACK_COMPONENT_${latest}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${latest}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
-    set(CPACK_COMPONENT_${latest}_DEPENDS "${ucomp}")
+    set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
+    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
+    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${ucomp}")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
         string(REPLACE "-${cpack_ver_mm}" ""
-            CPACK_DEBIAN_${latest}_PACKAGE_NAME
+            CPACK_DEBIAN_${upper_case}_PACKAGE_NAME
             "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     else()
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
     endif()
 
+    ov_debian_add_lintian_suppression(${comp_name}
+        # it's umbrella package
+        "empty-binary-package")
+
     # add latest to a list of debian packages
-    list(APPEND CPACK_COMPONENTS_ALL ${latest})
+    list(APPEND CPACK_COMPONENTS_ALL ${comp_name})
 endmacro()
