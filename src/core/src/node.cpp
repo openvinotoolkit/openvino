@@ -702,12 +702,10 @@ protected:
 };
 
 inline ov::Tensor create_tensor_from_output(const ov::Output<ov::Node>& output) {
-    if (output.get_partial_shape().is_dynamic() || output.get_element_type().is_dynamic()) {
-        if (output.get_element_type().is_dynamic()) {
-            return ov::Tensor();
-        } else {
-            return ov::Tensor(output.get_element_type(), {0});
-        }
+    if (output.get_element_type().is_dynamic()) {
+        return ov::Tensor();
+    } else if (output.get_partial_shape().is_dynamic()) {
+        return ov::Tensor(output.get_element_type(), {0});
     }
     return ov::Tensor(output.get_element_type(), output.get_shape());
 }
