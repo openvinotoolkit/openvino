@@ -6,12 +6,12 @@
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/manager.hpp>
 
+#include "common_test_utils/file_utils.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/util/file_util.hpp"
-#include "common_test_utils/file_utils.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
