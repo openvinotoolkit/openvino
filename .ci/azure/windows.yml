@@ -64,6 +64,7 @@ jobs:
   steps:
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
+      sudo ln -s /usr/bin/python3 /usr/bin/python3.10
       where python3
       python3 --version
       where python
