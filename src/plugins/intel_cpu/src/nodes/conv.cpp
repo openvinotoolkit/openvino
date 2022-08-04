@@ -715,15 +715,15 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::array<dnnl::primitive_attr, 2> attrs;
-    uint8_t attrsNum = 0;
-    SetPostOpsAndZeroPoints(attrs, attrsNum);
+    std::vector<dnnl::primitive_attr> attrs;
+    attrs.reserve(2);
+    SetPostOpsAndZeroPoints(attrs);
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (int i = 0; i < attrsNum; i++) {
+        for (int i = 0; i < attrs.size(); i++) {
             auto &attr = attrs[i];
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -886,13 +886,13 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 }
 
 void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
-    if (!inputZeroPoints.empty()) {
-        attr.set_zero_points(DNNL_ARG_SRC, 0, inputZeroPoints);
-        if (!inputZeroPointsMemPtr) {
-            inputZeroPointsMemPtr.reset(new Memory(getEngine()));
-            DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
-            inputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
-        }
+    if (inputZeroPoints.empty())
+        return;
+    attr.set_zero_points(DNNL_ARG_SRC, 0, inputZeroPoints);
+    if (!inputZeroPointsMemPtr) {
+        inputZeroPointsMemPtr.reset(new Memory(getEngine()));
+        DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
+        inputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
     }
 }
 
@@ -927,19 +927,20 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
-void Convolution::SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 2>& attrs, uint8_t& attrsNum) {
-    const bool havingZeroPoint = (legacyOutputCompensation.size() != 0);
-    const bool zpPerTensor = (havingZeroPoint && inputZeroPoints.size() == 1);
-    const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.size() == 0);
+void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
+    const bool havingZeroPoint = (!legacyOutputCompensation.empty());
+    const bool zpPerTensor = (havingZeroPoint && !inputZeroPoints.empty());
+    const bool zpPerChannel = (havingZeroPoint && inputZeroPoints.empty());
 
-    attrsNum = 1;
     // attr[0] - Legacy post ops + Legacy zero points
+    attrs.resize(1);
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
     addLegacyZeroPoints(attrs[0]);
+    //2 attributes are needed only when having depthwise/quantization/convolution post ops or per-tensor zp;
     if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::depthwise) == -1 &&
         attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::quantization) == -1 &&
         attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) == -1 && !havingZeroPoint) {
-        // Avoid duplicate same attribute when shouldTryBrgconv is True;
+        // return to avoid duplicated attribute when shouldTryBrgconv is True;
         return;
     }
 
@@ -948,8 +949,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 2>& a
         return;
 
     if (shouldTryBrgconv) {
-        attrsNum = 2;
-
+        attrs.resize(2);
         if (!zpPerTensor) {
             // attr[1] - Binary post ops && without zero point
             setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
@@ -983,9 +983,10 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
     }
 
-    std::array<dnnl::primitive_attr, 2> attrs;
-    uint8_t attrsNum = 0;
-    SetPostOpsAndZeroPoints(attrs, attrsNum);
+    std::vector<dnnl::primitive_attr> attrs;
+
+    attrs.reserve(2);
+    SetPostOpsAndZeroPoints(attrs);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -996,7 +997,8 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         auto& desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        for (int n = 0; n < attrsNum; n++) {
+        //Attributes support level differs in fork onednn.
+        for (int n = 0; n < attrs.size(); n++) {
             auto &attr = attrs[n];
             auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
             while (static_cast<bool>(itpd)) {
@@ -1051,7 +1053,10 @@ void Convolution::initDescriptor(const NodeConfig& config) {
                                     << " but got: " << impl_type_to_string(impl_type);
                     }
                     rightConfig = cfg;
-                    preferLegacyPostOps = !(n == 1 && inputZeroPoints.size() == 0);
+                    // attr[0] is for legacy post ops, legacy zp if having.
+                    // attr[1] is for (Binary post ops && without zero point) or (legacy post ops && per-tensor zero points).
+                    // attr[1] is mostly for binaryPostops except when having per-tensor zp.
+                    preferLegacyPostOps = (n == 0 || (n == 1 && !inputZeroPoints.empty()));
                     preferLegacyZeroPoint = (n == 0);
                 }
                 if (i == descs.size() - 1 && isStridedBlobsSupported) {

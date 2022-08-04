@@ -45,10 +45,14 @@ public:
 
     bool canBeExecutedInInt8() const;
     size_t getGroupNum() const { return groupNum; }
-
+    //OV Legacy input zero point mechanism can support per-channel zero point.
+    //Hold legacy input zero point.
     std::vector<uint8_t> legacyInputZeroPoints;
+    //Hold legacy weight zero point.
     std::vector<float> legacyWeightsZeroPoints;
+    //Hold legacy pre-calculated output compensation
     std::vector<int32_t> legacyOutputCompensation;
+    //Hold per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
@@ -93,7 +97,7 @@ private:
     void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
-    void SetPostOpsAndZeroPoints(std::array<dnnl::primitive_attr, 2>& attrs, uint8_t& attrsNum);
+    void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(DnnlDesriptor &desc) const;
     bool isNspcAvailable() const;

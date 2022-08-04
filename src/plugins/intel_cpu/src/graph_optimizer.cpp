@@ -561,79 +561,75 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         int IC = node->getInputShapeAtPort(0).getDims()[1];
         int OC = node->getOutputShapeAtPort(0).getDims()[1];
 
-        if (Shape::UNDEFINED_DIM == IC || Shape::UNDEFINED_DIM == OC) {
+        if (Shape::UNDEFINED_DIM == IC || Shape::UNDEFINED_DIM == OC)
+            return false;
+        if (parent0->getType() != Type::Eltwise)
+            return false;
+        if (!parent0->getFusedWith().empty() || !parent1->getFusedWith().empty())
+            return false;
+
+        // The plug-in doesn't support FP32 convolution with input/weights zero points.
+        // In case weights are in FP32 (or we have zero points on weights which are not supported by INT8 convolution) we cannot use
+        // INT8 implementation so we have to disable input zero points fusing as well.
+        if (parent1->getType() != Type::Input || !parent1->isConstant() || parent1->getOriginalOutputPrecisionAtPort(0) != Precision::I8) {
             return false;
         }
 
-        if (parent0->getType() == Type::Eltwise) {
-            if (!parent0->getFusedWith().empty() || !parent1->getFusedWith().empty())
-                return false;
+        if (parent0->getAlgorithm() != Algorithm::EltwiseSubtract)
+            return false;
 
-            // The plug-in doesn't support FP32 convolution with input/weights zero points.
-            // In case weights are in FP32 (or we have zero points on weights which are not supported by INT8 convolution) we cannot use
-            // INT8 implementation so we have to disable input zero points fusing as well.
-            if (parent1->getType() != Type::Input || !parent1->isConstant() || parent1->getOriginalOutputPrecisionAtPort(0) != Precision::I8) {
-                return false;
-            }
+        if (parent0->getParentEdges().size() != 2)
+            return false;
 
-            if (parent0->getAlgorithm() != Algorithm::EltwiseSubtract)
-                return false;
+        auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
+        if (arg0->getType() != Type::Input || !arg0->isConstant())
+            return false;
 
-            if (parent0->getParentEdges().size() != 2)
-                return false;
+        if (arg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+            return false;
 
-            auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
-            if (arg0->getType() == Type::Input && arg0->isConstant()) {
-                if (arg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
-                    return false;
-
-                if (parent0->getInputShapeAtPort(1).getRank() < 2) {
-                    return false;
-                }
-
-                auto zpDims = parent0->getInputShapeAtPort(1).getDims();
-                if (zpDims[0] != 1 || !dimsEqualStrong(zpDims[1], IC))
-                    return false;
-
-                for (int i = 2; i < zpDims.size(); i++) {
-                    if (zpDims[i] != 1)
-                        return false;
-                }
-
-                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-                if (arg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
-                    return false;
-
-                auto zeroPointsConstant = dynamic_cast<node::Input*>(arg0.get());
-                if (zeroPointsConstant == nullptr)
-                    IE_THROW() << "Cannot cast to Input node";
-
-                auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
-                if (zeroPointsBlob == nullptr)
-                    IE_THROW() << "Cannot cast to TBlob internal zero points blob";
-
-                auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
-                if (zeroPointsData == nullptr)
-                    IE_THROW() << "zeroPointsBlob has not allocated buffer";
-
-                auto zeroPointDataSize =  parent0->getInputShapeAtPort(1).getDims()[1];
-                if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
-                    return false;
-                }
-                auto zeroPointEqualCnt = 0;
-                for (int j = 0; j < zeroPointDataSize; j++) {
-                    convNode->legacyInputZeroPoints.push_back(zeroPointsData[j]);
-                    if (zeroPointsData[j] == zeroPointsData[0])
-                        zeroPointEqualCnt++;
-                }
-                if (zeroPointEqualCnt == zeroPointDataSize)
-                    convNode->inputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
-            } else {
-                return false;
-            }
-        } else {
+        if (parent0->getInputShapeAtPort(1).getRank() < 2) {
             return false;
         }
+
+        auto zpDims = parent0->getInputShapeAtPort(1).getDims();
+        if (zpDims[0] != 1 || !dimsEqualStrong(zpDims[1], IC))
+            return false;
+
+        for (int i = 2; i < zpDims.size(); i++) {
+            if (zpDims[i] != 1)
+                return false;
+        }
+
+        auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
+        if (arg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+            return false;
+
+        auto zeroPointsConstant = dynamic_cast<node::Input*>(arg0.get());
+        if (zeroPointsConstant == nullptr)
+            IE_THROW() << "Cannot cast to Input node";
+
+        auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
+        if (zeroPointsBlob == nullptr)
+            IE_THROW() << "Cannot cast to TBlob internal zero points blob";
+
+        auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
+        if (zeroPointsData == nullptr)
+            IE_THROW() << "zeroPointsBlob has not allocated buffer";
+
+        auto zeroPointDataSize =  parent0->getInputShapeAtPort(1).getDims()[1];
+        if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
+            return false;
+        }
+        auto zeroPointEqualCnt = 0;
+        for (int j = 0; j < zeroPointDataSize; j++) {
+            convNode->legacyInputZeroPoints.push_back(zeroPointsData[j]);
+            if (zeroPointsData[j] == zeroPointsData[0])
+                zeroPointEqualCnt++;
+        }
+        //check whether zeropoint is per-tensor.
+        if (zeroPointEqualCnt == zeroPointDataSize)
+            convNode->inputZeroPoints.push_back(static_cast<int32_t>(zeroPointsData[0]));
 
         if (convNode->legacyOutputCompensation.empty()) {
             convNode->legacyOutputCompensation.resize(OC);
