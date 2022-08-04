@@ -26,11 +26,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace cldnn
-{
-    template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 template<typename T>
 T kahan_summation(std::vector<T> &input) {
     T sum = 0;
@@ -1332,6 +1327,66 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
     network.set_input_data("input", input);
     network.set_input_data("weights", weights);
     network.set_input_data("biases", biases);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 3);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            EXPECT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_opt_build) {
+    //Same params as convolution_f32_fw_gpu, basic_convolution but with bfyx optimized data and weights set as input_layout
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 5, 4 }
+    });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 3, 2 }
+    });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx,
+    { 1, 1, 1, 1 }
+    });
+    set_values(input,
+    { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }
+    );
+    set_values(weights,
+    { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f }
+    );
+    set_values(biases,
+    { 1.0f }
+    );
+    VVF<float> output_vec = {
+        { 21.0f, 28.0f, 39.0f }
+        ,
+        { 18.0f, 20.0f, 20.0f }
+    };
+    topology topology(
+        input_layout("input", input->get_layout()),
+        input_layout("weights", weights->get_layout()),
+        data("biases", biases),
+        convolution("conv", "input", { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }));
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(false));
+    network network(engine, topology, options, true);
+    network.set_input_data("input", input);
+    network.set_input_data("weights", weights);
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "conv");
@@ -8555,11 +8610,11 @@ public:
 
     cldnn::tensor get_expected_output_tensor() override {
         auto convolution = std::static_pointer_cast<const cldnn::convolution>(layer_params);
-        tensor input_size = generic_params->input_layouts[0].size;
+        tensor input_size = generic_params->input_layouts[0].get_tensor();
         auto dilation = convolution->dilation;
         auto stride = convolution->stride;
         auto pad = convolution->pad;
-        tensor weights_size = generic_params->input_layouts[1].size;
+        tensor weights_size = generic_params->input_layouts[1].get_tensor();
 
         int kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
         int kernel_extent_x = dilation[dilation.size() - 1] * (weights_size.spatial[0] - 1) + 1;
@@ -8586,21 +8641,21 @@ public:
 
         // Update inputs.
         auto input = inputs[0];
-        auto input_size = inputs[0]->get_layout().size;
+        auto input_size = inputs[0]->get_layout().get_tensor();
         VVVVF<Type> input_rnd = generate_random_4d<Type>(input_size.batch[0], input_size.feature[0], input_size.spatial[1], input_size.spatial[0], -2, 2, k);
         VF<Type> input_rnd_vec = flatten_4d<Type>(input->get_layout().format, input_rnd);
         set_values(input, input_rnd_vec);
 
         // Update weights.
         auto weight_input = inputs[1];
-        auto weight_size = inputs[1]->get_layout().size;
+        auto weight_size = inputs[1]->get_layout().get_tensor();
         VVVVF<Type> weight_rnd = generate_random_4d<Type>(weight_size.batch[0], weight_size.feature[0], weight_size.spatial[1], weight_size.spatial[0], -2, 2, k);
         VF<Type> weight_rnd_vec = flatten_4d<Type>(weight_input->get_layout().format, weight_rnd);
         set_values(weight_input, weight_rnd_vec);
 
         // Update biases.
         auto bias_input = inputs[2];
-        auto bias_size = inputs[2]->get_layout().size;
+        auto bias_size = inputs[2]->get_layout().get_tensor();
         VF<Type> bias_rnd = generate_random_1d<Type>(bias_size.spatial[0], -2, 2, k);
         set_values(bias_input, bias_rnd);
     }
@@ -8613,11 +8668,11 @@ public:
 
         data_types dt = inputs[0]->get_layout().data_type;
 
-        tensor input_size = inputs[0]->get_layout().size;
+        tensor input_size = inputs[0]->get_layout().get_tensor();
         ov::Strides dilation = convolution->dilation;
         ov::Strides stride = convolution->stride;
         ov::CoordinateDiff pad = convolution->pad;
-        tensor weights_size = inputs[1]->get_layout().size;
+        tensor weights_size = inputs[1]->get_layout().get_tensor();
         padding output_padding = convolution->output_padding;
 
         tensor output_size = get_expected_output_tensor();

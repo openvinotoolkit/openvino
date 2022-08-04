@@ -14,10 +14,10 @@ primitive_type_id scale::type_id() {
     return &instance;
 }
 
-layout scale_inst::calc_output_layout(scale_node const& node) {
-    auto desc = node.get_primitive();
-    auto result = node.input().get_non_padded_output_layout();
-    auto scale_layout = node.scale_in().get_non_padded_output_layout();
+layout scale_inst::calc_output_layout(scale_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.desc;
+    auto result = impl_param.get_non_padded_input_layout();
+    auto scale_layout = impl_param.get_non_padded_input_layout(1);
 
     auto scale_x_size = scale_layout.spatial(0);
     auto scale_y_size = scale_layout.spatial(1);
@@ -28,25 +28,25 @@ layout scale_inst::calc_output_layout(scale_node const& node) {
     auto input_z_size = result.spatial(2);
 
     if ((result.data_type == data_types::u8 || result.data_type == data_types::i8 || result.data_type == data_types::i32) &&
-        (node.scale_in().get_non_padded_output_layout().data_type == data_types::f32 ||
-         node.scale_in().get_non_padded_output_layout().data_type == data_types::f16))
-        result.data_type = node.scale_in().get_non_padded_output_layout().data_type;
+        (scale_layout.data_type == data_types::f32 ||
+         scale_layout.data_type == data_types::f16))
+        result.data_type = scale_layout.data_type;
 
     if (desc->output_data_type)
         result.data_type = *desc->output_data_type;
 
-    if (node.has_fused_primitives()) {
-        result.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        result.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     if (scale_x_size != 1) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale x size", scale_x_size, "input x size", input_x_size, "");
+        CLDNN_ERROR_NOT_EQUAL(desc->id, "Scale x size", scale_x_size, "input x size", input_x_size, "");
     }
     if (scale_y_size != 1) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale y size", scale_y_size, "input y size", input_y_size, "");
+        CLDNN_ERROR_NOT_EQUAL(desc->id, "Scale y size", scale_y_size, "input y size", input_y_size, "");
     }
     if (scale_z_size != 1) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale z size", scale_z_size, "input z size", input_z_size, "");
+        CLDNN_ERROR_NOT_EQUAL(desc->id, "Scale z size", scale_z_size, "input z size", input_z_size, "");
     }
 
     return result;
@@ -101,12 +101,12 @@ scale_inst::typed_primitive_inst(network& network, scale_node const& node) : par
     if (!argument.bias.empty()) {
         auto bias_layout = node.bias().get_output_layout();
         auto bias_format = bias_layout.format;
-        auto bias_raw_sizes = bias_layout.size.raw;
+        auto bias_raw_sizes = bias_layout.get_tensor().raw;
 
         CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "Scale format", scale_format.value, "bias format", bias_format);
 
-        for (size_t i = 0; i < bias_layout.size.raw.size(); ++i) {
-            if (scale_layout.size.raw[i] != bias_raw_sizes[i])
+        for (size_t i = 0; i < bias_layout.get_tensor().raw.size(); ++i) {
+            if (scale_layout.get_tensor().raw[i] != bias_raw_sizes[i])
                 CLDNN_ERROR_MESSAGE(node.id(),
                                     "Scale input size do not match bias size! Size index:" + std::to_string(i));
         }

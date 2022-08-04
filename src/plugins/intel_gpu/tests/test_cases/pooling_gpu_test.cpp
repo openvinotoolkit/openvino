@@ -15,14 +15,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace cldnn {
-template <>
-struct type_to_data_type<FLOAT16> {
-    static const data_types value = data_types::f16;
-};
-}  // namespace cldnn
-
-
 template <typename InputT, pooling_mode Mode>
 struct pooling_mode_output {
     using type = InputT;
@@ -749,7 +741,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
     EXPECT_EQ(1.5f, output_ptr[0]);
@@ -930,7 +922,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
     EXPECT_EQ(0.375f,  output_ptr[0]);
@@ -1059,7 +1051,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1193,7 +1185,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1335,7 +1327,7 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
         EXPECT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 9);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 9);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -1784,7 +1776,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
     auto output_mem = net.execute().at("pool").get_memory();
 
     ASSERT_EQ(output_mem->count(), expected_output.size());
-    EXPECT_EQ(output_mem->get_layout().size, output);
+    EXPECT_EQ(output_mem->get_layout().get_tensor(), output);
     cldnn::mem_lock<DataType> out_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_output.size(); ++i)
@@ -2292,7 +2284,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().size.count(), 4);
+        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
         EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
@@ -2368,7 +2360,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
     EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().size.count(), 9);
+    EXPECT_EQ((int)output_prim->get_layout().count(), 9);
     EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
     cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
@@ -3662,8 +3654,10 @@ public:
             case cldnn::pooling_mode::average:
             case cldnn::pooling_mode::average_no_padding:
             {
-                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pooling->size[1]) > -2 * pad_width + width ||
-                    (((output_tensor.spatial[1] - 1) * stride_height) + pooling->size[0]) > -2 * pad_width + height;
+                int pool_size_w = pooling->size[1];
+                int pool_size_h = pooling->size[0];
+                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) > -2 * pad_width + width ||
+                                    (((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) > -2 * pad_height + height;
 
                 auto divider = [=](int actual_x, int actual_y) {
                     auto x = kernel_width;

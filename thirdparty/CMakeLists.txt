@@ -47,10 +47,19 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PugiXML REQUIRED)
-    set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
-    add_library(pugixml::static ALIAS pugixml)
-else()
+    # try system pugixml first
+    find_package(PugiXML QUIET)
+    if(PugiXML_FOUND)
+        set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(pugixml::static ALIAS pugixml)
+    else()
+        # reset to prevent improper code generation in OpenVINODeveloperPackage
+        set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
+    endif()
+endif()
+
+if(NOT TARGET pugixml::static)
+    # use OpenVINO pugixml copy if system one if not found
     function(ie_build_pugixml)
         function(ie_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
@@ -192,21 +201,18 @@ if(CPACK_GENERATOR STREQUAL "DEB")
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        USE_SOURCE_PERMISSIONS)
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
