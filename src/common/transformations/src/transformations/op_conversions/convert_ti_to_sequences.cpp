@@ -273,7 +273,6 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         if (lstm_cell == nullptr)
             return false;
 
-        MATCHER_SCOPE_ENABLE(ConvertTensorIteratorToLSTMSequence);
         return convertTensorIteratorToSequence(ti,
                                                lstm_cell,
                                                pattern_map.at(data),
@@ -332,7 +331,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
             std::dynamic_pointer_cast<ngraph::opset5::RNNCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (rnn_cell == nullptr)
             return false;
-        MATCHER_SCOPE_ENABLE(ConvertTensorIteratorToRNNSequence);
+
         return convertTensorIteratorToSequence(ti,
                                                rnn_cell,
                                                pattern_map.at(data),
@@ -391,7 +390,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
             std::dynamic_pointer_cast<ngraph::opset5::GRUCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (gru_cell == nullptr)
             return false;
-        MATCHER_SCOPE_ENABLE(ConvertTensorIteratorToGRUSequence);
+
         return convertTensorIteratorToSequence(ti,
                                                gru_cell,
                                                pattern_map.at(data),

@@ -17,15 +17,6 @@
 namespace ov {
 namespace intel_gpu {
 
-static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType encoding) {
-    switch (encoding) {
-        case ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER: return true;
-        case ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER: return false;
-        default: IE_THROW() << "NonMaxSuppression layer has unsupported box encoding";
-    }
-    return false;
-}
-
 static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
     p.ValidateInputs(op, {2, 3, 4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);

@@ -46,7 +46,7 @@ class typed_primitive_inst<lstm> : public typed_primitive_inst_base<lstm> {
     using parent = typed_primitive_inst_base<lstm>;
 
 public:
-    static layout calc_output_layout(lstm_node const& node);
+    static layout calc_output_layout(lstm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_node const& node);
 
 public:

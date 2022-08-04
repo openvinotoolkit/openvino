@@ -55,6 +55,8 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb
     elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
     elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
@@ -79,7 +81,7 @@ if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
 fi
 
-# splitting Python version variable depending on the used shell 
+# splitting Python version variable depending on the used shell
 if [ -n "$ZSH_VERSION" ]; then
     version_arr=(${(@s:.:)python_version})
     if [ "${#version_arr[@]}" -ge "2" ]; then
