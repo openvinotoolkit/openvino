@@ -52,6 +52,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/serialize.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
@@ -672,6 +673,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -1078,6 +1080,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     std::unordered_map<string, std::vector<string>> skippedLayers;
 
     bool withConv = false;
+
     for (auto& layer : sortedNet) {
         auto layerInfo = LayerInfo(layer);
         if (layerInfo.isConvolution()) {
@@ -1312,7 +1315,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
+        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(std::next(std::begin(dims)), std::end(dims));
         auto importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto targetGroups = is1D ? 1 : dims[0];  // TODO: no proper support for groups yet
 
@@ -1329,7 +1332,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                      input.second->cbuffer().as<float*>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? GNAPluginNS::kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
-                     inputOrientation,
+                     kDnnNonInterleavedOrientation,
                      importedFrames,
                      targetGroups,
                      importedElements,
@@ -1455,7 +1458,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
         ExportScores(outputBlob->buffer(),
                      outputDesc.ptrs[request_idx],
-                     outputDesc.orientation,
+                     kDnnNonInterleavedOrientation,
                      batchSize,
                      batchSize,
                      elementsPerBatch,
@@ -1824,3 +1827,4 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
 
     return res;
 }
+

@@ -3,4 +3,7 @@
 #
 
 add_subdirectory(c)
-add_subdirectory(python)
+
+if(ENABLE_PYTHON)
+    add_subdirectory(python)
+endif()

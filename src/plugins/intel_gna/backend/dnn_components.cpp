@@ -10,7 +10,6 @@
 #include <iomanip>
 #include <caseless.hpp>
 #include <layers/gna_copy_layer.hpp>
-#include "backend/dnn_types.h"
 
 #include "dnn_components.hpp"
 
@@ -38,12 +37,23 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     return currentComponent;
 }
 
-intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPtr __layer) {
-    auto component = std::find_if(begin(components),
-                                  end(components),
-                                  [&](storage_type ::value_type &comp) {
-                                      return comp.name == __layer->name;
-                                  });
+intel_dnn_component_t* DnnComponents::findComponent(InferenceEngine::CNNLayerPtr __layer) {
+    auto component = std::find_if(begin(components), end(components), [&](storage_type ::value_type& comp) {
+        return comp.name == __layer->name;
+    });
+    // check for generic prev layer
+    if (component != components.end()) {
+        return &component->dnnComponent;
+    }
+
+    return nullptr;
+}
+
+const intel_dnn_component_t* GNAPluginNS::backend::DnnComponents::findComponent(
+    const InferenceEngine::CNNLayerPtr __layer) const {
+    auto component = std::find_if(begin(components), end(components), [&](const storage_type ::value_type& comp) {
+        return comp.name == __layer->name;
+    });
     // check for generic prev layer
     if (component != components.end()) {
         return &component->dnnComponent;
