@@ -34,7 +34,7 @@ if machine == "x86_64" or machine == "AMD64":
     ARCH = "intel64"
 elif machine == "X86":
     ARCH = "ia32"
-elif machine == "arm":
+elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
 elif machine == "aarch64":
     ARCH = "arm64"
