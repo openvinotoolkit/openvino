@@ -41,6 +41,7 @@
 #include "gna_itt.hpp"
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
+#include "orientation_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
@@ -673,6 +674,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -1083,6 +1085,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     std::unordered_map<string, std::vector<string>> skippedLayers;
 
     bool withConv = false;
+
     for (auto& layer : sortedNet) {
         auto layerInfo = LayerInfo(layer);
         if (layerInfo.isConvolution()) {
@@ -1090,6 +1093,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             break;
         }
     }
+
     if (withConv) {
         for (auto& inputLayer : sortedNet) {
             if (!LayerInfo(inputLayer).isInput()) {
@@ -1133,8 +1137,19 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     } else {
         for (auto& inputLayer : inputLayers) {
             if (LayerInfo(inputLayer).isInput()) {
-                inputs_ptr_->at(inputLayer->name).orientation = kDnnInterleavedOrientation;
+                // update orientation of model intput layer
+                helpers::updateModelInputOrientationWithoutConvolution(*inputLayer,
+                                                                       graphCompiler.dnnComponents,
+                                                                       *inputs_ptr_);
             }
+        }
+    }
+
+    // update orientation of model output layer
+    for (auto&& outPort : outputs_data_map_) {
+        auto outLayer = getCreatorLayer(outPort.second).lock();
+        if (outLayer && LayerInfo(outLayer).isOutput()) {
+            helpers::updateModelOutputOrientation(outPort.first, outLayer->name, graphCompiler.dnnComponents, outputs_);
         }
     }
 
@@ -1317,7 +1332,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         }
 
         auto dims = input.second->getTensorDesc().getDims();
-        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(++std::begin(dims), std::end(dims));
+        auto importedElements = is1D ? dims[0] : InferenceEngine::details::product(std::next(std::begin(dims)), std::end(dims));
         auto importedFrames = (is3D || is1D) ? 1 : dims[0];
         auto targetGroups = is1D ? 1 : dims[0];  // TODO: no proper support for groups yet
 
@@ -1829,3 +1844,4 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
 
     return res;
 }
+
