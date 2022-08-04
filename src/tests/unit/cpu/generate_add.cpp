@@ -12,8 +12,6 @@
 #include <map>
 #include <array>
 
-#include "openvino/runtime/core.hpp"
-
 #include <snippets/generator.hpp>
 
 #include <ngraph/function.hpp>
@@ -30,8 +28,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 
@@ -428,30 +424,4 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
     }
 
     ASSERT_TRUE(isCorrect) << "snippet and native implementation differs";
-}
-
-TEST(SnippetsTests, SerializeSubgraph) {
-    auto model = ([] () -> std::shared_ptr<ov::Model> {
-        auto shape = ov::Shape({2, 2});
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto ininput0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto ininput1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-        auto add = std::make_shared<ov::op::v1::Add>(ininput0, ininput1);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, ov::clone_model(*subgraph_body.get()));
-        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
-    })();
-    ov::Core core;
-    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
-    std::stringstream stream;
-    compiled_model.export_model(stream);
-    ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
-    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
-    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
-    const auto fc = FunctionsComparator::with_default()
-                                .enable(FunctionsComparator::CONST_VALUES)
-                                .enable(FunctionsComparator::ATTRIBUTES);
-    const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
-    ASSERT_TRUE(results.valid) << results.message;
 }
