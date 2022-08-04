@@ -14,7 +14,6 @@ set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 set(MOCK1_FE_NAME openvino_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
 
-# TODO: should we support both variants?
 set_target_properties(${MOCK1_FE_NAME} PROPERTIES
     SOVERSION ${OpenVINO_SOVERSION}
     VERSION ${OpenVINO_VERSION})
@@ -28,12 +27,6 @@ add_dependencies(ov_core_unit_tests ${MOCK1_FE_NAME})
 
 add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
 
-if(BUILD_SHARED_LIBS)
-    install(TARGETS ${MOCK1_FE_NAME}
-            RUNTIME DESTINATION tests/lib COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests/lib COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-else()
-    install(TARGETS ${MOCK1_FE_NAME}
-            RUNTIME DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)
-endif()
+install(TARGETS ${MOCK1_FE_NAME}
+        RUNTIME DESTINATION tests/lib COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION tests/lib COMPONENT tests OPTIONAL EXCLUDE_FROM_ALL)

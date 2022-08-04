@@ -11,6 +11,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
@@ -26,18 +27,6 @@
 
 using namespace ov::frontend;
 
-static std::string find_my_pathname() {
-#ifdef _WIN32
-    return ov::util::get_ov_lib_path();
-#elif defined(__linux) || defined(__APPLE__)
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void*>(find_my_pathname), &dl_info);
-    return ov::util::get_absolute_file_path(dl_info.dli_fname);
-#else
-#    error "Unsupported OS"
-#endif
-}
-
 static int set_test_env(const char* name, const char* value) {
 #ifdef _WIN32
     return _putenv_s(name, value);
@@ -52,7 +41,7 @@ static int set_test_env(const char* name, const char* value) {
 struct SetTestEnvrionment {
     SetTestEnvrionment(const char* value = nullptr) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        std::string fePath = ngraph::file_util::get_directory(find_my_pathname());
+        std::string fePath = CommonTestUtils::getExecutableDirectory();
         NGRAPH_SUPPRESS_DEPRECATED_END
         if (!value) {
             fePath = fePath + ov::util::FileTraits<char>::file_separator + "lib";

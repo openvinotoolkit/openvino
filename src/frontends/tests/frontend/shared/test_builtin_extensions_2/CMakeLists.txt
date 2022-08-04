@@ -14,12 +14,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev offline_tran
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-if(WIN32)
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-else()
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
