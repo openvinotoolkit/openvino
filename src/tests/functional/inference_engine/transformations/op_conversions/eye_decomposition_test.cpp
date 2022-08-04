@@ -21,9 +21,17 @@ public:
     std::shared_ptr<ov::Node> exp_eye(const ov::Output<ov::Node>& height,
                                       const ov::Output<ov::Node>& width,
                                       const ov::Output<ov::Node>& k,
-                                      const ov::Output<ov::Node>& batch,
                                       ov::element::Type dtype) {
         return make_eye_model(height, width, k, dtype);
+    }
+
+    std::shared_ptr<ov::Node> exp_eye(const ov::Output<ov::Node>& height,
+                                      const ov::Output<ov::Node>& width,
+                                      const ov::Output<ov::Node>& k,
+                                      const ov::Output<ov::Node>& batch,
+                                      ov::element::Type dtype) {
+        const auto eye = exp_eye(height, width, k, dtype);
+        return make_eye_batches(eye, batch);
     }
 };
 
@@ -90,6 +98,15 @@ protected:
 
         return make_test_eye<TEye>(k);
     }
+
+    template <class TEye>
+    std::shared_ptr<TEye> make_test_eye_batch(const ov::Output<ov::Node>& batch) const {
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+
+        return std::make_shared<TEye>(height, width, k, batch, dtype);
+    }
 };
 
 /** \brief Diagonal shift is not `Constant`, there should be no decompose. */
@@ -113,6 +130,27 @@ TEST_F(EyeTransformationTests, shift_is_not_const) {
     }
 }
 
+/** \brief Batch size is not `Constant`, there should be no decompose. */
+TEST_F(EyeTransformationTests, batch_is_not_const) {
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto batch = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
+        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, batch});
+
+        manager.register_pass<ov::pass::EyeDecomposition>();
+    }
+
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto batch = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
+        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, batch});
+    }
+}
+
 /** \brief Use fake eye as not supported op type, there should be no decompose. */
 TEST_F(EyeTransformationTests, use_fake_eye) {
     {
@@ -127,27 +165,6 @@ TEST_F(EyeTransformationTests, use_fake_eye) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
         auto node = make_test_eye<FakeEye>();
-
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
-    }
-}
-
-/** \brief Diagnol shift value is not supported type, there should be no decompose. */
-TEST_F(EyeTransformationTests, diagonal_shift_is_not_supported_type) {
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
-        auto k = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
-        auto node = make_test_eye<ov::op::v9::Eye>(k);
-
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
-
-        manager.register_pass<ov::pass::EyeDecomposition>();
-    }
-
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{4, 4});
-        auto k = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
-        auto node = make_test_eye<ov::op::v9::Eye>(k);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
     }
@@ -221,7 +238,46 @@ TEST_P(EyeTransformationTestsP, eye_decompose) {
         auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
         auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
-        auto node = eye_decomposition_wrapper.exp_eye(height, width, k, {}, dtype);
+        auto node = eye_decomposition_wrapper.exp_eye(height, width, k, dtype);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+class BatchEyeTransformationTests : public EyeTransformationTests, public WithParamInterface<std::vector<size_t>> {};
+
+INSTANTIATE_TEST_SUITE_P(batch_size,
+                         BatchEyeTransformationTests,
+                         Values(std::vector<size_t>{1},
+                                std::vector<size_t>{2},
+                                std::vector<size_t>{2, 1},
+                                std::vector<size_t>{2, 3},
+                                std::vector<size_t>{3, 5, 1},
+                                std::vector<size_t>{3, 5, 4}),
+                         PrintToStringParamName());
+
+/** \brief Test eye decomposition for batch sizes and values. */
+TEST_P(BatchEyeTransformationTests, eye_decompose) {
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto batch = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
+        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+
+        manager.register_pass<ov::pass::EyeDecomposition>();
+    }
+
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
+        auto height = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {h});
+        auto width = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {w});
+        auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
+        auto batch = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
+
+        auto node = eye_decomposition_wrapper.exp_eye(height, width, k, batch, dtype);
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
     }
 
