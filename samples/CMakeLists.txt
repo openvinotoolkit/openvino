@@ -27,14 +27,17 @@ ie_cpack_add_component(${OV_CPACK_COMP_CPP_SAMPLES}
 if(UNIX)
     install(DIRECTORY cpp/
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
-            USE_SOURCE_PERMISSIONS
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN *.bat EXCLUDE
+            PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
+
+    install(PROGRAMS cpp/build_samples.sh
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 elseif(WIN32)
     install(DIRECTORY cpp/
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp
-            USE_SOURCE_PERMISSIONS
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
             PATTERN *.sh EXCLUDE
             PATTERN .clang-format EXCLUDE)
@@ -72,5 +75,4 @@ ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_SAMPLES} HIDDEN)
 
 install(DIRECTORY python/
         DESTINATION ${OV_CPACK_SAMPLESDIR}/python
-        USE_SOURCE_PERMISSIONS
         COMPONENT ${OV_CPACK_COMP_PYTHON_SAMPLES})
