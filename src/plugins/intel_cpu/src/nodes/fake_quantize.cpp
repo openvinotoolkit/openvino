@@ -1127,10 +1127,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 #else
                 inputScale[i] = (levels - 1) / (ih - il);
                 inputShift[i] = -il * (levels - 1) / (ih - il);
-
 #endif
             }
-
             for (int i = 0; i < outputScale.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
@@ -1163,12 +1161,14 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
 
-            printf("=========================name = %s=====================\n", getName().c_str());
-            printf("=========================levels = %zu channels = %zu =====================\n", levels, std::max(inputLowAxisSize,
-                                         std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
-            bool symmetricToAsymmetric = false;
-            bool asymmetric = false;
-            bool levelNot256 = false;
+            printf("===========================================================================\n");
+            printf("name=%s precision=%s levels=%zu channel_num=%zu\n", getName().c_str(),  getOriginalOutputPrecisionAtPort(0).name(),
+                                            levels, std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
+            bool levelNot256 = (levels != 256);
+            bool perTensorShift = true;
+            bool perChannelShift = true;
+            bool inputIsSymmetricS8 = true;
+            bool inputIsSymmetricU8 = true;
 
             printf("%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
                    "channel",
@@ -1180,6 +1180,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                    "Outputhigh",
                    "Ol/Oh",
                    "Ol/Oh - Il/Ih");
+
             for (int i = 0; i < std::max(inputLowAxisSize,
                                          std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize)));
                  i++) {
@@ -1187,30 +1188,35 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
-                if (il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.01f && ol == 0.0f)
-                    symmetricToAsymmetric = true;
-                else if ((il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.1f) || il > 0.0f)
-                    asymmetric = true;
-                if (levels != 256)
-                    levelNot256 = true;
+                //symmetricToAsymmetric = symmetricToAsymmetric && (il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.001f && ol == 0.0f);
+                //asymmetric = asymmetric && ((il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.001f) || il > 0.0f);
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
                                               (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256 ? 0.001f : 0.01f));
-                if (il < 0 && i % 100 == 0 && ((il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.01f && ol == 0.0f) ||
-                                                (il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.1f) ||
-                                                (il > 0.0f) ||
-                                                levels != 256))
+                //At least input is standard POT input.
+                inputIsSymmetricS8 = inputIsSymmetricS8 && (abs(il / ih + 128.0f / 127.0f) < 0.001f);
+                inputIsSymmetricU8 = inputIsSymmetricU8 && (abs(il) < 0.0001f);
+                // Having shift. Not standard POT input.
+                // shift is per-tensor
+                perTensorShift = perTensorShift && (!inputIsSymmetricS8 && !inputIsSymmetricU8) &&
+                                 (abs(inputShift[i] - inputShift[0]) < 0.1);
+                // shift is per channel;
+                perChannelShift = !perTensorShift && !inputIsSymmetricU8 && !inputIsSymmetricS8;
+
+                if (i < 4 &&
+                    (perTensorShift || perChannelShift || levelNot256 ||
+                     (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::U8)))
                     printf("%-15d%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f\n",
-                        i,
-                        inputShift[i],
-                        il,
-                        ih,
-                        il / ih,
-                        ol,
-                        oh,
-                        ol / oh,
-                        ol / oh - il / ih);
+                           i,
+                           inputShift[i],
+                           il,
+                           ih,
+                           il / ih,
+                           ol,
+                           oh,
+                           ol / oh,
+                           ol / oh - il / ih);
 
                 /*
                 if (abs(ol / (oh - ol) - il / (ih - il)) >= 0.01) {
@@ -1234,11 +1240,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
             algorithm = quantizationOnly ? Algorithm::FQQuantization :
                         (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;
-            if (symmetricToAsymmetric || asymmetric || levelNot256)
-                printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n",
+            if (perTensorShift || perChannelShift || levelNot256 ||
+                (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8))
+                printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s %s %s %s %s\n",
                        getName().c_str(),
-                       symmetricToAsymmetric ? "symmetric_to_asymmetric=true" : "",
-                       asymmetric ? "POT_input_zp=true" : "",
+                       inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8 ? "LPT_I2U_symmetric_to_asymmetric=true" : "",
+                       inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8 ? "LPT_ScaleI8=true" : "",
+                       inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8 ? "LPT_ScaleU8=true" : "",
+                       inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8 ? "LPT_U2I_symmetric_to_asymmetric=true" : "",
+                       perTensorShift ? "LPT_perTensorShift=true" : "",
+                       perChannelShift ? "LPT_perChannelShift=true" : "",
                        levelNot256 ? "level_changed=true" : "");
         }
     } else {

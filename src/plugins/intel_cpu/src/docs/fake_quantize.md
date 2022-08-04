@@ -23,6 +23,14 @@ $$
 \end{align}
 $$
 
+$$
+\begin{align}
+   q = round(x * inputscale + inputshift) \\
+   output = q * outputscale + outputshift
+\end{align}
+$$
+
+
 simplified, suppose (ih > il):
 
 $$
