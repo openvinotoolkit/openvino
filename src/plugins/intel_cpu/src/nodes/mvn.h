@@ -167,6 +167,11 @@ private:
         private:
             void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_);
     };
+
+    // layer norm in onednn
+    bool is_ln_applicable = false;
+    dnnl::primitive ln_prim;
+    std::unordered_map<int, dnnl::memory> ln_args;
 };
 
 }   // namespace node
