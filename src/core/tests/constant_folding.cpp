@@ -2388,8 +2388,8 @@ TEST(constant_folding, constant_v1_split_specialized) {
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
     ASSERT_EQ(count_ops_of_type<op::v1::Split>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
 
     auto res1 = ov::as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     auto res2 = ov::as_type_ptr<op::Constant>(f->get_results().at(1)->input_value(0).get_node_shared_ptr());
