@@ -138,5 +138,5 @@ if(ENABLE_TESTS)
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
-    set(TEST_MODEL_ZOO "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo" CACHE PATH "Path to test model zoo")
+    set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")
 endif()
