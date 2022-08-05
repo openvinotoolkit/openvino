@@ -43,6 +43,13 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
+namespace cldnn {
+template <>
+struct type_to_data_type<FLOAT16> {
+    static constexpr data_types value = data_types::f16;
+};
+}  // namespace cldnn
+
 namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
@@ -553,7 +560,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";
@@ -603,7 +610,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_bin_blob_packed(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";
@@ -641,7 +648,7 @@ T div_up(const T a, const U b) {
 
 // inline void print_blob(cldnn::memory& mem, std::string name)
 // {
-//     auto&& size = mem.get_layout().size;
+//     auto&& size = mem.get_layout().get_tensor();
 
 //     std::cerr << name;
 //     std::cerr << " shape: ";

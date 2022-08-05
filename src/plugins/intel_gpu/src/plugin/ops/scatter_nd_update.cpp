@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op) {
@@ -26,8 +25,8 @@ static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op
         auto indices_last_dim = op->get_input_shape(1)[indices_rank - 1];
         auto data_shape = op->get_input_shape(0);
         bool valid = true;
-        for (int i = 0; i < indices.size(); ++i) {
-            if (indices[i] >= data_shape[i % indices_last_dim])
+        for (size_t i = 0; i < indices.size(); ++i) {
+            if (indices[i] >= static_cast<int>(data_shape[i % indices_last_dim]))
                 valid = false;
         }
 
@@ -49,5 +48,4 @@ static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op
 REGISTER_FACTORY_IMPL(v3, ScatterNDUpdate);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
