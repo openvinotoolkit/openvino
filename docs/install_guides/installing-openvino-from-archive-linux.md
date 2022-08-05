@@ -2,6 +2,8 @@
 
 With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. 
 
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
+
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
 ## System Requirements
@@ -89,8 +91,6 @@ ln -s /home/<USER>/intel/<extracted_folder> /home/<USER>/intel/openvino_2022
 If such link already exists, remove the previous link with `rm /home/<USER>/intel/openvino_2022`.
 
 The `/opt/intel/openvino_<version>/` or `/home/<USER>/intel/openvino_<version>/` will be referred as the standard OpenVINO `<INSTALL_DIR>` in this document.
-
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to install components.
 

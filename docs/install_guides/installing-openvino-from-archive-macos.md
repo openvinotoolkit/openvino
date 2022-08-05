@@ -2,6 +2,8 @@
 
 With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime.
 
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
+
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
 > **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
@@ -62,8 +64,6 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
    The standard OpenVINO `INSTALL_DIR` referenced in this document is `/opt/intel/openvino_<version>`.
 
 For simplicity, you can create a symbolic link to the latest installation: `/opt/intel/openvino_2022/`. 
-
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to configure environment.
 

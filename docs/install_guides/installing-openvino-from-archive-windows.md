@@ -2,6 +2,8 @@
 
 With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime.
 
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
+
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
 ## System Requirements
@@ -33,9 +35,10 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
 
 .. tab:: Software
 
-  * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
-  * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_
-  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+  * For C++ developers:
+     * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
+     * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_
+  * For Python developers: `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
      * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
 
   .. note::
@@ -76,8 +79,6 @@ With the OpenVINO™ 2022.2 release, you can download and use archive files to i
 The standard OpenVINO `<INSTALL_DIR>` used in this document is `C:\Program Files (x86)\Intel\openvino_<version>\`. You're recommended to move the extracted files to that directory. 
 
 For simplicity, you can also create a symbolic link to the latest installation: `C:\Program Files (x86)\Intel\openvino_2022\`.
-
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to configure environment.
 
