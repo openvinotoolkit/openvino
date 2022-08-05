@@ -195,6 +195,7 @@ jobs:
     enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+    displayName: 'IE FuncTests'
     continueOnError: false
     enabled: false
 

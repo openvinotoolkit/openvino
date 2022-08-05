@@ -121,7 +121,7 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, const bool needA
     if (FileUtils::fileExist(absFilePath))
         return absFilePath;
 
-    // 3. in LD_LIBRARY_PATH
+    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
     return pluginPath;
 }
 
