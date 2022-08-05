@@ -14,6 +14,8 @@
 #include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
 #include "test_tools.hpp"
+#include "openvino/util/file_util.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 namespace ngraph {
 namespace test {
@@ -34,7 +36,10 @@ public:
     TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
         try {
             // Register template plugin
-            m_core.register_plugin(std::string("openvino_template_plugin") + IE_BUILD_POSTFIX, "TEMPLATE");
+            m_core.register_plugin(
+                ov::util::make_plugin_library_name(
+                    CommonTestUtils::getExecutableDirectory(),
+                    std::string("openvino_template_plugin") + IE_BUILD_POSTFIX), "TEMPLATE");
         } catch (...) {
         }
         m_request = m_core.compile_model(function, dev).create_infer_request();

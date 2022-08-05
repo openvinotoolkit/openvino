@@ -35,6 +35,3 @@ else()
 endif()
 
 # [cmake:functional_tests]
-
-# since this binary loads template plugin
-set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN")

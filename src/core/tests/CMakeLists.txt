@@ -543,9 +543,6 @@ add_executable(ov_core_unit_tests ${SRC})
 
 add_dependencies(ov_core_unit_tests template_extension)
 
-# since this binary loads template plugin and extension
-set_target_properties(ov_core_unit_tests PROPERTIES INSTALL_RPATH "$ORIGIN")
-
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 

@@ -65,9 +65,6 @@ addIeTargetTest(
         IE
 )
 
-# since this binary loads template extension
-set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN")
-
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)
 
 set_ie_threading_interface_for(${TARGET_NAME})
