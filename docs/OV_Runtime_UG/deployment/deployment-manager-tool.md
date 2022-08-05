@@ -11,7 +11,7 @@ To use the Deployment Manager tool, the following requirements need to be met:
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
    * **For GPU**, see [Configurations for Intel® Processor Graphics (GPU)](../../install_guides/configurations-for-intel-gpu.md).
    * **For NCS2**, see [Intel® Neural Compute Stick 2 section](../../install_guides/configurations-for-ncs2.md)
-   * **For VPU**, see [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md).
+   * **For VPU**, see [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/installing-openvino-config-ivad-vpu.md).
    * **For GNA**, see [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
 
 
