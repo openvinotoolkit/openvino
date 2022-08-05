@@ -518,7 +518,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto& input = detection_output_node.get_dependency(i);
             auto new_input = rf.get_reorder(input.id(),
                                             input.get_output_layout(),
-                                            layout{ data_types::f32, format::bfyx, input.get_output_layout().size });
+                                            layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
 
             if (new_input.first) {
                 p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
@@ -545,7 +545,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto new_format = lo.get_preferred_format(deconv_node);
         if (new_format == format::b_fs_zyx_fsv16 || new_format == format::bs_fs_zyx_bsv16_fsv16) {
             auto reorder = rf.get_reorder(input.id(), input_layout,
-                layout{ input_layout.data_type, new_format, input_layout.size });
+                layout{ input_layout.data_type, new_format, input_layout.get_tensor() });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
             }
@@ -557,7 +557,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto dims = weights_layout.format.dimension();
             auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
             auto reorder = rf.get_reorder(weights.id(), weights_layout,
-                layout{ weights_layout.data_type, preferred_format, weights_layout.size });
+                layout{ weights_layout.data_type, preferred_format, weights_layout.get_tensor() });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
                 p.get_or_create(reorder.first).recalc_output_layout(false);
@@ -574,7 +574,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 auto dims = weights_layout.format.dimension();
                 auto preferred_format = dims <= 4 ? format::bfyx : dims == 5 ? format::bfzyx : format::bfwzyx;
                 auto reorder = rf.get_reorder(weights.id(), weights_layout,
-                    layout{ weights_layout.data_type, preferred_format, weights_layout.size });
+                    layout{ weights_layout.data_type, preferred_format, weights_layout.get_tensor() });
                 if (reorder.first) {
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
                     p.get_or_create(reorder.first).recalc_output_layout(false);
@@ -615,7 +615,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto input_layout = input.get_output_layout();
         auto output_layout = conv_node.get_output_layout();
         auto conv_format = output_layout.format;
-        auto group_size = conv_node.get_groups();
+        int32_t group_size = conv_node.get_groups();
         bool is_dw = group_size > 1 && (group_size == input_layout.feature() && group_size == output_layout.feature());
         if (conv_node.impl_type == impl_types::onednn &&
             lo.needs_onednn_small_ic_to_blocked(conv_format, input_layout, conv_node) && !is_dw) {
@@ -676,7 +676,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     && is_target_dt_in_errata
                     && conv_layout.format == wrong_format
                     && prev_layout.format == wrong_format
-                    && !(prev_layout.size.batch[0] == 1 && prev_layout.size.feature[0] <= 4)) {
+                    && !(prev_layout.get_tensor().batch[0] == 1 && prev_layout.get_tensor().feature[0] <= 4)) {
                 auto new_layout = prev_layout;
                 new_layout.format = correct_format;
                 auto new_input = rf.get_reorder(prev_node->id(),
@@ -695,7 +695,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         // changes the input format of eltwise sum post-op to use binary add.
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
             onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
-                [&](const program_node& p_node, const eltwise_node& e_node, const fused_primitive_desc& desc) {
+                [&](const program_node& p_node, const fused_primitive_desc& desc) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
                     if (fusing_type == add_fusing_type::binary_per_tensor) {
                         auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
@@ -745,9 +745,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
         // Change input data of fully-connected node from bx to bf
         if (format::is_simple_data_format(input_layout.format) && weights.is_constant() && input_layout.format.dimension() == 4 &&
-            input_layout.size.feature[0] == 1 && input_layout.size.spatial[0] != 1 && input_layout.size.spatial[1] == 1) {
-            auto new_tensor = input_layout.size;
-            new_tensor.feature[0] = input_layout.size.spatial[0];
+            input_layout.feature() == 1 && input_layout.spatial(0) != 1 && input_layout.spatial(1) == 1) {
+            auto new_tensor = input_layout.get_tensor();
+            new_tensor.feature[0] = input_layout.spatial(0);
             new_tensor.spatial[0] = 1;
             auto new_reshape = std::make_shared<reshape>("reorder:Reshape_bf_" + fc_node.id() + "_for_input", input.id(), new_tensor);
             auto& new_reorder_node = p.get_or_create(new_reshape);

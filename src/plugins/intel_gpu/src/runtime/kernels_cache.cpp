@@ -148,7 +148,7 @@ kernel_id kernels_cache::set_kernel_source(
     bool dump_custom_program) {
     std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
-    const auto kernel_num = _kernels.size() + _kernels_code.size();
+    const auto kernel_num = _kernels.size() + (_kernel_idx++);
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
     auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
@@ -344,7 +344,7 @@ void kernels_cache::build_all() {
     auto _task_executor = _engine.get_task_executor();
     std::exception_ptr exception;
     std::vector<InferenceEngine::Task> tasks;
-    for (int idx = 0; idx < batches.size(); idx++) {
+    for (size_t idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
         tasks.push_back([this, &_build_engine, &batch, &exception] {
             try {
