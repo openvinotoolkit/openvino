@@ -14,15 +14,62 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(arg_max_gpu_min_axis_batch, base) {
+
+template <format::type layoutFormat, typename DataType>
+struct arg_max_input_types {
+    static const auto format = layoutFormat;
+    using input_type = DataType;
+    static const data_types data_type = type_to_data_type<DataType>::value;
+};
+
+template <typename ArgMaxInput>
+struct argmax_gpu_test : public testing::Test {
+    static const auto format = ArgMaxInput::format;
+    using input_type = typename ArgMaxInput::input_type;
+    static const data_types data_type = ArgMaxInput::data_type;
+    std::vector<input_type> getTypedVector(const std::vector<float>& input) {
+        return std::vector<input_type>(input.begin(), input.end());
+    }
+
+    void checkOutput(std::shared_ptr<memory> mem, size_t out_size) {
+        cldnn::mem_lock<input_type> out_ptr(mem, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            float out_value = get_value<input_type>(out_ptr.data(), i);
+            EXPECT_EQ(out_value, i < (out_size / 2) ? 0 : 1);
+        }
+    }
+};
+
+using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
+                                    arg_max_input_types<format::b_fs_yx_fsv16, float>,
+                                    arg_max_input_types<format::b_fs_yx_fsv32, float>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, float>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, float>,
+                                    arg_max_input_types<format::bfyx, int32_t>,
+                                    arg_max_input_types<format::b_fs_yx_fsv16, int32_t>,
+                                    arg_max_input_types<format::b_fs_yx_fsv32, int32_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv16_fsv16, int32_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int32_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, int32_t>,
+                                    arg_max_input_types<format::bfyx, half_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, half_t>,
+                                    arg_max_input_types<format::bfyx, int8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>>;
+
+TYPED_TEST_SUITE(argmax_gpu_test, format_types);
+
+TYPED_TEST(argmax_gpu_test, base) {
     //  Input  : 2x4x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
     const int top_k = 2;
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    auto input = engine.allocate_memory({this->data_type, format::bfyx, {batch_num, feature_num, x_size, y_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max", {"input"}, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("reordered_input", "input", this->format, this->data_type));
+    topology.add(arg_max_min("arg_max", {"reordered_input"}, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("plane_arg_max", "arg_max", format::bfyx, this->data_type));
 
     std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
                                     /*b0f0*/ 0.1f, -0.1f, 0.9f,  1.5f,
@@ -34,77 +81,20 @@ TEST(arg_max_gpu_min_axis_batch, base) {
                                     /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
                                     /*b1f2*/ 0.2f, 0.2f,  -10.f, 5.2f,
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
-    set_values(input, input_vec);
+    set_values(input, this->getTypedVector(input_vec));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
-    auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    float out_buffer[out_size];
-    for (uint32_t i = 0; i < out_size; i++) {
-        out_buffer[i] = get_value<float>(output_ptr.data(), i);
-    }
-    for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
-    }
+    auto output = outputs.at("plane_arg_max").get_memory();
+
+    this->checkOutput(output, out_size);
 }
 
-TEST(arg_max_gpu_min_axis_batch, i32) {
-    //  Input  : 2x3x2x2
-    static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
-    auto& engine = get_test_engine();
-    const int top_k = 2;
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(arg_max_min("arg_max",
-                             {"input"},
-                             ov::op::TopKMode::MIN,
-                             top_k,
-                             0,
-                             ov::op::TopKSortType::SORT_VALUES,
-                             false,
-                             padding(),
-                             data_types::i32));
-
-    std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
-                                    /*b0f0*/ 0.1f, -0.1f, 0.9f,  1.5f,
-                                    /*b0f1*/ 0.2f, 0.2f,  -10.f, 5.2f,
-                                    /*b0f2*/ 0.2f, 0.2f,  -10.f, 5.2f,
-                                    /*b0f3*/ 0.2f, 0.2f,  -10.f, 4.2f,
-
-                                    /*b1f0*/ 3.f,  0.5f,  7.f,   10.f,
-                                    /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
-                                    /*b1f2*/ 0.2f, 0.2f,  -10.f, 5.2f,
-                                    /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
-
-    set_values(input, input_vec);
-
-    network network(engine, topology);
-
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
-    const int out_size = y_size * feature_num * x_size * top_k;
-    auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
-    int32_t out_buffer[out_size];
-    for (uint32_t i = 0; i < out_size; i++) {
-        out_buffer[i] = get_value<int32_t>(output_ptr.data(), i);
-    }
-    for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
-    }
-}
-
+// TODO: extend test with layouts to 3d case in scope of arg_max operation layouts support
 TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, z_size = 1, feature_num = 4, batch_num = 2;
