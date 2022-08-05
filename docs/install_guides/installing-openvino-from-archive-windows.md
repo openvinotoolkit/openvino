@@ -1,6 +1,6 @@
 # Install OpenVINO™ Runtime on Windows 10 from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
-With the OpenVINO™ 2022.2 release, you can download the archive files and install OpenVINO Runtime directly.
+With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
