@@ -39,9 +39,9 @@ def parse_args():
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
-    args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
+    args.add_argument('-d', '--target_device', type=str, required=False, default='AUTO',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
-                           'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
+                           'Default value is AUTO. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
                            'Use \'-d MULTI:<comma separated devices list>\' format to specify MULTI plugin. '
                            'The application looks for a suitable plugin for the specified device.')
     args.add_argument('-l', '--path_to_extension', type=str, required=False, default=None,
