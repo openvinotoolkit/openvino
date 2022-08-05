@@ -33,6 +33,28 @@ inline std::string double_to_string(const double number) {
     return ss.str();
 };
 
+inline std::string get_now_time_string() {
+    auto now_time = std::time(nullptr);
+    auto now_time_tm = *std::localtime(&now_time);
+    std::stringstream outstr;
+    outstr << std::put_time(&now_time_tm, "%Y%m%d%H%M%S");
+    return outstr.str();
+}
+
+inline std::string get_path_separator() {
+    std::string separator =
+#if defined _WIN32 || defined __CYGWIN__
+#    if defined UNICODE
+        L"\\";
+#    else
+        "\\";
+#    endif
+#else
+        "/";
+#endif
+    return separator;
+}
+
 namespace benchmark_app {
 struct InputInfo {
     ov::element::Type type;
@@ -50,6 +72,12 @@ struct InputInfo {
     size_t depth() const;
     std::vector<std::string> fileNames;
 };
+
+struct InputData {
+    std::string imagenames;  // when batchsize > 1, multiple imagenames are joined with commas
+    ov::Tensor tensor;
+};
+
 using InputsInfo = std::map<std::string, InputInfo>;
 using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app

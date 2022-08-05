@@ -65,7 +65,7 @@ void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type&
     }
 }
 
-std::map<std::string, ov::TensorVector> get_remote_input_tensors(
+std::map<std::string, std::vector<benchmark_app::InputData>> get_remote_input_tensors(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const ov::CompiledModel& compiledModel,
@@ -78,7 +78,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                    << slog::endl;
     }
 
-    std::map<std::string, ov::TensorVector> remoteTensors;
+    std::map<std::string, std::vector<benchmark_app::InputData>> remoteTensors;
     auto context = compiledModel.get_context();
     auto& oclContext = static_cast<ov::intel_gpu::ocl::ClContext&>(context);
     auto oclInstance = std::make_shared<gpu::OpenCL>(oclContext.get());
@@ -108,16 +108,18 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                                                                        0,
                                                                        (cl::size_type)inputSize);
 
-                auto tensor =
+                benchmark_app::InputData input_data;
+                input_data.tensor =
                     oclContext.create_tensor(input.second.type, input.second.dataShape, clBuffer.back().get());
-                remoteTensors[input.first].push_back(tensor);
 
                 if (inputFiles.empty()) {
                     // Filling in random data
                     fill_buffer(mappedPtr, elementsNum, input.second.type);
+                    input_data.imagenames = "random";
                 } else {
                     // TODO: add filling with real image data
                 }
+                remoteTensors[input.first].push_back(input_data);
                 oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
             }
         }

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
@@ -15,15 +17,25 @@
 #include <queue>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#    include "samples/os/windows/w_dirent.h"
+#else
+#    include <dirent.h>
+#endif
 
 // clang-format off
 
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
+#include "result_dump.hpp"
 // clang-format on
 
-typedef std::function<void(size_t id, size_t group_id, const double latency, const std::exception_ptr& ptr)>
+typedef std::function<void(size_t id,
+                           size_t group_id,
+                           const double latency,
+                           const InferenceResult& result,
+                           const std::exception_ptr& ptr)>
     QueueCallbackFunction;
 
 /// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
@@ -42,7 +54,16 @@ public:
           outputClBuffer() {
         _request.set_callback([&](const std::exception_ptr& ptr) {
             _endTime = Time::now();
-            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), ptr);
+            const auto& compile_model = _request.get_compiled_model();
+            const auto& outputs = compile_model.outputs();
+            auto output_size = outputs.size();
+            InferenceResult inference_result;
+            for (size_t i = 0; i < output_size; i++) {
+                const auto& tensor = _request.get_output_tensor(i);
+                inference_result.output_tensors.emplace_back(tensor);
+            }
+            inference_result.input_images = get_input_image_name();
+            _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), inference_result, ptr);
         });
     }
 
@@ -59,7 +80,15 @@ public:
         _startTime = Time::now();
         _request.infer();
         _endTime = Time::now();
-        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), nullptr);
+        const auto& model = _request.get_compiled_model();
+        const auto& outputs = model.outputs();
+        auto output_size = outputs.size();
+        InferenceResult result;
+        for (size_t i = 0; i < output_size; i++) {
+            result.output_tensors.emplace_back(_request.get_output_tensor(i));
+        }
+        result.input_images = get_input_image_name();
+        _callbackQueue(_id, _lat_group_id, get_execution_time_in_milliseconds(), result, nullptr);
     }
 
     std::vector<ov::ProfilingInfo> get_performance_counts() {
@@ -95,6 +124,14 @@ public:
         return outputClBuffer;
     }
 
+    void set_input_image_name(const std::string& input_image_name) {
+        _input_image_name = input_image_name;
+    }
+
+    std::string get_input_image_name() {
+        return _input_image_name;
+    }
+
 private:
     ov::InferRequest _request;
     Time::time_point _startTime;
@@ -103,6 +140,8 @@ private:
     size_t _lat_group_id;
     QueueCallbackFunction _callbackQueue;
     std::map<std::string, ::gpu::BufferType> outputClBuffer;
+    // If input size of model is greater than one, the input_images of inputs are joined with commas
+    std::string _input_image_name;
 };
 
 class InferRequestsQueue final {
@@ -117,7 +156,8 @@ public:
                                                                         std::placeholders::_1,
                                                                         std::placeholders::_2,
                                                                         std::placeholders::_3,
-                                                                        std::placeholders::_4)));
+                                                                        std::placeholders::_4,
+                                                                        std::placeholders::_5)));
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);
@@ -150,11 +190,15 @@ public:
     void put_idle_request(size_t id,
                           size_t lat_group_id,
                           const double latency,
+                          const InferenceResult& result,
                           const std::exception_ptr& ptr = nullptr) {
         std::unique_lock<std::mutex> lock(_mutex);
         if (ptr) {
             inferenceException = ptr;
         } else {
+            if (_result_dump) {
+                _result_dump->add_result(result.input_images, result.output_tensors);
+            }
             _latencies.push_back(latency);
             if (enable_lat_groups) {
                 _latency_groups[lat_group_id].push_back(latency);
@@ -205,6 +249,23 @@ public:
         return _latency_groups;
     }
 
+    void set_config(const std::string& device_name, const std::string& model_name, const std::string& dump_dir) {
+        struct stat dirstat;
+        if (stat(dump_dir.c_str(), &dirstat) != 0) {
+            slog::warn << dump_dir << " cannot be opened, dump_output is disabled" << slog::endl;
+            return;
+        }
+
+        if (false == S_ISDIR(dirstat.st_mode)) {
+            slog::warn << dump_dir << " is not a directory, dump_output is disabled" << slog::endl;
+            return;
+        }
+
+        if (nullptr == _result_dump) {
+            _result_dump = std::make_shared<ResultDump>(device_name, model_name, dump_dir);
+        }
+    }
+
     std::vector<InferReqWrap::Ptr> requests;
 
 private:
@@ -217,4 +278,5 @@ private:
     std::vector<std::vector<double>> _latency_groups;
     bool enable_lat_groups;
     std::exception_ptr inferenceException = nullptr;
+    std::shared_ptr<ResultDump> _result_dump;
 };

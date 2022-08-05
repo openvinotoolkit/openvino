@@ -804,7 +804,7 @@ int main(int argc, char* argv[]) {
         std::vector<::gpu::BufferType> clInputsBuffer;
         bool useGpuMem = false;
 
-        std::map<std::string, ov::TensorVector> inputsData;
+        std::map<std::string, std::vector<benchmark_app::InputData>> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0) {
                 inputsData = ::gpu::get_remote_input_tensors(inputFiles,
@@ -893,9 +893,11 @@ int main(int argc, char* argv[]) {
             size_t i = 0;
             for (auto& inferRequest : inferRequestsQueue.requests) {
                 auto inputs = app_inputs_info[i % app_inputs_info.size()];
+                std::string imagenames;
                 for (auto& item : inputs) {
                     auto inputName = item.first;
-                    const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
+                    const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()].tensor;
+                    const auto& input_images = inputsData.at(inputName)[i % inputsData.at(inputName).size()].imagenames;
                     // for remote blobs setTensor is used, they are already allocated on the device
                     if (useGpuMem) {
                         inferRequest->set_tensor(inputName, inputTensor);
@@ -906,7 +908,12 @@ int main(int argc, char* argv[]) {
                         }
                         copy_tensor_data(requestTensor, inputTensor);
                     }
+                    imagenames += input_images + ",";
                 }
+                if (!imagenames.empty()) {
+                    imagenames.pop_back();
+                }
+                inferRequest->set_input_image_name(imagenames);
 
                 if (useGpuMem) {
                     auto outputTensors =
@@ -930,7 +937,7 @@ int main(int argc, char* argv[]) {
 
             for (auto& item : inputs) {
                 auto inputName = item.first;
-                const auto& data = inputsData.at(inputName)[0];
+                const auto& data = inputsData.at(inputName)[0].tensor;
                 inferRequest->set_tensor(inputName, data);
             }
 
@@ -965,6 +972,14 @@ int main(int argc, char* argv[]) {
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
+        if (!FLAGS_dump_output.empty()) {
+            if (useGpuMem) {
+                slog::warn << "dump_output is disabled when using device memory" << slog::endl;
+            } else {
+                std::string model_name = compiledModel.get_property(ov::model_name);
+                inferRequestsQueue.set_config(device_name, model_name, FLAGS_dump_output);
+            }
+        }
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
@@ -997,12 +1012,19 @@ int main(int argc, char* argv[]) {
                             << slog::endl;
                     }
                 }
-
+                std::string imagenames;
                 for (auto& item : inputs) {
                     auto inputName = item.first;
-                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
+                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()].tensor;
+                    const auto& image =
+                        inputsData.at(inputName)[iteration % inputsData.at(inputName).size()].imagenames;
                     inferRequest->set_tensor(inputName, data);
+                    imagenames += image + ",";
                 }
+                if (!imagenames.empty()) {
+                    imagenames.pop_back();
+                }
+                inferRequest->set_input_image_name(imagenames);
 
                 if (useGpuMem) {
                     auto outputTensors =

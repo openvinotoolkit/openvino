@@ -230,6 +230,9 @@ static constexpr char inference_only_message[] =
     " To enable full mode for static models pass \"false\" value to this argument:"
     " ex. \"-inference_only=false\".\n";
 
+static constexpr char dump_output_message[] =
+    "Optional. Directory to dump inference outputs, which were set by application.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -363,6 +366,9 @@ DEFINE_string(imean, "", input_image_mean_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
+/// @brief Define flag for dumping output directory <br>
+DEFINE_string(dump_output, "", dump_output_message);
+
 /**
  * @brief This function show a help message
  */
@@ -416,4 +422,5 @@ static void show_usage() {
     std::cout << "    -iscale                   " << input_image_scale_message << std::endl;
     std::cout << "    -imean                    " << input_image_mean_message << std::endl;
     std::cout << "    -inference_only           " << inference_only_message << std::endl;
+    std::cout << "    -dump_output              " << dump_output_message << std::endl;
 }

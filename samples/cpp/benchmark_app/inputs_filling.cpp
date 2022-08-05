@@ -358,10 +358,11 @@ std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     return strOut.str();
 }
 
-std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::vector<std::string>> inputFiles,
-                                                    std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+std::map<std::string, std::vector<benchmark_app::InputData>> get_tensors(
+    std::map<std::string, std::vector<std::string>> inputFiles,
+    std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
     std::ios::fmtflags fmt(std::cout.flags());
-    std::map<std::string, ov::TensorVector> tensors;
+    std::map<std::string, std::vector<benchmark_app::InputData>> tensors;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
     }
@@ -470,25 +471,31 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
             auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
 
             std::string tensor_src_info;
+            tensors[input_name].push_back(benchmark_app::InputData());
+            auto& input_data = tensors[input_name][tensors[input_name].size() - 1];
             if (files.second[0] == "random") {
                 // Fill random
                 tensor_src_info =
                     "random (" + std::string((input_info.is_image() ? "image" : "binary data")) + " is expected)";
-                tensors[input_name].push_back(get_random_tensor({input_name, input_info}));
+                input_data.tensor = get_random_tensor({input_name, input_info});
+                input_data.imagenames = tensor_src_info;
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
+                input_data.tensor = get_im_info_tensor(image_size, batchSize, {input_name, input_info});
+                input_data.imagenames = tensor_src_info;
             } else if (input_info.is_image()) {
                 // Fill with Images
-                tensors[input_name].push_back(
-                    get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                input_data.tensor =
+                    get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info);
+                input_data.imagenames = tensor_src_info;
             } else {
                 // Fill with binary files
-                tensors[input_name].push_back(
-                    get_binary_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+                input_data.tensor =
+                    get_binary_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info);
+                input_data.imagenames = tensor_src_info;
             }
 
             // Preparing info
@@ -521,12 +528,13 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     return tensors;
 }
 
-std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vector<std::string>& inputFiles,
-                                                                const size_t& batchSize,
-                                                                benchmark_app::InputsInfo& app_inputs_info,
-                                                                size_t requestsNum) {
+std::map<std::string, std::vector<benchmark_app::InputData>> get_tensors_static_case(
+    const std::vector<std::string>& inputFiles,
+    const size_t& batchSize,
+    benchmark_app::InputsInfo& app_inputs_info,
+    size_t requestsNum) {
     std::ios::fmtflags fmt(std::cout.flags());
-    std::map<std::string, ov::TensorVector> blobs;
+    std::map<std::string, std::vector<benchmark_app::InputData>> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& item : app_inputs_info) {
@@ -638,11 +646,14 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
             if (input_info.is_image()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    blobs[input_name].push_back(get_image_tensor(files.second,
-                                                                 imageInputId,
-                                                                 batchSize,
-                                                                 {input_name, input_info},
-                                                                 &blob_src_info));
+                    benchmark_app::InputData input_data;
+                    input_data.tensor = get_image_tensor(files.second,
+                                                         imageInputId,
+                                                         batchSize,
+                                                         {input_name, input_info},
+                                                         &blob_src_info);
+                    input_data.imagenames = blob_src_info;
+                    blobs[input_name].push_back(input_data);
                     imageInputId = (imageInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
@@ -650,11 +661,14 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    blobs[input_name].push_back(get_binary_tensor(files.second,
-                                                                  binaryInputId,
-                                                                  batchSize,
-                                                                  {input_name, input_info},
-                                                                  &blob_src_info));
+                    benchmark_app::InputData input_data;
+                    input_data.tensor = get_binary_tensor(files.second,
+                                                          binaryInputId,
+                                                          batchSize,
+                                                          {input_name, input_info},
+                                                          &blob_src_info);
+                    input_data.imagenames = blob_src_info;
+                    blobs[input_name].push_back(input_data);
                     binaryInputId = (binaryInputId + batchSize) % files.second.size();
                     logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
@@ -664,7 +678,10 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
                     auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
-                    blobs[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
+                    benchmark_app::InputData input_data;
+                    input_data.tensor = get_im_info_tensor(image_size, batchSize, {input_name, input_info});
+                    input_data.imagenames = blob_src_info;
+                    blobs[input_name].push_back(input_data);
                     logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
                     continue;
                 }
@@ -672,7 +689,10 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
             // Fill random
             blob_src_info =
                 "random (" + std::string((input_info.is_image() ? "image" : "binary data")) + " is expected)";
-            blobs[input_name].push_back(get_random_tensor({input_name, input_info}));
+            benchmark_app::InputData input_data;
+            input_data.tensor = get_random_tensor({input_name, input_info});
+            input_data.imagenames = blob_src_info;
+            blobs[input_name].push_back(input_data);
             logOutput[i][input_name] += get_test_info_stream_header(input_info) + blob_src_info;
         }
     }
