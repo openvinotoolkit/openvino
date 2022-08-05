@@ -64,6 +64,7 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
 #include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
@@ -300,6 +301,35 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                 }
                 return false;
+            });
+
+        pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
+        pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+            [](const_node_ptr &node) -> bool {
+            // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
+            const auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(node);
+            const auto inputRank = norm->get_input_partial_shape(0).size();
+            auto axesNode = ov::as_type_ptr<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
+            const auto axes = axesNode->cast_vector<size_t>();
+            const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
+                if (axes.size() == 1 && axes[0] == 1) {
+                    return true;
+                } else if (axes.size() == inputRank - 1) {
+                    auto sortAxes = axes;
+                    std::sort(sortAxes.begin(), sortAxes.end());
+                    for (size_t i = 0; i < sortAxes.size(); i++) {
+                        if (sortAxes[i] != i + 1)
+                            return false;
+                    }
+                    return true;
+                }
+                return false;
+            };
+
+            if (!isSupportedAxes(axes, inputRank) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+                return false;
+            }
+            return true;
             });
 
         pass_config->enable<ngraph::pass::SoftmaxDecomposition>();

@@ -20,7 +20,7 @@ layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params c
            "Output data type forcing is not supported for tile_node!");
     auto desc = impl_param.typed_desc<tile>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
     return layout{input_layout.data_type, input_format, desc->out_shape};
 }

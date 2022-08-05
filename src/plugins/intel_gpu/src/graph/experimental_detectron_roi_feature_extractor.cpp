@@ -34,8 +34,8 @@ layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
     experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
-    layout rois_layout = impl_param.input_layouts[0];
-    layout data_layout = impl_param.input_layouts[1];
+    layout rois_layout = impl_param.get_input_layout(0);
+    layout data_layout = impl_param.get_input_layout(1);
     int num_rois = rois_layout.batch();
     int num_channels = data_layout.feature();
     auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
