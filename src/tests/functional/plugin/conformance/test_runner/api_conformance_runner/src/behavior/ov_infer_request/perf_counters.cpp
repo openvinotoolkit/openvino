@@ -13,7 +13,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
-                                ::testing::ValuesIn(ov_config)),
+                                ::testing::Values(ov_config)),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
 }  // namespace

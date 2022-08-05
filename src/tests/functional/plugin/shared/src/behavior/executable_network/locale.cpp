@@ -25,10 +25,12 @@ inline std::shared_ptr<ngraph::Function> makeTestModel(std::vector<size_t> input
 
 std::string CustomLocaleTest::getTestCaseName(const testing::TestParamInfo<LocaleParams> &obj) {
     std::ostringstream results;
-    std::string target_device, localeName;
-    std::tie(localeName, target_device) = obj.param;
+    std::string targetDevice, localeName;
+    std::tie(localeName, targetDevice) = obj.param;
+    std::replace(localeName.begin(), localeName.end(), '-', '.');
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     results << "locale=" << localeName << "_"
-            << "targetDevice=" << target_device;
+            << "targetDevice=" << targetDevice;
     return results.str();
 }
 

@@ -222,6 +222,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     std::string target_device;
     ov::AnyMap configuration;
     std::tie(type, target_device, configuration) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";

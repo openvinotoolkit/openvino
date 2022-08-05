@@ -589,6 +589,7 @@ public:
                  netLayout, iLayout, oLayout,
                  setInputBlob, setOutputBlob,
                  target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '_');
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         result << "iPRC=" << iPrecision.name() << "_";
@@ -780,6 +781,7 @@ public:
                  netLayout, changeILayout, changeOLayout,
                  setInputBlob, setOutputBlob,
                  target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '_');
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         result << "iPRC=" << changeIPrecision << "_";

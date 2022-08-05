@@ -17,6 +17,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::tie(target_device, configuration) = obj.param;
         std::ostringstream result;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
             using namespace CommonTestUtils;

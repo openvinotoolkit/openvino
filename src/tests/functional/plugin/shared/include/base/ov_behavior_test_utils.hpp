@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <signal.h>
+#include <setjmp.h>
+
+#ifdef _WIN32
+#include <process.h>
+#endif
+
 #include <gtest/gtest.h>
 
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -11,6 +18,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/crash_handler.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -33,6 +41,12 @@ inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(st
 }
 
 class APIBaseTest : public CommonTestUtils::TestsCommon {
+private:
+    // place to jump in case of a crash
+    int jmpRes = 0;
+    // in case of crash jump will be made and work will be continued
+    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+
 protected:
     std::string target_device = "";
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
@@ -46,6 +60,17 @@ public:
     void SetUp() override {
         set_api_entity();
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED);
+#ifdef _WIN32
+        jmpRes = setjmp(CommonTestUtils::env);
+#else
+        jmpRes = sigsetjmp(CommonTestUtils::env, 0);
+#endif
+        if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+            crashHandler->StartTimer();
+        } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::HANGED);
+            GTEST_FAIL();
+        }
     }
 
     void TearDown() override {
@@ -95,6 +120,7 @@ public:
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {

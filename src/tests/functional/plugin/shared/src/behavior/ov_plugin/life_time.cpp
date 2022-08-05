@@ -12,7 +12,9 @@ namespace ov {
 namespace test {
 namespace behavior {
 std::string OVHoldersTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    return "target_device=" + obj.param;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    return "target_device=" + target_device;
 }
 
 void OVHoldersTest::SetUp() {
@@ -108,7 +110,9 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
 
 
 std::string OVHoldersTestOnImportedNetwork::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    return "target_device=" + obj.param;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    return "target_device=" + target_device;
 }
 
 void OVHoldersTestOnImportedNetwork::SetUp() {

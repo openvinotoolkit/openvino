@@ -27,7 +27,11 @@ def is_conformance(content: str):
 
 
 def is_hung_test(content: str):
-    if "GLOBAL TEARDOWN" in content:
+    if content == '' or \
+        "SKIPPED" in content or \
+        "FAILED" in content or \
+        "Unexpected application crash!" in content or \
+        "PASSED" in content:
         return False
     return True
 
@@ -54,7 +58,7 @@ def get_conformance_hung_test(test_log_dirs: list):
         for log_file in glob.glob(os.path.join(test_log_dir, '*/*')):
             with open(log_file) as log:
                 content = log.read()
-                if is_hung_test(content):
+                if not (is_hung_test(content) and is_conformance(content))::
                     print(log_file)
                     continue
                 device = get_device_name(content)

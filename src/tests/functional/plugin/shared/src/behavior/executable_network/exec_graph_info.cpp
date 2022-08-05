@@ -244,8 +244,9 @@ const char expected_serialized_model[] = R"V0G0N(
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
-    std::string targetDevice = obj.param;
-    result << "TargetDevice=" << targetDevice;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    result << "TargetDevice=" << target_device;
     return result.str();
 }
 
@@ -368,6 +369,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
     std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";

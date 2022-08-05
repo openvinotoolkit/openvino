@@ -22,11 +22,12 @@ void OVCompiledModelEmptyPropertiesTests::SetUp() {
 }
 
 std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
-    std::string target_device;
+    std::string targetDevice;
     AnyMap properties;
-    std::tie(target_device, properties) = obj.param;
+    std::tie(targetDevice, properties) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     std::ostringstream result;
-    result << "target_device=" << target_device << "_";
+    result << "targetDevice=" << targetDevice << "_";
     if (!properties.empty()) {
         result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
     }

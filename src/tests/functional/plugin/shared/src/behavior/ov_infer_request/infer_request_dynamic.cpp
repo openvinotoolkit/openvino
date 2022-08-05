@@ -40,6 +40,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     std::string target_device;
     ov::AnyMap configuration;
     std::tie(func, inOutShapes, target_device, configuration) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "function=" << func->get_friendly_name() << "_";
     result << "inOutShape=(";

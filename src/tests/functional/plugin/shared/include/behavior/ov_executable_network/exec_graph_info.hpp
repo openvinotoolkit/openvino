@@ -29,11 +29,12 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
     public:
     static std::string getTestCaseName(testing::TestParamInfo<OVExecGraphImportExportTestParams> obj) {
         ov::element::Type_t elementType;
-        std::string target_device;
+        std::string targetDevice;
         ov::AnyMap configuration;
-        std::tie(elementType, target_device, configuration) = obj.param;
+        std::tie(elementType, targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
-        result << "target_device=" << target_device << "_";
+        result << "targetDevice=" << targetDevice << "_";
         result << "elementType=" << elementType << "_";
         if (!configuration.empty()) {
             result << "config=(";

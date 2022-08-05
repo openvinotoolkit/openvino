@@ -131,6 +131,7 @@ std::string LoadNetworkCacheTestBase::getTestCaseName(testing::TestParamInfo<loa
     auto precision = std::get<1>(param);
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
@@ -224,6 +225,7 @@ std::string LoadNetworkCompiledKernelsCacheTest::getTestCaseName(testing::TestPa
     std::string deviceName;
     std::pair<std::map<std::string, std::string>, std::string> userConfig;
     std::tie(deviceName, userConfig) = obj.param;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     std::map<std::string, std::string> confstr = userConfig.first;
     std::ostringstream result;
     result << "device_name=" << deviceName << "_";

@@ -30,6 +30,6 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::ValuesIn(return_all_possible_device_combination()),
-                                 ::testing::ValuesIn(ov_config)),
+                                 ::testing::Values(ov_config)),
                          OVExecGraphImportExportTest::getTestCaseName);
 }  // namespace

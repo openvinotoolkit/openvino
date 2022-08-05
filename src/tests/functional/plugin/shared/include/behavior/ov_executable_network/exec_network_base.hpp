@@ -20,11 +20,13 @@ class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequ
                                     public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-        std::string target_device;
+        std::string targetDevice;
         ov::AnyMap configuration;
-        std::tie(target_device, configuration) = obj.param;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
+
         std::ostringstream result;
-        result << "target_device=" << target_device << "_";
+        result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";

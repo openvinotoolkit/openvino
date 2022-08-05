@@ -11,6 +11,7 @@ std::string DefaultConfigurationTest::getTestCaseName(const ::testing::TestParam
     std::string targetName;
     DefaultParameter defaultParameter;
     std::tie(targetName, defaultParameter) = obj.param;
+    std::replace(targetName.begin(), targetName.end(), ':', '.');
     std::ostringstream result;
     result << "configKey=" << defaultParameter._key << "_";
     result << "targetDevice=" << targetName;

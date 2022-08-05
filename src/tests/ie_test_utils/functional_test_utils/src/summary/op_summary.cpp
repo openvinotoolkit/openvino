@@ -53,7 +53,12 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
     }
     auto &passrate = opsStats[op];
     if (isCrashReported) {
+        isCrashReported = false;
         passrate.crashed--;
+    }
+    if (isHangReported) {
+        isHangReported = false;
+        return;
     }
     switch (status) {
         case PassRate::PASSED:
@@ -68,16 +73,17 @@ void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::S
         case PassRate::SKIPPED:
             passrate.skipped++;
             break;
-        case PassRate::CRASHED:
+        case PassRate::CRASHED: {
             passrate.crashed++;
             isCrashReported = true;
             return;
-        case PassRate::HANGED:
+        }
+        case PassRate::HANGED: {
             passrate.hanged++;
-            passrate.crashed--;
+            isHangReported = true;
             break;
+        }
     }
-    isCrashReported = false;
 }
 
 void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {

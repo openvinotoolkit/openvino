@@ -11,7 +11,9 @@ namespace test {
 namespace behavior {
 
 std::string OVEmptyPropertiesTests::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    return "target_device=" + obj.param;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    return "target_device=" + target_device;
 }
 
 void OVEmptyPropertiesTests::SetUp() {
@@ -25,6 +27,7 @@ std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<Properties
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {
@@ -52,6 +55,7 @@ std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestPara
     AnyMap properties;
     AnyMap compileModelProperties;
     std::tie(target_device, properties, compileModelProperties) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     if (!properties.empty()) {

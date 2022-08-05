@@ -7,6 +7,7 @@
 #include <tuple>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>
@@ -62,6 +63,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string target_device;
         target_device = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "target_device=" << target_device;
         return result.str();
@@ -89,9 +91,12 @@ public:
         std::string target_device;
         std::pair<std::string, InferenceEngine::Parameter> configuration;
         std::tie(target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
-        result << "config=" << "(" << configuration.first << "_" << configuration.second.as<std::string>() << ")";
+        std::string config_value = configuration.second.as<std::string>();
+        std::replace(config_value.begin(), config_value.end(), '-', '_');
+        result << "config=" << "(" << configuration.first << "_" << config_value << ")";
         return result.str();
     }
 
@@ -119,6 +124,7 @@ public:
         std::string target_device;
         std::map<std::string, std::string> configuration;
         std::tie(target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
@@ -200,6 +206,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::map<std::string, std::string> loadNetWorkConfig;
         std::tie(target_device, configuration, loadNetWorkConfig) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {

@@ -26,6 +26,7 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::tie(BlobType, targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
         result << "BlobType=" << BlobType << "_";

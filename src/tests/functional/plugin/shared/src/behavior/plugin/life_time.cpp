@@ -15,10 +15,11 @@ namespace BehaviorTestsDefinitions {
         std::string target_device;
         std::vector<int> order;
         std::tie(target_device, order) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!order.empty()) {
-            std::string objects[] = { "core", "exec-net", "requcest", "state" };
+            std::string objects[] = { "core", "exec.net", "request", "state" };
             for (auto &Item : order) {
                 result << objects[Item] << "_";
             }

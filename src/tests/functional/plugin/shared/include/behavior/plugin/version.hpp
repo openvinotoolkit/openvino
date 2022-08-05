@@ -21,6 +21,7 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> config;
         targetDevice = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice;
         return result.str();

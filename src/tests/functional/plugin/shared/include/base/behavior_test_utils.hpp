@@ -48,6 +48,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto &configItem : configuration) {
@@ -112,7 +113,6 @@ public:
     }
 };
 
-// TODO
 class IEClassBaseTestP : public IEClassNetworkTest,
                          public ::testing::WithParamInterface<std::string>,
                          public IEPluginTestBase {
@@ -151,9 +151,10 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::tie(netPrecision, targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
-        result << "targetDevice=" << targetDevice;
+        result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             result << "config=" << configuration;
         }

@@ -36,6 +36,7 @@ void ApiSummaryDestroyer::initialize(ApiSummary *p) {
 ApiSummary::ApiSummary() : apiStats() {
     reportFilename = CommonTestUtils::API_REPORT_FILENAME;
     isCrashReported = false;
+    isHangReported = false;
 }
 
 ApiSummary &ApiSummary::getInstance() {
@@ -69,6 +70,10 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         cur_stat[real_device].crashed--;
         isCrashReported = false;
     }
+    if (isHangReported) {
+        isHangReported = false;
+        return;
+    }
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
@@ -83,6 +88,7 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         }
         case PassRate::Statuses::HANGED: {
             cur_stat[real_device].hanged++;
+            isHangReported = true;
             break;
         }
         case PassRate::Statuses::FAILED: {

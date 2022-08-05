@@ -21,6 +21,6 @@ const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::ValuesIn(return_all_possible_device_combination()),
-                                            ::testing::ValuesIn(ie_config)),
+                                            ::testing::Values(ie_config)),
                          InferRequestSetBlobByType::getTestCaseName);
 } // namespace

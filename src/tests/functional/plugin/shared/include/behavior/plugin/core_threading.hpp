@@ -92,12 +92,13 @@ public:
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = obj.param;
+        std::replace(deviceName.begin(), deviceName.end(), ':', '.');
         char separator('_');
         std::ostringstream result;
         result << "targetDevice=" << deviceName << separator;
         result << "config=";
         for (auto& confItem : config) {
-            result << confItem.first << ":" << confItem.second << separator;
+            result << confItem.first << "=" << confItem.second << separator;
         }
         return result.str();
     }
@@ -199,6 +200,7 @@ public:
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = std::get<0>(obj.param);
+        std::replace(deviceName.begin(), deviceName.end(), ':', '.');
         numThreads = std::get<1>(obj.param);
         numIterations = std::get<2>(obj.param);
         char separator('_');
@@ -206,7 +208,7 @@ public:
         result << "targetDevice=" << deviceName << separator;
         result << "config=";
         for (auto& confItem : config) {
-            result << confItem.first << ":" << confItem.second << separator;
+            result << confItem.first << "=" << confItem.second << separator;
         }
         result << "numThreads=" << numThreads << separator;
         result << "numIter=" << numIterations;
