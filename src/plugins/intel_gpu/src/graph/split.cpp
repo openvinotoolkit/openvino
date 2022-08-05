@@ -15,18 +15,17 @@ primitive_type_id split::type_id() {
     return &instance;
 }
 
-layout split_inst::calc_output_layout(split_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+layout split_inst::calc_output_layout(split_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for split_node!");
-    auto desc = impl_param.typed_desc<split>();
-    auto output_ids = desc->output_ids;
-    auto output_offsets = desc->output_offsets;
+    auto output_ids = node.get_primitive()->output_ids;
+    auto output_offsets = node.get_primitive()->output_offsets;
     auto param_num = output_ids.size();
-    auto input_sizes = impl_param.get_non_padded_input_layout().get_tensor();
+    auto input_sizes = node.get_dependency(0).get_non_padded_output_layout().size;
     tensor null_tensor { 0, 0, 0, 0 };
 
     // check if output_ids count equals output_offsets count
-    CLDNN_ERROR_NOT_EQUAL(desc->id,
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Output_ids count",
                           param_num,
                           "output_offsets count",
@@ -36,7 +35,7 @@ layout split_inst::calc_output_layout(split_node const& node, kernel_impl_params
     for (decltype(param_num) i = 0; i < param_num; i++) {
         if (i != param_num - 1)
             // check if output offset sizes is less than next output offset sizes
-            CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(desc->id,
+            CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
                                                   "output_offsets",
                                                   output_offsets[i],
                                                   "next output_offsets",
@@ -44,7 +43,7 @@ layout split_inst::calc_output_layout(split_node const& node, kernel_impl_params
                                                   "Output_offsets tensor/ next input output_offsets tensor mismatch");
         else
             // check if output offset sizes matches output offsets sizes
-            CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(desc->id,
+            CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
                                                   "Output_offsets",
                                                   output_offsets[i],
                                                   "input sizes",
@@ -52,7 +51,7 @@ layout split_inst::calc_output_layout(split_node const& node, kernel_impl_params
                                                   "Output_offsets tensor/ input tensor mismatch");
 
         // check if offsets do not extend input sizes and if match the output sizes
-        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(desc->id,
+        CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),
                                            "Output_offsets",
                                            output_offsets[i],
                                            "0 value",
@@ -60,7 +59,7 @@ layout split_inst::calc_output_layout(split_node const& node, kernel_impl_params
                                            "Invalid output_offsets: dims cannot be less than 0");
     }
 
-    return impl_param.get_non_padded_input_layout();
+    return node.input().get_non_padded_output_layout();
 }
 
 std::string split_inst::to_string(split_node const& node) {

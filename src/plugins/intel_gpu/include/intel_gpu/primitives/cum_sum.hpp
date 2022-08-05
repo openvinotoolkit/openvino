@@ -17,6 +17,15 @@ namespace cldnn {
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
 
+    enum cum_sum_axis {
+        along_b,
+        along_f,
+        along_x,
+        along_y,
+        along_z,
+        along_w
+    };
+
     /// @brief Constructs cum_sum primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -25,7 +34,7 @@ struct cum_sum : public primitive_base<cum_sum> {
     /// @param reverse If set to true will perform the sums in reverse direction.
     cum_sum(const primitive_id& id,
             const primitive_id& input,
-            const int64_t axis = 0,
+            const cum_sum_axis axis = along_b,
             const bool exclusive = false,
             const bool reverse = false,
             const primitive_id& ext_prim_id = "",
@@ -34,7 +43,7 @@ struct cum_sum : public primitive_base<cum_sum> {
     {}
 
     /// @brief Scalar axis.
-    int64_t axis;
+    cum_sum_axis axis;
     /// @brief If set to true then the top element is not included in sum.
     bool exclusive;
     /// @brief If set to true will perform the sums in reverse direction.

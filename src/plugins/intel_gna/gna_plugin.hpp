@@ -26,14 +26,8 @@
 #include <gna2-model-api.h>
 
 namespace GNAPluginNS {
-namespace request {
-class ModelWrapper;
-class WorkerPool;
-class Worker;
-}  // namespace request
-
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
-protected:
+ protected:
     std::string _pluginName = "GNA";
 
     Config config {};
@@ -45,17 +39,27 @@ protected:
 
     GNAPluginNS::GNAGraphCompiler graphCompiler;
 
+    /**
+     * @brief - copy of nnet structure and indicator that related infer request not yet synced
+     */
+    static constexpr uint32_t FAKE_REQUEST_CONFIG_ID = 0xffffffff;
+    std::vector<std::tuple<dnn_ptr>> gnaModels;
+    std::vector<std::tuple<uint32_t, int64_t, InferenceEngine::BlobMap>> gnaRequestConfigToRequestIdMap;
+
     uint32_t activeLayerIndex = 0xffffffff;
     TranspositionInfoMap transpose_inputs_info;
     TranspositionInfoMap transpose_outputs_info;
-
+    uint32_t *ptr_active_indices = nullptr;
+    uint32_t num_active_indices = 0;
+    uint32_t num_group_in = 0;
     uint32_t dnn_dump_write_index = 0;
     intel_dnn_number_type_t output_type = kDnnInt;
 
+    void createRequestConfigsForGnaModels();
+
+    static int GetDeviceVersionFromString(const std::string deviceString);
+
     std::shared_ptr<GNADeviceHelper> gnadevice;
-
-    std::shared_ptr<request::WorkerPool> requestWorkerPool_;
-
     /**
      * @brief size of RW segment without extra memory for parallel execution
      */
@@ -78,7 +82,7 @@ protected:
     std::string GetName() const noexcept override;
     void SetName(const std::string & pluginName) noexcept override;
 
-    void LoadNetwork(const InferenceEngine::CNNNetwork& network);
+    void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
@@ -91,7 +95,7 @@ protected:
                                                      const std::map<std::string, std::string>& config) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     bool Wait(uint32_t idx);
-    RequestStatus WaitFor(uint32_t idx, int64_t millisTimeout);
+    GnaWaitStatus WaitFor(uint32_t idx, int64_t millisTimeout);
 
     InferenceEngine::Parameter GetConfig(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
@@ -201,7 +205,7 @@ protected:
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
-    void UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Model> model);
+    void UpdateInputsAndOutputsInfoFromModel(const std::shared_ptr<ov::Model> &model);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator
@@ -216,16 +220,6 @@ protected:
      * @param layers model sorted layers
      */
     void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
-
-    bool isFP32ModeActive() const;
-    std::string effectiveGnaCompileTarget() const;
-    std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
-    std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
-    std::shared_ptr<request::Worker> createWorkerForLoadNetwork(bool trivial, bool fp32Mode);
-    std::shared_ptr<request::Worker> createWorker(std::shared_ptr<request::ModelWrapper> modelWrapper,
-                                                  bool trivial,
-                                                  bool fp32Mode);
-
 #ifdef PLOT
     void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
         InferenceEngine::ordered_properties& printed_properties,

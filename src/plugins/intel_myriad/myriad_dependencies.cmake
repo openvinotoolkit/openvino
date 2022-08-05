@@ -80,7 +80,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-            DESTINATION ${OV_CPACK_PLUGINSDIR}
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
 
     if(ENABLE_INTEL_MYRIAD AND ENABLE_BEH_TESTS)

@@ -22,10 +22,7 @@ else()
 endif()
 
 if(SAMPLES_ENABLE_OPENCL)
-    find_package(OpenCL QUIET)
-    if(NOT OpenCL_FOUND)
-        MESSAGE(WARNING "OpenCL is disabled or not found, ${TARGET_NAME} will be built without OpenCL support. Install OpenCL.")
-    endif()
+    find_package(OpenCL)
 
     find_path(OpenCL_HPP_INCLUDE_DIR
         NAMES
@@ -52,8 +49,6 @@ if(SAMPLES_ENABLE_OPENCL)
         # Append OpenCL CPP headers to C headers and use both
         set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
         set(OpenCL_LIB "OpenCL::OpenCL")
-    else()
-        MESSAGE(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
     endif()
 
     if(OpenCL_FOUND AND OpenCL_HEADERS)

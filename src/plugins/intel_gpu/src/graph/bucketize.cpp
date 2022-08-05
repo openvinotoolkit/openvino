@@ -16,10 +16,10 @@ primitive_type_id bucketize::type_id() {
     return &instance;
 }
 
-layout bucketize_inst::calc_output_layout(const bucketize_node& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout();
-    auto primitive = impl_param.desc;
-    return {*primitive->output_data_type, input_layout.format, input_layout.get_tensor()};
+layout bucketize_inst::calc_output_layout(const bucketize_node& node) {
+    auto input_layout = node.input().get_output_layout();
+    auto primitive = node.get_primitive();
+    return {*primitive->output_data_type, input_layout.format, input_layout.size};
 }
 
 std::string bucketize_inst::to_string(const bucketize_node& node) {

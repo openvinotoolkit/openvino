@@ -17,6 +17,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type" FORCE)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv)
+endif()
+
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
@@ -112,8 +116,5 @@ add_subdirectory(licensing)
 #
 # CPack
 #
-
-# provides a callback function to describe each component in repo
-include(cmake/packaging/packaging.cmake)
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})

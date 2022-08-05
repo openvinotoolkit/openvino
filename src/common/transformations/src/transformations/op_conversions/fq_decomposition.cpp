@@ -125,6 +125,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         result->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(fake_quantize_node, decomp_ops);
         ngraph::replace_node(m.get_match_root(), result);
+        MATCHER_SCOPE_ENABLE(FakeQuantizeDecomposition);
         return true;
     };
 

@@ -20,7 +20,6 @@ endif()
 #
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
-#               [PSEUDO_DEVICE]
 #               [PSEUDO_PLUGIN_FOR <actual_device>]
 #               [AS_EXTENSION]
 #               [DEFAULT_CONFIG <key:value;...>]
@@ -33,7 +32,7 @@ endif()
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -80,7 +79,7 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "OpenVINO Runtime ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
@@ -136,22 +135,11 @@ function(ie_add_plugin)
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
-
-            if(IE_PLUGIN_PSEUDO_DEVICE)
-                set(plugin_hidden HIDDEN)
-            endif()
-            ie_cpack_add_component(${install_component} 
-                                   DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
-                                   DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
-                                   ${plugin_hidden}
-                                   DEPENDS ${OV_CPACK_COMP_CORE})
+            ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
             if(BUILD_SHARED_LIBS)
                 install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
-                        COMPONENT ${install_component})
-                install(TARGETS ${IE_PLUGIN_NAME}
-                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
+                        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
                         COMPONENT ${install_component})
             else()
                 ov_install_static_lib(${IE_PLUGIN_NAME} ${install_component})

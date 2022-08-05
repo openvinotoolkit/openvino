@@ -240,7 +240,7 @@ void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>
             NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
             if (m->match(node->output(0))) {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                OV_PASS_CALLBACK(m);
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -297,9 +297,8 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-            OV_PASS_CALLBACK(m);
-            const bool status = callback(*m.get());
-            NGRAPH_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
+            NGRAPH_PASS_CALLBACK(m);
+            bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;

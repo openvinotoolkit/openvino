@@ -819,7 +819,11 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
 }
 
 bool Engine::isLegacyAPI() const {
-    return !IsNewAPI();
+    const auto& core = GetCore();
+    if (!core)
+        IE_CPU_PLUGIN_THROW() << "Unable to get API version. Core is unavailable";
+
+    return !core->isNewAPI();
 }
 
 Parameter Engine::GetConfigLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {

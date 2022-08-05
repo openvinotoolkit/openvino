@@ -9,6 +9,7 @@
 #include <ngraph/op/dft.hpp>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -49,4 +50,5 @@ REGISTER_FACTORY_IMPL(v7, DFT);
 REGISTER_FACTORY_IMPL(v7, IDFT);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

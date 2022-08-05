@@ -16,6 +16,7 @@
 #include "intel_gpu/primitives/concatenation.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 static cldnn::activation_func GetActivationFunc(std::string name) {
     static const std::map<std::string, cldnn::activation_func> name_mapping = {
@@ -355,4 +356,5 @@ REGISTER_FACTORY_IMPL(v4, LSTMCell);
 REGISTER_FACTORY_IMPL(v5, LSTMSequence);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

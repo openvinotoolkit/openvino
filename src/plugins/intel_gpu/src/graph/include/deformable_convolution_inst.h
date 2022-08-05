@@ -56,15 +56,6 @@ public:
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
 
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
-                                              const layout& out_layout) const override {
-        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(),
-                                  in_layouts, out_layout,
-                                  get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
-                                  optional_layout(weights().get_output_layout()),
-                                  bias_term() ? optional_layout(bias().get_output_layout()) : optional_layout()));
-    }
-
 private:
     int32_t split;
     bool depthwise_sep_opt;
@@ -79,7 +70,7 @@ class typed_primitive_inst<deformable_conv> : public typed_primitive_inst_base<d
     using parent = typed_primitive_inst_base<deformable_conv>;
 
 public:
-    static layout calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(deformable_conv_node const& node);
     static std::string to_string(deformable_conv_node const& node);
 
 public:
@@ -159,7 +150,7 @@ class typed_primitive_inst<deformable_interp> : public typed_primitive_inst_base
     using parent = typed_primitive_inst_base<deformable_interp>;
 
 public:
-    static layout calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(deformable_interp_node const& node);
     static std::string to_string(deformable_interp_node const& node);
 
 public:

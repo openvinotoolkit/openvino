@@ -17,8 +17,6 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "assign_inst.h"
-#include "read_value_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -114,7 +112,7 @@ static size_t get_x_pitch(const layout& layout) {
 
 template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
-    auto&& size = mem->get_layout().get_tensor();
+    auto&& size = mem->get_layout().size;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
@@ -540,7 +538,7 @@ void network::allocate_primitives() {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
             size_t eltw_dep = 0;
             for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
@@ -878,8 +876,6 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
-    if (std::dynamic_pointer_cast<assign_inst>(inst) || std::dynamic_pointer_cast<read_value_inst>(inst))
-        _variable_state_primitives.push_back(inst);
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
 }
@@ -919,26 +915,4 @@ memory::ptr network::get_memory_from_pool(const layout& layout,
         return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
 }
-
-network::VariableState& network::get_variable_memory(const std::string &variable_id) {
-    auto it = _variables_states.find(variable_id);
-    if (it == _variables_states.end()) {
-        CLDNN_ERROR_MESSAGE(variable_id, "Variable not found");
-    }
-    return *it->second;
-}
-
-void network::assign_variables_memories(variables_states_map &&variables_memories) {
-    _variables_states = variables_memories;
-    for (auto primitive : _variable_state_primitives) {
-        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-            auto it = _variables_states.find(memory_state_primitive->variable_id());
-            if (it != _variables_states.end())
-                primitive->set_output_memory(it->second->memory, false);
-            else
-                CLDNN_ERROR_MESSAGE(memory_state_primitive->variable_id(), "Memory state not found");
-        }
-    }
-}
-
 }  // namespace cldnn

@@ -24,6 +24,7 @@
 using TensorIterator = ngraph::op::v0::TensorIterator;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
@@ -44,6 +45,15 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     auto mem = p.GetEngine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency
     return md;
+}
+
+static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
+        const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
+    for (auto& back_edge : back_edges) {
+        if (back_edge.from == old_primitive_id) {
+            back_edge.from = new_primitive_id;
+        }
+    }
 }
 
 static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
@@ -191,4 +201,5 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 REGISTER_FACTORY_IMPL(v0, TensorIterator);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

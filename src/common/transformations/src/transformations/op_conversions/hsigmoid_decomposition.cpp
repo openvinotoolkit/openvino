@@ -36,6 +36,7 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         mul->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(hsigmoid_node, {add_constant, add, relu, min_constant, min, min_constant, mul});
         ngraph::replace_node(m.get_match_root(), mul);
+        MATCHER_SCOPE_ENABLE(HSigmoidDecomposition);
         return true;
     };
 

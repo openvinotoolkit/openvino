@@ -20,14 +20,13 @@ primitive_type_id reorder::type_id() {
     return &instance;
 }
 
-layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout();
+layout reorder_inst::calc_output_layout(reorder_node const& node) {
+    auto input_layout = node.input().get_output_layout();
     auto ifmt = input_layout.format;
 
-    auto desc = impl_param.typed_desc<reorder>();
-    auto odt = *desc->output_data_type;
-    auto ofmt = desc->output_format;
-    auto op = desc->output_padding;
+    auto odt = *node.get_primitive()->output_data_type;
+    auto ofmt = node.get_primitive()->output_format;
+    auto op = node.get_primitive()->output_padding;
 
     if (ofmt == format::any) {
         ofmt = ifmt;
@@ -39,14 +38,14 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         if (ofmt != ifmt)
             return layout(odt, ofmt, data_size, op);
 
-        CLDNN_ERROR_MESSAGE(desc->id, "No image_nv12 to image_nv12 reorder is supported");
+        CLDNN_ERROR_MESSAGE(node.id(), "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
-            return layout(odt, ofmt, input_layout.get_tensor(), op);
+            return layout(odt, ofmt, input_layout.size, op);
 
-        CLDNN_ERROR_MESSAGE(desc->id, "Reordering between winograd weights and data formats is unsupported");
+        CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
+        return layout(data_types::f16, format::bfyx, input_layout.size, op);
     }
 
     // transformation of data from standard to winograd
@@ -90,13 +89,13 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
     // transformation of weights from standard to winograd
     if (ofmt == format::winograd_2x3_s1_weights || ofmt == format::winograd_2x3_s1_fused_weights) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "input_layout.spatial(0)",
                               input_layout.spatial(0),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "input_layout.spatial(1)",
                               input_layout.spatial(1),
                               "expected value",
@@ -105,13 +104,13 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
         return layout(odt, ofmt, tensor{input_layout.batch(), input_layout.feature(), 4, 3});
     } else if (ofmt == format::winograd_6x3_s1_fused_weights) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "input_layout.spatial(0)",
                               input_layout.spatial(0),
                               "expected value",
                               3,
                               "input for conversion to winograd_2x3_s1 weights format should have spatial size 3x3");
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "input_layout.spatial(1)",
                               input_layout.spatial(1),
                               "expected value",
@@ -148,7 +147,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     // transformation of weights from winograd to standard
     if (ifmt == format::winograd_2x3_s1_weights || ifmt == format::winograd_2x3_s1_fused_weights ||
         ifmt == format::winograd_6x3_s1_fused_weights) {
-        CLDNN_ERROR_MESSAGE(desc->id,
+        CLDNN_ERROR_MESSAGE(node.id(),
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
@@ -158,12 +157,12 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
-        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
-        return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
+        return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.get_tensor(), op);
+        return layout(odt, ofmt, input_layout.size, op);
     }
 }
 
@@ -198,16 +197,16 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                           "Input dimension size",
-                          input_layout.get_tensor().raw.size(),
+                          input_layout.size.raw.size(),
                           "ouput dimension size",
-                          output_layout.get_tensor().raw.size(),
+                          output_layout.size.raw.size(),
                           "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
                           "(reorder) or when input > output (flatten).");
 
     if (!argument.subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
-                                 input_layout.get_tensor().feature.size(),
+                                 input_layout.size.feature.size(),
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");

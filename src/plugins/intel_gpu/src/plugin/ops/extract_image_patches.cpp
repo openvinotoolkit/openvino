@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static inline std::string PadToString(ngraph::op::PadType pad) {
@@ -49,4 +50,5 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
 REGISTER_FACTORY_IMPL(v3, ExtractImagePatches);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

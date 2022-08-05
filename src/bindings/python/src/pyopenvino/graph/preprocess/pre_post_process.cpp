@@ -250,12 +250,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"),
-        R"(
-            Set layout for input tensor info 
-            :param layout: layout to be set
-            :type layout: Union[str, openvino.runtime.Layout]
-        )");
+        py::arg("layout"));
 
     info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& self) {
         return &self.set_spatial_dynamic_shape();
@@ -364,12 +359,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         [](ov::preprocess::OutputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"),
-        R"(
-            Set layout for output tensor info 
-            :param layout: layout to be set
-            :type layout: Union[str, openvino.runtime.Layout]
-        )");
+        py::arg("layout"));
 }
 
 static void regclass_graph_InputInfo(py::module m) {
@@ -417,12 +407,7 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         [](ov::preprocess::OutputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"),
-        R"(
-            Set layout for output model info 
-            :param layout: layout to be set
-            :type layout: Union[str, openvino.runtime.Layout]
-        )");
+        py::arg("layout"));
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -436,12 +421,7 @@ static void regclass_graph_InputModelInfo(py::module m) {
         [](ov::preprocess::InputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"),
-        R"(
-            Set layout for input model
-            :param layout: layout to be set
-            :type layout: Union[str, openvino.runtime.Layout]
-        )");
+        py::arg("layout"));
 }
 
 static void regenum_graph_ColorFormat(py::module m) {

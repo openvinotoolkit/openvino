@@ -7,6 +7,7 @@
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "ngraph/except.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
@@ -19,11 +20,6 @@ class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
 
-    /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
-    static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
-    /// \brief Mutex to guard access the shared object map
-    static std::mutex m_shared_objects_map_mutex;
-
 public:
     Impl() {
         search_all_plugins();
@@ -31,20 +27,9 @@ public:
 
     ~Impl() = default;
 
-    FrontEnd::Ptr make_frontend(const ov::frontend::PluginInfo& plugin) {
-        auto fe_obj = std::make_shared<FrontEnd>();
-        fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
-        fe_obj->m_actual = plugin.get_creator().m_creator();
-
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
-
-        return fe_obj;
-    }
-
     FrontEnd::Ptr load_by_framework(const std::string& framework) {
         // Mapping of default FE name to file name (without prefix and suffix)
-        static const std::map<std::string, std::string> predefined_frontends = {
+        std::map<std::string, std::string> predefined_frontends = {
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
@@ -59,7 +44,10 @@ public:
             });
             if (plugin_it != m_plugins.end()) {
                 if (plugin_it->load()) {
-                    return make_frontend(*plugin_it);
+                    auto fe_obj = std::make_shared<FrontEnd>();
+                    fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
+                    fe_obj->m_actual = plugin_it->get_creator().m_creator();
+                    return fe_obj;
                 }
             }
         }
@@ -67,7 +55,10 @@ public:
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
             if (plugin.get_creator().m_name == framework) {
-                return make_frontend(plugin);
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
+                fe_obj->m_actual = plugin.get_creator().m_creator();
+                return fe_obj;
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -101,7 +92,10 @@ public:
             auto fe = plugin.get_creator().m_creator();
             OPENVINO_ASSERT(fe, "Frontend error: frontend '", plugin.get_creator().m_name, "' created null FrontEnd");
             if (fe->supported(variants)) {
-                return make_frontend(plugin);
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
         return nullptr;
@@ -111,11 +105,6 @@ public:
         PluginInfo plugin_info(name, std::move(creator));
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         m_plugins.push_back(std::move(plugin_info));
-    }
-
-    static void shutdown() {
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.clear();
     }
 
 private:
@@ -195,7 +184,10 @@ private:
             auto fe = plugin_info.get_creator().m_creator();
             if (fe && fe->supported(variants)) {
                 // Priority FE (e.g. IR) is found and is suitable
-                return make_frontend(*plugin_it);
+                auto fe_obj = std::make_shared<FrontEnd>();
+                fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin_it->get_so_pointer());
+                fe_obj->m_actual = fe;
+                return fe_obj;
             }
         }
         return {};
@@ -223,9 +215,6 @@ private:
     }
 };
 
-std::unordered_map<std::string, std::shared_ptr<void>> FrontEndManager::Impl::m_shared_objects_map{};
-std::mutex FrontEndManager::Impl::m_shared_objects_map_mutex{};
-
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 
 FrontEndManager::FrontEndManager(FrontEndManager&&) noexcept = default;
@@ -252,8 +241,4 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
 template <>
 FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants) {
     return load_by_model_impl(variants);
-}
-
-void FrontEndManager::shutdown() {
-    Impl::shutdown();
 }

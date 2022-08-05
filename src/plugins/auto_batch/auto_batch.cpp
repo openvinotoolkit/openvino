@@ -480,7 +480,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin || !_plugin->IsNewAPI())
+    if (!this->_plugin)
+        return nullptr;
+    const auto& core = _plugin->GetCore();
+    if (!core || !core->isNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<AutoBatchInferRequest>(inputs,

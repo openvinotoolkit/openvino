@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
@@ -29,4 +30,5 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 REGISTER_FACTORY_IMPL(v0, Tile);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

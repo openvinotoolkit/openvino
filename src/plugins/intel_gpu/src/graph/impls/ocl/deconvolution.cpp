@@ -51,18 +51,24 @@ protected:
     uint32_t get_groups() const override { return _outer.get_groups(); }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const deconvolution_node& arg) {
         const auto& primitive = arg.get_primitive();
+        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(primitive->grouped_weights_shape);
+
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-        const ov::Strides dilation(impl_param->output_layout.get_spatial_rank(), 1);
+#if 0  // TODO: support dilation
+        const auto& dilation = primitive->dilation;
+#else
+        const ov::Strides dilation(arg.get_output_layout().get_spatial_rank(), 1);
+#endif
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
-            *impl_param,
+            arg,
             (groups > 1) ? 1 : actual_split,
             1,
             primitive->grouped_weights_shape);
@@ -72,8 +78,6 @@ public:
         deconv_params.split = split;
         deconv_params.groups = groups;
 
-        const auto weights_idx = 1 + 0;
-        const auto& weights_layout = impl_param->input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);

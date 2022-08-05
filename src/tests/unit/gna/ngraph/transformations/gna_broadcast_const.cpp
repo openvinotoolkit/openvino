@@ -12,7 +12,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 #include "legacy/ngraph_ops/eltwise.hpp"
-#include "legacy/ngraph_ops/scaleshift.hpp"
 
 namespace testing {
 
@@ -123,40 +122,22 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
                                                  bool add_input_fake_quantize,
                                                  bool add_const_fake_quantize,
                                                  bool swap_outputs,
-                                                 bool add_scaleshift,
                                                  EltwiseFactoryPtr eltwise_factory) {
-    const auto input_params_1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
-    ngraph::ParameterVector params{input_params_1};
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
 
-    const auto constant_1 = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+    auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
                                                      ngraph::Shape{const_shape_dims},
                                                      const_shape_values);
-
-    Node const_last_node = constant_1;
-
-    if (add_scaleshift) {
-        const auto input_params_2 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
-        params.push_back(input_params_2);
-
-        const auto constant_2 = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                         ngraph::Shape{const_shape_dims},
-                                                         const_shape_values);
-
-        const_last_node = std::make_shared<ngraph::op::ScaleShiftIE>(input_params_2,
-                                                         constant_1,
-                                                         constant_2,
-                                                         ngraph::element::Type_t::f32);
-    }
+    Node const_last_node = constant;
 
     if (add_const_fake_quantize) {
-        const auto fake_quantize = createFakeQuantizeNode(const_last_node);
+        auto fake_quantize = createFakeQuantizeNode(const_last_node);
         const_last_node = fake_quantize;
     }
 
-    Node input_last_node = input_params_1;
-
+    Node input_last_node = input_params;
     if (add_input_fake_quantize) {
-        const auto fake_quantize = createFakeQuantizeNode(input_last_node);
+        auto fake_quantize = createFakeQuantizeNode(input_params);
         input_last_node = fake_quantize;
     }
 
@@ -166,10 +147,11 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
     if (swap_outputs)
         left_node.swap(right_node);
 
-    const auto add = eltwise_factory->CreateNode(left_node, right_node);
+    auto add = eltwise_factory->CreateNode(left_node, right_node);
 
-    const auto result = std::make_shared<ngraph::opset8::Result>(add);
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, params);
+    auto result = std::make_shared<ngraph::opset8::Result>(add);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{input_params});
 }
 
 } // namespace
@@ -181,7 +163,6 @@ class BroadcastConstTestFixture: public CommonTestUtils::TestsCommon,
                                                                                         bool /* add_input_fake_quantize */,
                                                                                         bool /* add_const_fake_quantize */,
                                                                                         bool /* swap_outputs */,
-                                                                                        bool /* add_scaleshift */,
                                                                                         ov::op::AutoBroadcastType>> {
 public:
     void SetUp() override;
@@ -195,9 +176,8 @@ void BroadcastConstTestFixture::SetUp() {
     bool add_input_fake_quantize;
     bool add_const_fake_quantize;
     bool swap_outputs;
-    bool add_scaleshift;
     ov::op::AutoBroadcastType broadcast_type;
-    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, add_scaleshift, broadcast_type) = this->GetParam();
+    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, broadcast_type) = this->GetParam();
 
     eltwise_factory->SetBroadcastType(broadcast_type);
 
@@ -209,7 +189,6 @@ void BroadcastConstTestFixture::SetUp() {
                               add_input_fake_quantize,
                               add_const_fake_quantize,
                               swap_outputs,
-                              add_scaleshift,
                               eltwise_factory);
     reference_function = CreateFunction(shape_info.data_shape,
                               shape_info.data_shape,
@@ -217,7 +196,6 @@ void BroadcastConstTestFixture::SetUp() {
                               add_input_fake_quantize,
                               add_const_fake_quantize,
                               swap_outputs,
-                              add_scaleshift,
                               eltwise_factory);
 }
 
@@ -283,7 +261,6 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestNumpySuite, BroadcastConstTestFixture
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Bool(),
                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY)));
 
 INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite, BroadcastConstTestFixture,
@@ -291,7 +268,6 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite, BroadcastConstTestFixture,
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Values(false),
-                                            ::testing::Bool(),
                                             ::testing::Values(ov::op::AutoBroadcastType::PDPD)));
 
 // ------------------------------------------------------------------------------------------------
@@ -301,7 +277,6 @@ class BroadcastConstTestPassedFixture: public CommonTestUtils::TestsCommon,
                                                                                         bool /* add_input_fake_quantize */,
                                                                                         bool /* add_const_fake_quantize */,
                                                                                         bool /* swap_outputs */,
-                                                                                        bool /* add_scaleshift */,
                                                                                         ov::op::AutoBroadcastType>> {
 public:
     void SetUp() override;
@@ -315,9 +290,8 @@ void BroadcastConstTestPassedFixture::SetUp() {
     bool add_input_fake_quantize;
     bool add_const_fake_quantize;
     bool swap_outputs;
-    bool add_scaleshift;
     ov::op::AutoBroadcastType broadcast_type;
-    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, add_scaleshift, broadcast_type) = this->GetParam();
+    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, broadcast_type) = this->GetParam();
 
     eltwise_factory->SetBroadcastType(broadcast_type);
 
@@ -329,7 +303,6 @@ void BroadcastConstTestPassedFixture::SetUp() {
                               add_input_fake_quantize,
                               add_const_fake_quantize,
                               swap_outputs,
-                              add_scaleshift,
                               eltwise_factory);
 }
 
@@ -339,7 +312,6 @@ TEST_P(BroadcastConstTestPassedFixture, CompareFunctionsPassedTypes) {
 
 INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPassedSuite, BroadcastConstTestPassedFixture,
                          ::testing::Combine(::testing::ValuesIn(opset8_eltwise_factories),
-                                            ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),

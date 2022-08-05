@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/one_hot.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::OneHot>& op) {
@@ -74,4 +75,5 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
 REGISTER_FACTORY_IMPL(v1, OneHot);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

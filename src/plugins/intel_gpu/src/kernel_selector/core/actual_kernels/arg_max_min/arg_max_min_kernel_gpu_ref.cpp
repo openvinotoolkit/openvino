@@ -15,6 +15,7 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableArgMaxMinAxis(ArgMaxMinAxis::XYF);
     k.EnableDifferentTypes();
     k.EnableBatching();
     return k;

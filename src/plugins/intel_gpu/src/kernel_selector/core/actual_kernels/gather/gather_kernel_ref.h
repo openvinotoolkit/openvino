@@ -36,7 +36,7 @@ public:
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
+                 FusedOpType::SCALE,
                  FusedOpType::ACTIVATION };
     }
 

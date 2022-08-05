@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/program.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -31,4 +32,5 @@ void CreateBucketizeOp(Program& p, const std::shared_ptr<ngraph::op::v3::Bucketi
 REGISTER_FACTORY_IMPL(v3, Bucketize);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

@@ -12,6 +12,7 @@
 #include <openvino/itt.hpp>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 namespace itt {
 namespace domains {
@@ -19,4 +20,5 @@ namespace domains {
 }  // namespace domains
 }  // namespace itt
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

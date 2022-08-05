@@ -53,6 +53,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                              const_empty_replacement);
             }
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
+            MATCHER_SCOPE_ENABLE(FoldSubgraphEmptyInputs);
             return true;
         }
         return false;

@@ -44,6 +44,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
@@ -328,4 +329,5 @@ REGISTER_FACTORY_IMPL(v5, Round);
 REGISTER_FACTORY_IMPL(v9, SoftSign);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

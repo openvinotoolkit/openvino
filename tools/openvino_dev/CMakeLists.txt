@@ -24,8 +24,8 @@ add_custom_target(openvino_dev_wheel ALL DEPENDS ${openvino_wheel_path})
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
+ie_cpack_add_component(python_wheels)
 
 install(FILES ${openvino_wheel_path}
-        DESTINATION ${OV_CPACK_WHEELSDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})
+        DESTINATION tools
+        COMPONENT python_wheels)

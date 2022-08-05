@@ -54,6 +54,7 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -399,7 +400,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     auto ops = func->get_ordered_ops();
 
     //Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
+    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);;
     std::unordered_set<std::string> unsupported;
 
     std::unordered_set<std::string> supportedNotOriginal;
@@ -574,7 +575,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = IsNewAPI();
+    const bool is_new_api = GetCore()->isNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -599,7 +600,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);
+                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
                 return temp;
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
@@ -695,7 +696,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     auto iter = device_map.find(device_id);
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
-    bool is_new_api = IsNewAPI();
+    bool is_new_api = GetCore()->isNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
@@ -1000,7 +1001,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<Program> program;
 
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 
@@ -1090,7 +1091,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::Plugin, version)

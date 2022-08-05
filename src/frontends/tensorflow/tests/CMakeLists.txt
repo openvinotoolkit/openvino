@@ -4,7 +4,8 @@
 
 set(TARGET_NAME "tensorflow_tests")
 
-file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+list(FILTER SRC EXCLUDE REGEX standalone_build)
 
 add_executable(${TARGET_NAME} ${SRC})
 

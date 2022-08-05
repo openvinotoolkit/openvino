@@ -120,6 +120,7 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
         ngraph::copy_runtime_info(nms_5, new_ops);
         ngraph::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
+        MATCHER_SCOPE_ENABLE(ConvertNMSToNMSIEInternal);
         return true;
     };
 

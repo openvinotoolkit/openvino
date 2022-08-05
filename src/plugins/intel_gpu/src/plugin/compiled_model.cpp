@@ -30,6 +30,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
@@ -117,8 +118,10 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
         }
     }
 
-    if (this->_plugin && _plugin->IsNewAPI()) {
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin) {
+        const auto& core = _plugin->GetCore();
+        if (core && core->isNewAPI())
+            internalRequest = CreateInferRequestImpl(_parameters, _results);
     }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
@@ -137,7 +140,7 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 }
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
-    const bool is_new_api = _plugin->IsNewAPI();
+    const bool is_new_api = _plugin->GetCore()->isNewAPI();
     auto it = m_config.key_config_map.find(name);
     if (it != m_config.key_config_map.end()) {
         std::string val = it->second;
@@ -234,4 +237,5 @@ std::shared_ptr<InferenceEngine::RemoteContext> CompiledModel::GetContext() cons
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

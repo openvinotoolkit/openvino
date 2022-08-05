@@ -12,8 +12,4 @@ TEST_P(ROIAlignLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(ROIAlignV9LayerTest, CompareWithRefs) {
-    Run();
-}
-
 }  // namespace LayerTestsDefinitions

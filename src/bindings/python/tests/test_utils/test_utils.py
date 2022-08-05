@@ -10,23 +10,23 @@ from typing import Tuple, Union, List
 import numpy as np
 
 
-def get_test_model():
+def get_test_function():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ops.relu(param)
-    model = Model([relu], [param], "test")
-    assert model is not None
-    return model
+    func = Model([relu], [param], "test")
+    assert func is not None
+    return func
 
 
-def test_compare_models():
+def test_compare_functions():
     try:
-        from openvino.test_utils import compare_models
-        model = get_test_model()
-        status, _ = compare_models(model, model)
+        from openvino.test_utils import compare_functions
+        func = get_test_function()
+        status, _ = compare_functions(func, func)
         assert status
     except RuntimeError:
-        print("openvino.test_utils.compare_models is not available")
+        print("openvino.test_utils.compare_functions is not available")
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
@@ -37,11 +37,11 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
 def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.CompiledModel:
     param = ops.parameter(input_shape, np.float32, name="parameter")
     relu = ops.relu(param, name="relu")
-    model = Model([relu], [param], "test")
-    model.get_ordered_ops()[2].friendly_name = "friendly"
+    func = Model([relu], [param], "test")
+    func.get_ordered_ops()[2].friendly_name = "friendly"
 
     core = Core()
-    return core.compile_model(model, "CPU", {})
+    return core.compile_model(func, "CPU", {})
 
 
 def generate_add_model() -> openvino.pyopenvino.Model:

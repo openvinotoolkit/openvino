@@ -141,13 +141,10 @@ std::string convert_data_format_string(cldnn::format fmt) {
 void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     auto rank = cldnn::format::dimension(l.format);
     auto last_spatial_dim_idx = rank - 2 - 1;
-    auto t = l.get_tensor();
 
-    t.batch[0] *= l.feature();
-    t.feature[0] = t.spatial[last_spatial_dim_idx];
-    t.spatial[last_spatial_dim_idx] = 1;
-
-    l.set_tensor(t);
+    l.size.batch[0] *= l.feature();
+    l.size.feature[0] = l.size.spatial[last_spatial_dim_idx];
+    l.size.spatial[last_spatial_dim_idx] = 1;
 }
 
 int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
@@ -155,8 +152,8 @@ int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
         offset = f_padding;
-        for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
-            offset *= l.spatial(i);
+        for (size_t i = 0; i < l.size.spatial.size(); ++i) {
+            offset *= l.size.spatial[i];
         }
     }
 
@@ -252,17 +249,17 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     dnnl::memory::dims padded_dims;
     dnnl::memory::dims padded_offset;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
-        dims = flatten_tensor(l.get_tensor());
+        dims = flatten_tensor(l.size);
         dims.insert(dims.begin(), 1);
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
-        dims.push_back(l.get_tensor().count() / l.batch());
+        dims.push_back(l.size.count() / l.batch());
         padded_dims = dims;
     } else if (flatten) {
-        dims = flatten_tensor(l.get_tensor());
+        dims = flatten_tensor(l.size);
     } else {
         auto rank = cldnn::format::dimension(l.format);
-        dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
+        dims = convert_tensor(l.size, rank, cldnn::format::is_grouped(l.format));
     }
     padded_dims = dims;
     pad_dims(padded_dims, l.format);

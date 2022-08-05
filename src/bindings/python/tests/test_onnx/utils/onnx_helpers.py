@@ -21,7 +21,7 @@ def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
 def import_onnx_model(model: onnx.ModelProto) -> Model:
     onnx.checker.check_model(model)
     model_byte_string = model.SerializeToString()
-    core = Core()
-    model = core.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
+    ie = Core()
+    func = ie.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
 
-    return model
+    return func

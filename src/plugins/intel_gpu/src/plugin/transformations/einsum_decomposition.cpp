@@ -11,6 +11,7 @@
 #include <ngraph/rt_info.hpp>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -937,4 +938,5 @@ EinsumDecomposition::EinsumDecomposition() {
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

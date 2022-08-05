@@ -118,6 +118,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
         ngraph::copy_runtime_info(batch_to_space, new_ops);
         ngraph::replace_node(batch_to_space, flat_node);
+        MATCHER_SCOPE_ENABLE(ConvertBatchToSpace_convert_batch_to_space);
         return true;
     };
 
@@ -219,6 +220,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
         ngraph::copy_runtime_info(batch_to_space, new_ops);
         ngraph::replace_node(batch_to_space, flat_node);
+        MATCHER_SCOPE_ENABLE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
         return true;
     };
 

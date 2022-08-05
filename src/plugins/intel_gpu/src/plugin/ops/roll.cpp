@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/program.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -70,4 +71,5 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
 REGISTER_FACTORY_IMPL(v7, Roll);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

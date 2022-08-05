@@ -11,6 +11,7 @@
 #include "intel_gpu/plugin/device_config.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 class TransformationsPipeline {
@@ -25,4 +26,5 @@ private:
 };
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

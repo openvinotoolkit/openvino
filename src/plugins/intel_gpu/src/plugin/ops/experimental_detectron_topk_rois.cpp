@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/arg_max_min.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 namespace {
@@ -25,8 +26,8 @@ void CreateExperimentalDetectronTopKROIsOp(Program &p,
     auto layer_name = layer_type_name_ID(op);
     auto argmax_layer_name = layer_name + "_topk";
     auto top_k_indices = arg_max_min(argmax_layer_name,
-                                     {input_primitives[1]}, ov::op::TopKMode::MAX, max_rois, 0,
-                                     ov::op::TopKSortType::SORT_VALUES, false, "", cldnn::padding(), cldnn::data_types::i32);
+                                     {input_primitives[1]}, arg_max_min::max, max_rois, arg_max_min::batch,
+                                     arg_max_min::sort_by_values, false, "", cldnn::padding(), cldnn::data_types::i32);
 
 
     p.AddPrimitive(top_k_indices);
@@ -44,5 +45,6 @@ void CreateExperimentalDetectronTopKROIsOp(Program &p,
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronTopKROIs);
 
-}  // namespace intel_gpu
-}  // namespace ov
+} // namespace intel_gpu
+} // namespace runtime
+} // namespace ov

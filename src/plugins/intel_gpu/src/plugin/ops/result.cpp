@@ -12,6 +12,7 @@
 using namespace InferenceEngine;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
@@ -82,4 +83,5 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 REGISTER_FACTORY_IMPL(v0, Result);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

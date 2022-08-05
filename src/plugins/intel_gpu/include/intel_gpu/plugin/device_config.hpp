@@ -15,6 +15,7 @@
 #include <threading/ie_cpu_streams_executor.hpp>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 
@@ -108,4 +109,5 @@ private:
 };
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

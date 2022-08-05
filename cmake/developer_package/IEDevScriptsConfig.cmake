@@ -87,7 +87,7 @@ endif()
 # Common scripts
 #
 
-include(packaging/packaging)
+include(packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
@@ -193,7 +193,6 @@ set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
-set(CMAKE_SKIP_INSTALL_RPATH ON)
 
 # LTO
 
@@ -220,7 +219,7 @@ macro(ov_install_static_lib target comp)
             set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
         endif()
         install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
     endif()
 endmacro()
 

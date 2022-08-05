@@ -10,6 +10,7 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
+import json
 
 try:
     import openvino_telemetry as tm
@@ -158,7 +159,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     'Please ensure that your environment contains new frontend for the input model format or '
                     'try to convert the model without specifying --use_new_frontend option.')
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
@@ -234,8 +235,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
                     "Consider building the Inference Engine and nGraph Python APIs from sources or "
                     "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
-            "bat" if sys.platform == "windows" else "sh"))
-
+                    "bat" if sys.platform == "windows" else "sh"))
     try:
         if not find_ie_version(silent=argv.silent):
             raise_ie_not_found()
@@ -326,9 +326,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     return argv
 
-
-def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
-                    is_onnx: bool):
+def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool, is_onnx:bool):
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions.split(',')
@@ -353,7 +351,7 @@ def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mx
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
 
-def check_fallback(argv: argparse.Namespace):
+def check_fallback(argv : argparse.Namespace):
     fallback_reasons = {}
 
     # Some frontend such as PDPD does not have legacy path so it has no reasons to fallback
@@ -372,14 +370,7 @@ def check_fallback(argv: argparse.Namespace):
     return reasons
 
 
-def prepare_ir(argv: argparse.Namespace):
-    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-    # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    if argv.use_new_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        convert_to_pb(argv)
-
+def prepare_ir(argv : argparse.Namespace):
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -401,23 +392,14 @@ def prepare_ir(argv: argparse.Namespace):
                 for extension in argv.extensions.split(','):
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
-
-            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-            if argv.use_new_frontend and is_tf:
-                output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-                path_to_tmp_pb_file = os.path.normpath(os.path.join(output_dir, argv.model_name + "_tmp.pb"))
-                if os.path.exists(path_to_tmp_pb_file):
-                    os.remove(path_to_tmp_pb_file)
-
             return graph, ngraph_function
-        else:  # apply fallback
+        else: # apply fallback
             reasons_message = ", ".join(fallback_reasons)
             load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
             t.send_event("mo", "fallback_reason", reasons_message)
             log.warning("The IR preparation was executed by the legacy MO path. "
                         "This is a fallback scenario applicable only for some specific cases. "
-                        f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
+                       f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                         "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                         refer_to_faq_msg(105))
 
@@ -588,6 +570,5 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-
     fe_manager = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

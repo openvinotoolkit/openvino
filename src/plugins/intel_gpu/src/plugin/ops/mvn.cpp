@@ -13,6 +13,7 @@
 #include <algorithm>
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
@@ -67,4 +68,5 @@ REGISTER_FACTORY_IMPL(v0, MVN);
 REGISTER_FACTORY_IMPL(v6, MVN);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

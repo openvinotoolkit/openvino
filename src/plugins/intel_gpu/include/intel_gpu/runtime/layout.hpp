@@ -38,23 +38,52 @@ enum class data_types : size_t {
     i64 = sizeof(int64_t)
 };
 
+class optional_data_type {
+    // Must be the same as the undrelying type of `data_types`.
+    using storage_type = size_t;
+
+    // Implicitly assumes that this value is not used in the `data_types`.
+    static constexpr auto non_specified_type =
+        std::numeric_limits<storage_type>::max();
+
+public:
+    optional_data_type()
+        : storage(non_specified_type) {}
+
+    explicit optional_data_type(data_types type)
+        : storage(static_cast<storage_type>(type)) {}
+
+    operator bool() const { return storage != non_specified_type; }
+
+    // Similarly to std::optional does *not* verify that the object has the type
+    // set. Unlike it, though, returns the value instead of pointer/reference.
+    data_types operator*() const { return static_cast<data_types>(storage); }
+
+    optional_data_type& operator=(const data_types new_type) {
+        storage = static_cast<storage_type>(new_type);
+        return *this;
+    }
+
+private:
+    storage_type storage;
+};
 
 /// Converts C++ type to @ref data_types .
 template <typename T>
 struct type_to_data_type;
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 template <>
-struct type_to_data_type<int8_t> { static constexpr data_types value = data_types::i8; };
+struct type_to_data_type<int8_t> { static const data_types value = data_types::i8; };
 template <>
-struct type_to_data_type<uint8_t> { static constexpr data_types value = data_types::u8; };
+struct type_to_data_type<uint8_t> { static const data_types value = data_types::u8; };
 template <>
-struct type_to_data_type<int32_t> { static constexpr data_types value = data_types::i32; };
+struct type_to_data_type<int32_t> { static const data_types value = data_types::i32; };
 template <>
-struct type_to_data_type<int64_t> { static constexpr data_types value = data_types::i64; };
+struct type_to_data_type<int64_t> { static const data_types value = data_types::i64; };
 template <>
-struct type_to_data_type<half_t> { static constexpr data_types value = data_types::f16; };
+struct type_to_data_type<half_t> { static const data_types value = data_types::f16; };
 template <>
-struct type_to_data_type<float> { static constexpr data_types value = data_types::f32; };
+struct type_to_data_type<float> { static const data_types value = data_types::f32; };
 #endif
 
 /// Converts @ref data_types to C++ type.
@@ -197,10 +226,6 @@ struct data_type_traits {
     }
 };
 
-inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
-    return os << data_type_traits::name(dt);
-}
-
 /// Helper function to check if C++ type matches @p data_type.
 template <typename T>
 bool data_type_match(data_types data_type) {
@@ -299,7 +324,7 @@ private:
 struct layout {
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type), format(fmt), data_padding(apadding), size(size) {}
+        : data_type(data_type), format(fmt), size(size), data_padding(apadding) {}
 
     layout(const layout& other) = default;
 
@@ -332,28 +357,139 @@ struct layout {
     }
 
     /// Number of elements to be stored in this memory layout
-    size_t count() const;
+    size_t count() const { return size.count(); }
 
     /// Layout size with padding included
-    tensor get_buffer_size() const;
+    tensor get_buffer_size() const {
+        return size.add(data_padding.lower_size()).add(data_padding.upper_size());
+    }
 
-    tensor get_pitches() const;
+    tensor get_pitches() const {
+        auto sizes = get_buffer_size().sizes(format);
+
+        std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
+        std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
+        return {format, pitches};
+    }
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
-    size_t get_linear_offset(tensor element = tensor(0)) const;
+    size_t get_linear_offset(tensor element = tensor(0)) const {
+        auto l_padd = data_padding.lower_size();
+        auto u_padd = data_padding.upper_size();
+
+        if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
+            (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
+            (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
+            (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
+            (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
+            (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
+            (element.batch[0] >= size.batch[0] + u_padd.batch[0]) ||
+            (element.feature[0] >= size.feature[0] + u_padd.feature[0]) ||
+            (element.spatial[0] >= size.spatial[0] + u_padd.spatial[0]) ||
+            (element.spatial[1] >= size.spatial[1] + u_padd.spatial[1]) ||
+            (element.spatial[2] >= size.spatial[2] + u_padd.spatial[2]) ||
+            (element.spatial[3] >= size.spatial[3] + u_padd.spatial[3]))
+            throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
+
+        auto padded_size = size + l_padd + u_padd;
+        auto padded_element = element + l_padd;
+
+        return padded_size.get_linear_offset(padded_element, format);
+    }
 
     /// @brief Get aligned linear size calculated as multiplication of all elements.
-    size_t get_linear_size() const;
+    size_t get_linear_size() const {
+        auto sizes = get_buffer_size().sizes();
+
+        std::set<size_t> processed_dims;
+        const auto& blocks = format.block_sizes();
+        for (size_t i = 0; i < blocks.size(); i++) {
+            if (processed_dims.count(blocks[i].first))
+                continue;
+
+            auto block_axis = blocks[i].first;
+            auto block_size = blocks[i].second;
+
+            for (size_t j = i + 1; j < blocks.size(); j++) {
+                if (blocks[j].first != block_axis)
+                    continue;
+
+                block_size *= blocks[j].second;
+            }
+
+            sizes[block_axis] = align_to(sizes[block_axis], block_size);
+            processed_dims.insert(block_axis);
+        }
+
+        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
+            sizes[0] = align_to(sizes[0], 8);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
+            sizes[0] = align_to(sizes[0], 16);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4 || this->format == cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4) {
+            sizes[1] = align_to(sizes[1], 4);
+            sizes[0] = align_to(sizes[0], 8);
+            sizes[2] = align_to(sizes[2], 8);
+        } else if (this->format == cldnn::format::b_fs_yx_32fp) {
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::image_2d_rgba) {
+            sizes[1] = 4;
+        } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
+                   this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
+            sizes[1] = align_to(sizes[1], 32);
+        } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
+                    this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 2);
+            sizes[2] = 1;
+        } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
+            sizes[3] = align_to(sizes[2] * sizes[3], 4);
+            sizes[2] = 1;
+        }
+        size_t total = std::accumulate(
+            sizes.begin(),
+            sizes.end(),
+            static_cast<size_t>(1),
+            std::multiplies<size_t>());
+
+        return (this->data_type == data_types::bin) ? ceil_div(total, 32) : total;
+    }
 
     /// Modify padding in layout
-    layout with_padding(padding const& padd) const;
+    layout with_padding(padding const& padd) const {
+        layout ret = *this;
+        ret.data_padding = padd;
+        return ret;
+    }
 
     /// Data type stored in @ref memory (see. @ref data_types)
     data_types data_type;
 
     /// Format stored in @ref memory (see. @ref format)
     cldnn::format format;
+
+    /// The size of the @ref memory (excluding padding)
+    tensor size;
 
     /// Explicit padding of the @ref memory
     padding data_padding;
@@ -390,23 +526,7 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
-
-    bool is_dynamic() const;
-
-    bool is_static() const;
-
-    tensor get_tensor() const;
-
-    void set_tensor(const tensor& size);
-
-private:
-    /// The size of the @ref memory (excluding padding)
-    tensor size;
 };
-
-inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
-    return os << p.to_string();
-}
 
 /// @}
 /// @}

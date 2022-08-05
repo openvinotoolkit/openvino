@@ -108,10 +108,6 @@ protected:
         }
     }
 
-    std::vector<std::string> get_kernel_ids() override {
-        return _kernel_ids;
-    }
-
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
         if (_kernel_data.internalBufferSizes.empty())
             return {};

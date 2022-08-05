@@ -14,6 +14,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
@@ -129,9 +130,9 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 
 Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
     bool createTopologyOnly, bool partialBuild)
-    : m_curBatch(-1)
-    , m_config(config)
+    : m_config(config)
     , m_engine(engine)
+    , m_curBatch(-1)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = network.getInputsInfo();
@@ -268,7 +269,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
                     it->second->reshape(shape, l);
                     // detect changed output batch dimension
                     SizeVector new_shape = it->second->getTensorDesc().getDims();
-                    for (int64_t i = 0; i < static_cast<int64_t>(old_shape.size()); i++) {
+                    for (int64_t i = 0; i < old_shape.size(); i++) {
                         if (old_shape[i] != new_shape[i]) {
                             m_output_batch_dim[iname] = i;
                             break;
@@ -304,7 +305,7 @@ int Program::GetMaxBatchSizeForSingleProgram() {
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
-    if (program_id >= static_cast<int32_t>(m_programs.size()))
+    if (program_id >= m_programs.size())
         IE_THROW() << "Invalid program ID";
 
     return m_programs[program_id];
@@ -487,14 +488,6 @@ void Program::InitProfileInfo(const std::string& layerName,
     perfEntry.parentPrimitive = parentId;
 }
 
-void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
-    auto it = m_variablesStateInfo.find(variable_id);
-    if (it != m_variablesStateInfo.end())
-        it->second.insert(layout);
-    else
-        m_variablesStateInfo.insert({variable_id, { layout }});
-}
-
 // TODO: Does it make sense to add such method to ngraph core?
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     std::set<std::shared_ptr<ngraph::Node>> nodes_processed = {};
@@ -518,4 +511,5 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

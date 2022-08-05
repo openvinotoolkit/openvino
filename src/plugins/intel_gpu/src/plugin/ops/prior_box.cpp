@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/prior_box.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
@@ -116,4 +117,5 @@ REGISTER_FACTORY_IMPL(v0, PriorBoxClustered);
 REGISTER_FACTORY_IMPL(v0, PriorBox);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

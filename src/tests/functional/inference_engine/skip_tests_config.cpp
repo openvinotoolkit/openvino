@@ -13,9 +13,5 @@ std::vector<std::string> disabledTestPatterns() {
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
         // azure is failing after #6199
         ".*/NmsLayerTest.*"
-#ifndef BUILD_SHARED_LIBS
-        // Disable tests for static libraries
-        , ".*FrontendLibCloseTest.*"
-#endif
     };
 }

@@ -6,11 +6,11 @@
 # Install licensing
 #
 
-ie_cpack_add_component(${OV_CPACK_COMP_LICENSING} HIDDEN)
+ie_cpack_add_component(licensing)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION ${OV_CPACK_DOCDIR}/licensing
-        COMPONENT ${OV_CPACK_COMP_LICENSING}
+        DESTINATION docs/licensing
+        COMPONENT licensing
         PATTERN CMakeLists.txt EXCLUDE
         PATTERN dev-third-party-programs.txt EXCLUDE
         PATTERN documentation-third-party-programs.txt EXCLUDE

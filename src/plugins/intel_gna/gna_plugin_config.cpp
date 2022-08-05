@@ -8,7 +8,6 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
-#include "common/gna_target.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
 #include <caseless.hpp>
@@ -40,9 +39,9 @@ static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode,
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 static const std::set<std::string> supportedTargets = {
-    common::kGnaTarget2_0,
-    common::kGnaTarget3_0,
-    common::kGnaTargetUnspecified
+    GNAConfigParams::GNA_TARGET_2_0,
+    GNAConfigParams::GNA_TARGET_3_0,
+    ""
 };
 
 void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
@@ -154,9 +153,9 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             auto target = ov::util::from_string(value, ov::intel_gna::execution_target);
             std::string target_str = "";
             if (ov::intel_gna::HWGeneration::GNA_2_0 == target) {
-                target_str = common::kGnaTarget2_0;
+                target_str = GNAConfigParams::GNA_TARGET_2_0;
             } else if (ov::intel_gna::HWGeneration::GNA_3_0 == target) {
-                target_str = common::kGnaTarget3_0;
+                target_str = GNAConfigParams::GNA_TARGET_3_0;
             }
             set_target(target_str);
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
@@ -374,12 +373,12 @@ Parameter Config::GetParameter(const std::string& name) const {
     } else if (name == ov::intel_gna::pwl_design_algorithm) {
         return gnaFlags.pwl_design_algorithm;
     } else if (name ==  ov::intel_gna::execution_target) {
-        return ((gnaExecTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
-                (gnaExecTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+        return ((gnaExecTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
+                (gnaExecTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name ==  ov::intel_gna::compile_target) {
-        return ((gnaCompileTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
-                (gnaCompileTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+        return ((gnaCompileTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
+                (gnaCompileTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;

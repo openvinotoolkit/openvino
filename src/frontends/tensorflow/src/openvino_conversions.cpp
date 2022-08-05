@@ -10,37 +10,26 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
-        OPENVINO_ASSERT(node.get_partial_shape().rank().is_static(),
-                        "The input rank must be static to convert to the first channel format.");
-        auto rank = node.get_partial_shape().rank().get_length();
+        auto rank = node.get_shape().size();
         if (rank == 4) {
-            node = make_transpose(node, {0, 3, 1, 2});
+            transpose<0, 3, 1, 2>(node);
         } else if (rank == 5) {
-            node = make_transpose(node, {0, 4, 1, 2, 3});
+            transpose_3d<0, 4, 1, 2, 3>(node);
         }
     }
 }
 
-void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
-        OPENVINO_ASSERT(node.get_partial_shape().rank().is_static(),
-                        "The input rank must be static to convert to the last channel format.");
-        auto rank = node.get_partial_shape().rank().get_length();
+        auto rank = node.get_shape().size();
         if (rank == 4) {
-            node = make_transpose(node, {0, 2, 3, 1});
+            transpose<0, 2, 3, 1>(node);
         } else if (rank == 5) {
-            node = make_transpose(node, {0, 2, 3, 4, 1});
+            transpose_3d<0, 2, 3, 4, 1>(node);
         }
     }
-}
-
-std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
-                                                      const ov::AxisVector& input_order) {
-    auto order = std::make_shared<ov::opset8::Constant>(element::i64, Shape{input_order.size()}, input_order);
-    auto transpose = std::make_shared<ov::opset8::Transpose>(arg, order);
-    return transpose;
 }
 
 }  // namespace tensorflow

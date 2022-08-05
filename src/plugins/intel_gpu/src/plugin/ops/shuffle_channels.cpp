@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShuffleChannels>& op) {
@@ -25,7 +26,7 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
     if (axis < 0)
         axis += in_rank;
 
-    if (axis < 0 || axis >= static_cast<int32_t>(in_rank))
+    if (axis < 0 || axis >= in_rank)
         IE_THROW() << "Incorrect axis value! Actual axis is" + std::to_string(group);
 
     if (group < 1)
@@ -47,4 +48,5 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
 REGISTER_FACTORY_IMPL(v0, ShuffleChannels);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

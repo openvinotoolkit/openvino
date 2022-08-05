@@ -9,26 +9,24 @@ endif()
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
 set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
-if(ENABLE_NCC_STYLE)
-    # try to find_package(Clang QUIET)
-    # ClangConfig.cmake contains bug that if libclang-XX-dev is not
-    # installed, then find_package fails with errors even in QUIET mode
-    configure_file("${ncc_style_dir}/try_find_clang.cmake"
-                   "${ncc_style_bin_dir}/source/CMakeLists.txt" COPYONLY)
-    execute_process(
-        COMMAND
-            "${CMAKE_COMMAND}" -S "${ncc_style_bin_dir}/source"
-                               -B "${ncc_style_bin_dir}/build"
-        RESULT_VARIABLE clang_find_result
-        OUTPUT_VARIABLE output_var
-        ERROR_VARIABLE error_var)
+# try to find_package(Clang QUIET)
+# ClangConfig.cmake contains bug that if libclang-XX-dev is not
+# installed, then find_package fails with errors even in QUIET mode
+configure_file("${ncc_style_dir}/try_find_clang.cmake"
+               "${ncc_style_bin_dir}/source/CMakeLists.txt" COPYONLY)
+execute_process(
+    COMMAND
+        "${CMAKE_COMMAND}" -S "${ncc_style_bin_dir}/source"
+                           -B "${ncc_style_bin_dir}/build"
+    RESULT_VARIABLE clang_find_result
+    OUTPUT_VARIABLE output_var
+    ERROR_VARIABLE error_var)
 
-    if(NOT clang_find_result EQUAL "0")
-        message(WARNING "Please, install clang-[N] libclang-[N]-dev package (required for ncc naming style check)")
-        message(WARNING "find_package(Clang) output: ${output_var}")
-        message(WARNING "find_package(Clang) error: ${error_var}")
-        set(ENABLE_NCC_STYLE OFF)
-    endif()
+if(NOT clang_find_result EQUAL "0")
+    message(WARNING "Please, install clang-[N] libclang-[N]-dev package (required for ncc naming style check)")
+    message(WARNING "find_package(Clang) output: ${output_var}")
+    message(WARNING "find_package(Clang) error: ${error_var}")
+    set(ENABLE_NCC_STYLE OFF)
 endif()
 
 # Since we were able to find_package(Clang) in a separate process

@@ -16,13 +16,10 @@ namespace op {
 OutputVector translate_conv_2d_op(const NodeContext& node) {
     auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
-    // retrieve attributes for Conv2D
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-
-    // retrieve optional attributes
-    auto tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");
-    auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1});
+    auto tf_data_format = node.get_attribute<std::string>("data_format");
 
     TENSORFLOW_OP_VALIDATION(node,
                              tf_data_format == "NHWC" || tf_data_format == "NCHW",
@@ -46,12 +43,12 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
     convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
-    convert_nhwc_to_nchw(is_nhwc, ng_input);
+    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
-    ng_filter = make_transpose(ng_filter, {3, 2, 0, 1});
+    transpose<3, 2, 0, 1>(ng_filter);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -66,7 +63,7 @@ OutputVector translate_conv_2d_op(const NodeContext& node) {
     Output<Node> res =
         make_shared<Convolution>(ng_input, ng_filter, ng_strides, ng_padding_below, ng_padding_above, ng_dilations);
 
-    convert_nchw_to_nhwc(is_nhwc, res);
+    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

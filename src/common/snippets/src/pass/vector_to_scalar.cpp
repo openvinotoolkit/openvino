@@ -14,7 +14,7 @@
 ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads() {
     MATCHER_SCOPE(ReplaceLoadsWithScalarLoads);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::snippets::op::Load>(), matcher_name),
+        ngraph::pattern::wrap_type<ngraph::snippets::op::Load>()),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceLoadsWithScalarLoads_callback")
             auto root = m.get_match_root();
@@ -24,6 +24,7 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
             load->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, load);
             ngraph::replace_node(root, load);
+            MATCHER_SCOPE_ENABLE(ReplaceLoadsWithScalarLoads);
             return true;
         });
 }
@@ -31,7 +32,7 @@ ngraph::snippets::pass::ReplaceLoadsWithScalarLoads::ReplaceLoadsWithScalarLoads
 ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarStores() {
     MATCHER_SCOPE(ReplaceStoresWithScalarStores);
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
-        ngraph::pattern::wrap_type<ngraph::snippets::op::Store>(), matcher_name),
+        ngraph::pattern::wrap_type<ngraph::snippets::op::Store>()),
             [this](ngraph::pattern::Matcher &m) {
             OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ReplaceStoresWithScalarStores_callback")
             auto root = m.get_match_root();
@@ -41,6 +42,7 @@ ngraph::snippets::pass::ReplaceStoresWithScalarStores::ReplaceStoresWithScalarSt
             store->set_friendly_name(root->get_friendly_name());
             ngraph::copy_runtime_info(root, store);
             ngraph::replace_node(root, store);
+            MATCHER_SCOPE_ENABLE(ReplaceStoresWithScalarStores);
             return true;
         });
 }

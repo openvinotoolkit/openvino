@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/border.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static cldnn::border_type GetBorderType(ngraph::op::PadMode mode) {
@@ -34,7 +35,7 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     }
 
     // 2. Swap spatial positions
-    for (int i = 0; i < (static_cast<int32_t>(cldnn_order.size()) - 2) / 2; i++) {
+    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
         std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
     }
 
@@ -75,4 +76,5 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
 REGISTER_FACTORY_IMPL(v1, Pad);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

@@ -8,7 +8,6 @@
 
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 
 #include <algorithm>
 #include <string>

@@ -31,6 +31,7 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
@@ -196,4 +197,5 @@ REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

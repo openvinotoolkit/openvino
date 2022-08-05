@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/resample.hpp"
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngraph::op::v4::Interpolate::CoordinateTransformMode mode) {
@@ -69,7 +70,7 @@ static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::Interpo
 static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_t sz) {
     if (axis < 0)
         axis += sz;
-    if (axis < 0 || axis >=  static_cast<int32_t>(sz))
+    if (axis < 0 || axis >= sz)
         IE_THROW() << "Interpolate axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and GPU plugin,
@@ -148,7 +149,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
             axes.push_back(GetInterpolationAxis(axis, inputRank));
         }
     } else {
-        for (size_t i = 0; i < inputRank; ++i) {
+        for (int i = 0; i < inputRank; ++i) {
             axes.push_back(GetInterpolationAxis(i, inputRank));
         }
     }
@@ -204,4 +205,5 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 REGISTER_FACTORY_IMPL(v4, Interpolate);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

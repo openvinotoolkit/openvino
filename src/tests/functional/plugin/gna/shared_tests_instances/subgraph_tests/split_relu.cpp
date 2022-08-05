@@ -14,8 +14,7 @@ namespace {
             {{1, 64}},
             {{1, 128}},
             {{1, 96}},
-            {{1, 16}},
-            {{1, 132, 8}}
+            {{1, 16}}
     };
 
     std::vector<std::vector<size_t>> connect_index{

@@ -13,6 +13,7 @@ ParamsKey ArgMaxMinKernelOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableArgMaxMinAxis(ArgMaxMinAxis::XYF);
     k.EnableDifferentTypes();
     return k;
 }

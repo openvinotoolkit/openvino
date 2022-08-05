@@ -17,6 +17,7 @@
 using namespace InferenceEngine;
 
 namespace ov {
+namespace runtime {
 namespace intel_gpu {
 
 static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
@@ -90,19 +91,22 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         break;
     default: IE_THROW() << "Invalid data dimensions";
     }
+    cldnn::layout networkInputLayout(DataTypeFromPrecision(ip),
+                                     inputFormat,
+                                     dataTensor);
 
     // look at the expected color format of this input
     auto inputName = layer_type_name_ID(op);
     auto preProcess = inputInfo->getPreProcess();
     size_t meanChannels = preProcess.getNumberOfChannels();
-    cldnn::layout networkInputLayout(DataTypeFromPrecision(op->get_output_element_type(0)),
-                                     inputFormat,
-                                     dataTensor.transform(inputFormat, 1));
+    networkInputLayout.format = inputFormat;
+    networkInputLayout.size = networkInputLayout.size.transform(inputFormat, 1);
+    networkInputLayout.data_type = DataTypeFromPrecision(op->get_output_element_type(0));
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
     std::vector<float> meanValues;
 
     if ((meanChannels > 0) &&
-        (meanChannels != static_cast<size_t>(networkInputLayout.feature()))) {
+        (meanChannels != networkInputLayout.size.feature[0])) {
         IE_THROW() << "Mismatched mean values channels in input " << inputName;
     }
 
@@ -148,7 +152,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         auto meanBlobPtr = std::make_shared<TBlob<float>>(meanBlob);
 
         // mean values will use external format (sub in the input format before convert to new format)
-        cldnn::tensor meanBlobTensor(networkInputLayout.get_tensor());
+        cldnn::tensor meanBlobTensor(networkInputLayout.size);
         meanBlobTensor.batch[0] = 1;  // mean values have no batches
         cldnn::layout meanBlobLayout(cldnn::data_types::f32, cldnn::format::bfyx, meanBlobTensor);
 
@@ -206,8 +210,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
         }
 
-        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.get_tensor().batch[0] > 1) {
-            networkInputLayout.set_tensor({ 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) });
+        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.size.batch[0] > 1) {
+            networkInputLayout.size = { 1, TensorValue(inputDims[3]), TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
 
             std::vector<cldnn::primitive_id> inputs;
             for (size_t i = 0; i < inputDims[0]; ++i) {
@@ -218,8 +222,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 p.AddPrimitiveToProfiler(op);
             }
         } else {
-            networkInputLayout.set_tensor({ TensorValue(inputDims[0]), TensorValue(inputDims[3]),
-                                            TensorValue(inputDims[2]), TensorValue(inputDims[1]) });
+            networkInputLayout.size = { TensorValue(inputDims[0]), TensorValue(inputDims[3]),
+                                        TensorValue(inputDims[2]), TensorValue(inputDims[1]) };
 
             p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
             p.AddPrimitive(cldnn::input_layout(inputName, networkInputLayout, inputInfo->name()));
@@ -238,7 +242,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             int width = inputDims[3];
             std::vector<cldnn::primitive_id> reorders;
 
-            for (size_t i = 0; i < inputDims[0]; i++) {
+            for (auto i = 0; i < inputDims[0]; i++) {
                 auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
                 std::string y_name = inputName + "_Y" + std::to_string(i);
                 std::string uv_name = inputName + "_UV" + std::to_string(i);
@@ -334,4 +338,5 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 REGISTER_FACTORY_IMPL(v0, Parameter);
 
 }  // namespace intel_gpu
+}  // namespace runtime
 }  // namespace ov

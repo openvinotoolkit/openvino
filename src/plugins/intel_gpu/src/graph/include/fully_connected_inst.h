@@ -23,14 +23,6 @@ public:
     program_node& weights() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
-                                              const layout& out_layout) const override {
-        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(),
-                                  in_layouts, out_layout,
-                                  get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
-                                  optional_layout(weights().get_output_layout()),
-                                  bias_term() ? optional_layout(bias().get_output_layout()) : optional_layout()));
-    }
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;
@@ -40,7 +32,7 @@ class typed_primitive_inst<fully_connected> : public typed_primitive_inst_base<f
     using parent = typed_primitive_inst_base<fully_connected>;
 
 public:
-    static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(fully_connected_node const& node);
     static std::string to_string(fully_connected_node const& node);
 
 public:
