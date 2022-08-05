@@ -509,3 +509,33 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
     ASSERT_TRUE(new_transpose);
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 55, 55, 96}));
 }
+
+
+/*
+              input {1, 1, 14, 64}
+                |
+             Transpose {0, 3, 1, 2}
+                |
+             Transpose {0, 2, 3, 1}
+                |
+             Concat
+ */
+
+TEST(TransposeSinkingTest, FailedCheck) {
+    ngraph::Shape input_shape{1, 1, 14, 64};
+    auto input_a = make_shared<Parameter>(ngraph::element::i32, input_shape);
+    auto input_b = make_shared<Parameter>(ngraph::element::i32, input_shape);
+    auto first_transpose_const = std::make_shared<Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+    auto first_transpose = make_shared<Transpose>(input_a, first_transpose_const);
+
+    auto second_transpose_const = std::make_shared<Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
+    auto second_transpose = make_shared<Transpose>(first_transpose, second_transpose_const);
+    auto concat = make_shared<Concat>(ngraph::OutputVector{input_b, second_transpose}, 0);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{concat}, ngraph::ParameterVector{input_a, input_b});
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    size_t transpose_count = count_ops_of_type<Transpose>(func);
+    ASSERT_EQ(0, transpose_count);
+}

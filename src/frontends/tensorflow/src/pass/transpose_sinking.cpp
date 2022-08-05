@@ -88,7 +88,7 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
     auto perm_t1 = apply_permutation(default_order, t1_const->get_axis_vector_val());
     auto perm_t2 = apply_permutation(perm_t1, t2_const->get_axis_vector_val());
 
-    auto combined = make_transpose(t2->input_value(0), perm_t2);
+    auto combined = make_transpose(t1->input_value(0), perm_t2);
     OPENVINO_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
                    << describe<Transpose>(combined);
     return combined;
