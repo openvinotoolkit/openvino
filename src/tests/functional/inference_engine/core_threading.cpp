@@ -54,7 +54,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
-                FileUtils::makePluginLibraryName<char>({},
+                FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
                     std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception & ex) {

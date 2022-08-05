@@ -153,12 +153,12 @@ jobs:
     displayName: 'List install files'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
     continueOnError: false
     enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-ONNXImportUT.xml
+    # TODO: remove
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend UT'
     continueOnError: false
@@ -195,7 +195,6 @@ jobs:
     enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-    displayName: 'IE FuncTests'
     continueOnError: false
     enabled: false
 

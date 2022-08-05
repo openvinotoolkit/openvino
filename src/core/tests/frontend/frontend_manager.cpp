@@ -41,13 +41,9 @@ static int set_test_env(const char* name, const char* value) {
 struct SetTestEnvrionment {
     SetTestEnvrionment(const char* value = nullptr) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        std::string fePath = CommonTestUtils::getExecutableDirectory();
+        set_test_env("OV_FRONTEND_PATH", value ? value :
+            CommonTestUtils::getExecutableDirectory().c_str());
         NGRAPH_SUPPRESS_DEPRECATED_END
-        if (!value) {
-            fePath = fePath + ov::util::FileTraits<char>::file_separator + "lib";
-            value = fePath.c_str();
-        }
-        set_test_env("OV_FRONTEND_PATH", value);
     }
 
     ~SetTestEnvrionment() {

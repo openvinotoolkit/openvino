@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "file_utils.h"
 #include "ie_iextension.h"
 #include "ngraph/op/op.hpp"
@@ -174,7 +175,8 @@ public:
 namespace {
 
 std::string getOVExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 }  // namespace
