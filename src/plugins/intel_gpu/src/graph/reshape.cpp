@@ -17,19 +17,20 @@ primitive_type_id reshape::type_id() {
     return &instance;
 }
 
-layout reshape_inst::calc_output_layout(reshape_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for reshape_node!");
-    auto input_layout = node.input().get_non_padded_output_layout();
-    auto sizes = node.get_primitive()->output_shape.sizes();
-    auto input_sizes = input_layout.size.sizes();
+    auto input_layout = impl_param.get_non_padded_input_layout();
+    auto desc = impl_param.typed_desc<reshape>();
+    auto sizes = desc->output_shape.sizes();
+    auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
     uint32_t shape_count = 1;
 
     for (size_t i = 0; i < sizes.size(); i++) {
         if (sizes[i] == -1) {
             if (need_recalc) {
-                CLDNN_ERROR_MESSAGE(node.id(), "Only one dimension of the new shape can be -1");
+                CLDNN_ERROR_MESSAGE(desc->id, "Only one dimension of the new shape can be -1");
             }
             need_recalc = i;
             continue;
@@ -40,10 +41,9 @@ layout reshape_inst::calc_output_layout(reshape_node const& node) {
         shape_count *= sizes[i];
     }
     if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.size.count()) / shape_count;
+        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
 
-    input_layout.size = tensor(sizes);
-    return input_layout;
+    return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
 
 std::string reshape_inst::to_string(reshape_node const& node) {

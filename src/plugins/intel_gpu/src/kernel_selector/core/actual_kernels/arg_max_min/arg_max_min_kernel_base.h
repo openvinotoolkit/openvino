@@ -14,7 +14,7 @@ namespace kernel_selector {
 struct arg_max_min_params : public base_params {
     arg_max_min_params() : base_params(KernelType::ARG_MAX_MIN) {}
 
-    ArgMaxMinAxis argMaxMinAxis = ArgMaxMinAxis::XYF;
+    ArgMaxMinAxis argMaxMinAxis;
     ArgMaxMinOut argMaxMinOut = ArgMaxMinOut::MAX;
     ArgMaxMinSortType argMaxMinSortType = ArgMaxMinSortType::VALUE;
     uint32_t topK = 1;
