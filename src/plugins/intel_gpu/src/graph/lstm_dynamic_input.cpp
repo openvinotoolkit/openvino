@@ -18,13 +18,13 @@ primitive_type_id lstm_dynamic_input::type_id() {
 // input_tensor:   [b: batch, f: max_sequence_length, x: input_size, y: direction]
 // weights_tensor: [b: 1, f: direction, x: input_size, y: 4 * hidden_size]
 // output_tensor:  [b: batch, f: max_sequence_length, x: 4 * hidden_size, y: direction]
-layout lstm_dynamic_input_inst::calc_output_layout(lstm_dynamic_input_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_dynamic_input_inst::calc_output_layout(lstm_dynamic_input_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto weight_layout = node.weights().get_output_layout();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto weight_layout = impl_param.get_input_layout(2);
     auto batch = input_layout.batch();
-    auto direction = node.direction();
+    auto direction = weight_layout.feature();
     auto output_sequence = input_layout.feature();
     return layout(input_layout.data_type,
                   input_layout.format,

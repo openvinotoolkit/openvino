@@ -144,6 +144,28 @@ struct kernel_impl_params {
                          activations_zero_points_layout(_activations_zero_points_layout),
                          compensation_layout(_compensation_layout) {}
 
+    layout get_input_layout(size_t idx = 0) const {
+        OPENVINO_ASSERT(input_layouts.size() > idx,
+                        "The size of input layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ", ",
+                        "but the size of input layouts is ", input_layouts.size());
+        return input_layouts[idx];
+    }
+
+    layout get_non_padded_input_layout(size_t idx = 0) const {
+        auto input_layout = get_input_layout(idx);
+        auto result = layout({input_layout.data_type, input_layout.format, input_layout.get_tensor()});
+        return result;
+    }
+
+    bool has_fused_primitives() const { return !fused_desc.empty(); }
+
+    layout get_fused_output_layout() const {
+        if (fused_desc.empty())
+            return layout(data_types::f32, format::bfyx, tensor());
+        return fused_desc.back().output_layout;
+    }
+
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
 };

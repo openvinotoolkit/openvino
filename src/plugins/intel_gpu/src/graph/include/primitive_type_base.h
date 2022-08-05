@@ -70,11 +70,11 @@ struct primitive_type_base : primitive_type {
         return implementation_map<PType>::check_io_eq(node, impl_param);
     }
 
-    cldnn::layout calc_output_layout(const cldnn::program_node& node) const override {
+    cldnn::layout calc_output_layout(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::calc_output_layout: primitive type mismatch");
 
-        return typed_primitive_inst<PType>::calc_output_layout(node);
+        return typed_primitive_inst<PType>::calc_output_layout(node, impl_param);
     }
 
     std::string to_string(const cldnn::program_node& node) const override {
