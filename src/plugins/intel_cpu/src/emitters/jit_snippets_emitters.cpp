@@ -273,7 +273,7 @@ void TileSchedulerEmitter::emit_tiles(const Reg64& reg_inner_amount, const std::
             // If Tile is evaluated only once, then we can emit its body directly and skip work_amount decrements and checks
             if (evaluate_once) {
                 tile.first->emit_body(vec_pool, gpr_pool);
-                tile.first->emit_ptr_increments(data_ptr_regs);
+                tile.first->emit_ptr_increments_static(data_ptr_regs);
             } else {
                 std::vector<size_t> in_regs, out_regs;
                 std::tie(in_regs, out_regs) = tile.second;
@@ -512,17 +512,21 @@ void TileEmitter::emit_body(const std::vector<size_t>& vec_pool, const std::vect
         code.first->emit_code(code.second.first, code.second.second, vec_pool, gpr_pool);
 }
 
-void TileEmitter::emit_ptr_increments(const std::vector<Reg64>& data_ptr_regs) const {
+void TileEmitter::emit_ptr_increments_static(const std::vector<Reg64>& data_ptr_regs) const {
     auto master_shape_last_dim = *std::max_element(io_dims.begin(), io_dims.end());
     for (const auto& idx : static_dims_idx) {
         // increment only inputs that are not broadcasted
         if (io_dims[idx] != 1 || master_shape_last_dim == 1)
             h->add(data_ptr_regs[idx], increment * io_data_size[idx]);
     }
+}
 
+void TileEmitter::emit_ptr_increments_dynamic(const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
+    emit_ptr_increments_static(data_ptr_regs);
+    const size_t tile_type_offset = increment > 1 ? GET_OFF(vector_tile_increments) : GET_OFF(scalar_tile_increments);
     for (size_t i = 0; i < dynamic_dims_idx.size(); i++) {
         auto idx = dynamic_dims_idx[i];
-        h->add(data_ptr_regs[idx], h->qword[h->rip + dynamic_increments[i]]);
+        h->add(data_ptr_regs[idx], h->ptr[reg_const_params + tile_type_offset + idx * sizeof(int64_t)]);
     }
 }
 
@@ -535,25 +539,20 @@ void TileEmitter::set_increments_and_broadcast_inputs(const Reg64& reg_const_par
             auto idx = dynamic_dims_idx[i];
             const auto& data_ptr_reg = data_ptr_regs[idx];
             // todo: we can store dynamic broadcasting info only for dynamic inputs (not for all, like we do now)
-            h->bt(h->ptr[reg_const_params + GET_OFF(broadcasting_mask)], idx); // idx->i
-            Label no_broadcasting, end_broadcasting_handling;
-            h->jae(no_broadcasting, CodeGenerator::T_SHORT); // CF==0 <=> broadcasting_mask[idx] == false
+            h->cmp(h->byte[reg_const_params + GET_OFF(broadcasting_mask) + idx * sizeof(bool)], 0);
+            Label no_broadcasting;
+            h->je(no_broadcasting, CodeGenerator::T_SHORT);
             // Both inputs and outputs can be dynamic, but only inputs could be physically broadcasted
             // Physical broadcasting is only required for vector tiles
             if (idx < num_inputs && increment != 1) {
                 h->push(data_ptr_reg);
                 h->uni_vbroadcastss(Vmm_tmp, h->ptr[data_ptr_reg]);
-                h->mov(data_ptr_reg, dynamic_broadcasting[i]);
+                h->mov(data_ptr_reg, h->ptr[reg_const_params + GET_OFF(broadcasting_scratchpad)]);
+                h->add(data_ptr_reg, i * increment *  io_data_size[idx]);
                 // note that we use data_ptr_reg directly without h->rip
                 h->uni_vmovups(h->ptr[data_ptr_reg], Vmm_tmp);
             }
-            // write a proper increment into the increment scratchpad (no increment because of broadcasting)
-            h->mov(h->qword[h->rip + dynamic_increments[i]], 0);
-            h->jmp(end_broadcasting_handling, CodeGenerator::T_SHORT);
             h->L(no_broadcasting);
-            // write a proper increment into the increment scratchpad (usual increment)
-            h->mov(h->qword[h->rip + dynamic_increments[i]], increment * io_data_size[idx]);
-            h->L(end_broadcasting_handling);
         }
 }
 
@@ -564,11 +563,10 @@ void TileEmitter::cleanup_broadcasting(const Reg64& reg_const_params, const std:
         const auto& idx = *i;
         if (idx >= num_inputs)
             continue;
-        // Both inputs and outputs can be dynamics, but only inputs could be broadcasted
         // todo: we can store dynamic broadcasting info only for dynamic inputs (not for all, like we do now)
-        h->bt(h->ptr[reg_const_params + GET_OFF(broadcasting_mask)], idx); // idx->i
         Label no_broadcasting;
-        h->jae(no_broadcasting, CodeGenerator::T_SHORT); // CF==0 <=> broadcasting_mask[idx] == false
+        h->cmp(h->byte[reg_const_params + GET_OFF(broadcasting_mask) + idx * sizeof(bool)], 0);
+        h->je(no_broadcasting, CodeGenerator::T_SHORT);
         h->pop(data_ptr_regs[idx]);
         h->L(no_broadcasting);
     }
@@ -602,25 +600,11 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
     // * TileScheduler executes Tile only if it has to perform >= 1 iterations
     h->L(for_body);
     emit_body(vec_pool, gpr_pool);
-    emit_ptr_increments(data_ptr_regs);
+    emit_ptr_increments_dynamic(reg_const_params, data_ptr_regs);
     h->sub(work_amount, increment);
     h->cmp(work_amount, increment);
     h->jge(for_body, CodeGenerator::T_NEAR);
     cleanup_broadcasting(reg_const_params, data_ptr_regs);
-}
-
-void TileEmitter::emit_data() const {
-    h->align(64);
-    for (auto& inc_label : dynamic_increments) {
-        // quadroword to fill 64 bit for Reg64
-        h->L(inc_label);
-        h->dq(0);
-    }
-    for (auto& broadcast_label : dynamic_broadcasting) {
-        h->L(broadcast_label);
-        for (auto i = 0; i < increment; i++)
-            h->dd(0);
-    }
 }
 
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,

@@ -123,3 +123,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
     return target->get_snippet();
 }
+
+std::shared_ptr<const ngraph::snippets::TargetMachine> ngraph::snippets::Generator::get_target_machine() const {
+    return target;
+}

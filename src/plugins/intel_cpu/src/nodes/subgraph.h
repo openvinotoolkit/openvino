@@ -63,12 +63,14 @@ private:
     static  ov::PartialShape prependWithOnes(const PartialShape& dims, size_t rank);
     void normalizeShapes();
     void optimizeExecDomain(std::vector<PartialShape>&, std::vector<PartialShape>&, PartialShape&, size_t&) const;
-    void calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::bitset<16>& broadcasting_mask) const;
+    void calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>& sch_offsets, std::vector<bool>& broadcasting_mask,
+                       std::vector<int64_t>& vector_tile_increments, std::vector<int64_t>& scalar_tile_increments) const;
 
     void generate(const jit_snippets_compile_args*);
 
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const jit_snippets_call_args& const_args) const;
+    void schedule_6d_dynamic(const jit_snippets_call_args& const_args) const;
     void schedule_nt(const jit_snippets_call_args& const_args) const;
 
     // Original subgraph node
@@ -81,6 +83,7 @@ private:
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+    size_t isa_num_lanes; // number of elements that fit in vector size
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
@@ -100,9 +103,11 @@ private:
 
     std::vector<int64_t> data_offsets;
     std::vector<int64_t> scheduler_offsets;
-    std::bitset<16> broadcasting_mask; // needed to pass broadcasting info in dynamic case
+    std::vector<bool> broadcasting_mask; // one bool for every input/output. If true then this input is broadcasted
     std::vector<size_t> scheduler_work_amounts;
     std::vector<size_t> static_master_shape_placeholder = {}; // placeholder to pass per-inference static master_shape for dynamic cases
+    std::vector<int64_t> vector_tile_increments = {}; // increments for vector (and scalar) tiles used in dynamic tiles.
+    std::vector<int64_t> scalar_tile_increments = {};
 
     // this is needed for fast shape inference of blocking-invariant prepended shapes
     std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
@@ -125,6 +130,8 @@ private:
     std::vector<int64_t> sch_offsets_in = {};
     std::vector<int64_t> sch_offsets_out = {};
     bool canUseOptimizedImpl = true;
+    // memory buffer for physical broadcasting in dynamic case, use std::vector to facilitate memory management
+    std::vector<float> scratchpad_memory_chunk = {};
 };
 
 }   // namespace node
