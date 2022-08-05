@@ -388,7 +388,7 @@ def prepare_ir(argv: argparse.Namespace):
             if new_transformations_config_used(argv):
                 moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if new_extensions_used(argv):
-                for extension in argv.extensions.split(','):
+                for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
 
