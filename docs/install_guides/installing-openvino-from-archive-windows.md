@@ -80,7 +80,7 @@ The standard OpenVINO `<INSTALL_DIR>` used in this document is `C:\Program Files
 
 For simplicity, you can also create a symbolic link to the latest installation: `C:\Program Files (x86)\Intel\openvino_2022\`.
 
-The core components are now installed. Continue to the next section to configure environment.
+The core components are now installed. Continue to the next section to configure the environment.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
