@@ -14,13 +14,13 @@ primitive_type_id non_max_suppression::type_id() {
     return &instance;
 }
 
-layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node) {
-    auto desc = node.get_primitive();
+layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<non_max_suppression>();
 
     auto output_type = desc->output_data_type ? *desc->output_data_type : data_types::i32;
 
     auto output_size = tensor(batch(desc->selected_indices_num), feature(3));
-    return layout(output_type, node.input().get_output_layout().format, output_size);
+    return layout(output_type, impl_param.get_input_layout().format, output_size);
 }
 
 std::string non_max_suppression_inst::to_string(non_max_suppression_node const& node) {

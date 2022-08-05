@@ -155,8 +155,8 @@ int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding.lower_size().feature[0];
     if (f_padding != 0) {
         offset = f_padding;
-        for (size_t i = 0; i < l.get_tensor().spatial.size(); ++i) {
-            offset *= l.get_tensor().spatial[i];
+        for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+            offset *= l.spatial(i);
         }
     }
 
