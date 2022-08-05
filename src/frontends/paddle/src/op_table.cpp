@@ -92,6 +92,7 @@ OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(where);
+OP_CONVERTER(where_index);
 OP_CONVERTER(yolo_box);
 OP_CONVERTER(generate_proposals_v2);
 }  // namespace op
@@ -188,6 +189,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"where", op::where},
+            {"where_index", op::where_index},
             {"yolo_box", op::yolo_box},
             {"generate_proposals_v2", op::generate_proposals_v2}};
 };
