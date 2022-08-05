@@ -165,4 +165,13 @@ public:
         newAllocation.sizeGranted = sizeGranted;
         allocations.push_back(newAllocation);
     }
+
+    const GnaAllocation* Get(const Gna2MemoryTag tag) const {
+        for (auto&& a : allocations) {
+            if (a.isTag(tag)) {
+                return &a;
+            }
+        }
+        return nullptr;
+    }
 };

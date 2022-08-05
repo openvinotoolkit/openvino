@@ -18,7 +18,6 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
@@ -46,5 +45,4 @@ public:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
