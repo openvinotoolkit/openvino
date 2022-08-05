@@ -255,8 +255,6 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      # TODO: remove
-      # export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)/lib
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
     continueOnError: true
@@ -268,8 +266,6 @@ jobs:
     continueOnError: true
 
   - script: |
-      # TODO: remove
-      # export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)/lib
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: true
@@ -326,15 +322,11 @@ jobs:
     continueOnError: true
 
   - script: |
-      # TODO: remove
-      # export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)/lib
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: true
 
   - script: |
-      # TODO: remove
-      # export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)/lib
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: true

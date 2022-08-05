@@ -30,7 +30,8 @@ void FrontEndConversionExtensionTest::initParamTest() {
 }
 
 inline std::string get_lib_path(const std::string& lib_name) {
-    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(), lib_name + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),
+                                                    lib_name + IE_BUILD_POSTFIX);
 }
 
 ///////////////////////////////////////////////////////////////////

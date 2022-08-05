@@ -206,9 +206,7 @@ jobs:
     displayName: 'Clean build dir'
     continueOnError: false
 
-  - script: |
-      set PATH=$(PATH);$(INSTALL_TEST_DIR)\lib
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: true
 
@@ -264,17 +262,11 @@ jobs:
     displayName: 'MULTI UT'
     continueOnError: true
 
-  - script: |
-      # TODO: remove
-      set PATH=$(PATH);$(INSTALL_TEST_DIR)
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: true
 
-  - script: |
-      # TODO: remove
-      set PATH=$(PATH);$(INSTALL_TEST_DIR)
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: true
 
