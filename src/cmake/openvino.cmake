@@ -102,9 +102,7 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
-set_target_properties(${TARGET_NAME} PROPERTIES
-    SOVERSION ${OpenVINO_SOVERSION}
-    VERSION ${OpenVINO_VERSION})
+ov_add_library_version(${TARGET_NAME})
 
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")

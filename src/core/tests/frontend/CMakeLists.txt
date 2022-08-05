@@ -14,9 +14,7 @@ set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 set(MOCK1_FE_NAME openvino_mock1_frontend)
 add_library(${MOCK1_FE_NAME} SHARED EXCLUDE_FROM_ALL ${SRC})
 
-set_target_properties(${MOCK1_FE_NAME} PROPERTIES
-    SOVERSION ${OpenVINO_SOVERSION}
-    VERSION ${OpenVINO_VERSION})
+ov_add_library_version(${MOCK1_FE_NAME})
 
 target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")
 

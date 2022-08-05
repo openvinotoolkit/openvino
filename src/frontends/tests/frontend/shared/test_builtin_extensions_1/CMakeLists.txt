@@ -8,7 +8,6 @@ file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 set(DEPENDENCIES openvino::runtime::dev offline_transformations)
-set(DEFINITIONS)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)
@@ -26,7 +25,9 @@ if (ENABLE_OV_PADDLE_FRONTEND)
 endif()
 
 # Create library
+
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+
 target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
 
