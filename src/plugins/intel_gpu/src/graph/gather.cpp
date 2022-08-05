@@ -18,7 +18,7 @@ primitive_type_id gather::type_id() {
 layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<gather>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++)

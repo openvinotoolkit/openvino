@@ -67,7 +67,7 @@ if '--install-dev-extras' in sys.argv:
 INSTALL_REQUIRES = [
     "scipy~=1.5.4",
     "jstyleson~=0.0.2",
-    "numpy>=1.16.6,<1.20",
+    "numpy>=1.16.6,<=1.23.1",
     "addict>=2.4.0",
     "networkx~=2.5;python_version<='3.6'",
     "networkx<2.8.1;python_version>'3.6'",
