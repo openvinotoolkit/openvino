@@ -19,7 +19,6 @@
    openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_OV_UG_network_state_intro
-   ONNX_Format_Support
    
 @endsphinxdirective
 
