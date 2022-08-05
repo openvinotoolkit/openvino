@@ -14,6 +14,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/op/loop.hpp>
 #include "transformations/utils/utils.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 
 #include <memory>
 #include <vector>
@@ -32,29 +33,16 @@ namespace pass {
 namespace {
 
 auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> bool {
-    auto outputs = node->outputs();
-    auto find_smallest_output_shape = [](const std::vector<Output<const Node>>& outputs) -> Shape {
-        return std::accumulate(std::begin(outputs), std::end(outputs), ngraph::Shape(outputs.begin()->get_shape()),
-            [](Shape& other_shape, const Output<const Node>& output){
-                return shape_size(output.get_shape()) < shape_size(other_shape) ? output.get_shape() : other_shape;
-            });
-    };
-    auto ref_shape = find_smallest_output_shape(outputs);
-
-    auto check_shapes_broadcastable = [ref_shape](const Output<const Node>& output) -> bool {
-        auto other_shape = output.get_shape();
-
-        if (other_shape.size() != ref_shape.size()) {
-            return false;
-        }
-
-        return std::inner_product(std::begin(other_shape), std::end(other_shape), std::begin(ref_shape), true,
-                            std::logical_and<bool>(), [](Shape::value_type lsh, Shape::value_type rsh){
-                                return rsh == 1 || lsh == rsh;
-                            });
-    };
-
-    return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
+    const auto& outputs = node->outputs();
+    if (outputs.size() <= 1)
+        return false;
+    ov::PartialShape ref_shape = outputs.front().get_partial_shape();
+    bool success = true;
+    for (int i = 1; i < outputs.size(); i++) {
+        success = success &&
+                  ov::PartialShape::broadcast_merge_into(ref_shape, outputs[i].get_partial_shape(), ov::op::AutoBroadcastType::NUMPY);
+    }
+    return !success;
 }
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {

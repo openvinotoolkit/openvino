@@ -93,8 +93,6 @@ void AddSinhDynamic::SetUp() {
     std::tie(inputShape1, inputShape2, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({inputShape1, inputShape2});
 
-    auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, {inputDynamicShapes[0], inputDynamicShapes[1]});
-
     auto f = ov::test::snippets::AddSinhFunction({inputShape1.first, inputShape2.first});
     function = f.getOriginal();
 }

@@ -47,12 +47,50 @@ void ThreeInputsEltwiseSinh::SetUp() {
     function = f.getOriginal();
 }
 
+std::string ThreeInputsEltwiseSinhDynamic::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseDynamicParams> obj) {
+    std::vector<InputShape> inputShapes(3);
+    std::string targetDevice;
+    size_t num_nodes, num_subgraphs;
+    std::tie(inputShapes[0], inputShapes[1], inputShapes[2],
+             num_nodes, num_subgraphs, targetDevice) = obj.param;
+
+    std::ostringstream result;
+    for (auto i = 0; i < inputShapes.size(); i++)
+        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({inputShapes[i].first}) << "_";
+
+    for (auto i = 0; i < inputShapes.size(); i++) {
+        result << "TS[" << i << "]=";
+        for (const auto& item : inputShapes[i].second)
+            result << CommonTestUtils::vec2str(item) << "_";
+    }
+    result << "#N=" << num_nodes << "_";
+    result << "#S=" << num_subgraphs << "_";
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
+void ThreeInputsEltwiseSinhDynamic::SetUp() {
+    std::vector<InputShape> inputShapes(3);
+    std::tie(inputShapes[0], inputShapes[1], inputShapes[2],
+             ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(inputShapes);
+    auto f = ov::test::snippets::EltwiseThreeInputsSinhFunction({inputShapes[0].first,
+                                                                 inputShapes[1].first,
+                                                                 inputShapes[2].first});
+    function = f.getOriginal();
+}
+
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(ThreeInputsEltwiseSinh, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(ThreeInputsEltwiseSinhDynamic, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

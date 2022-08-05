@@ -31,9 +31,7 @@ struct jit_snippets_call_args {
     int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     size_t scheduler_work_amounts[SNIPPETS_MAX_TILE_RANK] = {};
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
-    std::bitset<16> broadcasting_mask = {}; // bit is set if broadcasting over this io takes palce
-//    size_t* master_shape;
-//    size_t masterRank;
+    std::bitset<16> broadcasting_mask = {}; // bit is set if broadcasting over this io takes place
 };
 
 struct jit_snippets_compile_args {
@@ -174,6 +172,10 @@ public:
 
     void emit_body(const std::vector<size_t>& vec_pool, const std::vector<size_t>& gpr_pool) const;
     void emit_ptr_increments(const std::vector<Reg64>& data_ptr_regs) const;
+    void emit_data() const override;
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void set_increments_and_broadcast_inputs(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
+    void cleanup_broadcasting(const Reg64& reg_const_params, const std::vector<Reg64> &data_ptr_regs) const;
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
@@ -191,6 +193,10 @@ private:
     std::vector<size_t> io_dims {};
     std::vector<size_t> io_data_size {};
     size_t increment = 0;
+    std::vector<size_t> static_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    std::vector<size_t> dynamic_dims_idx {}; // non-zero io_dims indexes == dims that are not broadcasted
+    mutable std::vector<Label> dynamic_increments;
+    mutable std::vector<Label> dynamic_broadcasting;
 };
 
 class NopEmitter : public jit_emitter {
@@ -331,7 +337,6 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-    size_t index;
 };
 
 class LoadConvertEmitter : public MemoryEmitter {

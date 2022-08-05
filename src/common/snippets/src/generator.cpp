@@ -69,10 +69,7 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<AllocatedEmitter> lowered;
-    size_t load_index = 0;
     for (auto n : m->get_ordered_ops()) {
-        if (auto load = ov::as_type_ptr<op::Load>(n))
-            load->input_index = load_index++;
         lowered.emplace_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
     OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
@@ -115,6 +112,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(tiles2DKernel);
     kernel->emit_code({in, out}, {});
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
+    // push back Tiles and TileEmitter to emit data appropriately
+    lowered.push_back(tile_scheduler_region);
+    lowered.push_back(vector_region);
+    lowered.push_back(scalar_region);
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
         op.first->emit_data();

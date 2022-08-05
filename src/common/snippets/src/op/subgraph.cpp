@@ -221,7 +221,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
         NODE_VALIDATION_CHECK(this,
                               PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                               "Failed to create broadcastable shapes in snippets canonicalization");
-//        const auto paramShape = m_body->get_parameters()[i]->get_shape();
         const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin())  || paramType != inType)
@@ -229,7 +228,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     }
 
     m_body->validate_nodes_and_infer_types();
-//    auto skipStartEndOnes = [](const Shape& shape) {
         auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
@@ -245,10 +243,8 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
 
     // Check that output shapes are broadcastable => can be scheduled
     const auto& body_results = m_body->get_results();
-//    PartialShape outPShape = body_results[0]->get_shape();
     PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
     for (size_t i = 0; i < body_results.size(); i++) {
-//        auto shape_i = body_results[i]->get_shape();
         auto shape_i = body_results[i]->get_input_partial_shape(0);
         auto outputShape_i = std::get<0>(outputShapes[i]);
         // Check that the produced output shape corresponds to the passed shape
@@ -341,24 +337,20 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
     // Then we are going to support variadic Load/Store with different element count
     const size_t count = m_generator->get_target_machine()->get_lanes();
-
+    const auto & params = m_body->get_parameters();
+    bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
+                                          [](const shared_ptr<ngraph::op::Parameter>& p){
+                                                 return p->get_partial_shape().rbegin()->is_dynamic();
+                                             });
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
     // todo: figure out how to broadcast for dynamic shapes
-    if (master_shape.is_static()) {
+    if (!inputs_has_dynamic_last_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
     }
-//    Todo: an alternative solution is to skip only dynamic nodes. Leave for now, but remove as soon as dynamicTile works
-//    if (master_shape.is_dynamic()) {
-//        auto skip_dynamic_node = [](const std::shared_ptr<const ov::Node>& n) -> bool {
-//            return n->get_input_partial_shape(0).is_dynamic();
-//        };
-//        manager.get_pass_config()->
-//            set_callback<ngraph::snippets::pass::InsertMoveBroadcast>(skip_dynamic_node);
-//    }
     manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
     // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
     // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
@@ -375,8 +367,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     //                         Store
     //                        Result
     // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
-//    if (!master_shape.empty() && master_shape.back() != 1) {
-    if (master_shape.size() != 0 && master_shape[master_shape.size() - 1].is_static() && master_shape[master_shape.size() - 1] != 1) {
+    if (master_shape.size() != 0 && !inputs_has_dynamic_last_dims && master_shape[master_shape.size() - 1] != 1) {
         manager.register_pass<snippets::pass::SetScalarCountForLoad>();
         manager.register_pass<snippets::pass::SetScalarCountForStore>();
         manager.get_pass_config()->
@@ -418,7 +409,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
-
+    ov::pass::Serialize("body.xml", "body.bin").run_on_model(m_body);
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 
