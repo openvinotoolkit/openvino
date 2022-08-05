@@ -17,20 +17,19 @@
 namespace ov {
 namespace pass {
 
-/** \brief Check if output is rank one with static dimension and data type can be i32 or i64. */
-const auto is_static_rank_one_int_shape = [](const Output<Node>& output) -> bool {
-    return pattern::type_matches_any({element::i32, element::i64})(output) && pattern::rank_equals(1)(output) &&
-           pattern::has_static_dim(0);
+/** \brief Check if output is rank one and data type can be i32 or i64. */
+const auto is_rank_one_int_shape = [](const Output<Node>& output) -> bool {
+    return pattern::type_matches_any({element::i32, element::i64})(output) && pattern::rank_equals(1)(output);
 };
 
 /** \brief Predicate to check eye k node is valid. */
 const auto k_predicate = [](const Output<Node>& output) -> bool {
-    return is_static_rank_one_int_shape(output) && (output.get_partial_shape()[0].get_length() == 1);
+    return is_rank_one_int_shape(output) && (output.get_partial_shape()[0].get_length() == 1);
 };
 
 /** \brief Predicate to check eye batch node is valid. */
 const auto batch_predicate = [](const Output<Node>& output) -> bool {
-    return is_static_rank_one_int_shape(output) && output.get_partial_shape()[0].get_length();
+    return is_rank_one_int_shape(output) && output.get_partial_shape()[0].get_length();
 };
 
 std::shared_ptr<Node> EyeDecomposition::make_eye_model(const Output<Node>& height,
@@ -53,7 +52,7 @@ std::shared_ptr<Node> EyeDecomposition::make_eye_model(const Output<Node>& heigh
     const auto eye_size = register_new_node<op::v1::ReduceMin>(shape_pad_diff, zero_int, true);
     const auto pad_end = register_new_node<op::v1::Subtract>(shape_pad_diff, eye_size);
 
-    // Make 1d-ey as eye_size times of (1, zeros(eye_size)), trimmed at end by eye_size elements at end.
+    // Make 1d-eye as eye_size times of (1, zeros(eye_size)), trimmed at end by eye_size elements.
     const auto zeros = register_new_node<op::v0::Tile>(zero, eye_size);
     const auto one_followed_by_zeros = register_new_node<op::v0::Concat>(OutputVector{one, zeros}, 0);
     const auto eye_1d = register_new_node<op::v1::Pad>(register_new_node<op::v0::Tile>(one_followed_by_zeros, eye_size),
@@ -71,7 +70,6 @@ std::shared_ptr<Node> EyeDecomposition::make_eye_model(const Output<Node>& heigh
 }
 
 std::shared_ptr<Node> EyeDecomposition::make_eye_batches(const Output<Node>& eye, const Output<Node>& batch) {
-    const auto zero_int = register_new_node(op::v0::Constant::create(element::i64, Shape{1}, {0}));
     const auto eye_tile = register_new_node<op::v0::Constant>(element::i64, Shape{2}, 1);
 
     // `batch_repeats` repeat eye matrix as tile only in higher dimensions than 1 by number(s) in batch parameter.
