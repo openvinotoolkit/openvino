@@ -249,7 +249,7 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph and IE Python Bindings Tests'
-    continueOnError: true
+    continueOnError: false
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
@@ -258,83 +258,83 @@ jobs:
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/mo
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'OV Core UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXImportUT.xml
     # TODO: remove once CVS-88917 is fixed
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
     displayName: 'ONNX Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
     # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
     displayName: 'XLink Tests'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       # because of IR reader v7 
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: true
+    continueOnError: false
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
 
   - script: |
@@ -342,14 +342,14 @@ jobs:
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
     displayName: 'OV CAPITests'
-    continueOnError: true
+    continueOnError: false
 
   - task: CMake@1
     inputs:
@@ -388,7 +388,7 @@ jobs:
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
-    continueOnError: true
+    continueOnError: false
 
   - task: PublishTestResults@2
     condition: always()
