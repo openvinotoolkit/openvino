@@ -28,7 +28,13 @@ Python API allows passing data as tensors. The `Tensor` object holds a copy of t
 
 @snippet docs/snippets/ov_python_exclusives.py tensor_shared_mode
 
-## Running Inference
+### Slices of array's memory
+
+One of the `Tensor` class constructors allows to share the slice of array's memory. When `shape` is specified in the constructor that has the numpy array as first argument, it triggers the special shared memory mode.
+
+@snippet docs/snippets/ov_python_exclusives.py tensor_slice_mode
+
+## Running inference
 
 Python API supports extra calling methods to synchronous and asynchronous modes for inference.
 
