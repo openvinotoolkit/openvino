@@ -51,7 +51,7 @@ static const char api_message[] = "Optional (deprecated). Enable Sync/Async API.
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] =
     "Optional. Specify a target device to infer on (the list of available devices is shown below). "
-    "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
+    "Default value is AUTO. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify "
     "HETERO plugin. "
     "Use \"-d MULTI:<comma-separated_devices_list>\" format to specify MULTI plugin. "
     "The application looks for a suitable plugin for the specified device.";
@@ -251,7 +251,7 @@ DEFINE_string(hint, "", hint_message);
 DEFINE_string(api, "async", api_message);
 
 /// @brief device the target device to infer on <br>
-DEFINE_string(d, "CPU", target_device_message);
+DEFINE_string(d, "AUTO", target_device_message);
 
 /// @brief Absolute path to extensions library with user layers <br>
 /// It is a required parameter
