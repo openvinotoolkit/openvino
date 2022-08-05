@@ -253,7 +253,7 @@ class TestMoFallback(unittest.TestCase):
         with patch('openvino.tools.mo.convert_impl.get_default_frontends') as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_legacy, use_new_fe)
-            args.extensions = ['onnx_fe_ext.so,onnx_fe_ext_2.so']
+            args.extensions = ['onnx_fe_ext.so', 'onnx_fe_ext_2.so']
             args.input_model = "test_model.onnx"
 
             if conversion_method:
