@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
         cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
     }
     cacheModels(cache, ret_code, models, FLAGS_extract_body);
-//    cache->serialize_cached_ops(FLAGS_output_folder);
+    cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;
 }
