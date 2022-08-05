@@ -363,6 +363,13 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def prepare_ir(argv: argparse.Namespace):
+    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+    # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    if argv.use_new_frontend and is_tf:
+        from openvino.tools.mo.front.tf.loader import convert_to_pb
+        convert_to_pb(argv)
+
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -379,14 +386,20 @@ def prepare_ir(argv: argparse.Namespace):
             if legacy_extensions_used(argv):
                 raise Error('Legacy transformations configuration is not supported for the new frontend')
             if new_transformations_config_used(argv):
-                if isinstance(argv.transformations_config, str):
-                    moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
-                else:
-                    moc_front_end.add_extension(argv.transformations_config)
+                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if new_extensions_used(argv):
-                for extension in argv.extensions:
+                for extension in argv.extensions.split(','):
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
+
+            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
+            if argv.use_new_frontend and is_tf:
+                output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+                path_to_tmp_pb_file = os.path.normpath(os.path.join(output_dir, argv.model_name + "_tmp.pb"))
+                if os.path.exists(path_to_tmp_pb_file):
+                    os.remove(path_to_tmp_pb_file)
+
             return graph, ngraph_function
         else:  # apply fallback
             reasons_message = ", ".join(fallback_reasons)
@@ -414,12 +427,10 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
-    # needed for tmp IR generation
-    output_dir = os.getcwd()
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=output_dir,
+                    output_dir=argv.output_dir,
                     output_model_name=argv.model_name,
                     mean_data=mean_data,
                     input_names=input_names,
@@ -430,8 +441,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
-        # needed for tmp IR generation
-        output_dir = os.getcwd()
+        output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         return_code = "not executed"

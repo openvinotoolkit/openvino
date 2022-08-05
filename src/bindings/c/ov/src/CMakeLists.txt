@@ -30,7 +30,16 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::ov)
+set_target_properties(${TARGET_NAME} PROPERTIES
+    EXPORT_NAME runtime::ov)
+
+if(CPACK_GENERATOR STREQUAL "DEB")
+    # TODO: define proper library version, currently SOVERSION 2022
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        SOVERSION ${OpenVINO_VERSION_MAJOR}
+        VERSION ${OpenVINO_VERSION})
+endif()
+
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 

@@ -357,7 +357,7 @@ void prior_box_node::calc_result() {
 
 layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<prior_box>();
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     const int layer_width = input_layout.spatial(0);
     const int layer_height = input_layout.spatial(1);
