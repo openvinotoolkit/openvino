@@ -266,9 +266,7 @@ jobs:
     displayName: 'Model Optimizer UT'
     continueOnError: true
 
-  - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: true
 
