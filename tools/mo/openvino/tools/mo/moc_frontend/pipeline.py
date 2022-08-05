@@ -86,11 +86,20 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.extract_subgraph(new_input_places, new_output_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
+            # we need to provide input names with user provided shapes
+            # in order for the model to be able to reshape input nodes.
+            # Otherwise the shape specified in the model itself would be
+            # used
+            new_input_places_with_shape = {}
             new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            for name in new_input_places_name:
+                for user_shape in user_shapes:
+                    if user_shape['input_name'] == name:
+                        new_input_places_with_shape[name] = user_shape['shape']
             new_output_places_name = [x.get_names()[0] for x in new_output_places]
 
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, new_input_places_with_shape, argv.placeholder_data_types,
                 new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
@@ -99,9 +108,18 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model.override_all_inputs(new_input_places)
         # invalidation of existing Place objects could have happened in the operation above
         if user_shapes:
-            new_input_places_name = [x.get_names()[0] for x in new_input_places]
+            # we need to combine input names with user provided shapes
+            # in order for the model to be able to reshape input nodes.
+            # Otherwise the shape specified in the model itself would be
+            # used
+            new_input_places_with_shape = {}
+            new_input_places_name = {x.get_names()[0] for x in new_input_places}
+            for name in new_input_places_name:
+                for user_shape in user_shapes:
+                    if user_shape['input_name'] == name:
+                        new_input_places_with_shape[name] = user_shape['shape']
             user_shapes, outputs, _ = fe_user_data_repack(
-                input_model, new_input_places_name, argv.placeholder_data_types,
+                input_model, new_input_places_with_shape, argv.placeholder_data_types,
                 argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')

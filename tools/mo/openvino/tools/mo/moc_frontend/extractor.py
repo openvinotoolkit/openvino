@@ -5,7 +5,7 @@ import re
 
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
 from openvino.tools.mo.utils.error import Error
-from openvino.pyopenvino import Place
+from openvino.pyopenvino import Place, Type, PartialShape
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
@@ -231,15 +231,26 @@ def fe_input_user_data_repack(
     if framework == 'onnx' and freeze_placeholder is not None:
         for name, value in freeze_placeholder.items():
             node = decode_name_with_port(input_model, name, framework, IOType.Input)
+            # Only input layer
             if not node.is_input():
                 raise Error(f"{name} is not an input node. Only input nodes can be freezed!")
+            if isinstance(input_user_shapes, dict):
+                # check if user provided new shape
+                if input_user_shapes.get(name) is not None:
+                    shape = [int(val) for val in input_user_shapes[name]]
+                    # set input shape
+                    input_model.set_partial_shape(node, PartialShape(shape))
+            # check if user provided data type
             if input_user_data_types.get(name) is not None:
-                value = np.array(value, dtype=input_user_data_types[name])
-            elif value in ['True', 'False']:
-                value = np.array(value, dtype=np.bool)
+                dtype = input_user_data_types[name]
+                value = np.array(value, dtype=dtype)
+                # set input data type
+                input_model.set_element_type(node, Type(dtype))
             else:
+                # if user did not provide data type
+                # we assign a default data type which will be later overwritted by
+                # the data type specified in the model
                 value = np.array(value, dtype=np.float32)
-            # Only input layer
             input_model.set_tensor_value(node, value)
         return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
