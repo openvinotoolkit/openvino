@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
@@ -36,8 +37,9 @@ using Outputs = std::vector<std::vector<float>>;
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding) {
     // Convolution with strides=2 and padding=1
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_with_strides_padding.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_with_strides_padding.onnx"));
 
     Inputs inputs;
     // data (1, 1, 7, 5) input tensor
@@ -67,8 +69,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding) {
     // Convolution with strides=2 and padding=1
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_with_strides_no_padding.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_with_strides_no_padding.onnx"));
 
     Inputs inputs;
     // data (1, 1, 7, 5) input tensor
@@ -95,8 +98,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding) {
     // Convolution with strides=2 and padding=1
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_with_strides_and_asymmetric_padding.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/conv_with_strides_and_asymmetric_padding.onnx"));
 
     Inputs inputs;
     // data (1, 1, 7, 5) input tensor
@@ -123,8 +128,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/conv2d_dilation_assym_pads_strides.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/conv2d_dilation_assym_pads_strides.onnx"));
 
     //   "",                           // auto_pad
     //   vector<int64_t>{1, 1},        // dilations
@@ -161,7 +168,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv3d_bias.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv3d_bias.onnx"));
 
     // "",                                 // auto_pad
     // vector<int64_t>{2, 2, 2},           // dilations
@@ -264,8 +272,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_transpose_w_groups.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_transpose_w_groups.onnx"));
 
     Inputs inputs;
     inputs.emplace_back(
@@ -284,7 +293,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
     // Pooling with strides=2 and no padding
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/average_pool_2d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/average_pool_2d.onnx"));
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs;
@@ -304,8 +314,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
     // Pooling with strides=2 and padding=1
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/average_pool_2d_pads.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/average_pool_2d_pads.onnx"));
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs;
@@ -325,8 +336,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/average_pool_empty_auto_pad.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/average_pool_empty_auto_pad.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
@@ -337,8 +349,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
-    const auto model =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_empty_auto_pad.onnx"));
+    const auto model = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                           SERIALIZED_ZOO,
+                                                                           "onnx/max_pool_empty_auto_pad.onnx"));
 
     for (const auto& op : model->get_ops()) {
         if (const auto max_pool = std::dynamic_pointer_cast<op::v8::MaxPool>(op)) {
@@ -352,7 +365,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
     // Pooling with strides=2 and padding=1
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_2d_pads.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/max_pool_2d_pads.onnx"));
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs;
@@ -372,7 +386,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/global_lp_pool_p0.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p0.onnx"));
 
     std::vector<std::int64_t> input{1, 0, -4, 0, 2, 1, -6, 1, 0, 0, 0, 0, -7, 1, -1, 0, -1, 8, 0, 10, 9, 0, 0, 5};
 
@@ -385,7 +400,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/global_lp_pool_p1.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p1.onnx"));
 
     Inputs inputs{std::vector<float>(2 * 3 * 4)};
     std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
@@ -399,7 +415,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/global_lp_pool_p2.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p2.onnx"));
 
     Inputs inputs{std::vector<float>(2 * 3 * 4)};
     std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
@@ -413,7 +430,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/global_lp_pool_p3.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p3.onnx"));
 
     Inputs inputs{std::vector<float>(2 * 3 * 4)};
     std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
@@ -427,21 +445,31 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_output_shape.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/convtranspose_output_shape.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/x.bin");
-    test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/w.bin");
-    test_case.add_expected_output_from_file<float>({1, 2, 10, 8}, TEST_FILES, "onnx/convtranspose_output_shape/y.bin");
+    test_case.add_input_from_file<float>(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                              TEST_FILES,
+                                                              "onnx/convtranspose_output_shape/x.bin"));
+    test_case.add_input_from_file<float>(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                              TEST_FILES,
+                                                              "onnx/convtranspose_output_shape/w.bin"));
+    test_case.add_expected_output_from_file<float>({1, 2, 10, 8},
+                                                   file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        TEST_FILES,
+                                                                        "onnx/convtranspose_output_shape/y.bin"));
 
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_upper) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_output_shape_auto_pads_same_upper.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/convtranspose_output_shape_auto_pads_same_upper.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -466,7 +494,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_lower) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_output_shape_auto_pads_same_lower.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/convtranspose_output_shape_auto_pads_same_lower.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -490,8 +520,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_groups_w_pads.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/convtranspose_groups_w_pads.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -542,8 +573,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_pads_bias) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_groups_pads_bias.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/convtranspose_groups_pads_bias.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 

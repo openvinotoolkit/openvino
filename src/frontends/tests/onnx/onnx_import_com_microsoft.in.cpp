@@ -13,10 +13,11 @@
 #endif
 // clang-format on
 
-#include "onnx_import/onnx.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
+#include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -27,8 +28,9 @@ static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/bias_gelu.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/com.microsoft/bias_gelu.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({0.5488135,
@@ -49,7 +51,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx"));
 
     std::vector<float> input = {
         0.54881352, 0.71518934, 0.60276335, 0.54488319, 0.42365479, 0.64589411, 0.43758720, 0.89177299,
@@ -75,7 +79,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta.onnx"));
 
     std::vector<float> input = {
         0.54881352, 0.71518934, 0.60276335, 0.54488319, 0.42365479, 0.64589411, 0.43758720, 0.89177299,
@@ -101,7 +107,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/skip_layer_normalization_with_gamma.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/com.microsoft/skip_layer_normalization_with_gamma.onnx"));
 
     std::vector<float> input = {
         0.54881352, 0.71518934, 0.60276335, 0.54488319, 0.42365479, 0.64589411, 0.43758720, 0.89177299,
@@ -127,7 +135,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/skip_layer_normalization_dynamic_shapes.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/com.microsoft/skip_layer_normalization_dynamic_shapes.onnx"));
 
     std::vector<float> input = {
         0.54881352, 0.71518934, 0.60276335, 0.54488319, 0.42365479, 0.64589411, 0.43758720, 0.89177299,
@@ -174,8 +184,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/embed_layer_normalization.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/embed_layer_normalization.onnx"));
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -206,7 +218,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding.onnx"));
 
     std::vector<int> input_ids = {
@@ -249,7 +262,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding_and_mask) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO,
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding_and_mask.onnx"));
 
     std::vector<int> input_ids = {
@@ -295,7 +309,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
 
     std::vector<int> input_ids = {
         8, 1, 5, 9, 8, 9, 4, 3, 0, 3, 5, 0, 2, 3, 8, 1, 3, 3, 3, 7, 0, 1, 9, 9,
@@ -390,8 +406,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/com.microsoft/attention.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -412,8 +429,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_qkv_hidden_sizes.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_qkv_hidden_sizes.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -438,8 +457,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_unidirectional.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_unidirectional.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -471,8 +492,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_1.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_mask_index_1.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -509,8 +532,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_2.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_mask_index_2.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -549,8 +574,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_3.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_mask_index_3.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -593,8 +620,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_mask_index_4.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_mask_index_4.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -631,7 +660,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_past.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_past.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -706,8 +737,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_extra_add.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_extra_add.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -761,8 +794,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/attention_dynamic_shapes.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/attention_dynamic_shapes.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> input = {
@@ -857,8 +892,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/com.microsoft/fusedgemm.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/com.microsoft/fusedgemm.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> inputA = {

@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
@@ -35,8 +36,9 @@ using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_const.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_const.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -46,7 +48,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/quantize_linear.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -57,8 +60,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, -254.f, -1000.f});  // x
@@ -70,8 +74,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_zero) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_axis_zero.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_axis_zero.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f});  // x
@@ -87,8 +92,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_zero) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_negative) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_axis_negative.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_axis_negative.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f});  // x
@@ -104,7 +110,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_negative) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequant_lin.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dequant_lin.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});
@@ -114,8 +121,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale_and_zero_point) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale_and_zero_point.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/dequantize_linear_scalar_scale_and_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
@@ -127,8 +136,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale_and_zero_
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_scale.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_scalar_scale.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
@@ -140,8 +150,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_inputs) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_inputs.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_scalar_inputs.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19});  // x
@@ -153,8 +164,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_inputs) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_point) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_scalar_zero_point.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/dequantize_linear_scalar_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
@@ -166,8 +179,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint8) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_0.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_0.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
@@ -179,8 +193,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_int8) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_1.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_1.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -193,8 +208,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_int8
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_2.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_2.onnx"));
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
@@ -209,8 +225,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_3.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_3.onnx"));
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
@@ -225,8 +242,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_4.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_4.onnx"));
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
@@ -247,8 +265,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_5.onnx"));
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
@@ -263,8 +282,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/dynamic_quantize_linear.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({0.f, 2.f, -3.f, -2.5f, 1.34f, 0.5f});
@@ -275,8 +296,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_255) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/dynamic_quantize_linear.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
@@ -287,8 +310,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_255) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_3x4) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamic_quantize_linear_3x4.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/dynamic_quantize_linear_3x4.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -308,7 +333,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_3x4) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quant_conv_lin.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/quant_conv_lin.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -338,11 +364,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_2d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_conv_2d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv2d/x.bin");
+    test_case.add_input_from_file<uint8_t>(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_FILES, "onnx/qlinearconv2d/x.bin"));
     test_case.add_input(std::vector<float>{0.00369204697199166f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{132});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{0});                   // w
@@ -351,12 +379,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     test_case.add_input(std::vector<float>{0.00162681262008846f});  // y_scale
     test_case.add_input(std::vector<uint8_t>{123});                 // y_zero_point
 
-    test_case.add_expected_output_from_file<uint8_t>({1, 1, 7, 7}, TEST_FILES, "onnx/qlinearconv2d/y.bin");
+    test_case.add_expected_output_from_file<uint8_t>({1, 1, 7, 7}, 
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_FILES, "onnx/qlinearconv2d/y.bin"));
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_3d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_conv_3d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -414,8 +444,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/quant_conv_linear_onnx_example.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/quant_conv_linear_onnx_example.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -448,7 +480,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_2d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_matmul.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -466,7 +499,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_2d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -491,8 +525,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_int8.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/matmul_integer_int8.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -514,8 +549,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_vectorized_zero_point.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/matmul_integer_vectorized_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -542,8 +579,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_no_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/matmul_integer_no_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -568,8 +606,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_2d_x_3d.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/matmul_integer_2d_x_3d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -598,8 +637,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d_x_2d.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/matmul_integer_3d_x_2d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -627,7 +667,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_3d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -661,7 +702,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -699,7 +741,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -736,8 +779,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_matrix_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/matmul_integer_matrix_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -776,7 +820,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -797,7 +842,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv_integer.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -818,8 +864,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_scalar_zp.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_integer_scalar_zp.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -839,7 +886,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_int8.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv_integer_int8.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -860,8 +908,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_integer_no_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -880,8 +929,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_vector_w_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_integer_vector_w_zero_point.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -924,8 +974,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_overload.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/conv_integer_overload.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -946,8 +997,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/fake_quantize_const_inputs.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/fake_quantize_const_inputs.onnx"));
 
     const Shape expected_output_shape{1, 2, 3, 4};
     EXPECT_EQ(function->get_output_size(), 1);
@@ -957,8 +1010,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/fake_quantize_const_inputs.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/fake_quantize_const_inputs.onnx"));
 
     const Shape data_shape{1, 2, 3, 4};
     const auto n_elements = shape_size(data_shape);
@@ -975,8 +1030,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/fake_quantize_nonconst_inputs.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantization/fake_quantize_nonconst_inputs.onnx"));
 
     const Shape data_shape{1, 2, 3, 4};
     const size_t n_elements = shape_size(data_shape);
@@ -1002,8 +1059,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opset10) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opset10.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/quantize_linear_opset10.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -1015,8 +1073,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opset10) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis0) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis0.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantize_linear_opsets_10_and_13_axis0.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
@@ -1028,8 +1088,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis0) 
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis1) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_opsets_10_and_13_axis1.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantize_linear_opsets_10_and_13_axis1.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
