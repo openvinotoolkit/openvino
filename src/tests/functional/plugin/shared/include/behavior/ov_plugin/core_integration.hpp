@@ -41,6 +41,9 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(pluginName, deviceName) = GetParam();
         pluginName += IE_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        }
     }
 };
 
@@ -151,7 +154,6 @@ TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
 
 TEST(OVClassBasicTest, smoke_registerNonExistingPluginFileThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
 
