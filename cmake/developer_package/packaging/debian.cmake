@@ -20,13 +20,14 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/inferenceengine${OpenVINO_VERSION})
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
-    set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino${OpenVINO_VERSION})
+    set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
 
     # non-native stuff
     set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
-    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino${OpenVINO_VERSION}) # internal
+    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino-${OpenVINO_VERSION}) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
+    unset(OV_CPACK_SHAREDIR)
 
     set(OV_CPACK_WHEELSDIR .) # TODO
 
@@ -108,6 +109,8 @@ macro(ov_debian_specific_settings)
     set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes
     # set(CPACK_DEBIAN_PACKAGE_RELEASE "1")
+    # enable this if someday we change the version scheme
+    # set(CPACK_DEBIAN_PACKAGE_EPOCH "2")
 endmacro()
 
 ov_debian_specific_settings()
@@ -213,25 +216,25 @@ endfunction()
 # ov_debian_generate_conflicts(<comp name>)
 #
 function(ov_debian_generate_conflicts comp)
-    set(versions ${ARGN})
+    set(cpack_name_versions ${ARGN})
     string(TOUPPER "${comp}" ucomp)
 
     # sanity check
     if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
     else()
-        if(NOT DEFINED CPACK_PACKAGE_VERSION)
-            message(FATAL_ERROR "CPACK_PACKAGE_VERSION is not defined")
+        if(NOT DEFINED cpack_name_ver)
+            message(FATAL_ERROR "Internal variable 'cpack_name_ver' is not defined")
         endif()
 
-        string(REPLACE "${CPACK_PACKAGE_VERSION}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
+        string(REPLACE "${cpack_name_ver}" "" package_name_base "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     endif()
 
-    foreach(version IN LISTS versions)
+    foreach(cpack_name_version IN LISTS cpack_name_versions)
         if(package_names)
-            set(package_names "${package_names}, ${package_name_base}${version}")
+            set(package_names "${package_names}, ${package_name_base}${cpack_name_version}")
         else()
-            set(package_names "${package_name_base}${version}")
+            set(package_names "${package_name_base}${cpack_name_version}")
         endif()
     endforeach()
 
@@ -255,7 +258,7 @@ macro(ov_debian_add_latest_component comp)
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
-        string(REPLACE "-${cpack_ver_mm}" ""
+        string(REPLACE "-${cpack_name_ver}" ""
             CPACK_DEBIAN_${upper_case}_PACKAGE_NAME
             "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     else()
