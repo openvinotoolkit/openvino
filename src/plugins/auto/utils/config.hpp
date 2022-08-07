@@ -20,17 +20,15 @@ struct PluginConfig {
                 _useProfiling(false),
                 _exclusiveAsyncRequests(false),
                 _disableAutoBatching(false),
-                _batchTimeout(0),
+                _batchTimeout("1000"),
                 _devicePriority(""),
                 _modelPriority(0),
                 _deviceBindBuffer(false),
                 _logLevel("LOG_NONE") {
-        _perfHintsConfig.SetConfig(CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT));
-        _perfHintsConfig.SetConfig(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "0");
         adjustKeyMapValues();
     }
 
-    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool checkValid = true) {
+    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool checkValid = false) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
             if (kvp.first == ov::enable_profiling) {
@@ -77,11 +75,12 @@ struct PluginConfig {
                             << " for key: " << kvp.first;
             } else if (kvp.first == ov::auto_batch_timeout) {
                 try {
-                    auto _batchTimeout = std::stoi(kvp.second);
-                    if (_batchTimeout < 0) {
+                    auto batchTimeout = std::stoi(kvp.second);
+                    if (batchTimeout < 0) {
                         IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
                     }
+                    _batchTimeout = kvp.second;
                 } catch (...) {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
@@ -155,11 +154,10 @@ struct PluginConfig {
             _keyConfigMap[kvp.first] = kvp.second;
         }
     }
-    static bool isNewApiProperty(std::string property);
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
-    uint _batchTimeout;
+    std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
     bool _deviceBindBuffer;

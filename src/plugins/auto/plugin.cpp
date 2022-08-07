@@ -105,7 +105,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        if (GetName() == "AUTO" && deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == deviceConfig.end() &&
+        auto iter = deviceConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+        bool flag = (iter == deviceConfig.end()) || iter->second.empty();
+        if (GetName() == "AUTO" && flag &&
             tconfig.find(deviceName) == tconfig.end()) {
             // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
             // specified for target device.
@@ -223,18 +225,45 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter> & options) const {
     Parameter result;
-    auto option = _pluginConfig._keyConfigMap.find(name);
-    if (option != _pluginConfig._keyConfigMap.end()) {
-        result = option->second;
+    const bool is_new_api = IsNewAPI();
+    if (_pluginConfig._keyConfigMap.find(name) != _pluginConfig._keyConfigMap.end()) {
+        std::string val = _pluginConfig._keyConfigMap.find(name)->second;
+        if (is_new_api) {
+            if (name == ov::enable_profiling) {
+                return val == PluginConfigParams::YES ? true : false;
+            } else if (name == ov::hint::model_priority) {
+                return ov::util::from_string(val, ov::hint::model_priority);
+            } else if (name == ov::hint::performance_mode) {
+                return ov::util::from_string(val, ov::hint::performance_mode);
+            } else if (name == ov::hint::num_requests) {
+                auto temp = ov::util::from_string(val, ov::hint::num_requests);
+                return temp;
+            } else if (name == ov::device::id) {
+                return ov::util::from_string(val, ov::device::id);
+            } else if (name == ov::hint::allow_auto_batching) {
+                return val == PluginConfigParams::YES ? true : false;
+            } else if (name == ov::auto_batch_timeout) {
+                return ov::util::from_string(val, ov::auto_batch_timeout);
+            } else if (name == ov::intel_auto::device_bind_buffer) {
+                return val == PluginConfigParams::YES ? true : false;
+            } else if (name == ov::log::level) {
+                return ov::util::from_string(val, ov::log::level);
+            } else if (name == ov::device::priorities) {
+                return ov::util::from_string(val, ov::device::priorities);
+            } else {
+                return val;
+            }
+        } else {
+            return val;
+        }
     } else {
-        IE_THROW() << "Unsupported config key: " << name;
+        IE_THROW() << "Unsupported config key : " << name;
     }
     return result;
-    // TBD new API need support?
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    _pluginConfig.UpdateFromMap(config, GetName());
+    _pluginConfig.UpdateFromMap(config, GetName(), true);
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
@@ -265,7 +294,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
                                                     RW_property(ov::hint::allow_auto_batching.name()),
                                                     RW_property(ov::auto_batch_timeout.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
-                                                    RW_property(ov::hint::num_requests.name())
+                                                    RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::intel_auto::device_bind_buffer.name())
         };
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
