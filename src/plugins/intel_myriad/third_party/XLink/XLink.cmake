@@ -35,10 +35,12 @@ else()
         pkg_search_module(libusb REQUIRED
                           IMPORTED_TARGET GLOBAL
                           libusb-1.0)
-        set(LIBUSB_LIBRARY "PkgConfig::libusb" CACHE STRING "libusb-1.0 imported target")
-        set(LIBUSB_INCLUDE_DIR "" CACHE PATH "libusb-1.0 include dirs")
+        if(libusb_FOUND)
+            set(LIBUSB_LIBRARY "PkgConfig::libusb" CACHE STRING "libusb-1.0 imported target")
+            set(LIBUSB_INCLUDE_DIR "" CACHE PATH "libusb-1.0 include dirs")
 
-        message(STATUS "libusb-1.0 (${libusb_VERSION}) is found at ${libusb_PREFIX}")
+            message(STATUS "libusb-1.0 (${libusb_VERSION}) is found at ${libusb_PREFIX}")
+        endif()
     else()
         find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
         find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib")
