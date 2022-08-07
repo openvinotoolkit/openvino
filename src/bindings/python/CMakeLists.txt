@@ -14,9 +14,7 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
-set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-set(PYTHON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
 
 # TODO: Remove this condition as 76672 will be fixed
 if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
@@ -33,13 +31,11 @@ set(ie_python_req "cython>=0.29.22")
 function(ov_check_python_build_conditions)
     # Try to find python3
     find_package(PythonInterp 3 QUIET)
-    if(PythonInterp_FOUND)
+    if(PYTHONINTERP_FOUND)
         set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
+        list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
         # use libraries with the same version as python itself
-        find_package(PythonLibsNew ${PYTHON_VERSION_STRING} EXACT QUIET
-                     PATHS "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools"
-                     NO_CMAKE_FIND_ROOT_PATH
-                     NO_DEFAULT_PATH)
+        find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT QUIET)
     endif()
 
     # pyopenvino requirements
@@ -91,7 +87,7 @@ ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requ
                       RESULT_VAR wheel_req_FOUND
                       MESSAGE_MODE WARNING)
 
-set(WHEEL_CONDITION "PYTHONINTERP_FOUND;ENABLE_PYTHON;wheel_req_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR")
+set(WHEEL_CONDITIONS "PYTHONINTERP_FOUND;ENABLE_PYTHON;wheel_req_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR")
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -99,13 +95,13 @@ if(LINUX)
                       DOC "Path to patchelf tool")
     if(NOT patchelf_program)
         message(WARNING "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
-        list(APPEND WHEEL_CONDITION patchelf_program)
+        list(APPEND WHEEL_CONDITIONS patchelf_program)
     endif()
 endif()
 
 # this option should not be a part of InferenceEngineDeveloperPackage
 # since wheels can be built only together with main OV build
-ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL_CONDITION}" OFF)
+ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL_CONDITIONS}" OFF)
 
 #
 # Build the code
@@ -130,6 +126,7 @@ if(ENABLE_WHEEL)
 endif()
 
 if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYBIND11)
+    set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
     add_subdirectory(tests/mock/mock_py_frontend)
     add_dependencies(pyopenvino openvino_mock_py_frontend)
     set_target_properties(openvino_mock_py_frontend PROPERTIES

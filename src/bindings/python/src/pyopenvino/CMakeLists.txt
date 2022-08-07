@@ -105,7 +105,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}/openvino
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
 
-    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 endif()

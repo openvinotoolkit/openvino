@@ -83,7 +83,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests_compatibility
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
