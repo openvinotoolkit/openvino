@@ -8,7 +8,6 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "engine_factory.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
@@ -33,17 +32,7 @@ std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const st
 
 class TestCase {
 public:
-    TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE") : m_function{function} {
-        try {
-            // Register template plugin
-            m_core.register_plugin(
-                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                   std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
-                "TEMPLATE");
-        } catch (...) {
-        }
-        m_request = m_core.compile_model(function, dev).create_infer_request();
-    }
+    TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE");
 
     template <typename T>
     void add_input(const Shape& shape, const std::vector<T>& values) {
