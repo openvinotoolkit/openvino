@@ -12,7 +12,7 @@ If you have installed OpenVINO Runtime from archive files, use the following com
   You can choose either of the following methods:
 
   * Use Windows Explorer to remove the files.
-  * Open the Command window and run:
+  * Open a Command Prompt and run:
 
      .. code-block:: sh
   
