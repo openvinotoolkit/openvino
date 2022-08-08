@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
+
 #include "test_model_repo.hpp"
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml");

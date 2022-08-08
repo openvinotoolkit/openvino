@@ -6,9 +6,9 @@ namespace TestDataHelpers {
 
 static const char kPathSeparator =
 #if defined _WIN32 || defined __CYGWIN__
-        '\\';
+    '\\';
 #else
-        '/';
+    '/';
 #endif
 
 inline std::string getModelPathNonFatal() noexcept {
@@ -50,4 +50,4 @@ inline std::string generate_image_path(std::string dir, std::string filename) {
 inline std::string generate_ieclass_xml_path(std::string filename) {
     return getModelPathNonFatal() + kPathSeparator + "ie_class" + kPathSeparator + filename;
 }
-} // namespace TestDataHelpers
+}  // namespace TestDataHelpers

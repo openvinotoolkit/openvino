@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <mutex>
-#include "ov_test.hpp"
 
+#include "ov_test.hpp"
 
 void get_tensor_info(ov_model_t* model,
                      bool input,
