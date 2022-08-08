@@ -65,7 +65,7 @@ public:
                               : std::vector<primitive_id>{"num_rows", "num_columns", "diagonal_index", "batch"};
             ouput_op_name = "eye";
             auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, "", diag, type_to_data_type<OutputType>::value);
+                eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
             tp.add(std::move(eye_primitive));
         } else {
             tp.add(reorder("r_num_rows", "num_rows", fmt, type_to_data_type<InputType>::value));
@@ -78,7 +78,7 @@ public:
                               ? std::vector<primitive_id>{"r_num_rows", "r_num_columns", "r_diagonal_index"}
                               : std::vector<primitive_id>{"r_num_rows", "r_num_columns", "r_diagonal_index", "r_batch"};
             auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, "", diag, type_to_data_type<OutputType>::value);
+                eye("eye", inputs, tensor{output_shape}, diag, type_to_data_type<OutputType>::value);
             tp.add(std::move(eye_primitive));
             ouput_op_name = "output";
             tp.add(reorder("output", "eye", oupput_fmt, type_to_data_type<OutputType>::value));

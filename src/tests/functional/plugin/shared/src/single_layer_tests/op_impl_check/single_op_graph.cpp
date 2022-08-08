@@ -4,6 +4,7 @@
 
 #include <single_layer_tests/op_impl_check/op_impl_check.hpp>
 #include <single_layer_tests/op_impl_check/single_op_graph.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 namespace ov {
 namespace test {
@@ -377,6 +378,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::Eye> &node
                                                        diag,
                                                        batch,
                                                        ov::element::f32);
+    ov::pass::disable_constant_folding(eye);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye)};
     return std::make_shared<ov::Model>(results, ngraph::ParameterVector{}, "Eye");
 }

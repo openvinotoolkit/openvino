@@ -90,12 +90,9 @@ void register_implementations() {
     REGISTER_OCL(embedding_bag);
     REGISTER_OCL(extract_image_patches);
     REGISTER_OCL(convert_color);
-<<<<<<< HEAD
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
-=======
     REGISTER_OCL(eye);
->>>>>>> eye-like operation
 }
 
 }  // namespace ocl

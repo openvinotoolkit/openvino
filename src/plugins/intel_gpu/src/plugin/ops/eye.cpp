@@ -9,6 +9,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -16,7 +17,7 @@ namespace intel_gpu {
 namespace {
 
 static void CreateEyeOp(Program& p, const std::shared_ptr<ngraph::op::v9::Eye>& op) {
-    p.ValidateInputs(op, {3, 4});
+    validate_inputs_count(op, {3, 4});
 
     const InferenceEngine::SizeVector& output_shapes = op->get_output_shape(0);
     auto os_sz = output_shapes.size();
@@ -45,12 +46,10 @@ static void CreateEyeOp(Program& p, const std::shared_ptr<ngraph::op::v9::Eye>& 
     auto eye_prim = cldnn::eye(layer_type_name_ID(op),
                                input_primitives,
                                output_shape,
-                               op->get_friendly_name(),
                                shift,
-                               DataTypeFromPrecision(op->get_out_type()));
+                               cldnn::element_type_to_data_type(op->get_out_type()));
 
-    p.AddPrimitive(eye_prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, eye_prim);
 }
 
 }  // namespace

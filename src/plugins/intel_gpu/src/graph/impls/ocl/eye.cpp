@@ -26,8 +26,8 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
         return make_unique<eye_impl>(*this);
     }
 
-    static primitive_impl* create(const eye_node& arg) {
-        auto params = get_default_params<kernel_selector::eye_params>(arg);
+    static primitive_impl* create(const eye_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::eye_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::eye_optional_params>(arg.get_program());
 
         auto primitive = arg.get_primitive();
@@ -48,8 +48,13 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
 namespace detail {
 
 attach_eye_impl::attach_eye_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
-    auto formats = {
+    const std::vector<data_types> types{data_types::f16,
+                                        data_types::f32,
+                                        data_types::i8,
+                                        data_types::u8,
+                                        data_types::i32,
+                                        data_types::i64};
+    const std::vector<format::type> formats{
         format::bfyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
@@ -65,13 +70,7 @@ attach_eye_impl::attach_eye_impl() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
     };
-    std::set<std::tuple<data_types, format::type>> keys;
-    for (const auto& t : types) {
-        for (const auto& f : formats) {
-            keys.emplace(t, f);
-        }
-    }
-    implementation_map<eye>::add(impl_types::ocl, eye_impl::create, keys);
+    implementation_map<eye>::add(impl_types::ocl, eye_impl::create, types, formats);
 }
 
 }  // namespace detail

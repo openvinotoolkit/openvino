@@ -29,7 +29,7 @@ class typed_primitive_inst<eye> : public typed_primitive_inst_base<eye> {
     using parent = typed_primitive_inst_base<eye>;
 
 public:
-    static layout calc_output_layout(eye_node const& node);
+    static layout calc_output_layout(eye_node const& node, const kernel_impl_params& impl_param);
     static std::string to_string(eye_node const& node);
 
 public:

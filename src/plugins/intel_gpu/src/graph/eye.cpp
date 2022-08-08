@@ -18,7 +18,7 @@ primitive_type_id eye::type_id() {
 
 eye_inst::typed_primitive_inst(network& network, eye_node const& node) : parent(network, node) {}
 
-layout eye_inst::calc_output_layout(eye_node const& node) {
+layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_params&) {
     auto primitive = node.get_primitive();
     return {*(primitive->output_data_type), node.input().get_output_layout().format, primitive->output_shape};
 }
