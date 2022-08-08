@@ -94,7 +94,7 @@ class Reader : public IReader {
 public:
     using Ptr = std::shared_ptr<Reader>;
 
-    explicit Reader(const std::string location) {
+    explicit Reader(const std::string& location) {
 #    ifdef OPENVINO_STATIC_LIBRARY
         // call library creator directly, since we are in the same application
         InferenceEngine::CreateReader(ptr);
