@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include "kernels/jit_uni_nms_proposal_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,6 +24,7 @@ public:
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
+    void createPrimitive() override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -47,6 +49,7 @@ private:
     float coordinates_offset;
 
     std::vector<int> roi_indices_;
+    std::unique_ptr<jit_uni_nms_proposal_kernel> nms_kernel_ {};
 };
 
 }   // namespace node
