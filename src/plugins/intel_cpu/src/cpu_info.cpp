@@ -250,14 +250,14 @@ float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
 
 float CPUInfo::getFrequency(const std::string path) {
 #ifndef WIN32
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        throw std::runtime_error("CPUInfo: unable to open " + path + " file\n");
-    }
-
     std::string freq;
-    file >> freq;
-
+    try {
+        std::ifstream file(path);
+        file >> freq;
+    }
+    catch (std::ios_base::failure& e) {
+        throw std::runtime_error("CPUInfo: unable to open " + path + " file: " + std::string(e.what()) + "\n");
+    }
     return std::stof(freq) / Hz_IN_GHz;
 #else
     return freqGHz;
@@ -351,11 +351,13 @@ void CPUInfo::init() {
     };
 
     std::string path = "/proc/cpuinfo";
-    std::ifstream cpuinfo(path);
-    if (!cpuinfo.is_open()) {
-        throw std::runtime_error("CPUInfo: unable to open /proc/cpuinfo file\n");
+    std::ifstream cpuinfo;
+    try {
+        cpuinfo.open(path);
     }
-
+    catch (std::ios_base::failure& e) {
+        throw std::runtime_error("CPUInfo: unable to open " + path + " file: " + std::string(e.what()) + "\n");
+    }
     std::set<uint32_t> unique_core_ids;
     for (std::string line; std::getline(cpuinfo, line);) {
         if (line.find("cpu cores") != std::string::npos) {
