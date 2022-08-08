@@ -16,7 +16,7 @@ If you have installed OpenVINO Runtime from archive files, use the following com
 
      .. code-block:: sh
   
-       rmdir <extracted_folder>
+       rmdir /s <extracted_folder>
        del <path_to_archive>
 
     
