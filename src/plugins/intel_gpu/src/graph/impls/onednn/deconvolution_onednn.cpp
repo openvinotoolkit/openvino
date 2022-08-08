@@ -176,6 +176,7 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
         MAKE_TUPLE4(bs_fs_yx_bsv8_fsv2,     f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv8_fsv4,     f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv16_fsv16,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_yx_bsv16_fsv32,   f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv32_fsv16,   f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv32_fsv32,   f32, f16, u8, i8),
         MAKE_TUPLE4(b_fs_zyx_fsv32,         f32, f16, u8, i8),
