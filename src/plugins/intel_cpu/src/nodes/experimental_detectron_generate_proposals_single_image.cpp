@@ -10,15 +10,14 @@
 #include <utility>
 #include <algorithm>
 
-#if defined(HAVE_AVX2)
-#include <immintrin.h>
-#endif
-
 #include <ngraph/op/experimental_detectron_generate_proposals.hpp>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
+#include "proposal_imp.hpp"
 
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -118,132 +117,9 @@ void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_t
     });
 }
 
-void nms_cpu(const int num_boxes, int is_dead[],
-             const float* boxes, int index_out[], int* const num_out,
-             const int base_index, const float nms_thresh, const int max_num_out,
-             float coordinates_offset) {
-    const int num_proposals = num_boxes;
-    int count = 0;
-
-    const float* x0 = boxes + 0 * num_proposals;
-    const float* y0 = boxes + 1 * num_proposals;
-    const float* x1 = boxes + 2 * num_proposals;
-    const float* y1 = boxes + 3 * num_proposals;
-
-    std::memset(is_dead, 0, num_boxes * sizeof(int));
-
-#if defined(HAVE_AVX2)
-    __m256  vc_fone = _mm256_set1_ps(coordinates_offset);
-    __m256i vc_ione = _mm256_set1_epi32(1);
-    __m256  vc_zero = _mm256_set1_ps(0.0f);
-
-    __m256 vc_nms_thresh = _mm256_set1_ps(nms_thresh);
-#endif
-
-    for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
-            continue;
-
-        index_out[count++] = base_index + box;
-        if (count == max_num_out)
-            break;
-
-        int tail = box + 1;
-
-#if defined(HAVE_AVX2)
-        __m256 vx0i = _mm256_set1_ps(x0[box]);
-        __m256 vy0i = _mm256_set1_ps(y0[box]);
-        __m256 vx1i = _mm256_set1_ps(x1[box]);
-        __m256 vy1i = _mm256_set1_ps(y1[box]);
-
-        __m256 vA_width  = _mm256_sub_ps(vx1i, vx0i);
-        __m256 vA_height = _mm256_sub_ps(vy1i, vy0i);
-        __m256 vA_area   = _mm256_mul_ps(_mm256_add_ps(vA_width, vc_fone), _mm256_add_ps(vA_height, vc_fone));
-
-        for (; tail <= num_boxes - 8; tail += 8) {
-            __m256i *pdst = reinterpret_cast<__m256i*>(is_dead + tail);
-            __m256i  vdst = _mm256_loadu_si256(pdst);
-
-            __m256 vx0j = _mm256_loadu_ps(x0 + tail);
-            __m256 vy0j = _mm256_loadu_ps(y0 + tail);
-            __m256 vx1j = _mm256_loadu_ps(x1 + tail);
-            __m256 vy1j = _mm256_loadu_ps(y1 + tail);
-
-            __m256 vx0 = _mm256_max_ps(vx0i, vx0j);
-            __m256 vy0 = _mm256_max_ps(vy0i, vy0j);
-            __m256 vx1 = _mm256_min_ps(vx1i, vx1j);
-            __m256 vy1 = _mm256_min_ps(vy1i, vy1j);
-
-            __m256 vwidth  = _mm256_add_ps(_mm256_sub_ps(vx1, vx0), vc_fone);
-            __m256 vheight = _mm256_add_ps(_mm256_sub_ps(vy1, vy0), vc_fone);
-            __m256 varea = _mm256_mul_ps(_mm256_max_ps(vc_zero, vwidth), _mm256_max_ps(vc_zero, vheight));
-
-            __m256 vB_width  = _mm256_sub_ps(vx1j, vx0j);
-            __m256 vB_height = _mm256_sub_ps(vy1j, vy0j);
-            __m256 vB_area   = _mm256_mul_ps(_mm256_add_ps(vB_width, vc_fone), _mm256_add_ps(vB_height, vc_fone));
-
-            __m256 vdivisor = _mm256_sub_ps(_mm256_add_ps(vA_area, vB_area), varea);
-            __m256 vintersection_area = _mm256_div_ps(varea, vdivisor);
-
-            __m256 vcmp_0 = _mm256_cmp_ps(vx0i, vx1j, _CMP_LE_OS);
-            __m256 vcmp_1 = _mm256_cmp_ps(vy0i, vy1j, _CMP_LE_OS);
-            __m256 vcmp_2 = _mm256_cmp_ps(vx0j, vx1i, _CMP_LE_OS);
-            __m256 vcmp_3 = _mm256_cmp_ps(vy0j, vy1i, _CMP_LE_OS);
-            __m256 vcmp_4 = _mm256_cmp_ps(vc_nms_thresh, vintersection_area, _CMP_LT_OS);
-
-            vcmp_0 = _mm256_and_ps(vcmp_0, vcmp_1);
-            vcmp_2 = _mm256_and_ps(vcmp_2, vcmp_3);
-            vcmp_4 = _mm256_and_ps(vcmp_4, vcmp_0);
-            vcmp_4 = _mm256_and_ps(vcmp_4, vcmp_2);
-
-            _mm256_storeu_si256(pdst, _mm256_blendv_epi8(vdst, vc_ione, _mm256_castps_si256(vcmp_4)));
-        }
-#endif
-
-        for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
-
-            const float x0i = x0[box];
-            const float y0i = y0[box];
-            const float x1i = x1[box];
-            const float y1i = y1[box];
-
-            const float x0j = x0[tail];
-            const float y0j = y0[tail];
-            const float x1j = x1[tail];
-            const float y1j = y1[tail];
-
-            if (x0i <= x1j && y0i <= y1j && x0j <= x1i && y0j <= y1i) {
-                // overlapped region (= box)
-                const float x0 = std::max<float>(x0i, x0j);
-                const float y0 = std::max<float>(y0i, y0j);
-                const float x1 = std::min<float>(x1i, x1j);
-                const float y1 = std::min<float>(y1i, y1j);
-
-                // intersection area
-                const float width  = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f,  y1 - y0 + coordinates_offset);
-                const float area   = width * height;
-
-                // area of A, B
-                const float A_area = (x1i - x0i + coordinates_offset) * (y1i - y0i + coordinates_offset);
-                const float B_area = (x1j - x0j + coordinates_offset) * (y1j - y0j + coordinates_offset);
-
-                // IoU
-                res = area / (A_area + B_area - area);
-            }
-
-            if (nms_thresh < res)
-                is_dead[tail] = 1;
-        }
-    }
-
-    *num_out = count;
-}
-
 void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores,
-                       const int num_proposals, const int num_rois, const int post_nms_topn) {
+                       const int num_proposals, const std::size_t num_rois, const int post_nms_topn) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -379,7 +255,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
         const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
 
         // number of final RoIs
-        int num_rois = 0;
+        std::size_t num_rois = 0;
 
         // enumerate all proposals
         //   num_proposals = num_anchors * H * W
@@ -411,8 +287,28 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
                               });
 
             unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
-            nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
+            if (n > 0)
+                std::fill(is_dead.begin(), is_dead.end(), 0);
+#ifdef __GNUC__
+            if (__builtin_expect(static_cast<bool>(nms_kernel_), true)) {
+#else
+            if (nms_kernel_) {
+#endif
+                jit_uni_nms_proposal_kernel::jit_nms_call_args args {
+                    pre_nms_topn,
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    &unpacked_boxes[2 * pre_nms_topn],
+                    &unpacked_boxes[pre_nms_topn],
+                    &unpacked_boxes[3 * pre_nms_topn],
+                    roi_indices_.data(),
+                    &num_rois
+                };
+                nms_kernel_->operator()(&args);
+            } else {
+                nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
                     nms_thresh_, post_nms_topn_, coordinates_offset);
+            }
             fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], p_roi_item, p_roi_score_item,
                               pre_nms_topn, num_rois, post_nms_topn_);
         }
@@ -432,6 +328,26 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::needShapeInfer() const {
 
 bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() const {
     return false;
+}
+
+void ExperimentalDetectronGenerateProposalsSingleImage::createPrimitive() {
+    jit_uni_nms_proposal_kernel::jit_nms_conf jcp { post_nms_topn_, nms_thresh_,
+        coordinates_offset };
+    std::unique_ptr<jit_uni_nms_proposal_kernel> nms_kernel;
+    if (mayiuse(avx512_core)) {
+        nms_kernel.reset(new jit_uni_nms_proposal_kernel_impl<avx512_core> { jcp });
+    } else if (mayiuse(x64::avx2)) {
+        nms_kernel.reset(new jit_uni_nms_proposal_kernel_impl<x64::avx2> { jcp });
+    } else if (mayiuse(sse41)) {
+        nms_kernel.reset(new jit_uni_nms_proposal_kernel_impl<sse41> { jcp });
+    } else {
+        DEBUG_LOG("Unable to create JIT version of GenerateProposals due to unsupported ISA."
+            " Non-JIT version of proposal will be executed.");
+    }
+    if (nms_kernel) {
+        nms_kernel->create_ker();
+        nms_kernel_ = std::move(nms_kernel);
+    }
 }
 
 }   // namespace node
