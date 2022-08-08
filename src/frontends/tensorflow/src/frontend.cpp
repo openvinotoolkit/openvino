@@ -259,7 +259,8 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 auto output = node_output_vector.second[output_ind];
                 if (output.get_target_inputs().empty() &&
                     !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
-                    auto model_output_name = output.get_node_shared_ptr()->get_name() + ":" + std::to_string(output_ind);
+                    auto model_output_name =
+                        output.get_node_shared_ptr()->get_name() + ":" + std::to_string(output_ind);
                     auto result_node = std::make_shared<ov::opset8::Result>(output);
                     set_node_name(model_output_name, result_node);
                     results.push_back(result_node);
