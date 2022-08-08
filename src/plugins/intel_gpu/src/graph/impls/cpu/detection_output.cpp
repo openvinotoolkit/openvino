@@ -49,11 +49,15 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
-    explicit detection_output_impl(const detection_output_node& outer) :
-        nms_type(outer.get_primitive()->decrease_label_id ? MXNET : CAFFE) {}
+    explicit detection_output_impl(const detection_output_node& outer) {
+        set_node_params(outer);
+    }
 
-    detection_output_impl(const detection_output_impl& other) : typed_primitive_impl<detection_output>(other),
-        nms_type(other.nms_type) {}
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<detection_output>());
+        const auto& node = arg.as<detection_output>();
+        nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
+    }
 
     static inline void intersect_bbox(const bounding_box& bbox1,
                                       const bounding_box& bbox2,

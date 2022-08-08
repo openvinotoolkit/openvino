@@ -17,10 +17,15 @@ struct condition_impl : typed_primitive_impl<condition> {
         return make_unique<condition_impl>(*this);
     }
 
-    condition_impl(const condition_impl& other) : typed_primitive_impl<condition>(other),
-        _node_id(other._node_id) {}
+    explicit condition_impl(const condition_node& outer) {
+        set_node_params(outer);
+    }
 
-    explicit condition_impl(const condition_node& outer) : _node_id(outer.id()) {}
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<condition>());
+        const auto& node = arg.as<condition>();
+        _node_id = node.id();
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         for (auto& a : events) {
@@ -47,7 +52,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     void init_kernels(const kernels_cache&) override {}
 
 private:
-    const primitive_id& _node_id;
+    primitive_id _node_id;
 
     /*
     Add functions here.

@@ -21,18 +21,25 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<convolution_impl>(*this);
+    }
+
     explicit convolution_impl(const convolution_impl& other) : parent(other),
       _split(other._split),
       _groups(other._groups),
       _depthwise_sep_opt(other._depthwise_sep_opt) {}
 
-    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-      _split(arg.get_split()),
-      _groups(arg.get_groups()),
-      _depthwise_sep_opt(arg.get_depthwise_sep_opt()) {}
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
 
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<convolution_impl>(*this);
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<convolution>());
+        const auto& node = arg.as<convolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+        _depthwise_sep_opt = node.get_depthwise_sep_opt();
     }
 
 protected:

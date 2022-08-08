@@ -26,8 +26,15 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
     explicit scale_impl(const scale_impl& other) : parent(other),
         _has_bias_term(other._has_bias_term) {}
 
-    scale_impl(const scale_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-        _has_bias_term(arg.bias_term()) {}
+    scale_impl(const scale_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<scale>());
+        const auto& node = arg.as<scale>();
+        _has_bias_term = node.bias_term();
+    }
 
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {

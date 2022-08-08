@@ -26,9 +26,16 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         _split(other._split),
         _groups(other._groups) {}
 
-    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-        _split(arg.get_split()),
-        _groups(arg.get_groups()) {}
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<deconvolution>());
+        const auto& node = arg.as<deconvolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+    }
 
 protected:
     // TODO: share it with convolution and fully connected

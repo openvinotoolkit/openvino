@@ -25,9 +25,16 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         _can_be_optimized(other._can_be_optimized),
         _has_mean(other._has_mean) {}
 
-    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-        _can_be_optimized(arg.can_be_optimized()),
-        _has_mean(arg.has_mean()) {}
+    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<reorder>());
+        const auto& node = arg.as<reorder>();
+        _can_be_optimized = node.can_be_optimized();
+        _has_mean = node.has_mean();
+    }
 
 protected:
     bool optimized_out(reorder_inst& instance) const override {

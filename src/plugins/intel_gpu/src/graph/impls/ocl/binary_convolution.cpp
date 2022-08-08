@@ -29,8 +29,15 @@ struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     explicit binary_convolution_impl(const binary_convolution_impl& other) : parent(other),
         _split(other._split) {}
 
-    binary_convolution_impl(const binary_convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-        _split(arg.get_split()) {}
+    binary_convolution_impl(const binary_convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<binary_convolution>());
+        const auto& node = arg.as<binary_convolution>();
+        _split = node.get_split();
+    }
 
 protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {

@@ -27,9 +27,16 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         _split(other._split),
         _groups(other._groups) {}
 
-    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd),
-        _split(arg.get_split()),
-        _groups(arg.get_groups()) {}
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<deformable_conv>());
+        const auto& node = arg.as<deformable_conv>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+    }
 
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {

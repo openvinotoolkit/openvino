@@ -32,17 +32,24 @@ struct loop_impl : typed_primitive_impl<loop> {
         _is_execution_condition_used(other._is_execution_condition_used),
         _back_edges(other._back_edges) {}
 
-    explicit loop_impl(const loop_node& node) :
-        _node_id(node.id()),
-        _current_iteration_id(node.get_current_iteration_id()),
-        _trip_count_id(node.get_trip_count_id()),
-        _initial_execution_id(node.get_initial_execution_id()),
-        _condition_id(node.get_condition_id()),
-        _num_iteration_id(node.get_num_iteration_id()),
-        _max_iteration(node.get_max_iteration()),
-        _is_current_iteration_used(node.is_current_iteration_used()),
-        _is_execution_condition_used(node.is_execution_condition_used()),
-        _back_edges(node.get_back_edges()) {}
+    explicit loop_impl(const loop_node& node) {
+        set_node_params(node);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<loop>());
+        const auto& node = arg.as<loop>();
+        _node_id = node.id();
+        _current_iteration_id = node.get_current_iteration_id();
+        _trip_count_id = node.get_trip_count_id();
+        _initial_execution_id = node.get_initial_execution_id();
+        _condition_id = node.get_condition_id();
+        _num_iteration_id = node.get_num_iteration_id();
+        _max_iteration = node.get_max_iteration();
+        _is_current_iteration_used = node.is_current_iteration_used();
+        _is_execution_condition_used = node.is_execution_condition_used();
+        _back_edges = node.get_back_edges();
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
         auto& outer_network = instance.get_network();
@@ -181,13 +188,13 @@ struct loop_impl : typed_primitive_impl<loop> {
     static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
 
 private:
-    const primitive_id& _node_id;
-    const primitive_id& _current_iteration_id;
-    const primitive_id& _trip_count_id;
-    const primitive_id& _initial_execution_id;
-    const primitive_id& _condition_id;
-    const primitive_id& _num_iteration_id;
-    const int64_t _max_iteration;
+    primitive_id _node_id;
+    primitive_id _current_iteration_id;
+    primitive_id _trip_count_id;
+    primitive_id _initial_execution_id;
+    primitive_id _condition_id;
+    primitive_id _num_iteration_id;
+    int64_t _max_iteration;
     bool _is_current_iteration_used = false;
     bool _is_execution_condition_used = false;
     std::vector<cldnn::loop::backedge_mapping> _back_edges{};
