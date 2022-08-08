@@ -19,12 +19,14 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/crash_handler.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace test {

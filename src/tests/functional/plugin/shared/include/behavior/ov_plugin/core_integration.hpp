@@ -197,8 +197,9 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(ov::Core ie(filename), ov::Exception);
     CommonTestUtils::removeFile(filename.c_str());
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+}
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 

@@ -100,7 +100,7 @@ class IEClassNetworkTest : public ov::test::behavior::OVClassNetworkTest {
 public:
     InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
 
-    void SetUp() override {
+    void SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         // Generic network
