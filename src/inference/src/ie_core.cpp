@@ -160,12 +160,18 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::InferencePlugin> plugins;
+    // Mutex is needed to prevent changes of dev mutexes map from different threads
     mutable std::mutex global_mutex;
-    mutable std::unordered_map<std::string, std::mutex>
-        dev_mutexes;  // to lock parallel access to pluginRegistry and plugins
+    // Global mutex "" locks parallel access to pluginRegistry and plugins
+    // Plugin mutexes "plugin_name" lock access to code which changes configuration of particular plugin
+    mutable std::unordered_map<std::string, std::mutex> dev_mutexes;
     std::mutex& get_mutex(const std::string& dev_name = "") const {
         std::lock_guard<std::mutex> lock(global_mutex);
-        return dev_mutexes.at(dev_name);
+        try {
+            return dev_mutexes.at(dev_name);
+        } catch (const std::out_of_range& ex) {
+            throw ov::Exception("Cannot get mutex for device: " + dev_name);
+        }
     }
     void add_mutex(const std::string& dev_name) {
         std::lock_guard<std::mutex> lock(global_mutex);
@@ -201,6 +207,11 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         void setCacheForDevice(const std::string& dir, const std::string& name) {
             std::lock_guard<std::mutex> lock(_cacheConfigMutex);
             fillConfig(_cacheConfigPerDevice[name], dir);
+        }
+
+        std::string get_cache_dir() const {
+            std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+            return _cacheConfig._cacheDir;
         }
 
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
@@ -936,22 +947,34 @@ public:
         SetConfigForPlugins(any_copy(properties), device_name);
     }
 
-    Any get_property(const std::string& deviceName, const std::string& name, const AnyMap& arguments) const override {
-        OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
-                        "You can only get_config of the HETERO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the HETERO on top.");
-        OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
-                        "You can only get_config of the MULTI itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the MULTI on top.");
-        OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
-                        "You can only get_config of the AUTO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the AUTO on top.");
-
+    Any get_property_for_core(const std::string& name) const {
         if (name == ov::force_tbb_terminate.name()) {
             const auto flag = executorManager()->getTbbFlag();
             return decltype(ov::force_tbb_terminate)::value_type(flag);
+        } else if (name == ov::cache_dir.name()) {
+            return ov::Any(coreConfig.get_cache_dir());
         }
-        auto parsed = parseDeviceNameIntoConfig(deviceName, arguments);
+
+        IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name
+                   << "'";
+    }
+
+    Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override {
+        OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
+                        "You can only get_config of the HETERO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+        OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
+                        "You can only get_config of the MULTI itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+        OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
+                        "You can only get_config of the AUTO itself (without devices). "
+                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+
+        if (device_name.empty()) {
+            return get_property_for_core(name);
+        }
+
+        auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
         return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
     }
 
@@ -1141,6 +1164,7 @@ public:
                 });
             }
 
+            std::lock_guard<std::mutex> g_lock(get_mutex());
             // add plugin as extension itself
             if (desc.extensionCreateFunc) {  // static OpenVINO case
                 try {
@@ -1154,7 +1178,6 @@ public:
                 TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
             }
 
-            std::lock_guard<std::mutex> g_lock(get_mutex());
             return plugins.emplace(deviceName, plugin).first->second;
         } catch (const ie::Exception& ex) {
             IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation) << " for device "
@@ -1880,15 +1903,13 @@ Core::Core(const std::string& xmlConfigFile) {
 #endif
 }
 
-std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
-    OV_CORE_CALL_STATEMENT({
-        std::map<std::string, Version> versions;
-        for (auto&& kvp : _impl->GetVersions(deviceName)) {
-            versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
-        }
-        return versions;
-    })
-}
+std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {OV_CORE_CALL_STATEMENT({
+    std::map<std::string, Version> versions;
+    for (auto&& kvp : _impl->GetVersions(deviceName)) {
+        versions[kvp.first] = Version{kvp.second.buildNumber, kvp.second.description};
+    }
+    return versions;
+})}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
