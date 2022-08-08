@@ -199,6 +199,8 @@ void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Nod
 
 ov::op::PadType convert_conv_tf_padding(const NodeContext& node, const std::string& tf_padding);
 
+ov::OutputVector translate_convolution_op(const NodeContext& node, size_t spatial_dims_num);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
