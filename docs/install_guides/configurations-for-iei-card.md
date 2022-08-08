@@ -1,18 +1,18 @@
-# Configurations for IEI Mustang-V100-MX8-R10 card {#openvino_docs_install_guides_movidius_setup_guide}
+# Configurations for IEI Mustang-V100-MX8-R10 Card {#openvino_docs_install_guides_movidius_setup_guide}
 
-> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-config-ivad-vpu.md).      
+> **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](configurations-for-ivad-vpu.md).      
 
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).
+This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and Intel® Distribution of OpenVINO™ toolkit.
 
 Instructions in this guide for configuring your accelerator include:
-1.	Installing the required IEI\* BSL reset software
+1.	Installing the required IEI BSL reset software
 2.	Configuration settings for the `hddldaemon` service
 
-> **NOTE**: This guide does not apply to Uzel\* cards.
+> **NOTE**: This guide does not apply to Uzel cards.
 
-## IEI  Reset Software Installation
+## Installing IEI Reset Software
 
 Using the IEI Mustang-V100-MX8 requires downloading and installing the most current software for your system.
 
@@ -21,14 +21,14 @@ Search for **Mustang-V100-MX8**.
 
 Download the appropriate software for your system, decompress the downloaded archive, enter the newly created directory, and run the install script:
 
-On **Linux**\*:
+On **Linux**:
 -  Run the `install.sh script` with `sudo`, or as `root`.
 
-On **Windows**\*, do one of the following:<br>
+On **Windows**, do one of the following:<br>
 -  **GUI**: Double-click `install.bat`
 -  **CLI**: Open a console with administrator privileges, cd into the directory, and run `install.bat`.
 
-## Mustang-V100-MX8 Service Configuration
+## Configuring Mustang-V100-MX8 Service
 
 The `hddldaemon` is a system service, a binary executable that is run to manage the computational workload on the board.  It is a required abstraction layer that handles inference, graphics processing, and any type of computation that should be run on the video processing units (VPUs).  Depending on the board configuration, there can be 8 or 16 VPUs.
 
@@ -58,7 +58,7 @@ Below are some possible configuration options.
 
 > **NOTE**:  After changing a configuration file, the `hddldaemon` must be restarted. 
 
-### Recommended Settings
+#### Recommended Settings
 
 `device_snapshot_mode`       
 Changes the output of the `hddldaemon` to display a table with individual VPU statistics.
@@ -124,7 +124,7 @@ This setting reports the total FPS for the dispatching hddl_service (which will 
 (default: `"true"`)
 
 
-## Additional resources
+## Additional Resources
 
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 - [Troubleshooting Guide](troubleshooting.md)
