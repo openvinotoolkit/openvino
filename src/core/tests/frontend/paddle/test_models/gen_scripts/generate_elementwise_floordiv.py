@@ -29,26 +29,23 @@ def elementwise_floordiv(name : str, x, y, axis, in_dtype):
 
     return outs[0]
 
-def elementwise_ops(name : str, data_x, data_y, axis, in_dtype):
-    elementwise_floordiv("elementwise_floordiv" + name, data_x, data_y, axis, in_dtype)
-
 def main():
 
     in_dtype = 'int64'
     data_x = np.array([2, 3, 4]).astype(in_dtype)
     data_y = np.array([1, 5, 2]).astype(in_dtype)
     axis = -1
-    elementwise_ops("1", data_x, data_y, axis, in_dtype)
+    elementwise_floordiv("elementwise_floordiv1", data_x, data_y, axis, in_dtype)
 
     # data_y's shape is the continuous subsequence of data_x's shape
     data_x = np.random.randint(1, 5, size=[2, 3, 4, 5]).astype(in_dtype)
     data_y = np.random.randint(1, 5, size=[3, 4]).astype(in_dtype)
     axis = 1
-    elementwise_ops("2", data_x, data_y, axis, in_dtype)
+    elementwise_floordiv("elementwise_floordiv2", data_x, data_y, axis, in_dtype)
 
     data_y = np.random.randint(1, 5, size=[5]).astype(in_dtype)
     axis = 3
-    elementwise_ops("3", data_x, data_y, axis, in_dtype)
+    elementwise_floordiv("elementwise_floordiv3", data_x, data_y, axis, in_dtype)
 
 if __name__ == "__main__":
     main()
