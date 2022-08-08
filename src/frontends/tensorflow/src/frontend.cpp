@@ -351,7 +351,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::shared_ptr<ov::Model> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
-    //normalize(f);
+    normalize(f);
     // TODO: check that OV function does not contain operations which are not in the opset
 
     return f;
