@@ -16,6 +16,7 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/serialize.hpp>
 
 #include "openvino/pass/low_latency.hpp"
@@ -113,6 +114,15 @@ void regmodule_offline_transformations(py::module m) {
             ov::pass::Manager manager;
             manager.register_pass<ngraph::pass::CompressQuantizeWeights>();
             manager.register_pass<ngraph::pass::ZeroPointOptimizer>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "convert_sequence_to_tensor_iterator_transformation",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
             manager.run_passes(model);
         },
         py::arg("model"));
