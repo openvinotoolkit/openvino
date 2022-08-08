@@ -3,7 +3,7 @@
 #
 
 # OpenVINO 2.0 and Legacy C API test sample
-set(TARGET_NAME "openvino_c_api_test")
+set(TARGET_NAME "openvino_capi_test")
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
@@ -13,9 +13,10 @@ if(NOT OpenCV_FOUND)
     return()
 endif()
 
-add_executable(${TARGET_NAME} ov_core_test.cpp ov_compiled_model_test.cpp ov_infer_request_test.cpp
-        ov_layout_test.cpp ov_model_test.cpp ov_partial_shape_test.cpp
-        ov_preprocess_test.cpp ov_tensor_test.cpp ov_test.cpp ov_test.hpp ie_c_api_test.cpp test_model_repo.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
     commonTestUtils gtest_main)
 

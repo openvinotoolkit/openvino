@@ -9,24 +9,22 @@
  * @variable global value for error info.
  * Don't change its order.
  */
-char const* error_infos[] = {
-    "success",
-    "general error",
-    "it's not implement",
-    "failed to network",
-    "input parameter mismatch",
-    "cannot find the value",
-    "out of bounds",
-    "run with unexpected error",
-    "request is busy",
-    "result is not ready",
-    "it is not allocated",
-    "inference start with error",
-    "network is not ready",
-    "inference is canceled",
-    "invalid c input parameters",
-    "unknown c error"
-};
+char const* error_infos[] = {"success",
+                             "general error",
+                             "it's not implement",
+                             "failed to network",
+                             "input parameter mismatch",
+                             "cannot find the value",
+                             "out of bounds",
+                             "run with unexpected error",
+                             "request is busy",
+                             "result is not ready",
+                             "it is not allocated",
+                             "inference start with error",
+                             "network is not ready",
+                             "inference is canceled",
+                             "invalid c input parameters",
+                             "unknown c error"};
 
 const char* ov_get_error_info(ov_status_e status) {
     auto index = -status;

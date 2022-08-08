@@ -58,7 +58,9 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor) {
+ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request,
+                                               size_t idx,
+                                               ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }

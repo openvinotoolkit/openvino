@@ -207,7 +207,7 @@ TEST_P(ov_infer_request, get_tensor) {
 }
 
 TEST_P(ov_infer_request, get_out_tensor) {
-    OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
 }
 
 TEST_P(ov_infer_request, get_tensor_error_handling) {
@@ -243,7 +243,7 @@ TEST_P(ov_infer_request_ppp, infer_ppp) {
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
-    OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 }
 
@@ -259,7 +259,7 @@ TEST_P(ov_infer_request, infer_async) {
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
 
-        OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
+        OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
 }
@@ -272,7 +272,7 @@ TEST_P(ov_infer_request_ppp, infer_async_ppp) {
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
 
-        OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
+        OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
 }
@@ -281,7 +281,7 @@ void infer_request_callback(void* args) {
     ov_infer_request_t* infer_request = (ov_infer_request_t*)args;
     ov_tensor_t* out_tensor = nullptr;
 
-    OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &out_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &out_tensor));
     EXPECT_NE(nullptr, out_tensor);
 
     ov_tensor_free(out_tensor);
@@ -315,7 +315,7 @@ TEST_P(ov_infer_request, get_profiling_info) {
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
-    OV_EXPECT_OK(ov_infer_request_get_out_tensor(infer_request, 0, &output_tensor));
+    OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
     ov_profiling_info_list_t profiling_infos;

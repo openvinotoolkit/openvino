@@ -103,7 +103,6 @@ void completion_callback(void *args) {
     ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
     ie_blob_t *output_blob = nullptr;
 
-    printf("async infer callback...\n");
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
     ie_blob_buffer_t buffer;

@@ -4,13 +4,19 @@
 #include "ov_test.hpp"
 #include "test_model_repo.hpp"
 
-TEST(ov_c_api_version, api_version) {
+TEST(ov_version, api_version) {
     ov_version_t version;
     ov_get_openvino_version(&version);
     auto ver = ov::get_openvino_version();
 
     EXPECT_STREQ(version.buildNumber, ver.buildNumber);
     ov_version_free(&version);
+}
+
+TEST(ov_util, ov_get_error_info_check) {
+    auto res = ov_get_error_info(ov_status_e::INVALID_C_PARAM);
+    auto str = "invalid c input parameters";
+    EXPECT_STREQ(res, str);
 }
 
 class ov_core : public ::testing::TestWithParam<std::string> {};
