@@ -12,8 +12,7 @@ namespace intel_cpu {
 class CPUInfo {
 public:
     CPUInfo();
-    enum class Precision { FP32 = 0, FP16, FP11, BF16, INT8, INT4, INT1 };
-    float getPeakGOPSImpl(Precision precision);
+    float getPeakGOPSImpl(InferenceEngine::Precision precision);
     void printDetails();
 
 private:
@@ -40,7 +39,7 @@ private:
     bool haveAVX();
     bool haveAVX512();
 
-    float calcComputeBlockIPC(Precision precision);
+    float calcComputeBlockIPC(InferenceEngine::Precision precision);
 
     float getFrequency(const std::string path);
     float getMaxCPUFreq(size_t core_id);

@@ -65,6 +65,10 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
         ::testing::Values("CPU"));
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_IEClassGetGOPSTest, IEClassGetMetricTest_DEVICE_GOPS,
+        ::testing::Values("CPU"));
+
 //
 // IE Class GetConfig
 //

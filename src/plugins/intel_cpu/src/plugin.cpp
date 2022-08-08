@@ -877,7 +877,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
      * This fallback can be removed as soon as migration completed */
     return GetConfigLegacy(name, options);
 }
-
+static float GetGOPS(intel_cpu::CPUInfo& device_info, InferenceEngine::Precision dt) {
+    return device_info.getPeakGOPSImpl(dt);
+}
 Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::string, Parameter>& options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
@@ -889,6 +891,7 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_GOPS)
         };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
@@ -920,6 +923,13 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == METRIC_KEY(DEVICE_GOPS)) {
+        intel_cpu::CPUInfo device_info;
+        std::map<InferenceEngine::Precision, float> gops;
+        gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, InferenceEngine::Precision::I8);
+        gops[InferenceEngine::Precision::BIN] = GetGOPS(device_info, InferenceEngine::Precision::BIN);
+        gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, InferenceEngine::Precision::FP32);
+        IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
@@ -943,6 +953,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::device::gops.name()),
                                                     RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
         // the whole config is RW before network is loaded.
@@ -984,6 +995,13 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::range_for_streams) {
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
+    } else if (name == ov::device::gops) {
+        std::map<element::Type, float> gops;
+        intel_cpu::CPUInfo device_info;
+        gops[element::i8] = GetGOPS(device_info, InferenceEngine::Precision::I8);
+        gops[element::u1] = GetGOPS(device_info, InferenceEngine::Precision::BIN);
+        gops[element::f32] = GetGOPS(device_info, InferenceEngine::Precision::FP32);
+        return decltype(ov::device::gops)::value_type {gops};
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

@@ -84,6 +84,9 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
         ::testing::Values("MULTI", "AUTO"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassGetGOPSTest, OVClassGetMetricTest_DEVICE_GOPS,
+        ::testing::Values("CPU"));
+
 const std::vector<ov::AnyMap> multiConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };

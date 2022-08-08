@@ -178,7 +178,7 @@ bool CPUInfo::checkIsaSupport(ISA cpu_isa) {
     return false;
 }
 
-float CPUInfo::calcComputeBlockIPC(Precision precision) {
+float CPUInfo::calcComputeBlockIPC(InferenceEngine::Precision precision) {
     const int NUM_LOOP = 16384 * 8;
     const int NUM_INSN = 36;
     const int NUM_ITER = 100;
@@ -192,19 +192,19 @@ float CPUInfo::calcComputeBlockIPC(Precision precision) {
         g = new Generator<Zmm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
 
     } else if (haveAVX()) {
-        if (precision == Precision::FP32) {
+        if (precision == InferenceEngine::Precision::FP32) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
                 g->vfmadd132ps(Ymm(dst_reg), Ymm(src_reg), Ymm(src_reg));
             };
             g = new Generator<Ymm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
-        } else if (precision == Precision::INT8) {
+        } else if (precision == InferenceEngine::Precision::I8) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
                 g->vpmaddubsw(Ymm(dst_reg), Ymm(src_reg), Ymm(src_reg));
                 g->vpmaddwd(Ymm(dst_reg), Ymm(src_reg), Ymm(src_reg));
                 g->vpaddd(Ymm(dst_reg), Ymm(src_reg), Ymm(src_reg));
             };
             g = new Generator<Ymm, decltype(gen)>(gen, NUM_LOOP, NUM_INSN);
-        } else if (precision == Precision::INT1) {
+        } else if (precision == InferenceEngine::Precision::BIN) {
             auto gen = [](Xbyak::CodeGenerator* g, int dst_reg, int src_reg) {
                 g->vpxor(Ymm(dst_reg), Ymm(src_reg), Ymm(src_reg));
                 g->vandps(Ymm(dst_reg), Ymm(src_reg), Ymm(dst_reg));
@@ -430,20 +430,16 @@ CPUInfo::CPUInfo() {
     }
 }
 
-float CPUInfo::getPeakGOPSImpl(Precision precision) {
-    if (precision != Precision::FP32 && precision != Precision::INT8 && precision != Precision::INT1) {
-        throw std::invalid_argument("Get GOPS: Unsupported precision");
-    }
-
+float CPUInfo::getPeakGOPSImpl(InferenceEngine::Precision precision) {
     uint32_t data_type_bit_size = 1;
     switch (precision) {
-    case Precision::FP32:
+    case InferenceEngine::Precision::FP32:
         data_type_bit_size = sizeof(float) * 8;
         break;
-    case Precision::INT8:
+    case InferenceEngine::Precision::I8:
         data_type_bit_size = sizeof(int8_t) * 8;
         break;
-    case Precision::INT1:
+    case InferenceEngine::Precision::BIN :
         data_type_bit_size = 1;
         break;
     default:
