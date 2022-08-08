@@ -76,7 +76,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
 
-        const auto augru_cell = std::make_shared<op::v3::AUGRUCell>(X,
+        const auto augru_cell = std::make_shared<op::v1::AUGRUCell>(X,
                                                                 H_t,
                                                                 W,
                                                                 R,

@@ -14,8 +14,8 @@
 
 namespace ngraph {
 namespace op {
-namespace v5 {
-using ov::op::v5::AUGRUSequence;
-}  // namespace v5
+namespace v1 {
+using ov::op::v1::AUGRUSequence;
+}  // namespace v1
 }  // namespace op
 }  // namespace ngraph

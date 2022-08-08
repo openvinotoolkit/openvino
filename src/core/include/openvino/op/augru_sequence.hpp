@@ -13,14 +13,14 @@
 
 namespace ov {
 namespace op {
-namespace v5 {
+namespace v1 {
 ///
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API AUGRUSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("AUGRUSequence", "opset5", op::Op, 5);
+    OPENVINO_OP("AUGRUSequence", "dev_api", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     AUGRUSequence();
@@ -32,22 +32,6 @@ public:
                   const Output<Node>& B,
                   const Output<Node>& A,
                   size_t hidden_size);
-
-    // TODO: Remove this constructor
-    AUGRUSequence(const Output<Node>& X,
-                  const Output<Node>& H_t,
-                  const Output<Node>& sequence_lengths,
-                  const Output<Node>& W,
-                  const Output<Node>& R,
-                  const Output<Node>& B,
-                  const Output<Node>& A,
-                  size_t hidden_size,
-                  op::RecurrentSequenceDirection direction,
-                  const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
-                  const std::vector<float>& activations_alpha = {},
-                  const std::vector<float>& activations_beta = {},
-                  float clip = 0.f,
-                  bool linear_before_reset = false);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -65,6 +49,6 @@ protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
 };
-}  // namespace v5
+}  // namespace v1
 }  // namespace op
 }  // namespace ov

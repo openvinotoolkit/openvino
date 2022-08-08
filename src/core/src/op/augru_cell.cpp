@@ -14,15 +14,15 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v3::AUGRUCell);
+BWDCMP_RTTI_DEFINITION(op::v1::AUGRUCell);
 
-op::v3::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
+op::v1::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
 }
 
-op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
+op::v1::AUGRUCell::AUGRUCell(const Output<Node>& X,
                              const Output<Node>& H_t,
                              const Output<Node>& W,
                              const Output<Node>& R,
@@ -36,13 +36,13 @@ op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool op::v3::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_visit_attributes);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::v3::AUGRUCell::validate_and_infer_types() {
+void op::v1::AUGRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
@@ -136,7 +136,7 @@ void op::v3::AUGRUCell::validate_and_infer_types() {
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-shared_ptr<Node> op::v3::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> op::v1::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 6) {

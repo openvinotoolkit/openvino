@@ -120,20 +120,14 @@ private:
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
 
         const auto gru_sequence =
-            std::make_shared<op::v5::AUGRUSequence>(X,
+            std::make_shared<op::v1::AUGRUSequence>(X,
                                                   H_t,
                                                   sequence_lengths,
                                                   W,
                                                   R,
                                                   B,
                                                   A,
-                                                  params.hiddenSize,
-                                                  params.gru_direction,
-                                                  std::vector<std::string>{"sigmoid", "tanh"},
-                                                  std::vector<float>{},
-                                                  std::vector<float>{},
-                                                  params.clip,
-                                                  params.linear_before_reset);
+                                                  params.hiddenSize);
 
         auto function = std::make_shared<Model>(gru_sequence->outputs(), ParameterVector{X, H_t, sequence_lengths, W, R, B, A});
         return function;

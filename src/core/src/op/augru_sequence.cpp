@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/augru_sequence.hpp"
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/op/gru_sequence.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset4.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v5::AUGRUSequence);
+BWDCMP_RTTI_DEFINITION(op::v1::AUGRUSequence);
 
-op::v5::AUGRUSequence::AUGRUSequence()
+op::v1::AUGRUSequence::AUGRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
       m_linear_before_reset(false) {}
 
-op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
+op::v1::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
                                      const Output<Node>& H_t,
                                      const Output<Node>& sequence_lengths,
                                      const Output<Node>& W,
@@ -39,38 +39,12 @@ op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v5::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
-                                     const Output<Node>& H_t,
-                                     const Output<Node>& sequence_lengths,
-                                     const Output<Node>& W,
-                                     const Output<Node>& R,
-                                     const Output<Node>& B,
-                                     const Output<Node>& A,
-                                     std::size_t hidden_size,
-                                     op::RecurrentSequenceDirection direction,
-                                     const std::vector<std::string>& activations,
-                                     const std::vector<float>& activations_alpha,
-                                     const std::vector<float>& activations_beta,
-                                     float clip,
-                                     bool linear_before_reset)
-    : RNNCellBase({X, H_t, sequence_lengths, W, R, B, A},
-                  hidden_size,
-                  clip,
-                  activations,
-                  activations_alpha,
-                  activations_beta),
-      m_direction(direction),
-      m_linear_before_reset(linear_before_reset) {
-    constructor_validate_and_infer_types();
-}
-
-void op::v5::AUGRUSequence::validate_and_infer_types() {
+void op::v1::AUGRUSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_AUGRUSequence_validate_and_infer_types);
-    // TODO: Output rank can be always static
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(4));
+            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic(3));
             return;
         }
     }
@@ -89,7 +63,8 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
     auto b_pshape = get_input_partial_shape(5);
     auto a_pshape = get_input_partial_shape(6);
 
-    ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
+    ngraph::op::util::validate_seq_input_rank_dimension(
+        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
@@ -109,7 +84,7 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
                               Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
                           "Dimension batch_size is not matched between inputs.");
 
-    // `A` input shape validation // [batch_size, seq_length, 1]
+    // A input shape validation // [batch_size, seq_length, 1]
     NODE_VALIDATION_CHECK(this, a_pshape.rank().compatible(3), "'A' input must be a 3D tensor.");
     if (a_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
@@ -132,17 +107,7 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
                               Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
                           "Parameter num_directions not matched in AUGRUSequence.");
 
-    auto valid_num_directions = 0;
-    if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
-        m_direction == op::RecurrentSequenceDirection::REVERSE) {
-        valid_num_directions = 1;
-    } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-        valid_num_directions = 2;
-    } else {
-        // Guard for potential future extension of RecurrentSequenceDirection enum
-        NODE_VALIDATION_CHECK(this, false, "Parameter direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
-    }
-
+    auto valid_num_directions = 1;  // AUGRUSequence supports only Forward direction
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_num_directions, merged_num_directions, valid_num_directions),
                           "Parameter 'num_directions' doesn't match with direction '",
@@ -189,8 +154,9 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
     }
 
     // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 5; ++i)
+    for (size_t i = 0; i <= 6; ++i) {
         set_input_is_relevant_to_shape(i);
+    }
 
     // Set output size, type and shape
     set_output_size(2);
@@ -198,28 +164,22 @@ void op::v5::AUGRUSequence::validate_and_infer_types() {
     set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }
 
-bool op::v5::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v5_AUGRUSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::v5::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> op::v1::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v5_AUGRUSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v5::AUGRUSequence>(new_args.at(0),
+    return make_shared<op::v1::AUGRUSequence>(new_args.at(0),
                                               new_args.at(1),
                                               new_args.at(2),
                                               new_args.at(3),
                                               new_args.at(4),
                                               new_args.at(5),
                                               new_args.at(6),
-                                              m_hidden_size,
-                                              m_direction,
-                                              m_activations,
-                                              m_activations_alpha,
-                                              m_activations_beta,
-                                              m_clip,
-                                              m_linear_before_reset);
+                                              get_hidden_size());
 }

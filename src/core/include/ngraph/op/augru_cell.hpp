@@ -17,8 +17,8 @@
 
 namespace ngraph {
 namespace op {
-namespace v3 {
-using ov::op::v3::AUGRUCell;
-}  // namespace v3
+namespace v1 {
+using ov::op::v1::AUGRUCell;
+}  // namespace v1
 }  // namespace op
 }  // namespace ngraph

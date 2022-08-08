@@ -15,14 +15,14 @@
 
 namespace ov {
 namespace op {
-namespace v3 {
+namespace v1 {
 ///
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API AUGRUCell : public util::RNNCellBase {
 public:
-    OPENVINO_OP("AUGRUCell", "opset9", op::util::RNNCellBase, 3);
+    OPENVINO_OP("AUGRUCell", "dev_api", op::util::RNNCellBase, 1);
     BWDCMP_RTTI_DECLARATION;
 
     AUGRUCell();
@@ -61,6 +61,6 @@ private:
     ///
     bool m_linear_before_reset = false;
 };
-}  // namespace v3
+}  // namespace v1
 }  // namespace op
 }  // namespace ov
