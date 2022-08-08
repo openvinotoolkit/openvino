@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "softmax_kernel_blocked_single_axis.h"
+#include "softmax_kernel_blocked.h"
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-ParamsKey SoftmaxKernelBlockedSingleAxis::GetSupportedKey() const {
+ParamsKey SoftmaxKernelBlocked::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -43,8 +43,8 @@ ParamsKey SoftmaxKernelBlockedSingleAxis::GetSupportedKey() const {
     return k;
 }
 
-SoftmaxKernelBlockedSingleAxis::DispatchData SoftmaxKernelBlockedSingleAxis::SetDefault(const softmax_params& params,
-                                                                                                const optional_params& optParams) const {
+SoftmaxKernelBlocked::DispatchData SoftmaxKernelBlocked::SetDefault(const softmax_params& params,
+                                                                    const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& out = params.outputs[0];
 
@@ -73,11 +73,11 @@ SoftmaxKernelBlockedSingleAxis::DispatchData SoftmaxKernelBlockedSingleAxis::Set
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernelBlockedSingleAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKernelBlocked::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool SoftmaxKernelBlockedSingleAxis::Validate(const Params& params, const optional_params& o) const {
+bool SoftmaxKernelBlocked::Validate(const Params& params, const optional_params& o) const {
     if (!Parent::Validate(params, o)) {
         return false;
     }
@@ -89,10 +89,10 @@ bool SoftmaxKernelBlockedSingleAxis::Validate(const Params& params, const option
             || softmax_params.dim == SoftmaxDim::X;
 }
 
-KernelsData SoftmaxKernelBlockedSingleAxis::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData SoftmaxKernelBlocked::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
-JitConstants SoftmaxKernelBlockedSingleAxis::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+JitConstants SoftmaxKernelBlocked::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     jit.AddConstant(MakeJitConstant("SOFTMAX_DIM_" + toString(params.dim), "1"));
 

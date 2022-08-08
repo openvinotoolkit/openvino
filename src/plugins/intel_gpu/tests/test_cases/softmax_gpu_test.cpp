@@ -664,7 +664,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
 namespace {
 template<typename T>
 struct SoftmaxParams {
-    softmax::dimension_t axis;
+    int64_t axis;
     tensor input_tensor;
     std::vector<T> input;
     std::vector<T> expected;
@@ -702,35 +702,7 @@ template<typename T>
 std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
     const std::vector<SoftmaxParams<T>> result = {
         {
-            softmax::dimension_t::normalize_all,
-            tensor(2, 3, 2, 2),
-            getValues<T>({
-                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
-                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
-            getValues<T>({
-                6.45878e-06f, 5.288e-06f, 1.43743e-05f, 2.61917e-05f,
-                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
-                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
-                0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
-                0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
-                7.3805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f})
-        },
-        {
-            softmax::dimension_t::normalize_fyx,
-            tensor(2, 3, 2, 2),
-            getValues<T>({
-                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
-                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
-            getValues<T>({
-                0.00293631f, 0.00240404f, 0.00653487f, 0.0119073f,
-                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
-                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
-                0.000117642f, 9.65661e-06f, 0.00642301f, 0.953259f,
-                0.000319783f, 9.65661e-06f, 0.0174596f, 0.0213251f,
-                7.15379e-06f, 7.15379e-06f, 2.65909e-10f, 0.00106172f})
-        },
-        {
-            softmax::dimension_t::normalize_b,
+            0,
             tensor(3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 3.f, 0.5f, 7.f, 12.f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -744,7 +716,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
                 0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
         },
         {
-            softmax::dimension_t::normalize_f,
+            1,
             tensor(2, 3, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -758,7 +730,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
                 0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
         },
         {
-            softmax::dimension_t::normalize_y,
+            2,
             tensor(2, 3, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -772,7 +744,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
                 0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f})
         },
         {
-            softmax::dimension_t::normalize_x,
+            3,
             tensor(2, 3, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
@@ -794,43 +766,7 @@ template<typename T>
 std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
     const std::vector<SoftmaxParams<T>> result = {
         {
-            softmax::dimension_t::normalize_all,
-            tensor(2, 3, 2, 2, 2),
-            getValues<T>({
-                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
-                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
-                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
-                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
-                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
-                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
-            getValues<T>({
-                3.08269e-10f, 2.52389e-10f, 6.86066e-10f, 1.25009e-09f, 3.4069e-10f, 2.28371e-10f, 6.86066e-10f, 3.3981e-09f,
-                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.76521e-10f, 3.08269e-10f, 4.65866e-15f, 1.37444e-07f,
-                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.08269e-10f, 3.76521e-10f, 3.44231e-14f, 1.86011e-08f,
-                5.60253e-09f, 4.59884e-10f, 3.05888e-07f, 4.53977e-05f, 4.13974e-08f, 3.08269e-10f, 1.1253e-07f, 0.999952f,
-                1.52293e-08f, 4.59884e-10f, 8.31488e-07f, 1.01558e-06f, 2.51738e-09f, 3.76521e-10f, 1.1253e-07f, 5.05629e-08f,
-                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 9.26093e-10f, 3.76521e-10f, 1.71382e-15f, 2.51738e-09f})
-        },
-        {
-            softmax::dimension_t::normalize_fyx,
-            tensor(2, 3, 2, 2, 2),
-            getValues<T>({
-                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
-                0.2f, 0.2f, -10.f, 5.2f, 0.3f, 0.1f, -11.f, 6.2f,
-                0.2f, 0.2f, -10.f, 5.2f, 0.1f, 0.3f, -9.f, 4.2f,
-                3.f, 0.5f, 7.f, 12.f, 5.f, 0.1f, 6.f, 22.f,
-                4.f, 0.5f, 8.f, 8.2f, 2.2f, 0.3f, 6.f, 5.2f,
-                0.2f, 0.2f, -10.f, 5.2f, 1.2f, 0.3f, -12.f, 2.2f}),
-            getValues<T>({
-                0.00115433f, 0.00094509f, 0.00256902f, 0.00468106f, 0.00127574f, 0.000855152f, 0.00256902f, 0.0127244f,
-                0.00127574f, 0.00127574f, 4.74195e-08f, 0.189336f, 0.00140991f, 0.00115433f, 1.74447e-08f, 0.514669f,
-                0.00127574f, 0.00127574f, 4.74195e-08f, 0.189336f, 0.00115433f, 0.00140991f, 1.289e-07f, 0.0696529f,
-                5.60253e-09f, 4.59884e-10f, 3.05888e-07f, 4.53978e-05f, 4.13974e-08f, 3.08269e-10f, 1.1253e-07f, 0.999952f,
-                1.52293e-08f, 4.59884e-10f, 8.31489e-07f, 1.01558e-06f, 2.51738e-09f, 3.76521e-10f, 1.1253e-07f, 5.05629e-08f,
-                3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 9.26093e-10f, 3.76521e-10f, 1.71383e-15f, 2.51738e-09f})
-        },
-        {
-            softmax::dimension_t::normalize_b,
+            0,
             tensor(2, 3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
@@ -848,7 +784,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
                 0.5f, 0.5f, 0.5f, 0.5f, 0.75026f, 0.5f, 0.0474259f, 0.119203f})
         },
         {
-            softmax::dimension_t::normalize_f,
+            1,
             tensor(2, 3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
@@ -866,7 +802,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
                 0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f, 0.0206528f, 0.35477f, 7.615e-09f, 2.5175e-09f})
         },
         {
-            softmax::dimension_t::normalize_z,
+            2,
             tensor(2, 3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
@@ -884,7 +820,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
                 0.268941f, 0.475021f, 0.880797f, 0.952574f, 0.731059f, 0.524979f, 0.119203f, 0.0474259f})
         },
         {
-            softmax::dimension_t::normalize_y,
+            3,
             tensor(2, 3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
@@ -902,7 +838,7 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
                 0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f, 0.999998f, 0.130108f, 1.8506e-06f, 0.869892f})
         },
         {
-            softmax::dimension_t::normalize_x,
+            4,
             tensor(2, 3, 2, 2, 2),
             getValues<T>({
                 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
@@ -934,27 +870,6 @@ float getError<float>() {
 template<>
 float getError<half_t>() {
     return 0.2;
-}
-
-std::string toString(const softmax::dimension_t axis) {
-    switch(axis) {
-        case softmax::normalize_b:
-            return "B";
-        case softmax::normalize_f:
-            return "F";
-        case softmax::normalize_x:
-            return "X";
-        case softmax::normalize_y:
-            return "Y";
-        case softmax::normalize_z:
-            return "Z";
-        case softmax::normalize_fyx:
-            return "FYX";
-        case softmax::normalize_all:
-            return "ALL";
-        default:
-            return "unknown";
-    }
 }
 
 std::string toString(const format::type format) {
@@ -991,7 +906,7 @@ struct PrintToStringParamName {
         format::type target_format;
         std::tie(p, plain_format, target_format) = param.param;
         buf << "_inputTensor=" << p.input_tensor.to_string()
-            << "_axis=" << toString(p.axis)
+            << "_axis=" << p.axis
             << "_plainFormat=" << toString(plain_format)
             << "_targetFormat=" << toString(target_format);
         return buf.str();

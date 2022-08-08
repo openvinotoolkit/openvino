@@ -257,12 +257,6 @@ void ParamsKey::EnableSoftmaxDim(SoftmaxDim d) {
         case SoftmaxDim::BATCH:
             key.restrict.val.dedicated.softmax.dimBatch = 1;
             break;
-        case SoftmaxDim::ALL:
-            key.restrict.val.dedicated.softmax.dimAll = 1;
-            break;
-        case SoftmaxDim::FYX:
-            key.restrict.val.dedicated.softmax.dimFyx = 1;
-            break;
         default:
             break;
     }

@@ -7,11 +7,11 @@
 #include "softmax_kernel_base.h"
 
 namespace kernel_selector {
-class SoftmaxKernelBlockedFyx : public SoftmaxKernelBase {
+class SoftmaxKernelBlocked : public SoftmaxKernelBase {
 public:
     using Parent = SoftmaxKernelBase;
-    SoftmaxKernelBlockedFyx() : Parent("softmax_gpu_blocked_fyx") {}
-    virtual ~SoftmaxKernelBlockedFyx() = default;
+    SoftmaxKernelBlocked() : Parent("softmax_gpu_blocked") {}
+    virtual ~SoftmaxKernelBlocked() = default;
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
