@@ -7,6 +7,8 @@
 #include "ov_behavior_test_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace BehaviorTestsUtils {
 
@@ -105,9 +107,9 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
+    ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
+        CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return ie;
 }
