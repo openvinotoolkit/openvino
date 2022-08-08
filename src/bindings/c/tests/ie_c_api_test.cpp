@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2247,3 +2248,4 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
 }
 
 #endif // ENABLE_GAPI_PREPROCESSING
+// clang-format on
