@@ -24,8 +24,9 @@ target_link_libraries(${TARGET_NAME}
                 cnpy
                 # TODO: replace with nlohmann_json::nlohmann_json
                 # but LTO fails for some reason
-                nlohmann_json_schema_validator
-                test_builtin_extensions_1 test_builtin_extensions_2)
+                nlohmann_json_schema_validator)
+
+add_dependencies(${TARGET_NAME} test_builtin_extensions_1 test_builtin_extensions_2)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
