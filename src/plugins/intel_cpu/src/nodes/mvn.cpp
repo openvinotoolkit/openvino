@@ -751,6 +751,16 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Weigh
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
+    // layer norm case
+    if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
+        auto axesOp = ngraph::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+        if (axesOp) {
+            const auto& inDataRank = op->get_output_partial_shape(0).rank().get_length();
+            auto axesVal = axesOp->cast_vector<int>();
+            if (inDataRank == 3 && axesVal.size() == 1 && ((axesVal[0] == 2) || (axesVal[0] == -1)))
+                is_ln_applicable = true;
+        }
+    }
 }
 
 void MVN::getSupportedDescriptors() {}
@@ -929,6 +939,35 @@ void MVN::prepareParams() {
     } else {
         mvnAttrs.layout = MVNLayoutType::block;
     }
+    is_ln_applicable = is_ln_applicable &&
+        mvnAttrs.epsMode_ == INSIDE_SQRT &&
+        mvnAttrs.normalizeVariance_ == true &&
+        mvnAttrs.src_prc == Precision::FP32 &&
+        mvnAttrs.dst_prc == Precision::FP32 &&
+        mvnAttrs.layout == MVNLayoutType::planar &&
+        mayiuse(cpu::x64::avx2) == true;
+        fusedWith.empty();
+    if (is_ln_applicable) {
+        // memory desc
+        size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
+        std::tie(N, C, D, H, W) = mvnAttrs.shape5D;
+        const memory::dims src_dims = {N, C, H};
+        const auto src_md = memory::desc(src_dims, memory::data_type::f32, memory::format_tag::abc);
+        // Create operation descriptor.
+        const float eps = mvnAttrs.epsValue_;
+        auto lnorm_desc = layer_normalization_forward::desc(dnnl::prop_kind::forward_inference, src_md, eps, normalization_flags::none);
+
+        // Create primitive descriptor.
+        auto lnorm_pd = layer_normalization_forward::primitive_desc(lnorm_desc, getEngine());
+
+        // Create the primitive.
+        ln_prim = layer_normalization_forward(lnorm_pd);
+
+        // args
+        ln_args.insert({DNNL_ARG_SRC, srcMemPtr->GetPrimitive()});
+        ln_args.insert({DNNL_ARG_DST, dstMemPtr->GetPrimitive()});
+        return;
+    }
 
     MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
     setPostOps(key.attr, true);
@@ -1005,6 +1044,10 @@ void MVN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MVN::execute(dnnl::stream strm) {
+    if (is_ln_applicable) {
+        ln_prim.execute(strm, ln_args);
+        return;
+    }
     if (!execPtr) {
         IE_THROW() << "Can't execute MVN node. Primitive didn't created";
     }
