@@ -144,8 +144,16 @@ struct kernel_impl_params {
                          activations_zero_points_layout(_activations_zero_points_layout),
                          compensation_layout(_compensation_layout) {}
 
+    layout get_input_layout(size_t idx = 0) const {
+        OPENVINO_ASSERT(input_layouts.size() > idx,
+                        "The size of input layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ", ",
+                        "but the size of input layouts is ", input_layouts.size());
+        return input_layouts[idx];
+    }
+
     layout get_non_padded_input_layout(size_t idx = 0) const {
-        auto input_layout = input_layouts[idx];
+        auto input_layout = get_input_layout(idx);
         auto result = layout({input_layout.data_type, input_layout.format, input_layout.get_tensor()});
         return result;
     }

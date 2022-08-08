@@ -40,7 +40,7 @@ bool is_batch_after_spatial(const std::string order) {
 }
 
 format::type get_preferred_format(const fully_connected_node& node, const kernel_impl_params& impl_param) {
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
     if (impl_param.typed_desc<fully_connected>()->input_size == 3)
@@ -91,7 +91,7 @@ format::type get_preferred_format(const fully_connected_node& node, const kernel
 layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
     auto output_type = input_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)

@@ -28,7 +28,7 @@ static bool is_output_bfzyx(const layout& input, int32_t axis) {
 }
 
 layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<one_hot>();
 
     auto dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
