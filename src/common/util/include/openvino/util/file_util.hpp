@@ -143,7 +143,7 @@ inline int64_t file_size(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::wstring& path) {
+inline int64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
@@ -154,7 +154,7 @@ inline uint64_t file_size(const std::wstring& path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::string& path) {
+inline int64_t file_size(const std::string& path) {
     return file_size(path.c_str());
 }
 
