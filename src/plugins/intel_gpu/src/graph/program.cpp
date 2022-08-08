@@ -175,7 +175,7 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
     return _kernels_cache->set_kernel_source(kernelSring, false);
 }
 
-kernel::ptr program::get_kernel(kernel_id id) const {
+kernel::ptr program::get_kernel(kernel_id id) {
     return _kernels_cache->get_kernel(id);
 }
 
