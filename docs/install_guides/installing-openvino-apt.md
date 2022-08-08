@@ -1,8 +1,8 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the APT repository.
+This guide provides detailed steps for installing OpenVINO™ Runtime through the APT repository and guidelines for installing OpenVINO Development Tools.
 
-> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
+> **NOTE**: From the 2022.1 release, OpenVINO™ Development Tools can be installed via PyPI only. See [Install OpenVINO Development Tools](#installing-openvino-development-tools) for more information.
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please review the content inside the `<INSTALL_DIR>/licensing` folder for more details.
 
@@ -21,7 +21,7 @@ The complete list of supported hardware is available in the [Release Notes](http
 - GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
 - [Python 3.6 - 3.9, 64-bit](https://www.python.org/downloads/windows/)
 
-## Install OpenVINO Runtime
+## Installing OpenVINO Runtime
 
 ### Step 1: Set Up the OpenVINO Toolkit APT Repository
 
@@ -134,14 +134,7 @@ Run the following command:
 sudo apt install openvino-opencv-<VERSION>.<UPDATE>.<PATCH>
 ```
 
-### Step 4 (Optional): Install Software Dependencies
-
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first. 
-
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
-
-
-### Step 5 (Optional): Configure Inference on Non-CPU Devices
+### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
 
@@ -167,6 +160,15 @@ Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#in
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
 
 @endsphinxdirective
+
+## Installing OpenVINO Development Tools
+
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can be installed via PyPI only.
+
+To install OpenVINO Development Tools, do the following steps:
+1. [Install OpenVINO Runtime](#installing-openvino-runtime) if you haven't done it yet.
+2. <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a>. 
+3. See the **For C++ Developers** section in [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 ## What's Next?
 
