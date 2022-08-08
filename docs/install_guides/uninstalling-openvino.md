@@ -4,7 +4,7 @@
 
 ## Uninstall Using the Original Installation Package
 
-If you have installed OpenVINO Runtime from archive files, use the following commands to uninstall it:
+If you have installed OpenVINO Runtime from archive files, you can uninstall it by deleting the archive files and the extracted folders.
 
 @sphinxdirective
 .. tab:: Windows
