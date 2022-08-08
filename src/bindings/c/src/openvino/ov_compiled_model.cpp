@@ -7,7 +7,7 @@
 
 ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model) {
     if (!compiled_model || !model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -23,7 +23,7 @@ ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compi
 
 ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes) {
     if (!compiled_model || !input_nodes) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -42,7 +42,7 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, 
 
 ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes) {
     if (!compiled_model || !output_nodes) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -62,7 +62,7 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
 ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
                                                    ov_infer_request_t** infer_request) {
     if (!compiled_model || !infer_request) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -78,7 +78,7 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
 
 ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_property_t* property) {
     if (!compiled_model || !property) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -93,7 +93,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
                                            const ov_property_key_e key,
                                            ov_property_value_t* value) {
     if (!compiled_model || !value) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -122,7 +122,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
 
 ov_status_e ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path) {
     if (!compiled_model || !export_model_path) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::ofstream model_file(export_model_path, std::ios::out | std::ios::binary);

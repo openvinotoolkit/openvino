@@ -40,7 +40,7 @@ ov::element::Type get_element_type(ov_element_type_e type) {
 
 ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t** tensor) {
     if (!tensor || element_type_map.find(type) == element_type_map.end()) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
@@ -59,7 +59,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
                                            void* host_ptr,
                                            ov_tensor_t** tensor) {
     if (!tensor || !host_ptr || element_type_map.find(type) == element_type_map.end()) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::unique_ptr<ov_tensor_t> _tensor(new ov_tensor_t);
@@ -75,7 +75,7 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
 
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     if (!tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         ov::Shape tmp_shape;
@@ -88,7 +88,7 @@ ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
 
 ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     if (!tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto tmp_shape = tensor->object->get_shape();
@@ -104,7 +104,7 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
 
 ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type) {
     if (!tensor || !type) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto tmp_type = tensor->object->get_element_type();
@@ -116,7 +116,7 @@ ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_typ
 
 ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size) {
     if (!tensor || !elements_size) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         *elements_size = tensor->object->get_size();
@@ -127,7 +127,7 @@ ov_status_e ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size)
 
 ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size) {
     if (!tensor || !byte_size) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         *byte_size = tensor->object->get_byte_size();
@@ -138,7 +138,7 @@ ov_status_e ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size
 
 ov_status_e ov_tensor_data(const ov_tensor_t* tensor, void** data) {
     if (!tensor || !data) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         *data = tensor->object->data();

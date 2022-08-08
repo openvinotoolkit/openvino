@@ -13,7 +13,7 @@ const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mod
 
 ov_status_e ov_property_create(ov_property_t** property) {
     if (!property) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::unique_ptr<ov_property_t> _property(new ov_property_t);
@@ -30,7 +30,7 @@ void ov_property_free(ov_property_t* property) {
 
 ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value) {
     if (!property || !value) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -48,7 +48,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
         case ov_property_key_e::PERFORMANCE_HINT: {
             ov_performance_mode_e m = *(static_cast<ov_performance_mode_e*>(value->ptr));
             if (m > ov_performance_mode_e::CUMULATIVE_THROUGHPUT) {
-                return ov_status_e::INVALID_PARAM;
+                return ov_status_e::INVALID_C_PARAM;
             }
             auto v = performance_mode_map.at(m);
             property->object.emplace(ov::hint::performance_mode(v));
@@ -57,7 +57,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
         case ov_property_key_e::AFFINITY: {
             ov_affinity_e v = *(static_cast<ov_affinity_e*>(value->ptr));
             if (v < ov_affinity_e::NONE || v > ov_affinity_e::HYBRID_AWARE) {
-                return ov_status_e::INVALID_PARAM;
+                return ov_status_e::INVALID_C_PARAM;
             }
             ov::Affinity affinity = static_cast<ov::Affinity>(v);
             property->object.emplace(ov::affinity(affinity));
@@ -71,7 +71,7 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
         case ov_property_key_e::INFERENCE_PRECISION_HINT: {
             ov_element_type_e v = *(static_cast<ov_element_type_e*>(value->ptr));
             if (v > ov_element_type_e::U64) {
-                return ov_status_e::INVALID_PARAM;
+                return ov_status_e::INVALID_C_PARAM;
             }
 
             ov::element::Type type(static_cast<ov::element::Type_t>(v));

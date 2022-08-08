@@ -7,7 +7,7 @@
 
 ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name) {
     if (!node || !tensor_name) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -20,7 +20,7 @@ ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_nam
 
 ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
     if (!nodes || !tensor_name || idx >= nodes->num) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -33,13 +33,13 @@ ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t i
 
 ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape) {
     if (!node || !tensor_shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         auto shape = node->object->get_shape();
         if (shape.size() > MAX_DIMENSION) {
-            return ov_status_e::INVALID_PARAM;
+            return ov_status_e::INVALID_C_PARAM;
         }
         tensor_shape->rank = shape.size();
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
@@ -51,7 +51,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
 ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape) {
     if (!nodes || idx >= nodes->num || !tensor_shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -71,7 +71,7 @@ ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
                                                size_t idx,
                                                ov_partial_shape_t** partial_shape) {
     if (!nodes || idx >= nodes->num || !partial_shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -93,7 +93,7 @@ ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
                                               size_t idx,
                                               ov_element_type_e* tensor_type) {
     if (!nodes || idx >= nodes->num) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -107,7 +107,7 @@ ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
 
 ov_status_e ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type) {
     if (!node || !tensor_type) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {

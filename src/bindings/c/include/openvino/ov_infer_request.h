@@ -100,7 +100,7 @@ ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char*
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
+ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
 
 /**
  * @brief Infers specified input(s) in synchronous mode.

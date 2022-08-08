@@ -14,7 +14,7 @@ ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
                                         const char* tensor_name,
                                         const ov_tensor_t* tensor) {
     if (!infer_request || !tensor_name || !tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -29,7 +29,7 @@ ov_status_e ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request,
                                               size_t idx,
                                               const ov_tensor_t* tensor) {
     if (!infer_request || !tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -44,7 +44,7 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
                                         const char* tensor_name,
                                         ov_tensor_t** tensor) {
     if (!infer_request || !tensor_name || !tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -58,9 +58,9 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor) {
+ov_status_e ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor) {
     if (!infer_request || !tensor) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -76,7 +76,7 @@ ov_status_e ov_infer_request_get_out_tensor(const ov_infer_request_t* infer_requ
 
 ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -89,7 +89,7 @@ ov_status_e ov_infer_request_infer(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -102,7 +102,7 @@ ov_status_e ov_infer_request_cancel(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -115,7 +115,7 @@ ov_status_e ov_infer_request_start_async(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
     if (!infer_request) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -128,7 +128,7 @@ ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
 
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {
     if (!infer_request || !callback) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -145,7 +145,7 @@ ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, con
 ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request,
                                                 ov_profiling_info_list_t* profiling_infos) {
     if (!infer_request || !profiling_infos) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {

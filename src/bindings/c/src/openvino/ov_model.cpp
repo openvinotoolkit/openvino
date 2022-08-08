@@ -7,7 +7,7 @@
 
 ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* output_nodes) {
     if (!model || !output_nodes) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
@@ -25,7 +25,7 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
 
 ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes) {
     if (!model || !input_nodes) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
@@ -45,7 +45,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
                                    const char* tensor_name,
                                    ov_output_const_node_t** input_node) {
     if (!model || !tensor_name || !input_node) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
@@ -58,7 +58,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
 
 ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
@@ -81,7 +81,7 @@ ov_status_e ov_model_reshape_by_name(const ov_model_t* model,
                                      const char* tensor_name,
                                      const ov_partial_shape_t* partial_shape) {
     if (!model || !tensor_name || !partial_shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::map<std::string, ov::PartialShape> in_shape;
@@ -101,7 +101,7 @@ ov_status_e ov_model_reshape_by_names(const ov_model_t* model,
                                       const ov_partial_shape_t* partial_shapes[],
                                       size_t cnt) {
     if (!model || !tensor_names || !partial_shapes || cnt < 1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::map<std::string, ov::PartialShape> in_shapes;
@@ -125,7 +125,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
                                       const ov_partial_shape_t** partial_shape,
                                       size_t cnt) {
     if (!model || !ports || !partial_shape || cnt < 1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::map<size_t, ov::PartialShape> in_shapes;
@@ -154,7 +154,7 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
                                       const ov_partial_shape_t* partial_shapes[],
                                       size_t cnt) {
     if (!model || !output_nodes || !partial_shapes || cnt < 1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::map<ov::Output<ov::Node>, ov::PartialShape> in_shapes;
@@ -175,7 +175,7 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
 
 ov_status_e ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name) {
     if (!model || !friendly_name) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto& result = model->object->get_friendly_name();

@@ -7,7 +7,7 @@
 
 ov_status_e ov_rank_create_dynamic(ov_rank_t** rank, int64_t min_dimension, int64_t max_dimension) {
     if (!rank || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -29,7 +29,7 @@ ov_status_e ov_rank_create_dynamic(ov_rank_t** rank, int64_t min_dimension, int6
 
 ov_status_e ov_rank_create(ov_rank** rank, int64_t rank_value) {
     if (!rank || rank_value <= 0) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     return ov_rank_create_dynamic(rank, rank_value, rank_value);
 }

@@ -24,15 +24,16 @@ char const* error_infos[] = {
     "inference start with error",
     "network is not ready",
     "inference is canceled",
-    "calloc failure",
-    "invalid parameters",
-    "unknown error",
+    "invalid c input parameters",
+    "unknown c error"
 };
 
 const char* ov_get_error_info(ov_status_e status) {
-    if (status > ov_status_e::UNKNOWN_ERROR)
-        return error_infos[ov_status_e::UNKNOWN_ERROR];
-    return error_infos[status];
+    auto index = -status;
+    auto max_index = sizeof(error_infos) / sizeof(error_infos[0]) - 1;
+    if (index > max_index)
+        return error_infos[max_index];
+    return error_infos[index];
 }
 
 char* str_to_char_array(const std::string& str) {
@@ -44,7 +45,7 @@ char* str_to_char_array(const std::string& str) {
 
 ov_status_e ov_get_openvino_version(ov_version_t* version) {
     if (!version) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -72,7 +73,7 @@ void ov_version_free(ov_version_t* version) {
 
 ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
     if (!core || !xml_config_file) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -94,7 +95,7 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
                                const char* bin_path,
                                ov_model_t** model) {
     if (!core || !model_path || !model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -115,7 +116,7 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
                                            const ov_tensor_t* weights,
                                            ov_model_t** model) {
     if (!core || !model_str || !weights || !model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -134,7 +135,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   ov_compiled_model_t** compiled_model,
                                   const ov_property_t* property) {
     if (!core || !model || !compiled_model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -160,7 +161,7 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             ov_compiled_model_t** compiled_model,
                                             const ov_property_t* property) {
     if (!core || !model_path || !compiled_model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -182,7 +183,7 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
 
 ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property) {
     if (!core || !property) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -201,7 +202,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
                                  const ov_property_key_e key,
                                  ov_property_value_t* value) {
     if (!core || !device_name || !value) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         switch (key) {
@@ -385,7 +386,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
 
 ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices) {
     if (!core) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto available_devices = core->object->get_available_devices();
@@ -421,7 +422,7 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
                                  const char* device_name,
                                  ov_compiled_model_t** compiled_model) {
     if (!core || !content || !device_name || !compiled_model) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         mem_istream model_stream(content, content_size);
@@ -438,7 +439,7 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
                                                 const char* device_name,
                                                 ov_core_version_list_t* versions) {
     if (!core || !device_name || !versions) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     try {
         auto object = core->object->get_versions(device_name);
@@ -476,6 +477,7 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
         if (versions->versions[i].description)
             delete[] versions->versions[i].description;
     }
+
     if (versions->versions)
         delete[] versions->versions;
     versions->versions = nullptr;

@@ -7,7 +7,7 @@
 
 ov_status_e ov_layout_create(ov_layout_t** layout, const char* layout_desc) {
     if (!layout || !layout_desc) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {

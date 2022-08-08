@@ -7,7 +7,7 @@
 
 ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_rank_t* rank, ov_dimensions_t* dims) {
     if (!partial_shape_obj || !rank) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     *partial_shape_obj = nullptr;
     try {
@@ -16,7 +16,7 @@ ov_status_e ov_partial_shape_create(ov_partial_shape_t** partial_shape_obj, ov_r
             partial_shape->rank = rank->object;
         } else {
             if (rank->object.get_length() != dims->object.size()) {
-                return ov_status_e::INVALID_PARAM;
+                return ov_status_e::INVALID_C_PARAM;
             }
             partial_shape->rank = rank->object;
             partial_shape->dims = dims->object;
@@ -65,7 +65,7 @@ const char* ov_partial_shape_to_string(ov_partial_shape_t* partial_shape) {
 
 ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape) {
     if (!partial_shape || !shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -91,10 +91,10 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
 
 ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** partial_shape) {
     if (!partial_shape || !shape) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     if (shape->rank > MAX_DIMENSION) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {

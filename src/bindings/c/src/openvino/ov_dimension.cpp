@@ -7,7 +7,7 @@
 
 ov_status_e ov_dimension_create_dynamic(ov_dimension_t** dim, int64_t min_dimension, int64_t max_dimension) {
     if (!dim || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
@@ -29,7 +29,7 @@ ov_status_e ov_dimension_create_dynamic(ov_dimension_t** dim, int64_t min_dimens
 
 ov_status_e ov_dimension_create(ov_dimension_t** dim, int64_t dimension_value) {
     if (!dim || dimension_value <= 0) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     return ov_dimension_create_dynamic(dim, dimension_value, dimension_value);
 }
@@ -41,14 +41,11 @@ void ov_dimension_free(ov_dimension_t* dim) {
 
 ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
     if (!dimensions) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     *dimensions = nullptr;
     try {
         std::unique_ptr<ov_dimensions_t> dims(new ov_dimensions_t);
-        if (!dims) {
-            return ov_status_e::CALLOC_FAILED;
-        }
         *dimensions = dims.release();
     }
     CATCH_OV_EXCEPTIONS
@@ -57,7 +54,7 @@ ov_status_e ov_dimensions_create(ov_dimensions_t** dimensions) {
 
 ov_status_e ov_dimensions_add(ov_dimensions_t* dimensions, int64_t value) {
     if (!dimensions || value < 0) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     dimensions->object.emplace_back(value);
     return ov_status_e::OK;
@@ -65,7 +62,7 @@ ov_status_e ov_dimensions_add(ov_dimensions_t* dimensions, int64_t value) {
 
 ov_status_e ov_dimensions_add_dynamic(ov_dimensions_t* dimensions, int64_t min_dimension, int64_t max_dimension) {
     if (!dimensions || min_dimension < -1 || max_dimension < -1) {
-        return ov_status_e::INVALID_PARAM;
+        return ov_status_e::INVALID_C_PARAM;
     }
     dimensions->object.emplace_back(min_dimension, max_dimension);
     return ov_status_e::OK;
