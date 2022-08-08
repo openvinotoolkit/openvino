@@ -337,6 +337,8 @@ class FakeQuantizePropagation(BackReplacementPattern):
                 if input_type == 'FakeQuantize':
                     if fq['fq_config_priority'] == 'high' and input_node['fq_config_priority'] == 'low':
                         input_node['fq_group'] = fq['fq_group']
+                        input_node['fq_configs'] = fq['fq_configs']
+                        input_node['fq_config_priority'] = 'high'
                     for fq_config in fq['fq_configs']:
                         if fq_config not in input_node['fq_configs']:
                             input_node['fq_configs'].append(fq_config)
@@ -830,6 +832,8 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
 
 def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None):
     blobs_as_inputs_nodes_type = ['Convolution', 'Deconvolution', 'MatMul']
+    node_with_activation_weight_type = ['Convolution', 'MatMul', 'Add', 'Multiply', 'Subtract']
+
 
     port_name = None
     if ports is not None and names is not None:
@@ -876,11 +880,17 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
         if hw_config is not None and hw_config[node_type]:
             fq_configs = hw_config[node_type][fq_group]
 
+        if node.type in node_with_activation_weight_type:
+            fq_config_priority = 'high'
+        else:
+            fq_config_priority = 'low'
+
         fq_options = {
             'fq_group': fq_group,
             'fq_configs': copy(fq_configs),
-            'fq_config_priority': 'high'
+            'fq_config_priority': fq_config_priority
         }
+
         fq_name = '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx)
         fq_input = create_fake_quantize_node(graph, fq_name, port_data_type, **fq_options)
         # Insert FakeQuantize after input
@@ -899,9 +909,6 @@ def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_
 
 
 def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None):
-    activation_nodes_type = ['Power', 'Sigmoid', 'Tanh', 'ReLU', 'PReLU',
-                            'Clamp', 'Log', 'Abs', 'Exp', 'Sign']
-
     new_fq = []
     for out_port_id, port in node.out_ports().items():
         if port.disconnected():
@@ -924,10 +931,6 @@ def insert_output_fake_quantize(graph, node, hw_config=None, ignored_params=None
             fq_configs = hw_config[node.type]['outputs'] if hw_config is not None and hw_config[node.type] else []
 
             fq_config_priority = 'low'
-            if node.type in activation_nodes_type + ['Parameter']:
-                fq_config_priority = 'high'
-            else:
-                fq_config_priority = 'low'
 
             fq_options = {
                 'fq_group': 'outputs',
