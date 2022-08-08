@@ -16,7 +16,7 @@ primitive_type_id roll::type_id() {
 }
 
 layout roll_inst::calc_output_layout(const roll_node& node, kernel_impl_params const& impl_param) {
-    return impl_param.input_layouts[0];
+    return impl_param.get_input_layout();
 }
 
 std::string roll_inst::to_string(const roll_node& node) {

@@ -15,7 +15,7 @@ primitive_type_id reverse::type_id() {
 }
 
 layout reverse_inst::calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param) {
-    return impl_param.input_layouts[0];
+    return impl_param.get_input_layout();
 }
 
 std::string reverse_inst::to_string(reverse_node const& node) {

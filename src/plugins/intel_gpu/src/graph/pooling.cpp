@@ -20,7 +20,7 @@ primitive_type_id pooling::type_id() {
 layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<pooling>();
 
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
 
     auto pad = desc->pad;
     auto stride = desc->stride;
@@ -62,7 +62,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
                               static_cast<size_t>(0),
                               "Argmax primitive not present despite max_with_argmax mode.");
 
-        auto argmax_layout = impl_param.input_layouts[1];
+        auto argmax_layout = impl_param.get_input_layout(1);
         CLDNN_ERROR_NOT_EQUAL(desc->id,
                               "Argmax data type",
                               static_cast<size_t>(argmax_layout.data_type),
