@@ -156,6 +156,7 @@ public:
 protected:
     ov::CompiledModel execNet;
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    std::string targetDevice;
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 };
@@ -166,7 +167,8 @@ inline ov::Core createCoreWithTemplate() {
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
     pluginName += IE_BUILD_POSTFIX;
-    core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
+        CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return core;
 }

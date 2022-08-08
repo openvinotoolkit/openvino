@@ -557,13 +557,11 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
 
 
-@pytest.mark.template_plugin
-def test_set_blob_with_incorrect_name():
+def test_set_blob_with_incorrect_name(device):
     function = create_encoder([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
     ie_core = ie.IECore()
-    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
-    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net = ie_core.load_network(net, device)
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [4, 4, 20, 20]
     blob = ie.Blob(tensor_desc)
@@ -572,13 +570,11 @@ def test_set_blob_with_incorrect_name():
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
 
 
-@pytest.mark.template_plugin
-def test_set_blob_with_incorrect_size():
+def test_set_blob_with_incorrect_size(device):
     function = create_encoder([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
     ie_core = ie.IECore()
-    ie_core.register_plugin("openvino_template_plugin", "TEMPLATE")
-    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net = ie_core.load_network(net, device)
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
     blob = ie.Blob(tensor_desc)

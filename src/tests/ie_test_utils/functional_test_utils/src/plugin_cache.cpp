@@ -5,12 +5,14 @@
 #include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #include <cstdlib>
 #include <unordered_map>
 
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
+#include "openvino/util/file_util.hpp"
 
 namespace {
 class TestListener : public testing::EmptyTestEventListener {
@@ -59,7 +61,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
     try {
         std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
-        ie_core->RegisterPlugin(pluginName, "TEMPLATE");
+        ie_core->RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName), "TEMPLATE");
     } catch (...) {}
 
     if (!deviceToCheck.empty()) {

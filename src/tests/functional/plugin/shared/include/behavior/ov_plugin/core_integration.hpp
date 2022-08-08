@@ -10,6 +10,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -33,6 +34,7 @@ namespace behavior {
 class OVClassBasicTestP : public OVPluginTestBase,
                           public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
+    std::string deviceName;
     std::string pluginName;
 
 public:
@@ -41,12 +43,16 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        }
     }
 };
 
 class OVClassSetDefaultDeviceIDTest : public OVPluginTestBase,
                                       public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
+    std::string deviceName;
     std::string deviceID;
 
 public:
@@ -65,6 +71,7 @@ using DevicePriorityParams = std::tuple<
 class OVClassSetDevicePriorityConfigTest : public OVPluginTestBase,
                                            public ::testing::WithParamInterface<DevicePriorityParams> {
 protected:
+    std::string deviceName;
     ov::AnyMap configuration;
     std::shared_ptr<ngraph::Function> actualNetwork;
 
@@ -158,9 +165,8 @@ TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
     OV_ASSERT_NO_THROW(ie.get_property("NEW_DEVICE_NAME", ov::supported_properties));
 }
 
-TEST(OVClassBasicTest, smoke_registerExistingPluginFileThrows) {
+TEST(OVClassBasicTest, smoke_registerNonExistingPluginFileThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
 
@@ -168,12 +174,19 @@ TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(ov::Core ie("nonExistPlugins.xml"), ov::Exception);
 }
 
-#ifdef __linux__
+inline std::string getPluginFile() {
+    std::string filename{"mock_engine_valid.xml"};
+    std::ostringstream stream;
+    stream << "<ie><plugins><plugin name=\"mock\" location=\"";
+    stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        std::string("mock_engine") + IE_BUILD_POSTFIX);
+    stream << "\"></plugin></plugins></ie>";
+    CommonTestUtils::createFile(filename, stream.str());
+    return filename;
+}
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
-    std::string filename{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(filename, content);
+    const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
     CommonTestUtils::removeFile(filename.c_str());
 }
@@ -184,16 +197,10 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(ov::Core ie(filename), ov::Exception);
     CommonTestUtils::removeFile(filename.c_str());
-}
-
-#endif
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
-    std::string pluginXML{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(pluginXML, content);
+    const std::string pluginXML = getPluginFile();
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
@@ -214,9 +221,7 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Core created " << testIndex << std::endl;
             OV_ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
-#    if defined __linux__ && !defined(__APPLE__)
             OV_ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
-#    endif
             OV_ASSERT_NO_THROW(ie.get_versions(target_device));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
@@ -398,16 +403,33 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
-TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
+TEST(OVClassBasicTest, SetCacheDirPropertyCoreNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Cache_dir property test
+    ov::Any value;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::cache_dir("./tmp_cache_dir")));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::cache_dir.name()));
+    EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
+}
+
+TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, false);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, true);
+}
+
+TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Unsupported property test
+    ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {

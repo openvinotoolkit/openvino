@@ -7,12 +7,13 @@
 #include "ov_behavior_test_utils.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 
 namespace BehaviorTestsUtils {
 
 using namespace CommonTestUtils;
-
 
 class IEInferRequestTestBase :  public ov::test::behavior::APIBaseTest {
 private:
@@ -88,9 +89,9 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
+    ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
+        CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return ie;
 }
@@ -99,7 +100,7 @@ class IEClassNetworkTest : public ov::test::behavior::OVClassNetworkTest {
 public:
     InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
 
-    void SetUp() {
+    void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVClassNetworkTest::SetUp();
         // Generic network
