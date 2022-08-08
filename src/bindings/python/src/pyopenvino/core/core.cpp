@@ -111,6 +111,21 @@ void regclass_Core(py::module m) {
         )");
 
     cls.def(
+        "get_property",
+        [](ov::Core& self, const std::string& property) -> py::object {
+            return Common::utils::from_ov_any(self.get_property(property));
+        },
+        py::arg("property"),
+        R"(
+            Gets properties dedicated to Core behaviour.
+
+            :param property: Property or name of Property.
+            :type property: str
+            :return: Extracted information from property.
+            :rtype: object
+        )");
+
+    cls.def(
         "compile_model",
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,

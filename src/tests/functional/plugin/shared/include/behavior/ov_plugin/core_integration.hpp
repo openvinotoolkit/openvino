@@ -388,16 +388,33 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
 }
 
-TEST_P(OVClassSetTBBForceTerminatePropertyTest, SetConfigNoThrow) {
+TEST(OVClassBasicTest, SetCacheDirPropertyCoreNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Cache_dir property test
+    ov::Any value;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::cache_dir("./tmp_cache_dir")));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::cache_dir.name()));
+    EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
+}
+
+TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, false);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::force_tbb_terminate));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
     EXPECT_EQ(value, true);
+}
+
+TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Unsupported property test
+    ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
