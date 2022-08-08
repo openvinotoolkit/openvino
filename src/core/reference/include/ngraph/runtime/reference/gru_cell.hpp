@@ -60,7 +60,7 @@ void gru_cell(const T* X,
     //          true
     // Wb[zrh] - W bias vectors for update, reset and hidden gates.
     // Rb[zrh] - R bias vectors for update, reset and hidden gates.
-
+    // A       - Attentional update gate.
     // (.) - Denotes element-wise multiplication.
     // *   - Denotes dot product.
 
@@ -73,7 +73,8 @@ void gru_cell(const T* X,
     //                                                      # (default)
     // ht = g(Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh) # when linear_before_reset
     // := true
-    // Ht = (1 - zt) (.) ht + zt (.) Ht-1
+    // zt' = (1-A) (.) zt
+    // Ht = (1 - zt') (.) ht + zt' (.) Ht-1
     // -------------------
 
     Shape gate_shape{X_shape[0], H_shape[1]};           // [batch_size, hidden_size]
@@ -145,17 +146,18 @@ void gru_cell(const T* X,
                    z_t.data(),
                    gate_shape,
                    {B_shape[0] / num_b_splits},
-                   op::AutoBroadcastType::NUMPY);  //
-    reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape,
-                   op::AutoBroadcastType::NUMPY);  //
+                   op::AutoBroadcastType::NUMPY);
+    reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+
+    clip_activation(z_t, activation_f);
+
     T one[] = {1};
     if (A) {  // Attention score input provided
-        Shape a_shape{gate_shape[0], 1};
+        const Shape a_shape{gate_shape[0], 1};
         std::vector<T> a_t(gate_shape[0]);
         reference::subtract(one, A, a_t.data(), {1}, a_shape, op::AutoBroadcastType::NUMPY);
-        reference::multiply(z_t.data(), a_t.data(), z_t.data(), gate_shape, a_shape, op::AutoBroadcastType::NUMPY);
+        reference::multiply(a_t.data(), z_t.data(), z_t.data(), a_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     }
-    clip_activation(z_t, activation_f);
 
     // calculate r_t
     // steps:

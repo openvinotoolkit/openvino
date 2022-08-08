@@ -34,20 +34,6 @@ public:
               const Output<Node>& A,
               std::size_t hidden_size);
 
-    // TODO: Remove this constructor
-    AUGRUCell(const Output<Node>& X,
-              const Output<Node>& initial_hidden_state,
-              const Output<Node>& W,
-              const Output<Node>& R,
-              const Output<Node>& B,
-              const Output<Node>& A,
-              std::size_t hidden_size,
-              const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
-              const std::vector<float>& activations_alpha = {},
-              const std::vector<float>& activations_beta = {},
-              float clip = 0.f,
-              bool linear_before_reset = false);
-
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

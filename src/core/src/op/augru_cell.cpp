@@ -36,30 +36,6 @@ op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::v3::AUGRUCell::AUGRUCell(const Output<Node>& X,
-                             const Output<Node>& initial_hidden_state,
-                             const Output<Node>& W,
-                             const Output<Node>& R,
-                             const Output<Node>& B,
-                             const Output<Node>& A,
-                             size_t hidden_size,
-                             const vector<string>& activations,
-                             const vector<float>& activations_alpha,
-                             const vector<float>& activations_beta,
-                             float clip,
-                             bool linear_before_reset)
-    : RNNCellBase({X, initial_hidden_state, W, R, B, A},
-                  hidden_size,
-                  clip,
-                  activations,
-                  activations_alpha,
-                  activations_beta),
-      m_activation_f{get_activation_function(0)},
-      m_activation_g{get_activation_function(1)},
-      m_linear_before_reset{linear_before_reset} {
-    constructor_validate_and_infer_types();
-}
-
 bool op::v3::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_visit_attributes);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
@@ -68,10 +44,9 @@ bool op::v3::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v3::AUGRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_AUGRUCell_validate_and_infer_types);
-    // TODO: Output rank can be always static 2D
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(2));
             return;
         }
     }
@@ -116,7 +91,7 @@ void op::v3::AUGRUCell::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
                               Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-                          "Parameter hidden_size not matched for R and initial_hidden_state inputs.");
+                          "Dimension hidden_size not matched for R and initial_hidden_state inputs.");
 
     // Validate hidden_size value for W, B and R inputs
     if (merged_hidden_size.is_static()) {
@@ -171,12 +146,7 @@ shared_ptr<Node> op::v3::AUGRUCell::clone_with_new_inputs(const OutputVector& ne
                                       new_args.at(3),
                                       new_args.at(4),
                                       new_args.at(5),
-                                      get_hidden_size(),
-                                      get_activations(),
-                                      get_activations_alpha(),
-                                      get_activations_beta(),
-                                      get_clip(),
-                                      m_linear_before_reset);
+                                      get_hidden_size());
     } else {
         throw ngraph_error("Incorrect number of new arguments");
     }
