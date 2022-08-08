@@ -66,7 +66,7 @@ jobs:
       whoami
       uname -a
       echo test_debug ; which python3
-      sudo ln -s /usr/bin/python3 /usr/bin/python3.10
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3
       echo Python3 info ; which python3 ; python3 --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
