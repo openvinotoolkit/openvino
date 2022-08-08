@@ -55,8 +55,9 @@ jobs:
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      sudo ln -s /usr/bin/python3 /usr/bin/python3.10
-      echo Python3 info ; which python3 ; python3 --version
+      echo ls /usr/bin/python3.10
+      rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
@@ -118,6 +119,9 @@ jobs:
       export OPENCV_REPO_DIR=$(OPENCV_REPO_DIR)
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
+      sed -i 's;make -j "$NUM_PROC" python Parser/pgen;make -j "$NUM_PROC" python;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
+      sed -i 's;cp -r Parser/pgen "$BUILD_PYTHON";;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
+      sed -i 's;    HOSTPGEN="$BUILD_PYTHON"/Parser/pgen;;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'

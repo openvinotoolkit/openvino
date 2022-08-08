@@ -23,6 +23,7 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+RUN add-apt-repository universe
 RUN apt-get update && apt-get -y --no-install-recommends install \
 # OpenVINO dependencies
         autoconf \
@@ -38,7 +39,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         unzip \
         wget \
 # Python dependencies
-        python3 \
+        python3.10 \
         python3-pip \
         python3-dev \
         python3-virtualenv \
