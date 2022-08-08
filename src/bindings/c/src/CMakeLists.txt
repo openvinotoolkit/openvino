@@ -30,14 +30,9 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES
-    EXPORT_NAME runtime::c)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        SOVERSION ${OpenVINO_VERSION_MAJOR}
-        VERSION ${OpenVINO_VERSION})
-endif()
+ov_add_library_version(${TARGET_NAME})
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

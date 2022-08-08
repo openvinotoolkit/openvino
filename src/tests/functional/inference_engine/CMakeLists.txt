@@ -33,10 +33,6 @@ if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
 endif()
 
-if(ENABLE_IR_V7_READER)
-    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
-endif()
-
 if(ENABLE_HETERO)
     list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()

@@ -98,10 +98,6 @@ cv::String typeToString(int type)
     case CV_8UC2  : return "CV_8UC2";
     case CV_8UC3  : return "CV_8UC3";
     case CV_8UC4  : return "CV_8UC4";
-    case CV_16FC1 : return "CV_16FC1";
-    case CV_16FC2 : return "CV_16FC2";
-    case CV_16FC3 : return "CV_16FC3";
-    case CV_16FC4 : return "CV_16FC4";
     case CV_32FC1 : return "CV_32FC1";
     case CV_32FC2 : return "CV_32FC2";
     case CV_32FC3 : return "CV_32FC3";

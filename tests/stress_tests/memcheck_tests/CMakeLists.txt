@@ -14,5 +14,5 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(${TARGET_NAME} PRIVATE StressTestsCommon)
 
 install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 

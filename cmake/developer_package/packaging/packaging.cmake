@@ -158,6 +158,10 @@ macro(ie_cpack)
     endif()
 
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
+    if(NOT OpenVINO_VERSION_BUILD STREQUAL "000")
+        set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.${OpenVINO_VERSION_BUILD}")
+    endif()
+
     foreach(ver MAJOR MINOR PATCH)
         if(DEFINED OpenVINO_VERSION_${ver})
             set(CPACK_PACKAGE_VERSION_${ver} ${OpenVINO_VERSION_${ver}})

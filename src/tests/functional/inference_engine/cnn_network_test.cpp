@@ -8,6 +8,7 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/serialize.hpp"
 #include <common_test_utils/file_utils.hpp>
+#include "openvino/util/file_util.hpp"
 
 using namespace InferenceEngine;
 
@@ -154,7 +155,8 @@ public:
     void SetUp() override {
         std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
         ov::pass::Serialize(modelName, weightsName).run_on_model(model);
-        core.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, "mock");
+        ASSERT_NO_THROW(core.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            std::string("mock_engine") + IE_BUILD_POSTFIX), "mock"));
     }
 
     void TearDown() override {

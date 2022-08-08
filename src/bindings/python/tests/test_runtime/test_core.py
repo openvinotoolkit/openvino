@@ -317,7 +317,7 @@ def test_unregister_plugin(device):
     with pytest.raises(RuntimeError) as e:
         core.load_network(model, device)
     assert (
-        f"Device with '{device}' name is not registered in the InferenceEngine"
+        f"Device with '{device}' name is not registered in the OpenVINO Runtime"
         in str(e.value)
     )
 

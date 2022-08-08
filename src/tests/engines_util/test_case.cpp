@@ -4,6 +4,8 @@
 
 #include "test_case.hpp"
 
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "shared_utils.hpp"
 
 namespace {
@@ -174,6 +176,18 @@ testing::AssertionResult TestCase::compare_results_with_tolerance_as_fp(float to
     }
 
     return comparison_result;
+}
+
+TestCase::TestCase(const std::shared_ptr<Function>& function, const std::string& dev) : m_function{function} {
+    try {
+        // Register template plugin
+        m_core.register_plugin(
+            ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                               std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
+            "TEMPLATE");
+    } catch (...) {
+    }
+    m_request = m_core.compile_model(function, dev).create_infer_request();
 }
 
 }  // namespace test

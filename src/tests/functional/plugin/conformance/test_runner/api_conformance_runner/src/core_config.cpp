@@ -3,6 +3,8 @@
 //
 
 #include "functional_test_utils/core_config.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "conformance.hpp"
 
@@ -11,7 +13,8 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     auto availableDevices = core->GetAvailableDevices();
     std::string targetDevice = std::string(ov::test::conformance::targetDevice);
     if (std::find(availableDevices.begin(), availableDevices.end(), targetDevice) == availableDevices.end()) {
-        core->RegisterPlugin(ov::test::conformance::targetPluginName,
+        core->RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                                                std::string(ov::test::conformance::targetPluginName) + IE_BUILD_POSTFIX),
                              ov::test::conformance::targetDevice);
     }
 }

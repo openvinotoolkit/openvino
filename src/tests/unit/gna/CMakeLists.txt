@@ -16,10 +16,10 @@ addIeTargetTest(
         LINK_LIBRARIES
             PRIVATE
                 ngraphFunctions
-            gmock
-            commonTestUtils_s
-            openvino_intel_gna_plugin_test_static
-            engines_test_util
+                gmock
+                commonTestUtils_s
+                openvino_intel_gna_plugin_test_static
+                engines_test_util
         ADD_CPPLINT
         LABELS
             GNA

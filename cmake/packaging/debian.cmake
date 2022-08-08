@@ -14,18 +14,22 @@ function(_ov_add_plugin comp is_pseudo)
         set(package_name "${CPACK_DEBIAN_${ucomp}_PACKAGE_NAME}")
     endif()
 
+    if(NOT DEFINED cpack_full_ver)
+        message(FATAL_ERROR "Internal variable 'cpack_full_ver' is not defined")
+    endif()
+
     if(is_pseudo)
         if(pseudo_plugins_recommends)
-            set(pseudo_plugins_recommends "${pseudo_plugins_recommends}, ${package_name} (= ${CPACK_PACKAGE_VERSION})")
+            set(pseudo_plugins_recommends "${pseudo_plugins_recommends}, ${package_name} (= ${cpack_full_ver})")
         else()
-            set(pseudo_plugins_recommends "${package_name} (= ${CPACK_PACKAGE_VERSION})")
+            set(pseudo_plugins_recommends "${package_name} (= ${cpack_full_ver})")
         endif()
     endif()
 
     if(all_plugins_suggest)
-        set(all_plugins_suggest "${all_plugins_suggest}, ${package_name} (= ${CPACK_PACKAGE_VERSION})")
+        set(all_plugins_suggest "${all_plugins_suggest}, ${package_name} (= ${cpack_full_ver})")
     else()
-        set(all_plugins_suggest "${package_name} (= ${CPACK_PACKAGE_VERSION})")
+        set(all_plugins_suggest "${package_name} (= ${cpack_full_ver})")
     endif()
 
     list(APPEND installed_plugins ${comp})
@@ -47,6 +51,8 @@ macro(ov_cpack_settings)
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
+           # we have copyright file for debian package
+           NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # not appropriate components
            NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
            NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
@@ -57,15 +63,30 @@ macro(ov_cpack_settings)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
     # version with 3 components
-    set(cpack_ver_mm "${CPACK_PACKAGE_VERSION}")
+    set(cpack_name_ver "${OpenVINO_VERSION}")
+    # full version with epoch and release components
+    set(cpack_full_ver "${CPACK_PACKAGE_VERSION}")
+
+    # take release version into account
+    if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
+        set(cpack_full_ver "${cpack_full_ver}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
+    endif()
+
+    # take epoch version into account
+    if(DEFINED CPACK_DEBIAN_PACKAGE_EPOCH)
+        set(cpack_full_ver "${CPACK_DEBIAN_PACKAGE_EPOCH}:${cpack_full_ver}")
+    endif()
+
     # a list of conflicting package versions
     set(conflicting_versions
         # 2022 release series
+        # - 2022.1.0 is the last public release with debian packages from Intel install team
+        # - 2022.1.1 does not have debian packages enabled, distributed only as archives
         2022.1.0)
 
     # core
     set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C / C++ Runtime libraries")
-    set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
     # we need triggers to run ldconfig for openvino
     set(CPACK_DEBIAN_CORE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
 
@@ -77,7 +98,7 @@ macro(ov_cpack_settings)
     # core_dev
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
     ov_debian_generate_conflicts(core_dev ${conflicting_versions})
 
     ov_debian_add_lintian_suppression(core_dev
@@ -92,7 +113,7 @@ macro(ov_cpack_settings)
     if(ENABLE_HETERO)
         set(CPACK_COMPONENT_HETERO_DESCRIPTION "OpenVINO Hetero plugin")
         set(CPACK_COMPONENT_HETERO_DEPENDS "core")
-        set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero-${cpack_name_ver}")
         set(CPACK_DEBIAN_HETERO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(hetero ON)
     endif()
@@ -101,7 +122,7 @@ macro(ov_cpack_settings)
     if(ENABLE_AUTO_BATCH)
         set(CPACK_COMPONENT_BATCH_DESCRIPTION "OpenVINO Automatic Batching plugin")
         set(CPACK_COMPONENT_BATCH_DEPENDS "core")
-        set(CPACK_DEBIAN_BATCH_PACKAGE_NAME "libopenvino-auto-batch-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_BATCH_PACKAGE_NAME "libopenvino-auto-batch-${cpack_name_ver}")
         set(CPACK_DEBIAN_BATCH_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(batch ON)
     endif()
@@ -114,13 +135,13 @@ macro(ov_cpack_settings)
             set(CPACK_COMPONENT_MULTI_DESCRIPTION "OpenVINO Multi plugin")
         endif()
         set(CPACK_COMPONENT_MULTI_DEPENDS "core")
-        set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-auto-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_MULTI_PACKAGE_NAME "libopenvino-auto-${cpack_name_ver}")
         set(CPACK_DEBIAN_MULTI_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(multi ON)
     elseif(ENABLE_AUTO)
         set(CPACK_COMPONENT_AUTO_DESCRIPTION "OpenVINO Auto plugin")
         set(CPACK_COMPONENT_AUTO_DEPENDS "core")
-        set(CPACK_DEBIAN_AUTO_PACKAGE_NAME "libopenvino-auto-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_AUTO_PACKAGE_NAME "libopenvino-auto-${cpack_name_ver}")
         set(CPACK_DEBIAN_AUTO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(auto ON)
     endif()
@@ -129,7 +150,7 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_CPU)
         set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
         set(CPACK_COMPONENT_CPU_DEPENDS "core")
-        set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu-${cpack_name_ver}")
         set(CPACK_DEBIAN_CPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(cpu OFF)
     endif()
@@ -138,8 +159,10 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_GPU)
         set(CPACK_COMPONENT_GPU_DESCRIPTION "Intel® Processor Graphics")
         set(CPACK_COMPONENT_GPU_DEPENDS "core")
-        set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_GPU_PACKAGE_NAME "libopenvino-intel-gpu-${cpack_name_ver}")
         set(CPACK_DEBIAN_GPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        # auto batch exhances GPU
+        # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} = (${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
     endif()
 
@@ -147,7 +170,7 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_MYRIAD)
         set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU")
         set(CPACK_COMPONENT_MYRIAD_DEPENDS "core")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-${cpack_name_ver}")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(myriad OFF)
     endif()
@@ -156,7 +179,7 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_GNA)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator")
         set(CPACK_COMPONENT_GNA_DEPENDS "core")
-        set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-${cpack_name_ver}")
         # since we have libgna.so we need to call ldconfig and have `def_triggers` here
         set(CPACK_DEBIAN_GNA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
 
@@ -186,7 +209,7 @@ macro(ov_cpack_settings)
         else()
             set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "core")
         endif()
-        set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_NAME "libopenvino-python-${cpack_ver_mm}")
+        set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
         set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
     endif()
 
@@ -200,7 +223,7 @@ macro(ov_cpack_settings)
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "core_dev")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
     # can be skipped with --no-install-recommends
@@ -209,7 +232,7 @@ macro(ov_cpack_settings)
 
     # python_samples
     set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Python Samples")
-    set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
     set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3")
     set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
@@ -224,7 +247,7 @@ macro(ov_cpack_settings)
     else()
         set(CPACK_COMPONENT_LIBRARIES_DEPENDS "core")
     endif()
-    set(CPACK_DEBIAN_LIBRARIES_PACKAGE_NAME "openvino-libraries-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_LIBRARIES_PACKAGE_NAME "openvino-libraries-${cpack_name_ver}")
 
     ov_debian_add_lintian_suppression(libraries
         # it's umbrella package
@@ -233,7 +256,7 @@ macro(ov_cpack_settings)
     # all libraries-dev
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
-    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
     # ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package
@@ -242,7 +265,7 @@ macro(ov_cpack_settings)
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
-    set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_ver_mm}")
+    set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
         "empty-binary-package")
@@ -270,6 +293,6 @@ macro(ov_cpack_settings)
     ov_debian_add_latest_component(openvino)
 
     # users can manually install specific version of package
-    # e.g. sudo apt-get install openvino=2022.1.0-643
-    # even if we have package version 2022.2.0
+    # e.g. sudo apt-get install openvino=2022.1.0
+    # even if we have latest package version 2022.2.0
 endmacro()

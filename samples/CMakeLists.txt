@@ -8,8 +8,8 @@ add_subdirectory(c)
 # used by tests_deprecated
 if(TARGET format_reader)
     install(TARGETS format_reader
-            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT tests EXCLUDE_FROM_ALL)
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)

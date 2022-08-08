@@ -56,18 +56,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # Install rules
 
-# for ieFuncTests
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT tests EXCLUDE_FROM_ALL)
-
-# for InferenceEngineUnitTest
-# For public CI
-install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-if(NOT WIN32)
-    # For private CI
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
