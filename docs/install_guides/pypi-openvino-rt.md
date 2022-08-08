@@ -15,6 +15,8 @@ Before you start the installation, check the supported operating systems and req
 |   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8, 3.9                                  |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
+**C++ redistributable** is also required for the installation. To install it on Windows*, you can [download the .exe file](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 > **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
