@@ -43,9 +43,9 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         return make_unique<softmax_impl>(*this);
     }
 
-    static primitive_impl* create(const softmax_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const softmax_node& arg, const kernel_impl_params& impl_param) {
         const auto primitive = arg.get_primitive();
-        auto sm_params = get_default_params<kernel_selector::softmax_params>(*impl_param);
+        auto sm_params = get_default_params<kernel_selector::softmax_params>(impl_param);
         auto sm_optional_params =
             get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
 

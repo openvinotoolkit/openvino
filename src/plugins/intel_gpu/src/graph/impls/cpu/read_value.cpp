@@ -39,7 +39,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     void init_kernels() override {}
 
 public:
-    static primitive_impl* create(const read_value_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+    static primitive_impl* create(const read_value_node& arg, const kernel_impl_params& impl_param) {
         return new read_value_impl{};
     }
 };
