@@ -16,7 +16,10 @@ Before you start the installation, check the supported operating systems and req
 |   macOS* 10.15.x                                             | 3.6, 3.7, 3.8, 3.9                                  |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
 
-**C++ redistributable** is also required for the installation. To install it on Windows*, you can [download the .exe file](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+**C++ libraries** are also required for the installation. To install C++ libraries:
+- On Windows*, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+- On macOS*, you can use `xcode-select --install`.
+- On Linux*, you can use `sudo apt install build-essential`.
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
