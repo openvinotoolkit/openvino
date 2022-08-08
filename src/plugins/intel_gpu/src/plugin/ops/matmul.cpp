@@ -214,9 +214,9 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto inputDimsN = inputDims.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outDimsN);
+            auto targetFormat = cldnn::format::get_default_format(outDimsN);
 
-            if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
+            if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_output_element_type(0));
                 auto reorderPrim = cldnn::reorder(reorderName,

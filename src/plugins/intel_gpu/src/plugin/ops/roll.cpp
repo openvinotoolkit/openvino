@@ -22,7 +22,7 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
     const auto& op_friendly_name = op->get_friendly_name();
     const auto& input_shape = op->get_input_shape(0);
     const uint8_t rank = input_shape.size();
-    const auto format = DefaultFormatForDims(rank);
+    const auto format = cldnn::format::get_default_format(rank);
     const auto default_rank = format.dimension();
 
     auto shift_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));

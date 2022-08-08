@@ -29,7 +29,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             // GPU primitive supports only i32 data type for 'max_output_boxes_per_class' input
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
@@ -67,7 +67,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             }
             cldnn::layout mutableLayoutSecond = cldnn::layout(
                 DataTypeFromPrecision(mutable_precision_second),
-                DefaultFormatForDims(op->get_output_shape(2).size()),
+                cldnn::format::get_default_format(op->get_output_shape(2).size()),
                 tensor_from_dims(op->get_output_shape(2)));
 
             GPU_DEBUG_IF(debug_config->verbose >= 2) {

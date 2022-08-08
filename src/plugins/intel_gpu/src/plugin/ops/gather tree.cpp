@@ -27,7 +27,7 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,

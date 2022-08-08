@@ -21,7 +21,7 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
 
     const auto output_data_type = DataTypeFromPrecision(op->get_output_element_type(0));
     const auto op_output_shape = op->get_output_shape(0);
-    const auto output_format = DefaultFormatForDims(op_output_shape.size());
+    const auto output_format = cldnn::format::get_default_format(op_output_shape.size());
     const auto output_shape = tensor_from_dims(op_output_shape);
 
     const auto variable_layout = cldnn::layout{output_data_type,

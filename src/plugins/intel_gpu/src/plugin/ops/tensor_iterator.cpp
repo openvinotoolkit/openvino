@@ -38,7 +38,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
                                             const cldnn::primitive_id& id, const cldnn::primitive_id& input,
                                             const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
-    const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
+    const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);

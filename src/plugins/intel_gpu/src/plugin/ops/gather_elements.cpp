@@ -49,7 +49,7 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
     size_t rank = op->get_input_shape(0).size();
     int32_t axis = static_cast<int32_t>(op->get_axis());
 
-    auto outLayout = DefaultFormatForDims(op->get_output_shape(0).size());
+    auto outLayout = cldnn::format::get_default_format(op->get_output_shape(0).size());
 
     auto primitive = cldnn::gather_elements(layerName,
                                             inputPrimitives[0],

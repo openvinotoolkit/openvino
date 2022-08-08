@@ -28,8 +28,8 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     if (inputRank != outputRank) {
         // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = DefaultFormatForDims(outputRank);
-        if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
+        auto targetFormat = cldnn::format::get_default_format(outputRank);
+        if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,

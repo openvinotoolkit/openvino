@@ -143,7 +143,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
 
 void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = DefaultFormatForDims(constDims.size());
+    auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();

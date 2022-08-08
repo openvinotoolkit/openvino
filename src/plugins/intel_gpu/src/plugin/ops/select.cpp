@@ -36,9 +36,9 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
             auto inputDimsN = inputDims.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outDimsN);
+            auto targetFormat = cldnn::format::get_default_format(outDimsN);
 
-            if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
+            if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,

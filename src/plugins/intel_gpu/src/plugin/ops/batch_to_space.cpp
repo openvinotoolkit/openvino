@@ -19,7 +19,7 @@ static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
     std::string layerName = layer_type_name_ID(op);
 
     auto rank = op->get_input_shape(0).size();
-    auto format = DefaultFormatForDims(rank);
+    auto format = cldnn::format::get_default_format(rank);
 
     std::vector<cldnn::tensor> inputs;
     inputs.reserve(3);

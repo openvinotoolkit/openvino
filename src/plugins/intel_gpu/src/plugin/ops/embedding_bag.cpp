@@ -46,7 +46,7 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
@@ -87,7 +87,7 @@ static void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngra
             // GPU primitive supports only i32 data type for indices input,
             // so we need additional reorder if it's provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
@@ -146,7 +146,7 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
             // GPU primitive supports only i32 data type for indices inputs,
             // so we need additional reorders if they are provided as i64
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,

@@ -33,7 +33,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
     const cldnn::layout mutable_layout{DataTypeFromPrecision(mutable_precision),
-                                       DefaultFormatForDims(output_shape.size()),
+                                       cldnn::format::get_default_format(output_shape.size()),
                                        tensor_from_dims(output_shape)};
     cldnn::memory::ptr shared_memory{p.GetEngine().allocate_memory(mutable_layout)};
 
