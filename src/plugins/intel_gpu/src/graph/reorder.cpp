@@ -34,7 +34,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 
     if (ifmt.is_nv12()) {
-        auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
+        auto output_feature = input_layout.feature() * 3;
+        if(node.get_primitive()->output_channels == channel_mode::one)
+            output_feature = 1;
+        auto data_size = tensor{ input_layout.batch(), output_feature,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
             return layout(odt, ofmt, data_size, op);

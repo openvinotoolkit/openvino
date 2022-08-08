@@ -25,6 +25,7 @@ struct reorder_params : public base_params {
     uint32_t winograd_nr_tiles_x;
     bool winograd = false;
     bool has_padded_output = false;
+    bool output_one_channel = false;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();

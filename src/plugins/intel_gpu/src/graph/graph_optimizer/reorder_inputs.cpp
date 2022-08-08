@@ -403,6 +403,13 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto reorder = reorder_pair.first;
 
         if (reorder) {
+            if (node->is_type<cldnn::reorder>()) {
+                auto reorder_prim = node->as<cldnn::reorder>().get_primitive();
+                if (reorder_prim->output_channels == cldnn::channel_mode::one && in_layout.format.value == cldnn::format::nv12) {
+                    reorder->output_channels = cldnn::channel_mode::one;
+                }
+            }
+
             auto& reorder_node = p.get_or_create(reorder);
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),

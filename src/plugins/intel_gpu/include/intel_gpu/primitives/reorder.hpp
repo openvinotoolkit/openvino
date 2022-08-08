@@ -24,6 +24,13 @@ enum class reorder_mean_mode {
     div,       // val/mean
 };
 
+/// @brief channel operation modes
+enum class channel_mode {
+    none,      // none
+    one,       // 1
+    three,     // 3
+};
+
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
 /// Also merged with subtraction layer, which can subtract, multiply or divide values based on mean_mode value, while doing reordering.
@@ -46,7 +53,9 @@ struct reorder : public primitive_base<reorder> {
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode) {
+              output_channels = channel_mode::three;
+          }
 
     /// @brief Constructs reorder primitive which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -63,7 +72,9 @@ struct reorder : public primitive_base<reorder> {
           output_format(output_layout.format),
           mean(mean),
           subtract_per_feature(0),
-          mean_mode(mode) {}
+          mean_mode(mode) {
+              output_channels = channel_mode::three;
+          }
 
     /// @brief Constructs reorder primitive with directly provided mean subtract values.
     /// @param id This primitive id.
@@ -82,7 +93,9 @@ struct reorder : public primitive_base<reorder> {
           output_format(output_format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode) {
+              output_channels = channel_mode::three;
+          }
 
     /// @brief Constructs reorder primitive which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -101,7 +114,9 @@ struct reorder : public primitive_base<reorder> {
           output_format(output_format),
           mean(mean),
           subtract_per_feature(0),
-          mean_mode(mode) {}
+          mean_mode(mode) {
+              output_channels = channel_mode::three;
+          }
 
     /// @brief Constructs reorder primitive with two inputs and directly provided mean subtract values.
     /// @param id This primitive id.
@@ -120,7 +135,9 @@ struct reorder : public primitive_base<reorder> {
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode) {
+              output_channels = channel_mode::three;
+          }
 
     /// @brief Constructs reorder primitive with two inputs, which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -138,7 +155,9 @@ struct reorder : public primitive_base<reorder> {
         : primitive_base(id, { input, input2 }, ext_prim_id, output_layout.data_padding, optional_data_type{ output_layout.data_type }),
         output_format(output_layout.format),
         mean(mean),
-        mean_mode(mode) {}
+        mean_mode(mode) {
+            output_channels = channel_mode::three;
+        }
 
     /// @brief Requested memory format.
     format output_format;
@@ -148,6 +167,8 @@ struct reorder : public primitive_base<reorder> {
     std::vector<float> subtract_per_feature;
     /// @brief Mode of mean execution
     reorder_mean_mode mean_mode;
+    /// @brief Mode of output channels
+    channel_mode output_channels;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

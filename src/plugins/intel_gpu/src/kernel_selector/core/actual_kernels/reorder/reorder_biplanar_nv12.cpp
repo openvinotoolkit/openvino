@@ -24,6 +24,8 @@ ParamsKey reorder_biplanar_nv12::GetSupportedKey() const {
 JitConstants reorder_biplanar_nv12::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
+    if(params.output_one_channel)
+        jit.AddConstant(MakeJitConstant("OUTPUT_ONE_CHANNEL", 1));
     return jit;
 }
 

@@ -257,23 +257,29 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 switch (preProcess.getMeanVariant()) {
                 case NONE:
                 case MEAN_VALUE: {
-                    p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                                  y_name,
-                                                  uv_name,
-                                                  networkInputLayout,
-                                                  meanValues,
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  inputInfo->name()));
+                    auto preprocessPrim = cldnn::reorder(preprocessPrimID,
+                                              y_name,
+                                              uv_name,
+                                              networkInputLayout,
+                                              meanValues,
+                                              cldnn::reorder_mean_mode::subtract,
+                                              inputInfo->name());
+                    if(inputDims[1] == 1)
+                        preprocessPrim.output_channels = cldnn::channel_mode::one;
+                    p.AddPrimitive(preprocessPrim);
                     break;
                 }
                 case MEAN_IMAGE: {
-                    p.AddPrimitive(cldnn::reorder(preprocessPrimID,
-                                                  y_name,
-                                                  uv_name,
-                                                  networkInputLayout,
-                                                  meanBlobID,
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  inputInfo->name()));
+                    auto preprocessPrim = cldnn::reorder(preprocessPrimID,
+                                              y_name,
+                                              uv_name,
+                                              networkInputLayout,
+                                              meanBlobID,
+                                              cldnn::reorder_mean_mode::subtract,
+                                              inputInfo->name());
+                    if(inputDims[1] == 1)
+                        preprocessPrim.output_channels = cldnn::channel_mode::one;
+                    p.AddPrimitive(preprocessPrim);
                     break;
                 }
                 default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;

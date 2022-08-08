@@ -100,6 +100,9 @@ public:
 
         reorder_params.winograd = impl_param->input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
 
+        if (output_layout.feature() == 1 && arg.get_org_primitive_id().find("_cldnn_input_preprocess") != std::string::npos)
+            reorder_params.output_one_channel = true;
+
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
 
