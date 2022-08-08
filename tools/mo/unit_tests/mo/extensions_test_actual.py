@@ -127,7 +127,7 @@ class TestMoFallback(unittest.TestCase):
     def test_conersion_if_extensions_is_used(self):
         args = base_args_config()
         args.input_model = "test_model.onnx"
-        args.extensions = get_builtin_extensions_path()
+        args.extensions = [get_builtin_extensions_path()]
 
         graph, model = prepare_ir(args)
 
