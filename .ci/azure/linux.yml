@@ -175,8 +175,7 @@ jobs:
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
-      ninja
-    workingDirectory: $(BUILD_DIR)
+      ninja -C $(BUILD_DIR)
     displayName: 'Build Lin'
 
   - script: ccache --show-stats
@@ -203,8 +202,7 @@ jobs:
         -S $(REPO_DIR)/tests/layer_tests
         -B $(BUILD_LAYER_TESTS_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+  - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
