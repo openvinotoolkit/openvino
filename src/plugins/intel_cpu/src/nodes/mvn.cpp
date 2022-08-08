@@ -947,7 +947,6 @@ void MVN::prepareParams() {
         mvnAttrs.layout == MVNLayoutType::planar &&
         mayiuse(cpu::x64::avx2) == true;
         fusedWith.empty();
-    is_ln_applicable = false;
     if (is_ln_applicable) {
         // memory desc
         size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
