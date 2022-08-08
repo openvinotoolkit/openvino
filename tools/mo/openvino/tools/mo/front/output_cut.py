@@ -27,6 +27,7 @@ class OutputCut(FrontReplacementPattern):
         for node in graph.get_op_nodes(needs_removal=True):
             fw_info = None
             in_node = None
+            out_nodes_ids = {}
             for in_port_idx in node.in_edges():
                 node_idx = node.in_edge(in_port_idx)['in']
                 if node_idx in node.in_nodes():
@@ -35,9 +36,15 @@ class OutputCut(FrontReplacementPattern):
                     if fw_info_value:
                         fw_info = fw_info_value
                         break
+            if fw_info is not None and in_node is not None:            
+                for out_idx in in_node.out_nodes():
+                    out_node = in_node.out_node(out_idx)
+                    out_nodes_ids[out_idx] = out_node.id
+            
             graph.erase_node(node)
 
             if fw_info is not None and in_node is not None:
                 for out_idx in in_node.out_nodes():
-                    set_edge_attribute_between_nodes(in_node, in_node.out_node(out_idx),
+                    if node.id == out_nodes_ids[out_idx]:
+                        set_edge_attribute_between_nodes(in_node, in_node.out_node(out_idx),
                                                      'fw_tensor_debug_info', fw_info)
