@@ -48,7 +48,7 @@ install(TARGETS ${TARGET_NAME}
     EXCLUDE_FROM_ALL)
 
 # OpenVINO 2.0 and Legacy C API test sample
-set(TARGET_NAME "openvino_capi_test")
+set(TARGET_NAME "ov_capi_test")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
