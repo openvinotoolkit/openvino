@@ -15,14 +15,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace cldnn {
-template <>
-struct type_to_data_type<FLOAT16> {
-    static const data_types value = data_types::f16;
-};
-}  // namespace cldnn
-
-
 template <typename InputT, pooling_mode Mode>
 struct pooling_mode_output {
     using type = InputT;
