@@ -226,7 +226,7 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    return type()->calc_output_layout(*this);
+    return type()->calc_output_layout(*this, *get_kernel_impl_params());
 }
 
 layout program_node::get_output_layout(bool invalidate_users_if_changed) {

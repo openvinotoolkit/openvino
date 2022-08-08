@@ -45,7 +45,7 @@ struct TelemetryFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
-    std::set<std::tuple<std::string, std::string, std::string, int>> m_expected_events;
+    std::set<std::set<std::tuple<std::string, std::string, std::string, int>>> m_expected_events;
 };
 
 class FrontEndTelemetryTest : public ::testing::TestWithParam<TelemetryFEParam> {

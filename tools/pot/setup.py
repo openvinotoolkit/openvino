@@ -67,7 +67,7 @@ if '--install-dev-extras' in sys.argv:
 INSTALL_REQUIRES = [
     "scipy~=1.5.4",
     "jstyleson~=0.0.2",
-    "numpy>=1.16.6,<1.20",
+    "numpy>=1.16.6,<=1.23.1",
     "addict>=2.4.0",
     "networkx~=2.5;python_version<='3.6'",
     "networkx<2.8.1;python_version>'3.6'",
@@ -78,7 +78,7 @@ INSTALL_REQUIRES = [
 ]
 
 ALGO_EXTRAS = [
-    'hyperopt~=0.1.2',
+    #'hyperopt~=0.1.2',
 ]
 
 DEV_EXTRAS = ['pytest==4.5.0', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']

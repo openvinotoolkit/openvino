@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
@@ -32,7 +33,8 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
+    ov::onnx_editor::ONNXModelEditor editor{
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
@@ -49,8 +51,9 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    ov::onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx")};
+    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                 SERIALIZED_ZOO,
+                                                                 "onnx/split_equal_parts_default.onnx")};
 
     editor.set_input_types({{"input", ng_type}});
 
@@ -70,7 +73,8 @@ typedef ::testing::Types<int8_t, int16_t, int32_t, uint8_t, float> ElemTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
-    const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
+    const auto ir_xml =
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/add_abc.xml");
     const auto function = test::function_from_ir(ir_xml);
 
     auto test_case = test::TestCase(function, s_device);
@@ -83,8 +87,10 @@ NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
-    const auto ir_xml = file_util::path_join(SERIALIZED_ZOO, "ir/add_abc.xml");
-    const auto ir_bin = file_util::path_join(SERIALIZED_ZOO, "ir/weights/add_abc.bin");
+    const auto ir_xml =
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/add_abc.xml");
+    const auto ir_bin =
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/weights/add_abc.bin");
     const auto function = test::function_from_ir(ir_xml, ir_bin);
 
     auto test_case = test::TestCase(function, s_device);

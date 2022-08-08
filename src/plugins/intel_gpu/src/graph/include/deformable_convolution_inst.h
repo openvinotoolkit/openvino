@@ -79,7 +79,7 @@ class typed_primitive_inst<deformable_conv> : public typed_primitive_inst_base<d
     using parent = typed_primitive_inst_base<deformable_conv>;
 
 public:
-    static layout calc_output_layout(deformable_conv_node const& node);
+    static layout calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deformable_conv_node const& node);
 
 public:
@@ -159,7 +159,7 @@ class typed_primitive_inst<deformable_interp> : public typed_primitive_inst_base
     using parent = typed_primitive_inst_base<deformable_interp>;
 
 public:
-    static layout calc_output_layout(deformable_interp_node const& node);
+    static layout calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deformable_interp_node const& node);
 
 public:
