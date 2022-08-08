@@ -22,7 +22,7 @@ namespace snippets {
 //   Result
 class ConvertFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertFunction(const std::vector<PartialShape>& inputShapes,
                              const ov::element::Type inType = ov::element::f32,
                              const ov::element::Type outType = ov::element::u8)
     : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
@@ -45,7 +45,7 @@ protected:
 //      Result
 class ConvertInputFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertInputFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertInputFunction(const std::vector<PartialShape>& inputShapes,
                                   const ov::element::Type inType = ov::element::f32,
                                   const ov::element::Type outType = ov::element::u8)
     : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
@@ -67,7 +67,7 @@ protected:
 //      Result
 class ConvertOutputFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertOutputFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertOutputFunction(const std::vector<PartialShape>& inputShapes,
                                    const ov::element::Type inType = ov::element::f32,
                                    const ov::element::Type outType = ov::element::i8)
     : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
@@ -91,7 +91,7 @@ protected:
 //      Result                Result
 class ConvertStubFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertStubFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertStubFunction(const std::vector<PartialShape>& inputShapes,
                                  const ov::element::Type inType = ov::element::f32,
                                  const ov::element::Type outType = ov::element::i8)
         : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
@@ -117,7 +117,7 @@ protected:
 //            Result2
 class ConvertPartialInputsAndResultsFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertPartialInputsAndResultsFunction(const std::vector<Shape>& inputShapes,
+    explicit ConvertPartialInputsAndResultsFunction(const std::vector<PartialShape>& inputShapes,
                                                     const std::vector<ov::element::Type>& inTypes = {ov::element::f32},
                                                     const std::vector<ov::element::Type>& outTypes = {ov::element::f32})
     : SnippetsFunctionBase(inputShapes), inTypes(inTypes), outTypes(outTypes) {

@@ -219,7 +219,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
         if (auto tile_scheduler = std::dynamic_pointer_cast<TileSchedulerEmitter>(emitter)) {
             // dynamic TileScheduler needs const runtime params
             if (!is_static) {
-                in_regs.push_back(static_cast<size_t>(dnnl::impl::cpu::x64::abi_param2.getIdx()));
+                in_regs.push_back(static_cast<size_t>(abi_param2.getIdx()));
             }
             out_regs = gp_regs_used;
         }
@@ -304,10 +304,6 @@ void TileSchedulerEmitter::emit_tiles(const Reg64& reg_inner_amount, const std::
                 h->mov(reg_inner_amount, inner_work_amount - vector_size);
             }
             // else: vector_tile is executed multiple times, so work_amount is already set
-        } else {
-            if (vector_evaluate_once) {
-                vector_tile.first->emit_ptr_increments(data_ptr_regs);
-            }
         }
         process_tile(scalar_evaluate_once, scalar_tile);
     }
@@ -501,7 +497,10 @@ void TileEmitter::validate_arguments(const std::vector<size_t> &in,
                                      const std::vector<size_t> &out,
                                      const std::vector<size_t> &pool,
                                      const std::vector<size_t> &gpr) const {
-    if ((dynamic_dims_idx.empty() && in.size() != 1)  || (!dynamic_dims_idx.empty() && in.size() !=2))
+    //todo: if one of the uppermost dimensions is dynamic (batch for example), node is still considered to be dynamic
+    // and evaluates dynamic pipeline. Hence dynamic_dims_idx may be empty, but in.size() still == 2. Fix this in future.
+    //  if ((dynamic_dims_idx.empty() && in.size() != 1)  || (!dynamic_dims_idx.empty() && in.size() !=2))
+    if (in.size() != 1  && in.size() !=2)
         IE_THROW() << "TileEmitter got invalid number of inputs.";
     if (out.size() != io_dims.size())
         IE_THROW() << "TileEmitter got invalid number of outputs. Expected " << io_dims.size() << " , got " << out.size();

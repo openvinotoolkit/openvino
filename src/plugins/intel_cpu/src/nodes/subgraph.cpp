@@ -239,8 +239,8 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         scalar_tile_inc.resize(io_index);
         for (int i = 0; i < io_index; i++) {
             const bool not_broadcasted = !bmask[i];
-            vector_tile_inc[i] = isa_num_lanes * sizeof(float) * not_broadcasted;
-            scalar_tile_inc[i] = sizeof(float) * not_broadcasted;
+            vector_tile_inc[i] = isa_num_lanes * dataSize[i] * not_broadcasted;
+            scalar_tile_inc[i] = dataSize[i] * not_broadcasted;
         }
     }
 
@@ -274,34 +274,35 @@ void Snippet::calcJITParams(std::vector<int64_t>& offsets, std::vector<int64_t>&
         // todo: simplify pointer increment logics. Currently some increments are performed by emitters
         //  (not always, but on condition), and some - by TileScheduler.
         // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
-        for (size_t i = 0; i < inputShapes.size(); i++) {
+        for (size_t i = 0; i < numParams; i++) {
             // the last offset is ignored, so offsets[offset_rank - 1] is actually outer tile offset
             int64_t off = offsets[(i + 1) * offset_rank - 1];
-            const auto& input_shape = inputShapes[i].get_shape();
-            if (off > dataSize[i]) {
+            const auto& io_shape = i < numInputs ? inputShapes[i].get_shape() : outputShapes[i - numInputs].get_shape();
+            if (off > dataSize[i] * vector_size) {
                 sch_offsets[i] = 0;
+            } else if (off == dataSize[i] * vector_size) {
+                sch_offsets[i] = 0;//off;
                 // offset == data_size only if input_shape.back() == 1, but ScalarLoadEmitter doesn't perform increment
                 // in such cases, because it thinks it's broadcasting.
             } else if (off == dataSize[i]) {
-                sch_offsets[i] = bmask[i] ? dataSize : 0;
+//                sch_offsets[i] = bmask[i] || *static_master_shape.rbegin() == 1 ? dataSize[i] : 0;
+                sch_offsets[i] = bmask[i] ? dataSize[i] : 0;
                 // if outer tile is broadcasted then we need to step back to read the same data once again
                 // NB! we don't need to step back if scalar/vector tile is executed only once,
                 // because increments are not emitted in this case. See jit_snippets_emitters.cpp for more details
-            } else if (input_shape[input_shape.size() - 2] != static_master_shape[static_master_shape.size() - 2] &&
-                       input_shape.back() != 1 &&
-                       input_shape.back() != vector_size) {
-                sch_offsets[i] = -1 * static_master_shape.back() * dataSize[i];
+                // If the lower Tile is broadcasted, then no step back is needed
+            } else if (io_shape[io_shape.size() - 2] != static_master_shape[static_master_shape.size() - 2]
+                       && !bmask[i]
+//                       io_shape.back() != 1 &&
+//                       io_shape.back() != vector_size
+                       ) {
+                sch_offsets[i] = -1 * io_shape.back() * dataSize[i];
                 // If scalar tile executes one time, ptr doesn't move on 1 value
                 // so we should absolutelly decrease offset
-                if (static_master_shape.back() % vector_size == 1) {
-                    sch_offsets[i] += dataSize[i];
-                }
+//                if (static_master_shape.back() % vector_size == 1) {
+//                    sch_offsets[i] += dataSize[i];
+//                }
             }
-        }
-        // we need to step back for outputs too if output shape is not equal to master_shape
-        for (size_t i = 0; i < outputShapes.size(); i++) {
-            int64_t off = offsets[(i + 1 + numInputs) * offset_rank - 1];
-            sch_offsets[i + numInputs] = off - static_master_shape.back() * dataSize[numInputs + i];
         }
     }
 }

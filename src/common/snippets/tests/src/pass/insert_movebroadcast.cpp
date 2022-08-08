@@ -28,7 +28,7 @@ void InsertMoveBroadcastTests::SetUp() {
     std::vector<Shape> inputShapes(2);
     std::vector<Shape> broadcastShapes(2);
     std::tie(inputShapes[0], inputShapes[1], broadcastShapes[0], broadcastShapes[1]) = this->GetParam();
-    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(inputShapes, broadcastShapes);
+    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(std::vector<PartialShape> {inputShapes[0], inputShapes[1]}, broadcastShapes);
 }
 
 TEST_P(InsertMoveBroadcastTests, AddBroadcast) {

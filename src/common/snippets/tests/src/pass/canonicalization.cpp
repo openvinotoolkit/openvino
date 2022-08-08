@@ -42,7 +42,7 @@ void CanonicalizationTests::SetUp() {
     std::tie(inputs[0], inputs[1], output_blocked_shapes[0], expected_output_shape) = this->GetParam();
 
     input_blocked_shapes = {std::get<1>(inputs[0]), std::get<1>(inputs[1])};
-    snippets_function = std::make_shared<AddFunction>(std::vector<Shape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
+    snippets_function = std::make_shared<AddFunction>(std::vector<PartialShape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
 }
 
 TEST_P(CanonicalizationTests, Add) {
@@ -50,8 +50,10 @@ TEST_P(CanonicalizationTests, Add) {
     function_ref = snippets_function->getReference();
     auto subgraph =  getTokenizedSubgraph(function);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
-    Shape canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes);
-    ASSERT_DIMS_EQ(canonical_output_shape, expected_output_shape);
+    const auto exec_type = subgraph->get_generator()->get_supported_exec_precision();
+    auto canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes, exec_type);
+    ASSERT_TRUE(!canonical_output_shape.is_dynamic());
+    ASSERT_DIMS_EQ(canonical_output_shape.get_shape(), expected_output_shape);
 }
 
 namespace CanonicalizationTestsInstantiation {

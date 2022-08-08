@@ -173,7 +173,7 @@ protected:
 //  Result
 class EltwiseTwoResultsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseTwoResultsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseTwoResultsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
             NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
@@ -191,7 +191,7 @@ protected:
 //             Result
 class TwoInputsAndOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit TwoInputsAndOutputsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit TwoInputsAndOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
