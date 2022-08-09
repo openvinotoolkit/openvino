@@ -2115,9 +2115,17 @@ def depersonalize(value: str, key: str):
     return ','.join(res)
 
 
-def get_meta_info(argv: argparse.Namespace):
+def get_meta_info(argv: [argparse.Namespace, dict]):
     meta_data = {'unset': []}
-    for key, value in argv.__dict__.items():
+    dict_items = None
+    if isinstance(argv, argparse.Namespace):
+        dict_items = argv.__dict__.items()
+    elif isinstance(argv, dict):
+        dict_items = argv.items()
+    else:
+        raise Error('Incorrect type of argv. Expected dict or argparse.Namespace, got {}'.format(type(dict_items)))
+
+    for key, value in dict_items:
         if value is not None:
             value = depersonalize(value, key)
             meta_data[key] = value

@@ -13,11 +13,12 @@ except ImportError:
 
 from openvino.tools.mo.convert import convert
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name
+from openvino.tools.mo.utils.cli_parser import get_model_name, get_meta_info
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
+from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -82,10 +83,10 @@ def main(cli_parser: argparse.ArgumentParser):
     output_dir = argv['output_dir'] if argv['output_dir'] != '.' else os.getcwd()
     model_path = os.path.normpath(os.path.join(output_dir, argv['model_name'] + '.xml'))
 
-    # Ticket for fixing: 88606
-    print('[ WARNING ] MO Meta data is not serialized to IR.'.format(get_ir_version(argv)))
-
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
+
+    # add meta information to IR
+    append_ir_info(file=model_path, meta_info=get_meta_info(argv))
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))

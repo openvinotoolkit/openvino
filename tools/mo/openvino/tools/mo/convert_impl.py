@@ -491,17 +491,17 @@ def driver(argv: argparse.Namespace):
     if res_ngraph_function is None:
         return res_ngraph_function
 
-    elapsed_time = datetime.datetime.now() - start_time
-    print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
-
-    try:
-        import resource
-        mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
-        if sys.platform == 'darwin':
-            mem_usage = round(mem_usage / 1024)
-        print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
-    except ImportError:
-        pass
+    if not argv.silent:
+        elapsed_time = datetime.datetime.now() - start_time
+        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+        try:
+            import resource
+            mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+            if sys.platform == 'darwin':
+                mem_usage = round(mem_usage / 1024)
+            print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
+        except ImportError:
+            pass
 
     return res_ngraph_function
 
