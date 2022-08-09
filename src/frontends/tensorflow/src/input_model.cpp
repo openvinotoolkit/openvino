@@ -225,14 +225,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
                 if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[input_port_name];
-                    is_input = is_input || (tensor_place->is_input() ? true : false);
+                    is_input |= tensor_place->is_input();
                 }
 
                 // 2. check if the producer node is pruned by its output port
                 std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
                 if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[output_port_name];
-                    is_input = is_input || (tensor_place->is_input() ? true : false);
+                    is_input |= tensor_place->is_input();
                 }
 
                 // 3. check if the current node is an input
@@ -241,7 +241,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 const auto& producer_operation_place = m_op_places_map.at(producer_name);
                 if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                     const auto& tensor_place = m_tensor_places[producer_name];
-                    is_input |= (tensor_place->is_input() ? true : false);
+                    is_input |= tensor_place->is_input();
                 }
 
                 if (!is_input && ops_done.count(producer_operation_place) == 0) {

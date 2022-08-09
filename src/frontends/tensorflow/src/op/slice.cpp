@@ -21,10 +21,11 @@ OutputVector translate_slice_op(const NodeContext& node) {
     // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<Add>(start, size);
 
-    // compute stop values in case positive sizes
+    // compute stop values in case negative sizes
+    // since TensorFlow supports only -1 among negative sizes
+    // assign stop values to the data shape
     auto input_shape = make_shared<ShapeOf>(input);
-    auto one = make_shared<Constant>(size.get_element_type(), Shape{}, 1);
-    auto stop_neg = make_shared<Add>(make_shared<Add>(make_shared<ConvertLike>(input_shape, size), size), one);
+    auto stop_neg = make_shared<ConvertLike>(input_shape, size);
 
     // select the correct stop value based on a sign of size value
     auto zeros = make_shared<Constant>(size.get_element_type(), Shape{}, 0);
@@ -33,6 +34,7 @@ OutputVector translate_slice_op(const NodeContext& node) {
 
     // broadcast step value
     auto start_shape = make_shared<ShapeOf>(start);
+    auto one = make_shared<Constant>(start.get_element_type(), Shape{}, 1);
     auto step = make_shared<Broadcast>(one, start_shape);
 
     auto res = make_shared<Slice>(input, start, stop, step);

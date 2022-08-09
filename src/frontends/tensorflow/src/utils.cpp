@@ -187,4 +187,3 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
     return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
 }
-
