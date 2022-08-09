@@ -55,7 +55,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.2.0
+    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -184,17 +184,6 @@ jobs:
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: |
-      cmake -DCPACK_GENERATOR=DEB $(BUILD_DIR)
-      cmake --build $(BUILD_DIR) --target package -j8
-      cmake -UCPACK_GENERATOR $(BUILD_DIR)
-    displayName: 'Build Debian packages'
-
-  - script: sudo dpkg -i *.deb
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install Debian packages'
-    continueOnError: true
-
   - task: CMake@1
     inputs:
       cmakeArgs: >
@@ -211,9 +200,6 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
-  - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
-
   - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
@@ -226,25 +212,6 @@ jobs:
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
-
-  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
-    displayName: 'Build cpp samples'
-    continueOnError: true
-
-  - script: |
-      export CC=clang
-      export CXX=clang++
-      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
-    displayName: 'Build cpp samples - clang'
-    continueOnError: true
-
-  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
-    displayName: 'Build c samples'
-    continueOnError: true
-
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: true
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
@@ -267,6 +234,36 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
+    continueOnError: true
+
+  - script: |
+      cmake -DCPACK_GENERATOR=DEB -DENABLE_PYTHON=OFF -DENABLE_WHEEL=OFF $(BUILD_DIR)
+      cmake --build $(BUILD_DIR) --target package -j8
+      cmake -UCPACK_GENERATOR $(BUILD_DIR)
+    displayName: 'Build Debian packages'
+
+  - script: sudo dpkg -i *.deb
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install Debian packages'
+    continueOnError: true
+
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+    displayName: 'Build cpp samples'
+    continueOnError: true
+
+  - script: |
+      export CC=clang
+      export CXX=clang++
+      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
+    displayName: 'Build cpp samples - clang'
+    continueOnError: true
+
+  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
+    displayName: 'Build c samples'
+    continueOnError: true
+
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
     continueOnError: true
 
   - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
