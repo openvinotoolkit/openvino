@@ -65,4 +65,6 @@ inline bool exists(const std::string& file) {
 inline std::string make_model_path(const std::string& modelsRelativePath) {
     return CommonTestUtils::getModelFromTestModelZoo(modelsRelativePath);
 }
+
+std::string get_disabled_tests(const std::string& manifest_path);
 }  // namespace FrontEndTestUtils
