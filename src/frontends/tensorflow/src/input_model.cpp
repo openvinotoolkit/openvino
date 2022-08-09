@@ -214,9 +214,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                     continue;
                 }
 
-                // TODO: re-implement the logic below using Place graph structure (with OpPlace, In/OutPortPlace
-                // connections) and based on check if Place->is_input() decide to leave a node or not
-
                 // is_input is a flag to leave producer operation node or not.
                 // this producing node is not left if consumer is pruned by its input port,
                 // the producer node is pruned by its output port or the producer becomes new input

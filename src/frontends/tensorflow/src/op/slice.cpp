@@ -30,6 +30,8 @@ OutputVector translate_slice_op(const NodeContext& node) {
     // select the correct stop value based on a sign of size value
     auto zeros = make_shared<Constant>(size.get_element_type(), Shape{}, 0);
     auto negative_sizes_mask = make_shared<Less>(size, zeros);
+    // TODO: investigate if we can simplify and replace Select with FloorMod operation
+    // like FloorMod(size, input_shape)
     auto stop = make_shared<Select>(negative_sizes_mask, stop_neg, stop_pos);
 
     // broadcast step value
