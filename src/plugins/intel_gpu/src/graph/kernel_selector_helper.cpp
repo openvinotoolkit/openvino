@@ -720,7 +720,7 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
-    const auto& vals = l.size.sizes(l.format);
+    const auto& vals = l.get_tensor().sizes(l.format);
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);
@@ -776,7 +776,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 }
 
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
-    const auto& t = l.size.sizes(l.format);
+    const auto& t = l.get_tensor().sizes(l.format);
     const auto ks_type = to_weights_type(l.data_type);
     const auto ks_layout = to_weights_layout(l.format, is_grouped);
     std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
@@ -905,11 +905,11 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
-void set_params(const program_node& node, kernel_selector::params& params) {
-    const auto& program = node.get_program();
+void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
+    const auto& program = param_info.prog;
     const auto& device_info = program.get_engine().get_device_info();
 
-    params.uniqueID = std::to_string(node.get_unique_id());
+    params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
     params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
     params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
@@ -935,8 +935,8 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
 
-    if (impl_forcing.count(node.id()) != 0) {
-        params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
+    if (impl_forcing.count(param_info.desc->id) != 0) {
+        params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 }
 

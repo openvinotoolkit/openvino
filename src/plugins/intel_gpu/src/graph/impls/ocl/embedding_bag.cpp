@@ -24,12 +24,13 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     }
 
 public:
-    static primitive_impl* create(const embedding_bag_node& arg) {
-        auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(arg);
+    static primitive_impl* create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
         auto embedding_bag_optional_params =
             get_default_optional_params<kernel_selector::embedding_bag_optional_params>(arg.get_program());
 
-        switch (arg.get_primitive()->type) {
+        switch (primitive->type) {
         case embedding_bag::packed_sum:
             embedding_bag_params.type = kernel_selector::EmbeddingBagType::PACKED_SUM;
             break;
@@ -45,7 +46,7 @@ public:
         }
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            embedding_bag_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            embedding_bag_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         embedding_bag_params.default_index = arg.get_primitive()->default_index;

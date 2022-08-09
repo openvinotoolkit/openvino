@@ -26,7 +26,7 @@ else
         TEST_DIR="$TEST_DIR/Debug/"
     else
         echo "Directory with binaries not found!"
-        exit -1
+        exit 1
     fi
 
 fi
