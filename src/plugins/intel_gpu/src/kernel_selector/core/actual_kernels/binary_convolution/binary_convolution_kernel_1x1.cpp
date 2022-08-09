@@ -93,10 +93,10 @@ JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolutio
         jit.AddConstant(MakeJitConstant("FILTER_MASK",
                                         (0xFFFFFFFF >> (ic_pack_size - params.inputs[0].Feature().v % ic_pack_size))));
     }
-
     if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
     }
+    jit.AddConstant(MakeJitConstant("DG2", params.engineInfo.deviceType == dev_type::discrete_gpu));
 
     return jit;
 }

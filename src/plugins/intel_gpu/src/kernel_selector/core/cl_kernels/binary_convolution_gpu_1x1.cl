@@ -22,6 +22,15 @@ KERNEL(binary_convolution_1x1)(const __global INPUT0_TYPE* input,
 #endif
                                uint split_idx)
 {
+//This is workaround code for compiler bug in unit test "binary_convolution.basic_convolution_1x1_single_packed_channel". Delete it when the bug fixed.
+#if DG2
+    volatile uint _FILTER_MASK = FILTER_MASK;
+    #undef FILTER_MASK
+    volatile uint FILTER_MASK = _FILTER_MASK;
+    #define VOLATILE volatile
+#else
+    #define VOLATILE
+#endif
     const int xy = get_group_id(0);
     const int f_block = get_global_id(1);
     const int b = get_global_id(2);
@@ -58,31 +67,31 @@ KERNEL(binary_convolution_1x1)(const __global INPUT0_TYPE* input,
     {
         // Load 16 input elements from feature map by subgroup
 #if PADDED_INPUT
-        INPUT0_TYPE src = input[input_offset + k*INPUT0_FEATURE_PITCH + x];
+        VOLATILE INPUT0_TYPE src = input[input_offset + k*INPUT0_FEATURE_PITCH + x];
 #else
-        INPUT0_TYPE src = ALIGNED_BLOCK_READ(input, input_offset + k*INPUT0_FEATURE_PITCH);
+        VOLATILE INPUT0_TYPE src = ALIGNED_BLOCK_READ(input, input_offset + k*INPUT0_FEATURE_PITCH);
 #endif
 
         // Load 32 OC x 32 ICP. Each WI has lid-th and (lid+16)-th channels
         wei_t wei = ALIGNED_BLOCK_READ2(weights, filter_offset + k * OC_BLOCK_SIZE);
 
         // Shuffle 32 OC x 32 ICP of weights in each WI
-        const wei_t wei0  = GET_WEI(wei, 0);
-        const wei_t wei1  = GET_WEI(wei, 1);
-        const wei_t wei2  = GET_WEI(wei, 2);
-        const wei_t wei3  = GET_WEI(wei, 3);
-        const wei_t wei4  = GET_WEI(wei, 4);
-        const wei_t wei5  = GET_WEI(wei, 5);
-        const wei_t wei6  = GET_WEI(wei, 6);
-        const wei_t wei7  = GET_WEI(wei, 7);
-        const wei_t wei8  = GET_WEI(wei, 8);
-        const wei_t wei9  = GET_WEI(wei, 9);
-        const wei_t wei10 = GET_WEI(wei, 10);
-        const wei_t wei11 = GET_WEI(wei, 11);
-        const wei_t wei12 = GET_WEI(wei, 12);
-        const wei_t wei13 = GET_WEI(wei, 13);
-        const wei_t wei14 = GET_WEI(wei, 14);
-        const wei_t wei15 = GET_WEI(wei, 15);
+        VOLATILE const wei_t wei0  = GET_WEI(wei, 0);
+        VOLATILE const wei_t wei1  = GET_WEI(wei, 1);
+        VOLATILE const wei_t wei2  = GET_WEI(wei, 2);
+        VOLATILE const wei_t wei3  = GET_WEI(wei, 3);
+        VOLATILE const wei_t wei4  = GET_WEI(wei, 4);
+        VOLATILE const wei_t wei5  = GET_WEI(wei, 5);
+        VOLATILE const wei_t wei6  = GET_WEI(wei, 6);
+        VOLATILE const wei_t wei7  = GET_WEI(wei, 7);
+        VOLATILE const wei_t wei8  = GET_WEI(wei, 8);
+        VOLATILE const wei_t wei9  = GET_WEI(wei, 9);
+        VOLATILE const wei_t wei10 = GET_WEI(wei, 10);
+        VOLATILE const wei_t wei11 = GET_WEI(wei, 11);
+        VOLATILE const wei_t wei12 = GET_WEI(wei, 12);
+        VOLATILE const wei_t wei13 = GET_WEI(wei, 13);
+        VOLATILE const wei_t wei14 = GET_WEI(wei, 14);
+        VOLATILE const wei_t wei15 = GET_WEI(wei, 15);
 
 #if LEFTOVERS_IC
         if (k == INPUT0_FEATURE_NUM_PACKED - 1)
