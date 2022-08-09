@@ -647,19 +647,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                         auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();
                         auto d_format = d_layout.format;
-                        auto expected_format = format::any;
-
-                        if (data_type_traits::is_i8_u8(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv16)
-                                expected_format = format::b_fs_yx_fsv32;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv16)
-                                expected_format = format::bs_fs_yx_bsv32_fsv32;
-                        } else if (data_type_traits::is_floating_point(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv32)
-                                expected_format = format::b_fs_yx_fsv16;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv32)
-                                expected_format = format::bs_fs_yx_bsv32_fsv16;
-                        }
+                        auto expected_format = layout_optimizer::get_expected_format_for_datatype(d_format, d_layout.data_type);
 
                         if (expected_format != format::any && d_layout.format != expected_format) {
                             auto new_layout = d_layout;

@@ -229,8 +229,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (next.is_type<resample>() &&
         (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
+            || fmt_prev == format::bs_fs_yx_bsv16_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv32
             || fmt_prev == format::bs_fs_yx_bsv32_fsv16 || fmt_prev == format::bs_fs_yx_bsv32_fsv32) &&
         (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32
+            || fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv32
             || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return true;
 
@@ -1590,6 +1592,26 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     }
 
     return preferred_impl;
+}
+
+format layout_optimizer::get_expected_format_for_datatype(format fmt, data_types dt) {
+    format expected_format = format::any;
+    if (data_type_traits::is_i8_u8(dt)) {
+        switch (fmt) {
+            case format::b_fs_yx_fsv16: return format::b_fs_yx_fsv32;
+            case format::bs_fs_yx_bsv16_fsv16: return format::bs_fs_yx_bsv16_fsv32;
+            case format::bs_fs_yx_bsv32_fsv16: return format::bs_fs_yx_bsv32_fsv32;
+            default: return format::any;
+        }
+    } else if (data_type_traits::is_floating_point(dt)) {
+        switch (fmt) {
+            case format::b_fs_yx_fsv32: return format::b_fs_yx_fsv16;
+            case format::bs_fs_yx_bsv16_fsv32: return format::bs_fs_yx_bsv16_fsv16;
+            case format::bs_fs_yx_bsv32_fsv32: return format::bs_fs_yx_bsv32_fsv16;
+            default: return format::any;
+        }
+    }
+    return format::any;
 }
 
 format layout_optimizer::get_preferred_format(program_node& node) {
