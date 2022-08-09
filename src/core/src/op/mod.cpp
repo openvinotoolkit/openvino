@@ -76,7 +76,7 @@ bool evaluate_mod(const ov::Tensor& arg0,
     return rc;
 }
 }  // namespace
-}  // namespace add
+}  // namespace mod_op
 
 bool op::v1::Mod::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Mod_evaluate);
