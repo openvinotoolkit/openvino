@@ -139,7 +139,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         MAKE_TUPLE6(bs_fs_yx_bsv4_fsv4,     f32, f16, u8, i8, i32, i64),
         MAKE_TUPLE6(bs_fs_yx_bsv8_fsv2,     f32, f16, u8, i8, i32, i64),
         MAKE_TUPLE6(bs_fs_yx_bsv8_fsv4,     f32, f16, u8, i8, i32, i64),
-        MAKE_TUPLE2(bs_fs_yx_bsv16_fsv16,   f32, f16),
+        MAKE_TUPLE4(bs_fs_yx_bsv16_fsv16,   f32, f16, u8, i8),
         MAKE_TUPLE6(bs_fs_yx_bsv16_fsv32,   f32, f16, u8, i8, i32, i64),
         MAKE_TUPLE6(bs_fs_yx_bsv32_fsv16,   f32, f16, u8, i8, i32, i64),
         MAKE_TUPLE6(bs_fs_yx_bsv32_fsv32,   f32, f16, u8, i8, i32, i64),
