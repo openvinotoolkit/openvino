@@ -2230,7 +2230,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -2502,9 +2502,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights, ::testing::V
 class conv_int8_asymmetric_data : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data, basic) {
     auto p = GetParam();
-    auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
-                          get_weights_layout(p);
+    layout weights_layout = get_weights_layout(p);
+    if (!engine.get_device_info().supports_immad) {
+        auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(weights_layout)),

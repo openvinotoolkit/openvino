@@ -285,7 +285,7 @@ TEST_P(RandomROITest, PreprocRandomROITest)
                 }
                 case Precision::FP16:
                 {
-                    cv::Mat mat(h, w, CV_16FC3,  cv::Scalar(0,0, 255));
+                    cv::Mat mat(h, w, CV_16SC3,  cv::Scalar(0,0, 255));
                     cv::randu(mat, cv::Scalar(0, 0, 0), cv::Scalar(255,255, 255));
                     blob = img2Blob<Precision::FP16>(mat, _inputLayout);
                     break;
@@ -314,7 +314,7 @@ TEST_P(RandomROITest, PreprocRandomROITest)
                 }
                 case Precision::FP16:
                 {
-                    cv::Mat mat(h, w, CV_16FC3);
+                    cv::Mat mat(h, w, CV_16SC3);
                     cv::randu(mat, cv::Scalar(0, 0, 0), cv::Scalar(255,255, 255));
                     cv::cvtColor(mat, mat, toCvtColorType(_colorFormat));
                     blob = img2Blob<Precision::FP16>(mat, _inputLayout);
@@ -347,7 +347,7 @@ TEST_P(RandomROITest, PreprocRandomROITest)
                 }
                 case Precision::FP16:
                 {
-                    cv::Mat mat(h, w, CV_16FC4);
+                    cv::Mat mat(h, w, CV_16SC4);
                     cv::randu(mat, cv::Scalar(0, 0, 0), cv::Scalar(255,255, 255));
                     cv::cvtColor(mat, mat, toCvtColorType(_colorFormat));
                     blob = img2Blob<Precision::FP16>(mat, _inputLayout);
