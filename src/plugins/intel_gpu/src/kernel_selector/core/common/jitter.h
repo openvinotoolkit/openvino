@@ -105,7 +105,10 @@ inline std::string toVectorString(const VecT& vec,
                                   ValT padFillingVal,
                                   Func fetchFunc) {
     std::stringstream ss;
-    ss << "(" << vectorType << " []){ ";
+    if (vectorType.length())
+        ss << "(" << vectorType << " []){ ";
+    else
+        ss << "{ ";
     for (size_t i = 0; i < vec.size(); i++) ss << toCodeString(fetchFunc(vec[i])) << ",";
     for (size_t i = vec.size(); i < maxDim; i++) ss << padFillingVal << ",";
     ss << " } ";

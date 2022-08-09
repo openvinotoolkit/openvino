@@ -237,8 +237,8 @@ public:
 
         definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
         definitions.push_back(
-            {_name + "_SIZES",
-             toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
+            {_name + "_SIZES_DATA",
+             toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
         definitions.push_back(
             {_name + "_PITCHES",
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
