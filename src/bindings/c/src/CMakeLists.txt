@@ -14,8 +14,7 @@ add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include/openvino>)
+    $<BUILD_INTERFACE:${OpenVINO_C_API_SOURCE_DIR}/include>)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -53,5 +52,5 @@ install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/c_api
     COMPONENT ${OV_CPACK_COMP_CORE_C_DEV})
 
 install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/
-    DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino/c
+    DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino
     COMPONENT ${OV_CPACK_COMP_CORE_C_DEV})

@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/ov_tensor.h"
+#include "openvino/c/ov_tensor.h"
 
 #include "common.h"
 

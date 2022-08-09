@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include <fstream>
 
-#include "openvino/openvino.h"
+#include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
 
 extern const char* xml;
