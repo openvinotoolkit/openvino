@@ -31,8 +31,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const generate_proposals_node& arg) {
-        auto params = get_default_params<kernel_selector::generate_proposals_params>(arg);
+    static primitive_impl* create(const generate_proposals_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::generate_proposals_params>(impl_param);
         auto optional_params = get_default_optional_params<
                 kernel_selector::generate_proposals_optional_params>(arg.get_program());
 

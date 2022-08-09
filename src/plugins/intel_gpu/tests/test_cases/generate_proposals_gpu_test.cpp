@@ -402,7 +402,7 @@ public:
             EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
         }
 
-        for (size_t i = 0; i < param.post_nms_count; ++i) {
+        for (auto i = 0; i < param.post_nms_count; ++i) {
             EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
 
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {

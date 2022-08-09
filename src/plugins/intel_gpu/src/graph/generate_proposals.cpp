@@ -14,10 +14,10 @@ primitive_type_id generate_proposals::type_id() {
     return &instance;
 }
 
-layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node) {
-    const layout data_layout = node.input().get_output_layout();
+layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node, kernel_impl_params const& impl_param) {
+    const layout data_layout = impl_param.get_input_layout();
     const auto num_batches = data_layout.batch();
-    const auto desc = node.get_primitive();
+    const auto desc = impl_param.typed_desc<generate_proposals>();
     return layout(data_layout.data_type, data_layout.format, {static_cast<int>(num_batches * desc->post_nms_count), 4, 1, 1});
 }
 
