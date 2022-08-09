@@ -19,7 +19,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
 
     cldnn::layout mutableLayout = cldnn::layout(
         DataTypeFromPrecision(op->get_output_element_type(1)),
-        DefaultFormatForDims(op->get_output_shape(1).size()),
+        cldnn::format::get_default_format(op->get_output_shape(1).size()),
         tensor_from_dims(op->get_output_shape(1)));
 
     cldnn::memory::ptr shared_memory {p.GetEngine().allocate_memory(mutableLayout)};
