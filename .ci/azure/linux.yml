@@ -164,6 +164,7 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DENABLE_OV_PADDLE_FRONTEND=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
