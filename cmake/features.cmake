@@ -128,6 +128,8 @@ ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engin
 
 ie_option (ENABLE_OPENCV "enables custom OpenCV download" ON)
 
+ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
+
 set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)

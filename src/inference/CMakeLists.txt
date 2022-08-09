@@ -101,7 +101,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
 target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
