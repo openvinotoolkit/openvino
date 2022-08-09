@@ -15,7 +15,7 @@ from typing import List, Union
 import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
-import openvino.tools.mo as mo
+import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -23,7 +23,6 @@ from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
-#import openvino.tools.mo.back.offline_transformations
 
 def extension_path_to_str_or_extensions_class(extension):
     if isinstance(extension, str):
@@ -183,7 +182,7 @@ def value_to_str(value, separator):
 def single_input_to_str(input):
     if isinstance(input, str):
         return input
-    if isinstance(input, mo.InputCutInfo):
+    if isinstance(input, openvino.tools.mo.InputCutInfo):
         if not isinstance(input.name, str):
             raise Exception("Input name should be string, got {}".format(input.name))
         input_str = input.name
@@ -255,7 +254,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, mo.LayoutMap):
+    if isinstance(value, openvino.tools.mo.LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
