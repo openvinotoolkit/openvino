@@ -17,6 +17,7 @@
 #include "ie_metric_helpers.hpp"
 #include "openvino/op/logical_not.hpp"
 
+#include "openvino/util/file_util.hpp"
 #include "ie_remote_context.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -197,9 +198,10 @@ public:
     using CheckConfigCb = std::function<void(const std::map<std::string, std::string> &)>;
     CheckConfigCb m_checkConfigCb = nullptr;
 
-    static std::string get_mock_engine_name() {
+    static std::string get_mock_engine_path() {
         std::string mockEngineName("mock_engine");
-        return CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
+        return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            mockEngineName + IE_BUILD_POSTFIX);
     }
 
     static std::string generateTestFilePrefix() {
@@ -288,8 +290,8 @@ public:
         initParamTest();
         mockPlugin = std::make_shared<MockCachingInferencePlugin>();
         setupMock(*mockPlugin);
-        std::string libraryName = get_mock_engine_name();
-        sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
+        std::string libraryPath = get_mock_engine_path();
+        sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
 
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
@@ -308,7 +310,8 @@ public:
     void testLoad(const std::function<void(Core& ie)>& func) {
         Core ie;
         injectProxyEngine(mockPlugin.get());
-        ie.RegisterPlugin(std::string("mock_engine") + IE_BUILD_POSTFIX, deviceName);
+        ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            std::string("mock_engine") + IE_BUILD_POSTFIX), deviceName);
         func(ie);
         ie.UnregisterPlugin(deviceName);
     }
