@@ -16,6 +16,7 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
     offline_transformations
+    openvino::pugixml
     openvino::runtime::dev
 )
 

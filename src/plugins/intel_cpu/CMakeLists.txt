@@ -69,7 +69,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl)
+    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE

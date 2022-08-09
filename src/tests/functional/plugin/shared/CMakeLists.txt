@@ -49,6 +49,7 @@ addIeTarget(
                 ${PUBLIC_HEADERS_DIR}
         LINK_LIBRARIES
             PUBLIC
+                openvino::pugixml
                 funcTestUtils
                 ngraph_test_util
                 ngraphFunctions
