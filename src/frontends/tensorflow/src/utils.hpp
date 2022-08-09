@@ -41,6 +41,8 @@ void set_out_name(const std::string& out_name, const Output<Node>& output);
 
 void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
+bool is_conditional_edge(const std::string& input_tensor_name);
+
 static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
     return a == b;
 }
@@ -201,6 +203,12 @@ ov::op::PadType convert_conv_tf_padding(const NodeContext& node, const std::stri
 
 ov::OutputVector translate_convolution_op(const NodeContext& node, size_t spatial_dims_num);
 
+void fill_explicit_pads_vectors(const NodeContext& node,
+                                bool is_nhwc,
+                                size_t spatial_dims_num,
+                                const std::vector<int64_t>& tf_explicit_paddings,
+                                ov::CoordinateDiff& pads_begin,
+                                ov::CoordinateDiff& pads_end);
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
