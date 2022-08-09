@@ -19,22 +19,24 @@ endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/automation/version.txt.in"
                "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" @ONLY)
 
-install(FILES requirements_dev.txt
-        DESTINATION tests/mo
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+if(ENABLE_TESTS)
+    install(FILES requirements_dev.txt
+            DESTINATION tests/mo
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 
-install(DIRECTORY unit_tests
-        DESTINATION tests/mo
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+    install(DIRECTORY unit_tests
+            DESTINATION tests/mo
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 
-install(DIRECTORY automation
-        DESTINATION tests/mo
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+    install(DIRECTORY automation
+            DESTINATION tests/mo
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 
-install(FILES .coveragerc
-        DESTINATION tests/mo
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+    install(FILES .coveragerc
+            DESTINATION tests/mo
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()

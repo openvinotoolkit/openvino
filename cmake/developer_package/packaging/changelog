@@ -1,6 +1,5 @@
 openvino (2022.2.0) unstable; urgency=low
 
-  [Ilya Lavrenov]
   * Implemented Debian packages support
   * Support of Ubuntu 22.04
   * Support of python 3.10
@@ -10,7 +9,6 @@ openvino (2022.2.0) unstable; urgency=low
 
 openvino (2022.1.0) unstable; urgency=low
 
-  [Ilya Lavrenov]
   * Implemented OpenVINO 2.0 Runtime API for both C++ and Python
   * Introduced IR v11 which is aligned with frameworks model format
 
