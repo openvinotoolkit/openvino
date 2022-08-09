@@ -86,6 +86,7 @@ attach_pooling_onednn::attach_pooling_onednn() {
         MAKE_TUPLE4(b_fs_zyx_fsv16,         f32, f16, u8, i8),
         MAKE_TUPLE4(b_fs_zyx_fsv32,         f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv16_fsv16,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bs_fs_yx_bsv16_fsv32,   f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv32_fsv16,   f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_yx_bsv32_fsv32,   f32, f16, u8, i8),
         MAKE_TUPLE4(bs_fs_zyx_bsv16_fsv16,  f32, f16, u8, i8),
