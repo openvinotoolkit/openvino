@@ -28,6 +28,9 @@ const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 
 const char unsupported_batched_blob[] = "Batched input blob is expected to contain NV12 blobs";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
+const char str_host_mem_not_allocated[] = "Failed to allocate host memory.";
+const char str_device_mem_not_allocated[] = "Failed to allocate device memory.";
+const char str_shared_mem_not_allocated[] = "Failed to allocate shared memory.";
 
 template <typename src_t, typename dst_t>
 void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
@@ -54,7 +57,7 @@ void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
     auto layout = src->get_layout();
-    auto size = layout.size;
+    auto size = layout.get_tensor();
 
     auto locked_dst = dst->buffer();
     auto dst_ptr = locked_dst.as<dst_dt*>();
@@ -66,12 +69,12 @@ void copyResultToOutputBlob(cldnn::memory::ptr src, Blob::Ptr dst, ov::intel_gpu
     dst_ptr += offset;
 
     if (layout.data_padding) {
-        for (size_t b = 0; b < size.batch[0]; b++) {
-            for (size_t f = 0; f < size.feature[0]; f++) {
-                for (size_t w = 0; w < size.spatial[3]; w++) {
-                    for (size_t z = 0; z < size.spatial[2]; z++) {
-                        for (size_t y = 0; y < size.spatial[1]; y++) {
-                            for (size_t x = 0; x < size.spatial[0]; x++) {
+        for (int64_t b = 0; b < size.batch[0]; b++) {
+            for (int64_t f = 0; f < size.feature[0]; f++) {
+                for (int64_t w = 0; w < size.spatial[3]; w++) {
+                    for (int64_t z = 0; z < size.spatial[2]; z++) {
+                        for (int64_t y = 0; y < size.spatial[1]; y++) {
+                            for (int64_t x = 0; x < size.spatial[0]; x++) {
                                 *dst_ptr++ = src_ptr[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))];
                             }
                         }
@@ -121,7 +124,7 @@ void checkInputBlob(const Blob::Ptr &blob,
             checkAlloc(nv12_ptr->y(), str_input_not_allocated);
             checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
         } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
-            for (auto i = 0; i < batched_ptr->size(); i++) {
+            for (size_t i = 0; i < batched_ptr->size(); i++) {
                 auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
                 checkAlloc(nv12_ptr->y(), str_input_not_allocated);
                 checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
@@ -833,7 +836,9 @@ void InferRequest::enqueue_dynamic() {
                 const Blob::Ptr inputBlob = item.second;
 
                 auto inputLayout = m_graph->GetInputLayouts().at(inputName);
-                inputLayout.size.batch[0] = mask;
+                auto new_size = inputLayout.get_tensor();
+                new_size.batch[0] = mask;
+                inputLayout.set_tensor(new_size);
                 copy_input_data(m_graph->GetNetwork(nb), inputName, inputLayout, *inputBlob, &batchInputs[inputName][nb]);
             }
 
@@ -904,6 +909,7 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, std::shared_ptr
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
     auto blob = make_blob_with_precision(desc, alloc ? alloc : CreateDefaultAllocator());
     blob->allocate();
+    checkAlloc(blob, str_host_mem_not_allocated);
     return blob;
 }
 
@@ -919,7 +925,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
-
+    checkAlloc(blob, str_shared_mem_not_allocated);
     return blob;
 }
 
@@ -1256,6 +1262,7 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                          0,
                                                          RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
         getBlobImpl(blobPtr.get())->allocate();
+        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     } else {
         auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
@@ -1263,6 +1270,7 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                         desc,
                                                         layout);
         getBlobImpl(blobPtr.get())->allocate();
+        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     }
 }

@@ -24,8 +24,8 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         return make_unique<bucketize_impl>(*this);
     }
 
-    static primitive_impl* create(const bucketize_node& arg) {
-        auto params = get_default_params<kernel_selector::bucketize_params>(arg);
+    static primitive_impl* create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::bucketize_optional_params>(arg.get_program());
 

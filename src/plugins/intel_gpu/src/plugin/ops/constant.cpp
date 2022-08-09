@@ -129,7 +129,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (constDims.size() != 1 && constDims.size() < input_shape.size()) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ngraph::Shape slope_shape(input_shape.size(), 1);
-                for (int j = 1; j <= constDims.size(); j++)
+                for (size_t j = 1; j <= constDims.size(); j++)
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
@@ -143,7 +143,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
 
 void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::shared_ptr<ngraph::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = DefaultFormatForDims(constDims.size());
+    auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();

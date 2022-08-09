@@ -25,7 +25,7 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
     if (axis < 0)
         axis += in_rank;
 
-    if (axis < 0 || axis >= in_rank)
+    if (axis < 0 || axis >= static_cast<int32_t>(in_rank))
         IE_THROW() << "Incorrect axis value! Actual axis is" + std::to_string(group);
 
     if (group < 1)
