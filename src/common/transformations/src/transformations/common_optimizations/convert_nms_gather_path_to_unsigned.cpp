@@ -27,8 +27,10 @@ public:
     OPENVINO_RTTI("InitNMSPath", "0");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
-        auto nms_pattern =
-            pattern::wrap_type<opset1::NonMaxSuppression, opset3::NonMaxSuppression, opset5::NonMaxSuppression, opset9::NonMaxSuppression>();
+        auto nms_pattern = pattern::wrap_type<opset1::NonMaxSuppression,
+                                              opset3::NonMaxSuppression,
+                                              opset5::NonMaxSuppression,
+                                              opset9::NonMaxSuppression>();
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
