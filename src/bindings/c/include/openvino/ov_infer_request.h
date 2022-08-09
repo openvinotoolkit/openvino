@@ -47,7 +47,7 @@ typedef struct {
  */
 typedef struct {
     ov_profiling_info_t* profiling_infos;
-    size_t num;
+    size_t size;
 } ov_profiling_info_list_t;
 
 // infer_request

@@ -11,10 +11,10 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
-        output_nodes->num = results.size();
-        auto tmp_output_nodes(new ov_output_const_node_t[output_nodes->num]);
+        output_nodes->size = results.size();
+        auto tmp_output_nodes(new ov_output_const_node_t[output_nodes->size]);
 
-        for (size_t i = 0; i < output_nodes->num; i++) {
+        for (size_t i = 0; i < output_nodes->size; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
         output_nodes->output_nodes = tmp_output_nodes;
@@ -29,10 +29,10 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
     }
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
-        input_nodes->num = results.size();
-        auto tmp_output_nodes(new ov_output_const_node_t[input_nodes->num]);
+        input_nodes->size = results.size();
+        auto tmp_output_nodes(new ov_output_const_node_t[input_nodes->size]);
 
-        for (size_t i = 0; i < input_nodes->num; i++) {
+        for (size_t i = 0; i < input_nodes->size; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
         input_nodes->output_nodes = tmp_output_nodes;

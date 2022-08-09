@@ -29,7 +29,7 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, 
     try {
         auto inputs = compiled_model->object->inputs();
         int num = inputs.size();
-        input_nodes->num = num;
+        input_nodes->size = num;
         input_nodes->output_nodes = new ov_output_const_node_t[num];
         for (int i = 0; i < num; i++) {
             input_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
@@ -48,7 +48,7 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
     try {
         auto outputs = compiled_model->object->outputs();
         int num = outputs.size();
-        output_nodes->num = num;
+        output_nodes->size = num;
         output_nodes->output_nodes = new ov_output_const_node_t[num];
         for (int i = 0; i < num; i++) {
             output_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));

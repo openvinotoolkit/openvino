@@ -27,7 +27,7 @@ extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
-    for (size_t i = 0; i < avai_devices.num_devices; ++i) {
+    for (size_t i = 0; i < avai_devices.size; ++i) {
         if (strstr(avai_devices.devices[i], device_name))
             return i;
     }

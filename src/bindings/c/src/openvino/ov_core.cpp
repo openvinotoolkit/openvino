@@ -388,7 +388,7 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
     }
     try {
         auto available_devices = core->object->get_available_devices();
-        devices->num_devices = available_devices.size();
+        devices->size = available_devices.size();
         std::unique_ptr<char*[]> tmp_devices(new char*[available_devices.size()]);
         for (int i = 0; i < available_devices.size(); i++) {
             tmp_devices[i] = str_to_char_array(available_devices[i]);
@@ -403,7 +403,7 @@ void ov_available_devices_free(ov_available_devices_t* devices) {
     if (!devices) {
         return;
     }
-    for (int i = 0; i < devices->num_devices; i++) {
+    for (int i = 0; i < devices->size; i++) {
         if (devices->devices[i]) {
             delete[] devices->devices[i];
         }
@@ -411,7 +411,7 @@ void ov_available_devices_free(ov_available_devices_t* devices) {
     if (devices->devices)
         delete[] devices->devices;
     devices->devices = nullptr;
-    devices->num_devices = 0;
+    devices->size = 0;
 }
 
 ov_status_e ov_core_import_model(const ov_core_t* core,
@@ -444,7 +444,7 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
         if (object.empty()) {
             return ov_status_e::NOT_FOUND;
         }
-        versions->num_vers = object.size();
+        versions->size = object.size();
         auto tmp_versions(new ov_core_version_t[object.size()]);
         auto iter = object.cbegin();
         for (int i = 0; i < object.size(); i++, iter++) {
@@ -452,10 +452,10 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
             tmp_versions[i].device_name = str_to_char_array(tmp_version_name);
 
             const auto tmp_version_build_number = iter->second.buildNumber;
-            tmp_versions[i].buildNumber = str_to_char_array(tmp_version_build_number);
+            tmp_versions[i].version.buildNumber = str_to_char_array(tmp_version_build_number);
 
             const auto tmp_version_description = iter->second.description;
-            tmp_versions[i].description = str_to_char_array(tmp_version_description);
+            tmp_versions[i].version.description = str_to_char_array(tmp_version_description);
         }
         versions->versions = tmp_versions;
     }
@@ -467,13 +467,13 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
     if (!versions) {
         return;
     }
-    for (int i = 0; i < versions->num_vers; i++) {
+    for (int i = 0; i < versions->size; i++) {
         if (versions->versions[i].device_name)
             delete[] versions->versions[i].device_name;
-        if (versions->versions[i].buildNumber)
-            delete[] versions->versions[i].buildNumber;
-        if (versions->versions[i].description)
-            delete[] versions->versions[i].description;
+        if (versions->versions[i].version.buildNumber)
+            delete[] versions->versions[i].version.buildNumber;
+        if (versions->versions[i].version.description)
+            delete[] versions->versions[i].version.description;
     }
 
     if (versions->versions)

@@ -23,7 +23,7 @@ typedef struct ov_output_node ov_output_node_t;
  */
 typedef struct {
     ov_output_const_node_t* output_nodes;
-    size_t num;
+    size_t size;
 } ov_output_node_list_t;
 
 // Node

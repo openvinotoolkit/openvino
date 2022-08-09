@@ -34,8 +34,7 @@ typedef struct ov_version {
  */
 typedef struct {
     const char* device_name;  //!< A device name
-    const char* buildNumber;  //!< A build number
-    const char* description;  //!< A device description
+    ov_version_t version;     //!< Version
 } ov_core_version_t;
 
 /**
@@ -44,7 +43,7 @@ typedef struct {
  */
 typedef struct {
     ov_core_version_t* versions;  //!< An array of device versions
-    size_t num_vers;              //!< A number of versions in the array
+    size_t size;              //!< A number of versions in the array
 } ov_core_version_list_t;
 
 /**
@@ -53,7 +52,7 @@ typedef struct {
  */
 typedef struct {
     char** devices;
-    size_t num_devices;
+    size_t size;
 } ov_available_devices_t;
 
 /**

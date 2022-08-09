@@ -19,7 +19,7 @@ ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_nam
 }
 
 ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
-    if (!nodes || !tensor_name || idx >= nodes->num) {
+    if (!nodes || !tensor_name || idx >= nodes->size) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
@@ -50,7 +50,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 }
 
 ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t* tensor_shape) {
-    if (!nodes || idx >= nodes->num || !tensor_shape) {
+    if (!nodes || idx >= nodes->size || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
@@ -70,7 +70,7 @@ ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx,
 ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
                                                size_t idx,
                                                ov_partial_shape_t** partial_shape) {
-    if (!nodes || idx >= nodes->num || !partial_shape) {
+    if (!nodes || idx >= nodes->size || !partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
@@ -92,7 +92,7 @@ ov_status_e ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes,
 ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
                                               size_t idx,
                                               ov_element_type_e* tensor_type) {
-    if (!nodes || idx >= nodes->num) {
+    if (!nodes || idx >= nodes->size) {
         return ov_status_e::INVALID_C_PARAM;
     }
 

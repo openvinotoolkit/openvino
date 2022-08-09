@@ -153,7 +153,7 @@ ov_status_e ov_infer_request_get_profiling_info(ov_infer_request_t* infer_reques
     try {
         auto infos = infer_request->object->get_profiling_info();
         int num = infos.size();
-        profiling_infos->num = num;
+        profiling_infos->size = num;
         ov_profiling_info_t* profiling_info_arr = new ov_profiling_info_t[num];
         for (int i = 0; i < num; i++) {
             profiling_info_arr[i].status = (ov_profiling_info_t::Status)infos[i].status;
@@ -175,7 +175,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (!profiling_infos) {
         return;
     }
-    for (int i = 0; i < profiling_infos->num; i++) {
+    for (int i = 0; i < profiling_infos->size; i++) {
         if (profiling_infos->profiling_infos[i].node_name)
             delete[] profiling_infos->profiling_infos[i].node_name;
         if (profiling_infos->profiling_infos[i].exec_type)
@@ -186,5 +186,5 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (profiling_infos->profiling_infos)
         delete[] profiling_infos->profiling_infos;
     profiling_infos->profiling_infos = nullptr;
-    profiling_infos->num = 0;
+    profiling_infos->size = 0;
 }

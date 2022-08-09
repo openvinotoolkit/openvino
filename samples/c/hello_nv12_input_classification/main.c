@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
     struct infer_result* results = NULL;
     char* input_tensor_name = NULL;
     char* output_tensor_name = NULL;
-    ov_output_node_list_t input_nodes = {.num = 0, .output_nodes = NULL};
-    ov_output_node_list_t output_nodes = {.num = 0, .output_nodes = NULL};
+    ov_output_node_list_t input_nodes = {.size = 0, .output_nodes = NULL};
+    ov_output_node_list_t output_nodes = {.size = 0, .output_nodes = NULL};
     ov_layout_t* model_layout = NULL;
 
     // -------- Get OpenVINO runtime version --------
@@ -221,13 +221,13 @@ int main(int argc, char** argv) {
     print_model_input_output_info(model);
 
     CHECK_STATUS(ov_model_outputs(model, &output_nodes));
-    if (output_nodes.num != 1) {
+    if (output_nodes.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
 
     CHECK_STATUS(ov_model_inputs(model, &input_nodes));
-    if (input_nodes.num != 1) {
+    if (input_nodes.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
     }

@@ -273,7 +273,7 @@ TEST_P(ov_core, ov_core_get_versions_by_device_name) {
 
     ov_core_version_list_t version_list;
     OV_ASSERT_OK(ov_core_get_versions_by_device_name(core, devece_name.c_str(), &version_list));
-    EXPECT_EQ(version_list.num_vers, 1);
+    EXPECT_EQ(version_list.size, 1);
 
     ov_core_versions_free(&version_list);
     ov_core_free(core);
