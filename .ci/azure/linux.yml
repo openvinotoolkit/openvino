@@ -55,7 +55,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
+    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.2.0/samples
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
