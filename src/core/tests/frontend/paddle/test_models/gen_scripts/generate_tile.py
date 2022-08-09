@@ -82,6 +82,9 @@ def main():
     repeat_times = np.array([2, 1]).astype("int32")
     paddle_tile("tile_tensor_list", x, repeat_times, tensor_list=True)
     paddle_tile("tile_repeat_times_tensor", x, repeat_times, to_tensor=True)
+    x = np.random.rand(2, 3, 4).astype("float32")
+    paddle_tile("tile_repeat_gt_x", x, [5, 1, 2, 3])
+    paddle_tile("tile_repeat_lt_x", x, [2, 3])
 
 
 if __name__ == "__main__":

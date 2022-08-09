@@ -399,6 +399,8 @@ static const std::vector<std::string> models{
     std::string("tile_tuple_int64"),
     std::string("tile_tuple_bool"),
     std::string("tile_tensor_list"),
+    std::string("tile_repeat_gt_x"),
+    std::string("tile_repeat_lt_x"),
     std::string("top_k_v2_test_1"),
     std::string("top_k_v2_test_2"),
     std::string("top_k_v2_test_3"),
