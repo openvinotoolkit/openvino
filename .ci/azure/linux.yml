@@ -66,6 +66,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -204,7 +205,7 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-  - script: sudo apt-get remove libtbb2 libpugixml1v5 libgflags2.2 zlib1g nlohmann-json3-dev libusb-1.0-0
+  - script: sudo apt-get remove libtbb2 libpugixml1v5 libgflags2.2 zlib1g nlohmann-json3-dev libusb-1.0-0 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: true
@@ -226,13 +227,13 @@ jobs:
     displayName: 'Install tests'
 
   - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
+    displayName: 'List install test files'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
@@ -243,12 +244,16 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
+    continueOnError: true
+
+  - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    displayName: 'Model Optimizer UT'
     continueOnError: true
 
   - script: |
@@ -257,11 +262,32 @@ jobs:
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
-  - script: sudo dpkg -i *.deb
+  - script: |
+      # install debian packages from previous release
+      wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      sudo apt-get install --no-install-recommends gnupg -y
+      echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
+      sudo apt-get install openvino -y
+      # install our local one and make sure the conflicts are resolved
+      sudo apt-get install --no-install-recommends dpkg-dev -y
+      dpkg-scanpackages -m . | gzip > Packages.gz
+      sudo echo "deb [trusted=yes] file:/path/to/repository /" >> /etc/apt/sources.list.d/openvino-local.list
+      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
+      sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: true
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'Install openvino'
+
+  - script: ls -alR $(INSTALL_DIR)
+    condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'List install files'
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
@@ -280,10 +306,6 @@ jobs:
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
-    continueOnError: true
-
-  - script: $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
-    displayName: 'Model Optimizer UT'
     continueOnError: true
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
