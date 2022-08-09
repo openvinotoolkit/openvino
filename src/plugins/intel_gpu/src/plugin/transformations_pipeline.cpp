@@ -53,6 +53,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_reduce_to_reshape.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -192,7 +193,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return rank <= 5;
                 });
 
+        // Convert reduce to reshape expected to be optimized out
+        manager.register_pass<ngraph::pass::ConvertReduceToReshape>();
+
         if (device_info.supports_immad) {
+            // oneDNN reduction is used
             pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
@@ -432,12 +437,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return true;
             };
 
-            size_t inputChannels;
+            size_t inputChannels = 0;
             if (!fillStaticChannel(node->get_input_partial_shape(0), inputChannels)) {
                 return true;
             }
 
-            size_t outputChannels;
+            size_t outputChannels = 0;
             if (!fillStaticChannel(node->get_output_partial_shape(0), outputChannels)) {
                 return true;
             }

@@ -9,7 +9,6 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "fully_connected_inst.h"
-#include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
 #endif
 
