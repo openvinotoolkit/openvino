@@ -209,7 +209,7 @@ jobs:
   - script: sudo apt-get remove libtbb2 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
-    continueOnError: true
+    continueOnError: false
 
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
@@ -217,9 +217,7 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
-  - script: |
-      set -e
-      python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
   - script: |
@@ -236,7 +234,6 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      export PYTHONPATH=$(INSTALL_TEST_DIR)/lib/x86_64-linux-gnu/openvino-2022.3.0/python3.8:$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -267,6 +264,7 @@ jobs:
       cmake --build $(BUILD_DIR) --target package -j8
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
+    continueOnError: true
 
   - script: |
       set -e
@@ -279,11 +277,12 @@ jobs:
       sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
-      dpkg-scanpackages . /dev/null > Release
+      rm -r _CPack_Packages
       dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-      echo "deb [trusted=yes] file:$(BUILD_DIR) ./" | sudo tee -a /etc/apt/sources.list.d/openvino-local.list
+      echo "deb [trusted=yes] file:$(BUILD_DIR) ./" | sudo tee /etc/apt/sources.list.d/openvino-local.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
-      sudo apt-get install openvino -y
+      # sudo apt-get install -f openvino -y
+      sudo dpkg -i ./*.deb
     workingDirectory: $(BUILD_DIR)
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Install Debian packages'
@@ -292,6 +291,7 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Install openvino'
+    continueOnError: true
 
   - script: ls -alR $(INSTALL_DIR)
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
