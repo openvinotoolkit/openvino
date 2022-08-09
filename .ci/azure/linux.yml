@@ -25,12 +25,23 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      Dynamic:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
+      #   CMAKE_CPACK_GENERATOR:
+      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+      Debian:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
         PYTHON_STATIC_ARGS:
+        CMAKE_CPACK_GENERATOR: 'DEB'
+        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
       # Static:
       #   CMAKE_BUILD_SHARED_LIBS: 'OFF'
       #   PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      #   CMAKE_CPACK_GENERATOR:
+      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
     maxParallel: 2
 
   # About 150% of total time
@@ -55,7 +66,6 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.2.0/samples
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -151,6 +161,7 @@ jobs:
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
+        # -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -194,6 +205,11 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
+  - script: sudo apt-get remove libtbb2 libpugixml1v5 libgflags2.2 zlib1g nlohmann-json3-dev libusb-1.0-0
+    displayName: 'Remove debian dependencies'
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    continueOnError: true
+
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
 
@@ -217,7 +233,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
+      $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
@@ -228,7 +244,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
+      $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
@@ -239,12 +255,13 @@ jobs:
   - script: |
       cmake -DCPACK_GENERATOR=DEB -DENABLE_PYTHON=OFF -DENABLE_WHEEL=OFF $(BUILD_DIR)
       cmake --build $(BUILD_DIR) --target package -j8
-      cmake -UCPACK_GENERATOR $(BUILD_DIR)
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
   - script: sudo dpkg -i *.deb
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: true
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
@@ -266,75 +283,75 @@ jobs:
     displayName: 'Clean build dir'
     continueOnError: true
 
-  - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+  - script: $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
     displayName: 'ONNX Frontend UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'ONNX Frontend UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: true
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
     displayName: 'XLink Tests'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
     continueOnError: true
 
   - script: |
       # because of IR reader v7 
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
-      $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: true
 
-  - script: $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: true
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
@@ -342,14 +359,14 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: true
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OpenVinoCAPITests.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OpenVinoCAPITests.xml
     displayName: 'OV CAPITests'
     continueOnError: true
 
@@ -363,7 +380,7 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+  - script: $(RUN_PREFIX) python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: true
 
@@ -374,14 +391,14 @@ jobs:
       export IE_APP_PYTHON_PATH=$(SAMPLES_INSTALL_DIR)/python/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
-      python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+      $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     displayName: 'Samples Smoke Tests'
     continueOnError: true
 
   - script: |
       python3 -m pip install -r requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'Layer Tests'
     continueOnError: true
 
