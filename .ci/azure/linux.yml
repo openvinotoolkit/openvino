@@ -206,7 +206,7 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-  - script: sudo apt-get remove libtbb2 libpugixml1v5 -y
+  - script: sudo apt-get remove libtbb2 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: true
@@ -217,7 +217,9 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
-  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+  - script: |
+      set -e
+      python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
   - script: |
@@ -234,6 +236,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
+      export PYTHONPATH=$(INSTALL_TEST_DIR)/lib/x86_64-linux-gnu/openvino-2022.3.0/python3.8:$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -245,6 +248,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -258,12 +262,14 @@ jobs:
     continueOnError: true
 
   - script: |
+      set -e
       sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package -j8
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
   - script: |
+      set -e
       # install debian packages from previous release
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
@@ -273,13 +279,14 @@ jobs:
       sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
-      dpkg-scanpackages -m . | gzip > Packages.gz
-      echo "deb [trusted=yes] file:/path/to/repository /" | sudo tee -a /etc/apt/sources.list.d/openvino-local.list
+      dpkg-scanpackages . /dev/null > Release
+      dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+      echo "deb [trusted=yes] file:$(BUILD_DIR) ./" | sudo tee -a /etc/apt/sources.list.d/openvino-local.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
       sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Install Debian packages'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'Install Debian packages'
     continueOnError: true
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
@@ -289,6 +296,10 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'List install files'
+
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: true
 
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
@@ -303,10 +314,6 @@ jobs:
 
   - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR)
     displayName: 'Build c samples'
-    continueOnError: true
-
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
     continueOnError: true
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml

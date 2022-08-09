@@ -70,7 +70,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 // a shared library for ONNX don't make sence in static OpenVINO build
 #ifndef OPENVINO_STATIC_LIBRARY
 
-TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
+TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser_ONNXImporter) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
 
     InferenceEngine::Core ie;
