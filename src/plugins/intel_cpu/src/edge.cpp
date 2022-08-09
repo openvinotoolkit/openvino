@@ -275,7 +275,10 @@ Edge::ReorderStatus Edge::needReorder() {
 
     // put here as more costly than compatible check
     if (enforceReorder()) {
-        return ReorderStatus::Regular;
+        if (optimized)
+            return ReorderStatus::Optimized;
+        else
+            return ReorderStatus::Regular;
     }
 
     if (optimized) {
