@@ -56,7 +56,7 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
-    PATH: C:\hostedtoolcache\windows\Python\3.10\x64;$(PATH)
+    PATH: C:\hostedtoolcache\windows\Python\3.10\x64;%PATH%
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10\x64
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
