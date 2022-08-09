@@ -138,21 +138,28 @@ KERNEL(eddo_ref_stage_0)
     size_t class_idx = get_global_id(1);
 #endif
 
-    INPUT_TYPE4 box = vload4(roi_idx, boxes);
+    INPUT_TYPE4 box;
+    box[0] = boxes[INPUT0_GET_INDEX(roi_idx, 0, 0, 0)];
+    box[1] = boxes[INPUT0_GET_INDEX(roi_idx, 1, 0, 0)];
+    box[2] = boxes[INPUT0_GET_INDEX(roi_idx, 2, 0, 0)];
+    box[3] = boxes[INPUT0_GET_INDEX(roi_idx, 3, 0, 0)];
 
     if (any(islessequal(box.hi - box.lo, ZERO2))) {
         const int refined_offset = roi_count * class_idx + roi_idx;
         refined_scores[refined_offset] = ZERO;
     } else {
-        const int offset = NUM_CLASSES * roi_idx + class_idx;
-
         // width & height of box
         INPUT_TYPE2 box_size = (box.hi - box.lo + COORDINATE_OFFSET);
 
         // center location of box
         const INPUT_TYPE2 center = box.lo + HALF_ONE * box_size;
 
-        const INPUT_TYPE4 delta = vload4(offset, deltas) / DELTA_WEIGHTS;
+        INPUT_TYPE4 delta;
+        delta[0] = deltas[INPUT1_GET_INDEX(roi_idx, class_idx * 4, 0, 0)];
+        delta[1] = deltas[INPUT1_GET_INDEX(roi_idx, class_idx * 4 + 1, 0, 0)];
+        delta[2] = deltas[INPUT1_GET_INDEX(roi_idx, class_idx * 4 + 2, 0, 0)];
+        delta[3] = deltas[INPUT1_GET_INDEX(roi_idx, class_idx * 4 + 3, 0, 0)];
+        delta  = delta / DELTA_WEIGHTS;
 
         // new center location according to deltas (dx, dy)
         const INPUT_TYPE2 new_center = delta.lo * box_size + center;
@@ -164,7 +171,11 @@ KERNEL(eddo_ref_stage_0)
             (INPUT_TYPE4)(new_center - HALF_ONE * new_size, new_center + HALF_ONE * new_size - COORDINATE_OFFSET);
 
         // adjust new corner locations to be within the image region
-        const INPUT_TYPE2 img_size = vload2(0, im_info).s10;
+        INPUT_TYPE2 img_size;
+        size_t img_idx1 = INPUT3_GET_INDEX(0, 1, 0, 0);
+        size_t img_idx0 = INPUT3_GET_INDEX(0, 0, 0, 0);
+        img_size[0] = im_info[img_idx1];
+        img_size[1] = im_info[img_idx0];
         new_box = fmax(new_box, ZERO4);
 
         // recompute new width & height
@@ -173,7 +184,8 @@ KERNEL(eddo_ref_stage_0)
         const int refined_offset = roi_count * class_idx + roi_idx;
         vstore4(new_box, refined_offset, refined_boxes);
         refined_box_areas[refined_offset] = new_box_size.x * new_box_size.y;
-        refined_scores[refined_offset] = scores[offset];
+        const int scores_offset = INPUT2_GET_INDEX(roi_idx, class_idx, 0, 0);
+        refined_scores[refined_offset] = scores[scores_offset];
     }
 }
 
@@ -294,18 +306,34 @@ KERNEL(eddo_ref_stage_3)
  __global OUTPUT_INDICES_TYPE* output_classes,
  __global OUTPUT_TYPE* output_scores) {
     size_t i = get_global_id(0);
+    size_t idx0 = OUTPUT_GET_INDEX(i, 0, 0, 0);
+    size_t idx1 = OUTPUT_GET_INDEX(i, 1, 0, 0);
+    size_t idx2 = OUTPUT_GET_INDEX(i, 2, 0, 0);
+    size_t idx3 = OUTPUT_GET_INDEX(i, 3, 0, 0);
+
+    size_t idx_i4 = INPUT4_GET_INDEX(i, 0, 0, 0);
+    size_t idx_i5 = INPUT5_GET_INDEX(i, 0, 0, 0);
 
     if (i < *detection_count) {
         OUTPUT_TYPE score = score_class_index_map[i].score;
         OUTPUT_INDICES_TYPE cls = score_class_index_map[i].class_idx;
         OUTPUT_INDICES_TYPE idx = score_class_index_map[i].box_idx;
-        vstore4(vload4(ROI_COUNT * cls + idx, refined_boxes), i, output_boxes);
-        output_scores[i] = score;
-        output_classes[i] = cls;
+        INPUT_TYPE4 res = vload4(ROI_COUNT * cls + idx, refined_boxes);
+
+        output_boxes[idx0] = res[0];
+        output_boxes[idx1] = res[1];
+        output_boxes[idx2] = res[2];
+        output_boxes[idx3] = res[3];
+
+        output_scores[idx_i4] = score;
+        output_classes[idx_i5] = cls;
     } else {
-        vstore4(ZERO4, i, output_boxes);
-        output_scores[i] = ZERO;
-        output_classes[i] = 0;
+        output_boxes[idx0] = ZERO;
+        output_boxes[idx1] = ZERO;
+        output_boxes[idx2] = ZERO;
+        output_boxes[idx3] = ZERO;
+        output_scores[idx_i4] = ZERO;
+        output_classes[idx_i5] = 0;
     }
 }
 
