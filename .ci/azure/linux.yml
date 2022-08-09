@@ -25,23 +25,23 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      # Dynamic:
-      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
-      #   PYTHON_STATIC_ARGS:
-      #   CMAKE_CPACK_GENERATOR:
-      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
+        CMAKE_CPACK_GENERATOR:
+        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
       Debian:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
         PYTHON_STATIC_ARGS:
         CMAKE_CPACK_GENERATOR: 'DEB'
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      # Static:
-      #   CMAKE_BUILD_SHARED_LIBS: 'OFF'
-      #   PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-      #   CMAKE_CPACK_GENERATOR:
-      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+        CMAKE_CPACK_GENERATOR:
+        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
     maxParallel: 2
 
   # About 150% of total time
@@ -161,7 +161,6 @@ jobs:
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
-        # -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -354,7 +353,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: true
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -380,7 +379,7 @@ jobs:
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - script: $(RUN_PREFIX) python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: true
 

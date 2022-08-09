@@ -61,8 +61,6 @@ macro(ov_override_component_names)
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
     set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
-    # move licensing to core
-    set(OV_CPACK_COMP_LICENSING "${OV_CPACK_COMP_CORE}")
 endmacro()
 
 ov_override_component_names()
