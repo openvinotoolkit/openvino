@@ -16,7 +16,6 @@
    openvino_docs_OV_UG_DynamicShapes
    openvino_docs_OV_UG_Performance_Hints
    openvino_docs_OV_UG_network_state_intro
-   ONNX_Format_Support
    
 @endsphinxdirective
 
