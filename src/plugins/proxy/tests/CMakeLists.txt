@@ -13,6 +13,7 @@ ov_add_test_target(
         DEPENDENCIES
             mock_abc_plugin
             mock_bde_plugin
+            mock_fgh_plugin
             openvino::runtime
         LINK_LIBRARIES
             openvino::runtime::dev
