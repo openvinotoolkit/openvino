@@ -15,10 +15,8 @@
 
 // Helper functions
 namespace FrontEndTestUtils {
-std::string find_ov_path();
-int run_tests(int argc, char** argv);
 
-std::string get_current_executable_path();
+int run_tests(int argc, char** argv);
 
 inline std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>
 load_from_file(ov::frontend::FrontEndManager& fem, const std::string& frontend_name, const std::string& model_file) {
@@ -52,7 +50,7 @@ inline int set_test_env(const char* name, const char* value) {
 
 inline void setupTestEnv() {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath = ov::util::get_directory(find_ov_path());
+    std::string fePath = ov::util::get_ov_library_path();
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
