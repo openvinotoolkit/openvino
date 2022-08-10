@@ -343,6 +343,9 @@ public:
      */
     virtual void filterSupportedPrimitiveDescriptors();
 
+    virtual void filterSupportedPrimitiveDescriptors(const std::vector<dnnl::memory::format_tag>& inputMemoryFilter,
+        const std::vector<dnnl::memory::format_tag>& outputMemoryFilter);
+
     virtual void createPrimitive();
 
     virtual void selectOptimalPrimitiveDescriptor();
@@ -573,6 +576,21 @@ public:
         rtParamsCache = cache;
     }
 
+    void backupSPD() {
+        supportedPrimitiveDescriptorsBackup = supportedPrimitiveDescriptors;
+        descsBackup = descs;
+    }
+
+    void restoreSPD() {
+        supportedPrimitiveDescriptors = supportedPrimitiveDescriptorsBackup;
+        descs = descsBackup;
+    }
+
+    void clearBackupSPD() {
+        supportedPrimitiveDescriptorsBackup.clear();
+        descsBackup.clear();
+    }
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -628,10 +646,13 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
+    std::vector<NodeDesc> supportedPrimitiveDescriptorsBackup;  // for layout choose
+
     std::unordered_map<int, dnnl::memory> primArgs;
     std::vector<MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
+    std::vector<DnnlDesriptor> descsBackup;
 
     WeightsSharing::Ptr weightCache;
 

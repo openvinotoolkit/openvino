@@ -25,6 +25,7 @@
 #include "nodes/input.h"
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
+#include "nodes/conv.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -49,6 +50,7 @@
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -417,6 +419,291 @@ void Graph::InitNodes() {
     }
 }
 
+static inline dnnl::memory::format_tag GetTag(bool isBlock, const Shape& shape) {
+    if (shape.getRank() > 5 || shape.getRank() < 3)
+        IE_THROW()<< "Wrong shape, rank should be [3, 5].";
+    if (isBlock) {
+        static dnnl::memory::format_tag tagsBlock[] = {
+            dnnl::memory::format_tag::aBc16b,
+            dnnl::memory::format_tag::aBcd16b,
+            dnnl::memory::format_tag::aBcde16b,
+            dnnl::memory::format_tag::aBcdef16b,
+        };
+        return tagsBlock[shape.getRank() - 3];
+    } else {
+        static dnnl::memory::format_tag tags[] = {
+            dnnl::memory::format_tag::acb,
+            dnnl::memory::format_tag::acdb,
+            dnnl::memory::format_tag::acdeb,
+        };
+        return tags[shape.getRank() - 3];
+    }
+}
+
+static inline LayoutType GetLayoutType(dnnl::memory::format_tag tag) {
+    switch (tag) {
+        case dnnl::memory::format_tag::aBc16b:
+        case dnnl::memory::format_tag::aBcd16b:
+        case dnnl::memory::format_tag::aBcde16b:
+        case dnnl::memory::format_tag::aBcdef16b:
+            return LayoutType::nCsp16c;
+        case dnnl::memory::format_tag::acb:
+        case dnnl::memory::format_tag::acdb:
+        case dnnl::memory::format_tag::acdeb:
+            return LayoutType::nspc;
+        default:
+            return LayoutType::ncsp;
+    }
+}
+
+void Graph::ChooseLayout() {
+    // main idea:
+    //  will try nhwc and nChw16c layout and collect the very simplified computation ticks:
+    //    reorder ticks = memory size / 4 * 2(read + write) * 2(magic number, may be cache penalty)
+    //    concat ticks = no inplace memory size / 4 * 2(read + write) * 2(magic number, may be cache penalty)
+    //    conv ticks = h * w * oc * ic * filter number
+    //    other op ticks = memory size / 4 * 2 * 2 (treat as memory bound op)
+    //  once ticks are collected use the following to make the decision which layout will be used:
+    //    nhwc ticks <= 0.95 * nChw16c ticks ? nhwc : nChw16c
+    auto selectSPD = [&] () {
+        for (auto &node : graphNodes) {
+            node->selectOptimalPrimitiveDescriptor();
+        }
+    };
+
+    struct Computation {
+        // reorder ticks
+        uint64_t reorder = 0;
+        // concat ticks
+        uint64_t concat = 0;
+        // computation heavy ticks, currently only convolution
+        uint64_t compute = 0;
+        // other op ticks
+        uint64_t default_op = 0;
+        // reorder node number
+        int reoder_num = 0;
+        bool operator <= (const Computation& other) {
+            return reorder + concat + default_op + compute <=
+                other.reorder + other.concat + other.default_op + other.compute;
+        }
+        uint64_t getTotal() {
+            return reorder + concat + default_op + compute;
+        }
+    };
+    // estimated computation
+    auto estimateComputation = [&] (bool isBlock = false) -> Computation {
+        auto estimateConvTick = [&] (NodePtr& node) -> uint64_t {
+            if (node->isDynamicNode())
+                return 0;
+            uint64_t tick;
+            auto conv = std::dynamic_pointer_cast<node::Convolution>(node);
+            const auto shapeData = conv->getInputShapeAtPort(0);
+            const auto dimWeight = conv->getWeightDims();
+            const auto shapeOut = conv->getOutputShapeAtPort(0);
+            if (conv->getGroupNum() == 1) {
+                // fma number = output number * input channel number * filter number
+                auto inputChannel = shapeData.getStaticDims()[1];
+                if (isBlock) {
+                    // jit block kernel always align to 16 if > 3. if <= 3 will use nchw
+                    if (inputChannel > 3)
+                        inputChannel = (inputChannel + 15) / 16 * 16;
+                }
+                tick = shapeOut.getElementsCount() * inputChannel;
+                for (auto i = 2; i < dimWeight.size(); i++)
+                    tick *= dimWeight[i];
+            } else {
+                // fma number = sum all group((output spatial * output channel / group) * input channel number / group * filter number)
+                const auto group = conv->getGroupNum();
+                tick = shapeOut.getElementsCount() / group * shapeData.getStaticDims()[1] / group;
+                for (auto i = 3; i < dimWeight.size(); i++)
+                    tick *= dimWeight[i];
+            }
+            // each tick can do 16 in parralel
+            tick /= 16;
+            return tick;
+        };
+        auto estimateConcatTick = [&] (NodePtr& node) -> uint64_t {
+            if (node->isDynamicNode())
+                return 0;
+            uint64_t tick = 0;
+            for (auto i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& edge = node->getParentEdgeAt(i);
+                const auto& parent = edge->getParent();
+                const auto& shapeIn = node->getInputShapeAtPort(i);
+                // in nCsp16c some input can do inplace
+                if (isBlock) {
+                    const auto& dims = shapeIn.getDims();
+                    // densenet-201 conv->concat, conv has many children which can not be in place
+                    if (dims.size() >= 3 && dims[1] % 16 == 0 && parent->getChildEdgesAtPort(edge->getInputNum()).size() == 1) {
+                        // shufflenet-v2-x0.5 has 'split-concat' and it could not be inplace
+                        // densenet-201 has 'concat-concat' and it could not be inplace
+                        if (parent->getType() != Type::Split && parent->getType() != Type::Concatenation) {
+                            // mixnet-l has dw conv and it could not be inplace
+                            if (parent->getType() == Type::Convolution) {
+                                auto conv = std::dynamic_pointer_cast<node::Convolution>(parent);
+                                if (!conv->isDepthWise())
+                                    continue;
+                            } else {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                // tick number = memory elements / 4 * 2(read + write)
+                //  heuristics: each tick can process 4 floats
+                tick += shapeIn.getElementsCount() / 4 * 2;
+            }
+            // magic number, maybe read data from one core's cache penalty
+            tick *= 2;
+
+            return tick;
+        };
+        auto estimateDefaultNodeTick = [] (NodePtr& node) -> uint64_t {
+            if (node->isDynamicNode())
+                return 0;
+            // consider as memory bound op
+            uint64_t tick = 0;
+            for (auto i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& edge = node->getParentEdgeAt(i);
+                const auto& parent = edge->getParent();
+                const auto& shapeIn = node->getInputShapeAtPort(i);
+                // tick number = memory elements / 4 (read)
+                //  heuristics: each tick can process 4 floats
+                tick += shapeIn.getElementsCount() / 4;
+            }
+            const auto shapeOut = node->getOutputShapeAtPort(0);
+            tick += shapeOut.getElementsCount() / 4;
+
+            return tick;
+        };
+        auto estimatePossibleReorderTick = [&] (NodePtr& node) -> uint64_t {
+            if (node->isDynamicNode())
+                return 0;
+            uint64_t tick = 0;
+            bool isSpecialConcat = node->getType() == Type::Concatenation && isBlock;
+
+            for (auto i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& edge = node->getParentEdgeAt(i);
+                const auto& parent = edge->getParent();
+                if (parent->isConstant())
+                    continue;
+
+                auto status = edge->needReorder();
+                if (status == Edge::ReorderStatus::Regular) {
+                    const auto& shapeIn = node->getInputShapeAtPort(i);
+                    if (isSpecialConcat) {
+                        // simple check if concat in block format there should no reorder
+                        const auto& dims = shapeIn.getDims();
+                        if (dims.size() >= 3 && dims[1] % 16 == 0) {
+                            continue;
+                        }
+                    }
+                    // tick number = memory elements / 4 * 2(read + write)
+                    //  heuristics: each tick can process 4 floats
+                    tick += shapeIn.getElementsCount() / 4 * 2;
+                }
+            }
+            // magic number, maybe read data from one core's cache penalty
+            tick *= 2;
+
+            return tick;
+        };
+        Computation computation;
+        int reoder_num = 0;
+        for (auto &node : graphNodes) {
+            const auto type = node->getType();
+            if (node->isConstant() || type == Type::Input || type == Type::Output) {
+                continue;
+            }
+            const auto reorderTick = estimatePossibleReorderTick(node);
+            computation.reorder += reorderTick;
+            reoder_num += reorderTick != 0;
+            if (type == Type::Convolution) {
+                computation.compute += estimateConvTick(node);
+            } else if (type == Type::Concatenation) {
+                computation.concat += estimateConcatTick(node);
+            } else {
+                computation.default_op += estimateDefaultNodeTick(node);
+            }
+        }
+        computation.reoder_num = reoder_num;
+        return computation;
+    };
+    // brgconv filter
+    auto setBrgFilter = [&] (bool enable) {
+        LayoutType layout = enable ? LayoutType::nspc : LayoutType::nCsp16c;
+        for (auto &node : graphNodes) {
+            if (node->getType() != Type::Convolution) {
+                continue;
+            }
+
+            // if user set memory filter do not change the layout
+            if (!node->inputMemoryFormatsFilter.empty() || !node->outputMemoryFormatsFilter.empty())
+                continue;
+
+            for (size_t i = 0; i < node->getSupportedPrimitiveDescriptors().size(); i++) {
+                const auto& spd = node->getSupportedPrimitiveDescriptors()[i];
+                const auto& curDesc = spd.getConfig().outConfs[0].getMemDesc();
+                if (!(spd.getImplementationType() & ref)) {
+                    if (curDesc->hasLayoutType(layout)) {
+                        auto tag = GetTag(!enable, curDesc->getShape());
+                        node->filterSupportedPrimitiveDescriptors({}, {tag});
+                        break;
+                    }
+                }
+            }
+        }
+    };
+
+    // backup or restore spd
+    enum class SPDAction {
+        SPDAction_Backup,
+        SPDAction_Restore,
+        SPDAction_Clear
+    };
+    auto handleSPD = [&] (SPDAction action) {
+        for (auto &node : graphNodes) {
+            // backup spd
+            switch (action) {
+                case SPDAction::SPDAction_Backup:
+                    node->backupSPD();
+                    break;
+                case SPDAction::SPDAction_Restore:
+                    node->restoreSPD();
+                    break;
+                default:
+                    node->clearBackupSPD();
+                    break;
+            }
+        }
+    };
+
+    // 0, select default spd, if brgconv is enabled should select nhwc
+    selectSPD();
+
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) || config.enforceBF16 || isQuantizedFlag) {
+        return;
+    }
+    // 1, estimated nhwc computation
+    Computation nhwcCompute = estimateComputation(false);
+    // 2, estimated nChw16c layout
+    // disable brgconv
+    handleSPD(SPDAction::SPDAction_Backup);
+    setBrgFilter(false);
+    selectSPD();
+    Computation nchwCompute = estimateComputation(true);
+    // 3, select best layout
+    if (nhwcCompute.getTotal() <= nchwCompute.getTotal() * 95 / 100) {
+        // 4, nhwc is the winner
+        handleSPD(SPDAction::SPDAction_Restore);
+        setBrgFilter(true);
+        selectSPD();
+    }
+    // 5, cleanup resource
+    handleSPD(SPDAction::SPDAction_Clear);
+}
+
 void Graph::InitDescriptors() {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "InitDescriptors", "Prepare");
 
@@ -444,10 +731,7 @@ void Graph::InitDescriptors() {
 #endif
     }
 
-    for (auto &node : graphNodes) {
-        OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
-        node->selectOptimalPrimitiveDescriptor();
-    }
+    ChooseLayout();
 }
 
 void Graph::InitOptimalPrimitiveDescriptors() {

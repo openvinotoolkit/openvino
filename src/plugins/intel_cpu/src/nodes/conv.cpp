@@ -1034,24 +1034,32 @@ void Convolution::initDescriptor(const NodeConfig& config) {
 void Convolution::filterSupportedPrimitiveDescriptors() {
     Node::filterSupportedPrimitiveDescriptors();
     // We also need to filter descs in Convolution node
-    filterSupportedDescriptors();
+    filterSupportedDescriptors(inputMemoryFormatsFilter, outputMemoryFormatsFilter);
 }
 
-void Convolution::filterSupportedDescriptors() {
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
-        if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
+void Convolution::filterSupportedPrimitiveDescriptors(const std::vector<dnnl::memory::format_tag>& inputMemoryFilter,
+        const std::vector<dnnl::memory::format_tag>& outputMemoryFilter) {
+    Node::filterSupportedPrimitiveDescriptors(inputMemoryFilter, outputMemoryFilter);
+    // We also need to filter descs in Convolution node
+    filterSupportedDescriptors(inputMemoryFilter, outputMemoryFilter);
+}
+
+void Convolution::filterSupportedDescriptors(const std::vector<dnnl::memory::format_tag>& inputMemoryFilter,
+        const std::vector<dnnl::memory::format_tag>& outputMemoryFilter) {
+    if (!inputMemoryFilter.empty() || !outputMemoryFilter.empty()) {
+        if (inputMemoryFilter.size() > 1 || outputMemoryFilter.size() > 1) {
             IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
         }
         auto itd = descs.begin();
         while (itd != descs.end()) {
             bool isSuitableDesc = true;
-            if (!inputMemoryFormatsFilter.empty()) {
+            if (!inputMemoryFilter.empty()) {
                 auto src_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::convolution_forward::desc>(*itd)->data.src_desc);
-                isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
+                isSuitableDesc &= src_tdesc->isSame(inputMemoryFilter[0]);
             }
-            if (!outputMemoryFormatsFilter.empty()) {
+            if (!outputMemoryFilter.empty()) {
                 auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(std::shared_ptr<dnnl::convolution_forward::desc>(*itd)->data.dst_desc);
-                isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
+                isSuitableDesc &= dst_tdesc->isSame(outputMemoryFilter[0]);
             }
             if (!isSuitableDesc) {
                 itd = descs.erase(itd);

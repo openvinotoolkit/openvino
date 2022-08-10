@@ -611,6 +611,11 @@ void Node::initSupportedPrimitiveDescriptors() {
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
+    filterSupportedPrimitiveDescriptors(inputMemoryFormatsFilter, outputMemoryFormatsFilter);
+}
+
+void Node::filterSupportedPrimitiveDescriptors(const std::vector<dnnl::memory::format_tag>& inputMemoryFilter,
+    const std::vector<dnnl::memory::format_tag>& outputMemoryFilter) {
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
@@ -619,20 +624,20 @@ void Node::filterSupportedPrimitiveDescriptors() {
         return desc.isCompatible(fmt_tdesc);
     };
 
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
+    if (!inputMemoryFilter.empty() || !outputMemoryFilter.empty()) {
         auto itpd = supportedPrimitiveDescriptors.begin();
         while (itpd != supportedPrimitiveDescriptors.end()) {
             const auto &config = itpd->getConfig();
-            if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
+            if (inputMemoryFilter.size() > config.inConfs.size() || outputMemoryFilter.size() > config.outConfs.size())
                 IE_THROW() << "Incorrect number of input or output memory formats";
 
             bool isSuitableDesc = true;
-            for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i]);
+            for (int i = 0; i < inputMemoryFilter.size(); i++) {
+                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFilter[i]);
                 isSuitableDesc &= matched;
             }
-            for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i]);
+            for (int i = 0; i < outputMemoryFilter.size(); i++) {
+                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFilter[i]);
                 isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
