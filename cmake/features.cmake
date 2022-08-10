@@ -12,8 +12,8 @@ ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
-ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
-ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" ON "ENABLE_CLDNN" OFF)
+ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" OFF "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
+ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for inference engine on Intel GPU" OFF "ENABLE_CLDNN" OFF)
 
 if (NOT ENABLE_CLDNN OR ANDROID OR
     (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
@@ -95,14 +95,14 @@ endif()
 
 ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
 
-ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
+ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" OFF)
 
-ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
-ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
+ie_option (ENABLE_MULTI "Enables MULTI Device Plugin" OFF)
+ie_option (ENABLE_AUTO "Enables AUTO Device Plugin" OFF)
 
-ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
+ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" OFF)
 
-ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" OFF)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
@@ -201,7 +201,7 @@ if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_INTEL_MYRIAD)
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
-if (ENABLE_INTEL_GPU)
+if(ENABLE_INTEL_GPU)
     add_definitions(-DENABLE_INTEL_GPU=1)
 endif()
 
