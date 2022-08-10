@@ -19,6 +19,7 @@ struct typed_program_node<prior_box> : typed_program_node_base<prior_box> {
     typed_program_node(std::shared_ptr<prior_box> prim, program& prog);
 
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
 
     bool is_clustered() const { return get_primitive()->is_clustered(); }
     void calc_result();

@@ -18,6 +18,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
     size_t inputs_count() const { return get_dependencies().size(); }
 };
 

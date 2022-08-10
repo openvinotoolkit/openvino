@@ -31,9 +31,17 @@ layout proposal_inst::calc_output_layout(proposal_node const& node, int32_t idx)
     auto desc = node.get_primitive();
     layout input_layout = node.get_dependency(cls_scores_index).first->get_output_layout();
 
-    return layout(input_layout.data_type,
-                  format::bfyx,
-                  {input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
+    if (idx == 0) {
+        return layout(input_layout.data_type,
+                    format::bfyx,
+                    {input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
+    } else if (idx == 1) {
+        return layout(input_layout.data_type,
+                    format::bfyx,
+                    {input_layout.size.batch[0] * desc->post_nms_topn, 1, 1, 1});
+    } else {
+        assert(!"unsupported output index of proposal primitive");
+    }
 }
 
 static inline std::string stringify_vector(std::vector<float> v) {

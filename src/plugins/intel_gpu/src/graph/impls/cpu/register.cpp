@@ -13,8 +13,8 @@ namespace cpu {
 void register_implementations() {
 #if 0 // TODO(taylor)
     REGISTER_CPU(detection_output);
-    REGISTER_CPU(proposal);
 #endif
+    REGISTER_CPU(proposal);
     REGISTER_CPU(non_max_suppression);
 }
 //

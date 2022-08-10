@@ -15,6 +15,7 @@ struct typed_program_node<range> : public typed_program_node_base<range> {
     using typed_program_node_base::typed_program_node_base;
 
     program_node& input(std::size_t i = 0) const { return *get_dependency(i).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 };
 using range_node = typed_program_node<range>;
 

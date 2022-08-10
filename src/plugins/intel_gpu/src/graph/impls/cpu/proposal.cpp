@@ -260,7 +260,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     }
 
     template <typename dtype>
-    void execute(stream& stream, proposal_inst& instance, im_info_t im_info, dtype* proposal_prob_ptr = nullptr) {
+    void execute(stream& stream, proposal_inst& instance, im_info_t im_info) {
         const std::vector<proposal_inst::anchor>& anchors = instance.get_anchors();
 
         size_t anchors_num = anchors.size();
@@ -348,12 +348,13 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                                                  instance.argument.post_nms_topn,
                                                  coordinates_offset);
 
-            auto output = instance.output_memory_ptr();
+            auto output_1 = instance.output_memory_ptr(0);
+            mem_lock<dtype, mem_lock_type::write> output_ptr1{output_1, stream};
+            dtype* top_data = output_ptr1.data() + n * instance.argument.post_nms_topn * 5;
 
-            mem_lock<dtype, mem_lock_type::write> output_ptr{output, stream};
-            dtype* top_data = output_ptr.data() + n * instance.argument.post_nms_topn * 5;
-
-            dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * instance.argument.post_nms_topn;
+            auto output_2 = instance.output_memory_ptr(1);
+            mem_lock<dtype, mem_lock_type::write> output_ptr2{output_2, stream};
+            dtype* top_data_prob = output_ptr2.data() + n * instance.argument.post_nms_topn;
 
             size_t res_num_rois = res.size();
 
@@ -370,7 +371,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument.normalize ? im_info.img_h : 1.0f));
                 float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument.normalize ? im_info.img_w : 1.0f));
                 float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument.normalize ? im_info.img_h : 1.0f));
-                if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
+                if (i < sorted_proposals_confidence.size()) {
                     float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
             }
@@ -381,8 +382,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 float_write_helper(top_data + 5 * i + 2, 0.0f);
                 float_write_helper(top_data + 5 * i + 3, 0.0f);
                 float_write_helper(top_data + 5 * i + 4, 0.0f);
-                if (top_data_prob != nullptr)
-                    float_write_helper(top_data_prob + i, 0.0f);
+
+                float_write_helper(top_data_prob + i, 0.0f);
             }
         }
     }
@@ -406,21 +407,10 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             instance.dep_memory(proposal_inst::bbox_pred_index).get_layout().data_type)
             throw std::runtime_error("clDNN: proposal primitive doesn't support mixed bbox and scores types");
 
-        if (instance.dependencies().size() == 4) {
-            auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
-            if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
-            } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
-            }
+        if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
+            execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
         } else {
-            if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
-            } else {
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
-            }
+            execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
         }
 
         ev->set();

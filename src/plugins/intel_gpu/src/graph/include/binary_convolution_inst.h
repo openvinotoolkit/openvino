@@ -28,7 +28,7 @@ public:
     bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
     program_node& input() const { return *get_dependency(0).first; }
-
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
     program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");

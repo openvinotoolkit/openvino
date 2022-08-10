@@ -25,6 +25,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
     program_node& scale_in() const { return *get_dependency(1).first; }
     program_node& bias() const { return *get_dependency(2).first; }
 

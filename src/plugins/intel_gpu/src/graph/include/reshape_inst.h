@@ -28,6 +28,11 @@ public:
         return *get_dependency(0).first;
     }
 
+    int32_t input_dep_idx() const {
+        CLDNN_ERROR_LESS_THAN(id(), "the number of dependencies", dependencies.size(), "1", 1, "ERROR: the node has no input");
+        return get_dependency(0).second;
+    }
+
     bool is_in_place() const {
         if (this->is_output() || !this->get_fused_activations_funcs().empty())
             return false;

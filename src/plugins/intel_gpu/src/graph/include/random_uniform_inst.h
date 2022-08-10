@@ -17,6 +17,7 @@ public:
     using parent::parent;
 
     const program_node &input(std::size_t index = 0) const { return *get_dependency(index).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 };
 
 using random_uniform_node = typed_program_node<random_uniform>;

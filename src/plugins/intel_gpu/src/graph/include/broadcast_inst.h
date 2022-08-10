@@ -24,6 +24,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
 };
 
 using broadcast_node = typed_program_node<broadcast>;

@@ -486,6 +486,7 @@ struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
     program_node& input() const { return *program_node::get_dependency(0).first; }
+    int32_t input_dep_idx() const { return program_node::get_dependency(0).second; }
 };
 
 }  // namespace cldnn

@@ -23,6 +23,7 @@ public:
     using parent::parent;
 
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
     std::vector<uint16_t> get_permute_order() const { return get_primitive()->permute_order; }
     bool is_rotating_except_batch() const {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis

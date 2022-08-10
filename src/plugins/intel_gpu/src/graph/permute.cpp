@@ -22,7 +22,7 @@ primitive_type_id permute::type_id() {
 layout permute_inst::calc_output_layout(permute_node const& node, int32_t idx) {
     assert(static_cast<bool>(node.get_primitive()->output_data_types.at(0)) == false &&
            "Output data type forcing is not supported for permute_node!");
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.input().get_output_layout(true, node.input_dep_idx());
     auto permute_order = node.get_primitive()->permute_order;
     std::vector<tensor::value_type> output_sizes;
 

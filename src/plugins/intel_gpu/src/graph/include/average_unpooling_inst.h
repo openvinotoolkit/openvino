@@ -18,6 +18,7 @@ struct typed_program_node<average_unpooling> : public typed_program_node_base<av
 public:
     using parent::parent;
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
 };
 
 using average_unpooling_node = typed_program_node<average_unpooling>;

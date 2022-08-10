@@ -17,6 +17,7 @@ public:
     using parent::parent;
 
     const program_node &input(std::size_t index = 0) const { return *get_dependency(index).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 };
 
 using experimental_detectron_topk_rois_node = typed_program_node<experimental_detectron_topk_rois>;

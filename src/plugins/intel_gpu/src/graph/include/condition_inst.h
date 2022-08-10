@@ -62,6 +62,7 @@ public:
           _branch_false(this->get_primitive()->topology_false) {}
 
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
     program_node& compare() const { return *get_dependency(1).first; }
     cond_functions func() const { return get_primitive()->function; }
     tensor offset() const { return get_primitive()->offset; }

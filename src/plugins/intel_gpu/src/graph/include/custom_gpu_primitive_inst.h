@@ -19,6 +19,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 };
 
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;

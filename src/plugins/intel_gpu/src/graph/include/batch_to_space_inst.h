@@ -18,6 +18,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return *get_dependency(index).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 };
 
 using batch_to_space_node = typed_program_node<batch_to_space>;

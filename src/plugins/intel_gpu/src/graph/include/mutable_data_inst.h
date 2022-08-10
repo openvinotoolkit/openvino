@@ -24,6 +24,7 @@ struct typed_program_node<mutable_data> : public typed_program_node_base<mutable
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true, int32_t idx = 0);
 
     program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
 
 private:
     std::vector<memory::ptr> mems;

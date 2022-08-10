@@ -69,6 +69,7 @@ public:
     }
 
     program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
+    int32_t input_dep_idx(size_t idx = 0) const { return get_dependency(idx).second; }
     size_t inputs_count() const { return get_primitive()->input.size(); }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {

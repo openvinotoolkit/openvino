@@ -46,7 +46,7 @@ public:
     };
 
     // indices of the memory objects used by the layer
-    enum input_index { cls_scores_index, bbox_pred_index, image_info_index, proposal_probabilities_out };
+    enum input_index { cls_scores_index, bbox_pred_index, image_info_index };
 
     // TODO(ruv): missign validation?? for image_info dimensions? also faster r-cnn expected it to be dim3 while the new
     // networks expect dim 6!!! ([5] being unused)

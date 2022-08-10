@@ -18,6 +18,7 @@ public:
     using parent::parent;
 
     program_node& input() const { return *get_dependency(0).first; }
+    int32_t input_dep_idx() const { return get_dependency(0).second; }
     program_node& cell() const { return *get_dependency(1).first; }
     bool cell_term() const { return !get_primitive()->cell.empty(); }
     lstm_weights_order offset_order() const { return get_primitive()->offset_order; }

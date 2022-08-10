@@ -21,8 +21,8 @@ namespace detail {
     }
 
 REGISTER_CPU(non_max_suppression);
-#if 0 // TODO(taylor)
 REGISTER_CPU(proposal);
+#if 0 // TODO(taylor)
 REGISTER_CPU(detection_output);
 #endif
 
