@@ -24,8 +24,8 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         return make_unique<roll_impl>(*this);
     }
 
-    static primitive_impl* create(const roll_node& arg) {
-        auto roll_params = get_default_params<kernel_selector::roll_params>(arg);
+    static primitive_impl* create(const roll_node& arg, const kernel_impl_params& impl_param) {
+        auto roll_params = get_default_params<kernel_selector::roll_params>(impl_param);
         auto roll_optional_params =
             get_default_optional_params<kernel_selector::roll_optional_params>(arg.get_program());
 

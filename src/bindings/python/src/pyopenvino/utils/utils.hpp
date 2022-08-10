@@ -16,6 +16,8 @@ namespace utils {
     py::object from_ov_any(const ov::Any &any);
 
     std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);
+
+    std::string convert_path_to_string(const py::object& path);
 }; // namespace utils
 }; // namespace Common
 

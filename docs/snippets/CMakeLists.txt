@@ -61,15 +61,9 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # remove OpenCV related sources
-if (ENABLE_OPENCV)
-    find_package(OpenCV QUIET)
-else()
-    set(OpenCV_FOUND OFF)
-endif()
-
+find_package(OpenCV QUIET COMPONENTS core imgcodecs)
 if(NOT OpenCV_FOUND)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide5.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
 # requires mfxFrameSurface1 and MSS API

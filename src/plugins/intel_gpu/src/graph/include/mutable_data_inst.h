@@ -35,7 +35,10 @@ class typed_primitive_inst<mutable_data> : public typed_primitive_inst_base<muta
     using parent = typed_primitive_inst_base<mutable_data>;
 
 public:
-    static layout calc_output_layout(mutable_data_node const& node) { return node.get_attached_memory().get_layout(); }
+    static layout calc_output_layout(mutable_data_node const& node, kernel_impl_params const& impl_param) {
+        return node.get_attached_memory().get_layout();
+    }
+
     static std::string to_string(mutable_data_node const& node);
 
     typed_primitive_inst(network& network, mutable_data_node const& node);

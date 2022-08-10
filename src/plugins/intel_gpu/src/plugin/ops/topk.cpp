@@ -14,54 +14,16 @@
 namespace ov {
 namespace intel_gpu {
 
-static cldnn::arg_max_min::axis_name GetAxis(int32_t axis, size_t in_rank) {
-    if (in_rank == 5) {
-        if (-5 <= axis && axis <= -1)
-            axis += 5;
-
-        switch (axis) {
-            case 0: return cldnn::arg_max_min::axis_name::batch;
-            case 1: return cldnn::arg_max_min::axis_name::feature;
-            case 2: return cldnn::arg_max_min::axis_name::z;
-            case 3: return cldnn::arg_max_min::axis_name::y;
-            case 4: return cldnn::arg_max_min::axis_name::x;
-        }
-    } else {
-        if (-static_cast<int32_t>(in_rank) <= axis && axis <= -1)
-            axis += in_rank;
-
-        switch (axis) {
-            case 0: return cldnn::arg_max_min::axis_name::batch;
-            case 1: return cldnn::arg_max_min::axis_name::feature;
-            case 2: return cldnn::arg_max_min::axis_name::y;
-            case 3: return cldnn::arg_max_min::axis_name::x;
-        }
-    }
-
-    return cldnn::arg_max_min::axis_name::batch;
-}
-
 static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    cldnn::arg_max_min::out_type otype;
-    cldnn::arg_max_min::sort_type stype;
-
-    if (op->get_mode() == ngraph::op::v1::TopK::Mode::MAX)
-        otype = cldnn::arg_max_min::out_type::max;
-    else
-        otype = cldnn::arg_max_min::out_type::min;
-
-    if (op->get_sort_type() == ngraph::op::v1::TopK::SortType::SORT_VALUES)
-        stype = cldnn::arg_max_min::sort_type::sort_by_values;
-    else
-        stype = cldnn::arg_max_min::sort_type::sort_by_indices;
+    ov::op::TopKMode mode = op->get_mode();
+    ov::op::TopKSortType stype = op->get_sort_type();
 
     uint32_t top_k = op->get_k();
-    cldnn::arg_max_min::axis_name chosen_axis = GetAxis(static_cast<int32_t>(op->get_axis()),
-                                                        op->get_input_shape(0).size());
+    uint64_t chosen_axis = op->get_axis();
 
     if (op->get_output_size() == 2) {
         auto mutable_precision = op->get_output_element_type(1);
@@ -70,7 +32,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
         }
 
         cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                    DefaultFormatForDims(op->get_output_shape(1).size()),
+                                                    cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -90,7 +52,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
         std::string ArgMaxLayerName = layerName + ".0";
         auto argmaxPrim = cldnn::arg_max_min(ArgMaxLayerName,
                                              inputPrimitives,
-                                             otype,
+                                             mode,
                                              top_k,
                                              chosen_axis,
                                              stype,
@@ -113,7 +75,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
     } else if (op->get_output_size() == 1) {
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                              inputPrimitives,
-                                             otype,
+                                             mode,
                                              top_k,
                                              chosen_axis,
                                              stype,

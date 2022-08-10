@@ -4,13 +4,12 @@
 
 set(TARGET_NAME "paddle_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE cnpy frontend_shared_test_classes
-        openvino_paddle_frontend openvino::runtime)
+    openvino_paddle_frontend openvino::runtime gtest_main_manifest)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -35,10 +34,10 @@ DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATA
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
-if (paddlepaddle_FOUND AND ${PADDLEDET_RESULT} STREQUAL "ON")
+if(paddlepaddle_FOUND AND ${PADDLEDET_RESULT} STREQUAL "ON")
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
 
-    if (WIN32)
+    if(WIN32)
         set(SETENV "set")
         set(PATHSEP ";")
     else()
@@ -74,7 +73,7 @@ add_dependencies(${TARGET_NAME} paddle_test_models)
 add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
-if (ENABLE_INTEL_CPU)
+if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
