@@ -62,6 +62,7 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     PY_VENV: $(WORK_DIR)/.venv
     PYTHON_VERSION: 3.10.6
+    NUM_PROC: 1
 
   steps:
   - script: |
