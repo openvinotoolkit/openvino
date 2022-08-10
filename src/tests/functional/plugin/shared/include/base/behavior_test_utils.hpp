@@ -144,8 +144,7 @@ typedef std::tuple<
         std::map<std::string, std::string>  // Config
 > BehaviorBasicParams;
 
-class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
-                           public IEPluginTestBase {
+class BehaviorTestsBasicBase : public testing::WithParamInterface<BehaviorBasicParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
         InferenceEngine::Precision  netPrecision;
@@ -162,6 +161,15 @@ public:
         return result.str();
     }
 
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<ngraph::Function> function;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> configuration;
+};
+
+class BehaviorTestsBasic : public BehaviorTestsBasicBase,
+                           public IEPluginTestBase {
+protected:
     void SetUp() override {
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -174,10 +182,5 @@ public:
         }
         APIBaseTest::TearDown();
     }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::map<std::string, std::string> configuration;
 };
 } // namespace BehaviorTestsUtils

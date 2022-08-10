@@ -331,8 +331,9 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
-class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasic {
-public:
+class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasicBase,
+                                            public BehaviorTestsUtils::IEInferRequestTestBase {
+protected:
     void SetUp() override {
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -341,8 +342,14 @@ public:
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
-    protected:
-    void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ie_infer_request; }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
     InferenceEngine::ExecutableNetwork execNet;
     InferenceEngine::CNNNetwork cnnNet;
 };

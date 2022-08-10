@@ -295,10 +295,21 @@ TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     compare_functions(cnnNet.getFunction(), referenceNetwork);
 }
 
-class ExecNetSetPrecision : public virtual BehaviorTestsUtils::BehaviorTestsBasic {
-    void set_api_entity() override {
-        api_entity = ov::test::utils::ov_entity::ie_executable_network;
-    };
+class ExecNetSetPrecision : public BehaviorTestsUtils::BehaviorTestsBasicBase,
+                            public BehaviorTestsUtils::IEExecutableNetworkTestBase {
+protected:
+    void SetUp() override {
+        std::tie(netPrecision, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+    }
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
 };
 
 TEST_P(ExecNetSetPrecision, canSetInputPrecisionForNetwork) {
