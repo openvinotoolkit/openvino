@@ -71,7 +71,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
  * Each consecutive varint byte needs to be left-shifted "7 x its position in the vector"
  * and bitwise added to the accumulator afterward.
  */
-uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
+uint32_t varint_bytes_to_number(const std::vector<uint8_t>& bytes) {
     uint32_t accumulator = 0u;
 
     for (size_t i = 0; i < bytes.size(); ++i) {
@@ -84,7 +84,7 @@ uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
 }
 
 uint32_t decode_varint(std::istream& model) {
-    std::vector<char> bytes;
+    std::vector<uint8_t> bytes;
     // max 4 bytes for a single value because this function returns a 32-bit long decoded varint
     const size_t MAX_VARINT_BYTES = 4u;
     // optimization to avoid allocations during push_back calls
@@ -96,7 +96,7 @@ uint32_t decode_varint(std::istream& model) {
     // keep reading all bytes which have the MSB on from the stream
     while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
         // drop the most significant bit
-        const char component = key_component & ~0x80;
+        const uint8_t component = key_component & ~0x80;
         bytes.push_back(component);
         model.get(key_component);
     }

@@ -550,7 +550,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
                                   bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
-        port.portId = XMLParseUtils::GetIntAttr(parentNode, "id");
+        port.portId = XMLParseUtils::GetUIntAttr(parentNode, "id");
 
         FOREACH_CHILD (node, parentNode, "dim") {
             int64_t dim = 0;
@@ -590,7 +590,7 @@ GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& nod
     };
     GenericLayerParams params;
 
-    params.layerId = XMLParseUtils::GetIntAttr(node, "id");
+    params.layerId = XMLParseUtils::GetUIntAttr(node, "id");
     params.version = XMLParseUtils::GetStrAttr(node, "version");
 
     params.type = XMLParseUtils::GetStrAttr(node, "type");

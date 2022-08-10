@@ -28,22 +28,22 @@ int64_t calculate_num_spatial(const ConvType* op,
             num_spatial = filters_rank.get_length() - num_non_spatial_filter_dims;
 
         if (const auto &size = op->m_dilations.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == size,
+            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Dilations should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto &size = op->m_strides.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == size,
+            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Strides should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto &size = op->m_pads_begin.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == size,
+            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads begin should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto &size = op->m_pads_end.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == size,
+            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads begin should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
@@ -349,7 +349,7 @@ int64_t calculate_num_spatial(const ConvType* op,
         num_spatial = calculate_num_spatial(
             op, input_shape, filters_shape, num_non_spatial_data_dims, num_non_spatial_filter_dims);
         if (const auto &size = op->m_output_padding.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == size,
+            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Output padding should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
