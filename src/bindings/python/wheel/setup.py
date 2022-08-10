@@ -93,7 +93,7 @@ LIB_INSTALL_CFG = {
 
 PY_INSTALL_CFG = {
     "ie_py": {
-        "name": PYTHON_VERSION,
+        "name": f"pyie_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
     },
