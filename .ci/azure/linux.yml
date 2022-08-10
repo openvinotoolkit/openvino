@@ -60,6 +60,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     BUILD_PYTHON: $(WORK_DIR)/build_python
+    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     PY_VENV: $(WORK_DIR)/.venv
     PYTHON_VERSION: 3.10.6
     NUM_PROC: 1
@@ -119,18 +120,16 @@ jobs:
       # For opencv-python: python3-setuptools and pip upgrade
       wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
       tar -xzf Python-"$PYTHON_VERSION".tgz
-      mv Python-"$PYTHON_VERSION" Python-"$PYTHON_VERSION"-host
-      cd Python-"$PYTHON_VERSION"-host || exit
+      cd Python-"$PYTHON_VERSION" || exit
       ./configure --enable-optimizations
       make -j "$NUM_PROC" python
       sudo make -j "$NUM_PROC" install
-      cp python "$BUILD_PYTHON"
-      curl https://bootstrap.pypa.io/get-pip.py | "$BUILD_PYTHON"/python - --no-cache-dir numpy cython
-      "$BUILD_PYTHON"/python -m venv $(PY_VENV)
+      /usr/local/bin/python3.10 -m venv $(PY_VENV)
       . $(PY_VENV)/bin/activate
       echo Python3 info ; which python3 ; python3 --version
       python3 --version
       python3.10 --version
+      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
