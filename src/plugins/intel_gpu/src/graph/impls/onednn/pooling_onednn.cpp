@@ -66,7 +66,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg) {
+    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_pooling_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();

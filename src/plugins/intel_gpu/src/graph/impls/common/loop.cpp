@@ -164,7 +164,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         return ev;
     }
 
-    static primitive_impl* create(const loop_node& arg) { return new loop_impl(arg); }
+    static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
 };
 
 namespace detail {

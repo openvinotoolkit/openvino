@@ -13,12 +13,12 @@ primitive_type_id reorg_yolo::type_id() {
     return &instance;
 }
 
-layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for "
            "reorg_yolo_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<reorg_yolo>();
     auto stride = desc->stride;
 
     cldnn::layout layoutTemp = cldnn::layout(input_layout.data_type,

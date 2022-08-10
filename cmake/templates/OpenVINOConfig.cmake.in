@@ -150,17 +150,23 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND
     set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
     if(NOT enable_system_tbb)
         set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+
+        # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
         if(DEFINED ENV{TBBROOT})
-            # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
             file(TO_CMAKE_PATH $ENV{TBBROOT} ENV_TBBROOT)
         endif()
+        if(DEFINED ENV{TBB_DIR})
+            file(TO_CMAKE_PATH $ENV{TBB_DIR} ENV_TBB_DIR)
+        endif()
+
         set(find_package_tbb_extra_args
             CONFIG
             PATHS
                 # oneTBB case exposed via export TBBROOT=<custom TBB root>
                 "${ENV_TBBROOT}/lib64/cmake/TBB"
                 "${ENV_TBBROOT}/lib/cmake/TBB"
-                # "$ENV{TBB_DIR}"
+                "${ENV_TBBROOT}/lib/cmake/tbb"
+                "${ENV_TBB_DIR}"
                 # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
                 "${TBBROOT}/cmake"
                 # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
