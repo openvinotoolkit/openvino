@@ -11,17 +11,22 @@ class QuantizationParameters(object):
     """
     Basic parameters of the quantization method.   
     """
-    def __init__(self):
+    def __init__(self, model_path = "model.xml", weights_path = "model.bin",
+                model_name = "model", target_device = "ANY", preset = "performance",
+                subset_size = 300, model_type = None, fast_bias_correction = True,
+                method_name = "DefaultQuantization"):
         """
         Initializes quantization parameters with some reasonable verified defaults.
         """
-        self._model_name = "model"
-        self._target_device = "ANY"
-        self._method_name = "DefaultQuantization"
-        self._preset = "performance"
-        self._subset_size = 300
-        self._model_type = None
-        self._fast_bias_correction = True
+        self._model_path = model_path
+        self._weights_path = weights_path
+        self._model_name = model_name
+        self._target_device = target_device
+        self._method_name = method_name
+        self._preset = preset
+        self._subset_size = subset_size
+        self._model_type = model_type
+        self._fast_bias_correction = fast_bias_correction
 
     @property
     def target_device(self) -> str:
@@ -90,7 +95,7 @@ class QuantizationParameters(object):
         """
         return self._fast_bias_correction
 
-def quantize_post_training(parameters: QuantizationParameters, data_loader: DataLoader):
+def quantize(data_loader: DataLoader, parameters: QuantizationParameters):
     """
     Simple API for model quantization that  requires minimum set of parameters to be specified.
     Basic steps include:
@@ -144,13 +149,18 @@ class AccurracyAwareQuantizationParameters(QuantizationParameters):
     """
     Basic and accuracy-aware parameters of the quantization method.   
     """
-    def __init__(self):
+    def __init__(self,  model_path = "model.xml", weights_path = "model.bin",
+                model_name = "model", target_device = "ANY", preset = "performance",
+                max_drop = 0.01, subset_size = 300, model_type = None, 
+                tune_hyperparameters = False, fast_bias_correction = True, 
+                method_name = "DefaultQuantization"):
         """
         Initializes quantization parameters with some reasonable verified defaults.
         """
-        super().__init__()
-        self._max_drop = 0.01
-        self._tune_hyperparameters = False
+        super().__init__(model_path, weights_path, model_name, target_device, preset, 
+                        subset_size, model_type, fast_bias_correction, method_name)
+        self._max_drop = max_drop
+        self._tune_hyperparameters = tune_hyperparameters
 
     @property
     def max_drop(self) -> float:
@@ -167,8 +177,7 @@ class AccurracyAwareQuantizationParameters(QuantizationParameters):
         """
         return self._tune_hyperparameters
 
-def quantize_with_accuracy_control(parameters: AccurracyAwareQuantizationParameters,
-                                   data_loader: DataLoader, metric: Metric):
+def quantize_with_accuracy_control(data_loader: DataLoader, metric: Metric, parameters: AccurracyAwareQuantizationParameters):
     """
     Simple API for model quantization with the control of maximum accuracy degradation.
     Basic steps include:
@@ -228,8 +237,8 @@ class ExportParameters(object):
     """
     Optimized model exports specific parameters.
     """
-    def __init__(self):
-        self._compress_weights = True
+    def __init__(self, compress_weights = True):
+        self._compress_weights = compress_weights
 
     @property
     def compress_weights(self) -> bool:

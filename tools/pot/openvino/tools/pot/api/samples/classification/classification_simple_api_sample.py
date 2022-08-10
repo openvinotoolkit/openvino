@@ -7,7 +7,7 @@ from sqlite3.dbapi2 import _Parameters
 import numpy as np
 from cv2 import imread, resize as cv2_resize
 
-from openvino.tools.pot import quantize_post_training, QuantizationParameters, export
+from openvino.tools.pot import quantize, QuantizationParameters, export
 from openvino.tools.pot.api.samples.utils.argument_parser import get_common_argparser
 
 from .classification_sample import ImageNetDataLoader
@@ -47,13 +47,11 @@ def main():
     data_loader = ImageNetDataLoader(dataset_config)
 
     # Define mandatory quantization parameters
-    parameters = QuantizationParameters()
-    parameters.model_name = 'sample_model'
-    parameters.model_path = args.model
-    parameters.weights_path = args.weights
+    parameters = QuantizationParameters(model_name = 'sample_model', 
+                model_path = args.model, weights_path = args.weight)
 
     # Step 2: Quantize model
-    compressed_model = quantize_post_training(parameters, data_loader)
+    compressed_model = quantize(data_loader, parameters)
 
     # Step 3: Save quantized model
     export(compressed_model, os.path.join(os.path.curdir, 'optimized'))

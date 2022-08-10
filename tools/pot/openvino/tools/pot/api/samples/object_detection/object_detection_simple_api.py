@@ -34,15 +34,12 @@ def main():
     # Step 2: Initialize the metric.
     metric = MAP(91, data_loader.labels)
 
-    parameters = AccurracyAwareQuantizationParameters()
-    parameters.model_name = 'ssd_mobilenet_v1_fpn'
-    parameters.model_path = args.model
-    parameters.weights_path = args.weights
-    parameters.preset = 'mixed'
-    parameters.max_drop = 0.004
+    parameters = AccurracyAwareQuantizationParameters(model_name = 'ssd_mobilenet_v1_fpn',
+                    model_path = args.model, weights_path = args.weights,
+                    preset = 'mixed', max_drop = 0.004)
 
     # Step 3: Quantize model
-    compressed_model = quantize_with_accuracy_control(parameters, data_loader, metric)
+    compressed_model = quantize_with_accuracy_control(data_loader, metric, parameters)
 
     # Step 4: Save quantized model
     export(compressed_model, os.path.join(os.path.curdir, 'optimized'))
