@@ -13,11 +13,11 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
 
   * Use Windows Explorer to remove the files.
   * Open a Command Prompt and run:
-
-     .. code-block:: sh
+    
+    .. code-block:: sh
   
-       rmdir /s <extracted_folder>
-       del <path_to_archive>
+      rmdir /s <extracted_folder>
+      del <path_to_archive>
 
     
 .. tab:: Linux & macOS

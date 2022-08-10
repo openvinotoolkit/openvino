@@ -81,26 +81,11 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-### <a name="model-optimizer"></a>Step 3 (Optional): Download Additional Components
+### <a name="model-optimizer"></a>Step 3 (Optional): Install Additional Components
 
 Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. You are recommended to build OpenCV from source using the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
-
-<!---
-@sphinxdirective
-
-.. dropdown:: OpenCV
-
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>/extras/scripts/download_opencv.sh``.
-
-   .. note::
-      Make sure you have 2 prerequisites installed: ``curl`` and ``tar``.
-
-   Depending on how you have installed the Intel® Distribution of OpenVINO™, the script should be run either as root or regular user. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
-
-@endsphinxdirective
---->
 
 ### <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
 

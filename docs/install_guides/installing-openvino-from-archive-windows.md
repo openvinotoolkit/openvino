@@ -105,41 +105,6 @@ Since the OpenVINO™ 2022.1 release, the following development tools: Model Opt
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. You are recommended to build OpenCV from source using the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-<!---
-@sphinxdirective
-
-.. dropdown:: OpenCV
-
-   OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. The Intel® Distribution of OpenVINO™ provides a script to install OpenCV: ``<INSTALL_DIR>\extras\scripts\download_opencv.ps1``.
-
-   .. note::
-      No prerequisites are needed.
-      
-   There are three ways to run the script:
-   
-   * GUI: right-click the script and select ``Run with PowerShell``.
-      
-   * Command prompt (CMD) console:
-   
-   .. code-block:: sh
-   
-      powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
-      
-      
-   * PowerShell console:
-   
-   .. code-block:: sh
-   
-      .\<INSTALL_DIR>\extras\scripts\download_opencv.ps1
-      
-
-   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
-   The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
-
-@endsphinxdirective
-
---->
-
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 
 @sphinxdirective
