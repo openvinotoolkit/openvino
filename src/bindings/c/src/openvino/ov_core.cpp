@@ -113,14 +113,17 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
                                            const char* model_str,
                                            const ov_tensor_t* weights,
                                            ov_model_t** model) {
-    if (!core || !model_str || !weights || !model) {
+    if (!core || !model_str || !model) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        *model = new ov_model_t;
         std::unique_ptr<ov_model_t> _model(new ov_model_t);
-        _model->object = core->object->read_model(model_str, *(weights->object));
+        if (weights) {
+            _model->object = core->object->read_model(model_str, *(weights->object));
+        } else {
+            _model->object = core->object->read_model(model_str, ov::Tensor());
+        }
         *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS

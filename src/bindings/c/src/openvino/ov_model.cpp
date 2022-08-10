@@ -12,12 +12,12 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->outputs();
         output_nodes->size = results.size();
-        auto tmp_output_nodes(new ov_output_const_node_t[output_nodes->size]);
+        std::unique_ptr<ov_output_const_node_t[]> tmp_output_nodes(new ov_output_const_node_t[output_nodes->size]);
 
         for (size_t i = 0; i < output_nodes->size; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
-        output_nodes->output_nodes = tmp_output_nodes;
+        output_nodes->output_nodes = tmp_output_nodes.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -30,12 +30,12 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
     try {
         auto results = std::const_pointer_cast<const ov::Model>(model->object)->inputs();
         input_nodes->size = results.size();
-        auto tmp_output_nodes(new ov_output_const_node_t[input_nodes->size]);
+        std::unique_ptr<ov_output_const_node_t[]> tmp_output_nodes(new ov_output_const_node_t[input_nodes->size]);
 
         for (size_t i = 0; i < input_nodes->size; i++) {
             tmp_output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
-        input_nodes->output_nodes = tmp_output_nodes;
+        input_nodes->output_nodes = tmp_output_nodes.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -49,8 +49,9 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(tensor_name);
-        *input_node = new ov_output_const_node_t;
-        (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        std::unique_ptr<ov_output_const_node_t> _input_node(new ov_output_const_node_t);
+        _input_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *input_node = _input_node.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -62,8 +63,9 @@ ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index,
     }
     try {
         auto result = std::const_pointer_cast<const ov::Model>(model->object)->input(index);
-        *input_node = new ov_output_const_node_t;
-        (*input_node)->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        std::unique_ptr<ov_output_const_node_t> _input_node(new ov_output_const_node_t);
+        _input_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *input_node = _input_node.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

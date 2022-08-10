@@ -30,10 +30,11 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, 
         auto inputs = compiled_model->object->inputs();
         int num = inputs.size();
         input_nodes->size = num;
-        input_nodes->output_nodes = new ov_output_const_node_t[num];
+        std::unique_ptr<ov_output_const_node_t[]> _output_nodes(new ov_output_const_node_t[num]);
         for (int i = 0; i < num; i++) {
-            input_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
+            _output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
         }
+        input_nodes->output_nodes = _output_nodes.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -49,10 +50,11 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
         auto outputs = compiled_model->object->outputs();
         int num = outputs.size();
         output_nodes->size = num;
-        output_nodes->output_nodes = new ov_output_const_node_t[num];
+        std::unique_ptr<ov_output_const_node_t[]> _output_nodes(new ov_output_const_node_t[num]);
         for (int i = 0; i < num; i++) {
-            output_nodes->output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
+            _output_nodes[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
         }
+        output_nodes->output_nodes = _output_nodes.release();
     }
     CATCH_OV_EXCEPTIONS
 

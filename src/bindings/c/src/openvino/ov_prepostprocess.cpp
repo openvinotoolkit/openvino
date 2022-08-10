@@ -253,8 +253,9 @@ ov_status_e ov_preprocess_prepostprocessor_output(const ov_preprocess_prepostpro
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        *preprocess_output_info = new ov_preprocess_outputinfo_t;
-        (*preprocess_output_info)->object = &(preprocess->object->output());
+        std::unique_ptr<ov_preprocess_outputinfo_t> _preprocess_output_info(new ov_preprocess_outputinfo_t);
+        _preprocess_output_info->object = &(preprocess->object->output());
+        *preprocess_output_info = _preprocess_output_info.release();
     }
     CATCH_OV_EXCEPTIONS
 
