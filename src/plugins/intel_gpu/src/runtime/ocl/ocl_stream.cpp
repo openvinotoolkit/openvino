@@ -289,6 +289,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (config.queue_type == queue_types::in_order) {
         auto onednn_engine = engine.get_onednn_engine();
@@ -317,9 +318,10 @@ ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::stream& ocl_stream::get_onednn_stream() {
+dnnl::stream& ocl_stream::get_onednn_stream() const {
     if (!_onednn_stream)
         throw std::runtime_error("[GPU] onednn stream is nullptr");
+
     return *_onednn_stream;
 }
 #endif
