@@ -96,7 +96,9 @@ JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolutio
     if (params.outputs[0].GetDType() == Datatype::BINARY) {
         jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
     }
-    jit.AddConstant(MakeJitConstant("DG2", params.engineInfo.deviceType == dev_type::discrete_gpu));
+    //This is workaround code for compiler bug in unit test "binary_convolution.basic_convolution_1x1_single_packed_channel" on DG2.
+    //Delete it when the bug fixed.
+    jit.AddConstant(MakeJitConstant("WA_VOLATILE", params.engineInfo.bIMADSupport?"volatile":""));
 
     return jit;
 }
