@@ -37,7 +37,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
   * For C++ developers:
      * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
-     * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_
+     * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * For Python developers: `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
      * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
 
