@@ -216,12 +216,11 @@ TEST(type_prop, augru_sequence_invalid_attention_gate) {
     auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{params.batch_size, 999, 1});
     augru_sequence->set_argument(6, invalid_attention_gate);
 
-    // try {
-    //     invalid_attention_gate->validate_and_infer_types();
-    //     FAIL() << "AUGRUSequence node was created with invalid data.";
-    // } catch (const NodeValidationFailure& error) {
-    //     EXPECT_HAS_SUBSTRING(
-    //         error.what(),
-    //         std::string("Dimension `seq_length` must be the same for `X` and `A` inputs."));
-    // }
+    try {
+        augru_sequence->validate_and_infer_types();
+        FAIL() << "AUGRUSequence node was created with invalid data.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Dimension `seq_length` must be the same for `X` and `A` inputs."));
+    }
 }
