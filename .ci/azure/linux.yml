@@ -61,6 +61,7 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     BUILD_PYTHON: $(WORK_DIR)/build_python
     PY_VENV: $(WORK_DIR)/.venv
+    PYTHON_VERSION: 3.10.6
 
   steps:
   - script: |
@@ -148,7 +149,6 @@ jobs:
       # Speed up tests
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
-    failOnStderr: true 
     displayName: 'Install dependencies'
 
     # Should be after 'Install dependencies' because Git lfs is not installed
