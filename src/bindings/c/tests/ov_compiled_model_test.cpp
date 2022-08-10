@@ -4,7 +4,7 @@
 #include "ov_test.hpp"
 
 class ov_compiled_model : public ::testing::TestWithParam<std::string> {};
-INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU", "GPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"));
 TEST_P(ov_compiled_model, get_runtime_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;

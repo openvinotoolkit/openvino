@@ -20,7 +20,7 @@ TEST(ov_util, ov_get_error_info_check) {
 }
 
 class ov_core : public ::testing::TestWithParam<std::string> {};
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU", "GPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
     ov_core_t* core = nullptr;
@@ -200,13 +200,11 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     OV_ASSERT_OK(ov_property_put(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
 
-    if (device_name == "CPU") {
-        ov_property_value_t property_value;
-        OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
-        int32_t res = *(int32_t*)property_value.ptr;
-        EXPECT_EQ(num, res);
-        ov_property_value_clean(&property_value);
-    }
+    ov_property_value_t property_value;
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    int32_t res = *(int32_t*)property_value.ptr;
+    EXPECT_EQ(num, res);
+    ov_property_value_clean(&property_value);
 
     ov_property_free(property);
     ov_core_free(core);
@@ -234,10 +232,8 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
-    if (device_name == "CPU") {
-        std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
-        OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
-    }
+    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
 
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
@@ -246,9 +242,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
 TEST_P(ov_core, ov_core_import_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    if (device_name != "CPU") {
-        return;
-    }
+
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
