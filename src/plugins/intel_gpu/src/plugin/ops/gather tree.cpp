@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1::GatherTree>& op) {
@@ -28,7 +27,7 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
             auto reorderPrimName = inputPrimitives[portIndex] + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = DefaultFormatForDims(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputPrimitives[portIndex],
                                                  targetFormat,
@@ -58,5 +57,4 @@ static void CreateGatherTreeOp(Program& p, const std::shared_ptr<ngraph::op::v1:
 REGISTER_FACTORY_IMPL(v1, GatherTree);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

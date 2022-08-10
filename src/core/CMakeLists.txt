@@ -49,14 +49,20 @@ target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SO
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
 
-# Install static libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(ov_core_dev core)
+# Install interface libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
 
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
 
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
+if(ENABLE_SYSTEM_PUGIXML)
+    # system pugixml has /usr/include as include directories
+    # we cannot use them as system ones, leads to compilation errors
+    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+endif()
 
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
@@ -66,7 +72,8 @@ ie_faster_build(ngraph_obj
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference openvino::core::dev)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
+                                         pugixml::static ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
@@ -113,7 +120,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
-                                    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+                                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ngraph INTERFACE)
 target_link_libraries(ngraph INTERFACE openvino::runtime)
@@ -127,15 +134,15 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 #-----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include"
-        COMPONENT core_dev
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION cmake)
+    INSTALL_DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR})
 
 write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
     VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
@@ -143,5 +150,5 @@ write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
 
 install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION "runtime/cmake"
-        COMPONENT core_dev)
+        DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})

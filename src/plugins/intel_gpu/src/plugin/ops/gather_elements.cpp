@@ -11,13 +11,12 @@
 #include "intel_gpu/primitives/gather_elements.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsigned rank) {
     if (axis < 0)
         axis += rank;
-    if (axis < 0 || axis >= rank)
+    if (axis < 0 || axis >= static_cast<int32_t>(rank))
         IE_THROW() << "GatherElements axis is not correspond to number of dimensions";
 
     // Difference in dimension ordering between IE and GPU plugin,
@@ -50,7 +49,7 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
     size_t rank = op->get_input_shape(0).size();
     int32_t axis = static_cast<int32_t>(op->get_axis());
 
-    auto outLayout = DefaultFormatForDims(op->get_output_shape(0).size());
+    auto outLayout = cldnn::format::get_default_format(op->get_output_shape(0).size());
 
     auto primitive = cldnn::gather_elements(layerName,
                                             inputPrimitives[0],
@@ -67,5 +66,4 @@ static void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op:
 REGISTER_FACTORY_IMPL(v6, GatherElements);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

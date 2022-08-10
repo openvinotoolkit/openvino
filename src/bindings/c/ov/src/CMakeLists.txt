@@ -31,20 +31,26 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 # export
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::ov)
+
+ov_add_library_version(${TARGET_NAME})
+
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
 
-ie_cpack_add_component(core_c DEPENDS core)
-ie_cpack_add_component(core_c_dev DEPENDS core_c)
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core_c
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c
-        INCLUDES DESTINATION runtime/include/ie)
+        RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}
+        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}
+        NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_C_DEV}
+        # TODO: fix to proper location
+        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR}/ie)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION runtime/include/ie
-        COMPONENT core_c_dev)
+        # TODO: fix to proper location
+        DESTINATION ${OV_CPACK_INCLUDEDIR}/ie
+        COMPONENT ${OV_CPACK_COMP_CORE_C_DEV})

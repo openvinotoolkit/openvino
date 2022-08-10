@@ -8,57 +8,12 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
 
 #include <cmath>
 #include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;
-
-static void test_abs_basic_bfwzyx(const char* kernel_name){
-    auto& engine = get_test_engine();
-
-    std::vector<int> shape = {2, 3, 7, 6, 5, 4};
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
-    auto input_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
-    set_values(input, input_raw);
-    
-    auto elt_dat = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, shape)});
-    auto elt_dat_raw = generate_random_1d<float>(std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>()), -9, 9);
-    set_values(elt_dat, elt_dat_raw);
-
-    topology topo(input_layout("input", input->get_layout()),
-                  activation("act", "input", activation_func::abs),
-                  data("elt_dat", elt_dat),
-                  eltwise("elt", {"act", "elt_dat"}, eltwise_mode::prod));
-    build_options bo;
-    implementation_desc act_impl = { format::bfwzyx, kernel_name };
-    bo.set_option(build_option::force_implementations({{"act",act_impl}}));
-    network net(engine, topo, bo);
-    net.set_input_data("input", input);
-    auto res = net.execute();
-    EXPECT_EQ(res.size(), size_t(1));
-    EXPECT_EQ(res.begin()->first, "elt");
-
-    auto output_memory = res.at("elt").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-
-    int w_size = output_layout.spatial(3);
-    int z_size = output_layout.spatial(2);
-    int y_size = output_layout.spatial(1);
-    int x_size = output_layout.spatial(0);
-    int f_size = output_layout.feature();
-    int b_size = output_layout.batch();
-    auto bfwzyx = std::vector<int>{b_size, f_size, w_size, z_size, y_size, x_size};
-    EXPECT_EQ(output_layout.format, format::bfwzyx);
-    EXPECT_EQ(bfwzyx, shape);
-    for (size_t i = 0; i < input_raw.size(); ++i)
-        EXPECT_FLOAT_EQ(abs(input_raw[i])*elt_dat_raw[i], output_ptr[i]);
-}
-TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_opt) {test_abs_basic_bfwzyx("activation_ref");}
-TEST(activation_f32_fw_gpu, abs_basic_bfwzyx_ref) {test_abs_basic_bfwzyx("activation_opt");}
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
@@ -1544,14 +1499,12 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     }
 }
 
-struct activation_random_test_params {
-    data_types input_type;
-    format::type input_format;
-    tensor input_size;
-    activation_func func_type;
-    activation_additional_params additional_params;
-    padding padd;
-};
+using activation_random_test_params = std::tuple<data_types,
+                                                 format::type,                  // input_format
+                                                 tensor,                        // input_size
+                                                 activation_func,               // func_type
+                                                 activation_additional_params,  // additional_params
+                                                 padding>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
@@ -1643,15 +1596,23 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     void execute_compare(const activation_random_test_params& params, bool check_result) {
         auto& engine = get_test_engine();
 
-        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        data_types input_type;
+        format::type input_format;
+        tensor input_size;
+        activation_func func_type;
+        activation_additional_params additional_params;
+        padding padd;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd) = params;
+        auto in_layout = layout(input_type, format::bfyx, input_size);
+
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
 
         /// bfyx
         cldnn::topology topo;
         topo.add(input_layout("in", in_layout));
-        auto prim = activation("activation", "in", params.func_type);
-        prim.additional_params = params.additional_params;
+        auto prim = activation("activation", "in", func_type);
+        prim.additional_params = additional_params;
         topo.add(prim);
 
         auto build_opts = build_options();
@@ -1666,18 +1627,19 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
-        topo_opt.add(reorder("in_to_input_type", "in", params.input_format, params.input_type));
-        auto prim_opt = activation("activation_blocked", "in_to_input_type", params.func_type);
-        prim_opt.additional_params = params.additional_params;
+        topo_opt.add(reorder("in_to_input_type", "in", input_format, input_type));
+        auto prim_opt = activation("activation_blocked", "in_to_input_type", func_type);
+        prim_opt.additional_params = additional_params;
         topo_opt.add(prim_opt);
         // force output format to input format.
-        topo_opt.add(reorder("res_to_input_format", "activation_blocked", params.input_format, params.input_type));
+        topo_opt.add(reorder("res_to_input_format", "activation_blocked", input_format, input_type));
 
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"activation_blocked", "res_to_input_format"}));
         auto activation_impl_desc = implementation_desc();
-        activation_impl_desc.output_format = params.input_format;
-        build_opts_opt.set_option(build_option::force_implementations({{"activation_blocked", {params.input_format, "activation_ref"} }}));
+        activation_impl_desc.output_format = input_format;
+        build_opts_opt.set_option(
+            build_option::force_implementations({{"activation_blocked", {input_format, "activation_ref"}}}));
 
         network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -1690,16 +1652,16 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         if (check_result == true) {
             // Check data_types
-            if (params.input_type == data_types::f32) {
+            if (input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
-            } else if (params.input_type == data_types::f16) {
+            } else if (input_type == data_types::f16) {
                 compare_outputs<FLOAT16>(output, output_opt);
-            } else if (params.input_type == data_types::i8) {
+            } else if (input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
-            } else if (params.input_type == data_types::u8) {
+            } else if (input_type == data_types::u8) {
                 compare_outputs<uint8_t>(output, output_opt);
             } else {
-                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+                FAIL() << "Not supported data type: " << static_cast<size_t>(input_type);
             }
         }
     }
@@ -1710,14 +1672,86 @@ TEST_P(activation_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_SUITE_P(activation_blocked_tests,
-                         activation_random_test,
-                         testing::ValuesIn(
-                            std::vector<activation_random_test_params>{
-                                { data_types::i8,  format::b_fs_yx_fsv32,        { 1, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-                            }
-                        ));
+const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+});
+
+INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
+
+const std::vector<data_types> dataTypes = {data_types::f16, data_types::f32};
+const std::vector<format::type> types = {format::bfyx,
+                                         format::bfzyx,
+                                         format::yxfb,
+                                         format::byxf,
+                                         format::fyxb,
+                                         format::b_fs_yx_fsv2,
+                                         format::b_fs_zyx_fsv2,
+                                         format::bs_fs_yx_bsv32_fsv32,
+                                         format::bs_fs_yx_bsv32_fsv16};
+
+// TODO: need to investigate input for commented activation functions
+const std::vector<activation_func> activationFunctions = {activation_func::none,
+                                                          activation_func::logistic,
+                                                          activation_func::gelu,
+                                                          activation_func::hyperbolic_tan,
+                                                          activation_func::relu,
+                                                          activation_func::relu_negative_slope,
+                                                          activation_func::clamp,
+                                                          activation_func::softrelu,
+                                                          activation_func::abs,
+                                                          activation_func::linear,
+                                                          activation_func::square,
+//                                                          activation_func::sqrt,
+                                                          activation_func::elu,
+                                                          activation_func::sin,
+//                                                          activation_func::asin,
+                                                          activation_func::sinh,
+//                                                          activation_func::asinh,
+                                                          activation_func::cos,
+//                                                          activation_func::acos,
+                                                          activation_func::cosh,
+//                                                          activation_func::acosh,
+//                                                          activation_func::log,
+//                                                          activation_func::log2,
+                                                          activation_func::exp,
+                                                          activation_func::tan,
+                                                          activation_func::atan,
+//                                                          activation_func::atanh,
+                                                          activation_func::floor,
+                                                          activation_func::ceil,
+                                                          activation_func::negative,
+                                                          activation_func::negation,
+                                                          activation_func::pow,
+                                                          activation_func::reciprocal,
+                                                          activation_func::erf,
+                                                          activation_func::hard_sigmoid,
+                                                          activation_func::hsigmoid,
+                                                          activation_func::selu,
+                                                          activation_func::sign,
+                                                          activation_func::softplus,
+                                                          activation_func::swish,
+                                                          activation_func::hswish,
+                                                          activation_func::mish,
+                                                          activation_func::round_half_to_even,
+                                                          activation_func::round_half_away_from_zero,
+                                                          activation_func::gelu_tanh,
+                                                          activation_func::softsign};
+
+const std::vector<tensor> inputShapes = {
+    {1, 32, 5, 5},
+    {32, 32, 5, 5},
+    {16, 16, 5, 5},
+};
+
+const auto fpFunctionsParams = ::testing::Combine(::testing::ValuesIn(dataTypes),
+                                                  ::testing::ValuesIn(types),
+                                                  ::testing::ValuesIn(inputShapes),
+                                                  ::testing::ValuesIn(activationFunctions),
+                                                  ::testing::Values(activation_additional_params{}),
+                                                  ::testing::Values(padding{}));
+
+INSTANTIATE_TEST_SUITE_P(fp_activation_blocked_tests, activation_random_test, fpFunctionsParams);

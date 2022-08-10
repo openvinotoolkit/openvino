@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
@@ -20,7 +19,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
     std::string layerName = layer_type_name_ID(op);
 
     auto rank = op->get_input_shape(0).size();
-    auto format = DefaultFormatForDims(rank);
+    auto format = cldnn::format::get_default_format(rank);
 
     std::vector<cldnn::tensor> inputs;
     inputs.reserve(3);
@@ -54,5 +53,4 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v1, SpaceToBatch);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
