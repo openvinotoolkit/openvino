@@ -36,6 +36,7 @@ jobs:
         PYTHON_STATIC_ARGS:
         CMAKE_CPACK_GENERATOR: 'DEB'
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        RUN_PREFIX:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
