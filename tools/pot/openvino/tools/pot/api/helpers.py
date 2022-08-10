@@ -250,7 +250,7 @@ class ExportParameters(object):
 
 def export(compressed_model, path_to_save, parameters: ExportParameters = ExportParameters()) -> None:
     """
-    Save optimized model in the source format.
+    Save optimized model to OpenVINO IR.
     """
     if parameters.compress_weights:
         compress_model_weights(compressed_model)
