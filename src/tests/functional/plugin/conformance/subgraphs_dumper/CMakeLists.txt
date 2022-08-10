@@ -33,6 +33,11 @@ if(TARGET openvino_tensorflow_frontend)
     list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)
 endif()
 
+if(TARGET openvino_pytorch_frontend)
+    list(APPEND DEPENDENCIES openvino_pytorch_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}

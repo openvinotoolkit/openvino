@@ -17,6 +17,7 @@ namespace frontend {
 
 class FRONTEND_API NodeContext {
 public:
+    // TODO: Why this ctor is explicit when get_op_type is virtual so m_op_type looks to be a custom implementation
     explicit NodeContext(const std::string& op_type) : m_op_type(op_type) {}
     virtual ~NodeContext() = default;
 
@@ -89,7 +90,7 @@ public:
     virtual ov::Any get_attribute_as_any(const std::string& name) const = 0;
 
     /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
-    size_t get_subgraph_size() const {
+    virtual size_t get_subgraph_size() const {
         return 0;
     }
 

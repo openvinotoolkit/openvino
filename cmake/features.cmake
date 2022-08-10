@@ -164,6 +164,7 @@ ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON "protoc_av
 ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
+ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable Pytorch/TorchScript FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)

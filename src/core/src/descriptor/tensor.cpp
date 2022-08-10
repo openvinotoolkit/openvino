@@ -38,8 +38,23 @@ void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, 
     set_partial_shape(pshape);
 }
 
+void ov::descriptor::Tensor::set_custom_tensor_type(ov::Any custom_element_type, const PartialShape& pshape) {
+    set_custom_element_type(custom_element_type);
+    set_partial_shape(pshape);
+}
+
 void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
     m_element_type = element_type;
+}
+
+void ov::descriptor::Tensor::set_custom_element_type(ov::Any custom_element_type) {
+    // Check if custom_element_type is actually element::Type_t, in this case the type is regular, not a custom one
+    if (custom_element_type.is<element::Type_t>()) {
+        set_element_type(custom_element_type.as<element::Type_t>());
+    } else {
+        set_element_type(element::custom);
+        m_custom_element_type = custom_element_type;
+    }
 }
 
 void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {

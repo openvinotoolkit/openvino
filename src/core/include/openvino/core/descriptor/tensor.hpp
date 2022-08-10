@@ -51,11 +51,11 @@ public:
 
     OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
     void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
-    void set_tensor_type(ov::Any custom_element_type, const PartialShape& pshape);
+    void set_custom_tensor_type(ov::Any custom_element_type, const PartialShape& pshape);
     OPENVINO_DEPRECATED(
         "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
     void set_element_type(const element::Type& elemenet_type);
-    void set_element_type(ov::Any custom_elemenet_type);
+    void set_custom_element_type(ov::Any custom_elemenet_type);
     OPENVINO_DEPRECATED(
         "set_partial_shape() is deprecated. To change Tensor partial shape please change the Parameter partial shape")
     void set_partial_shape(const PartialShape& partial_shape);

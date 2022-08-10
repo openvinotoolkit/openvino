@@ -26,10 +26,37 @@ public:
 
     virtual std::vector<size_t> inputs () const = 0;
 
+
+    // ------------------------------
+    // TODO: physically inputs and outputs refer to PT Values so shape/type is not a property of input/output
+    // Do we need a separate Decoder for Tensor to request properties of it instead of having an impression
+    // that inputs/outputs have types and shapes?
+
+    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    virtual PartialShape get_input_shape (size_t index) = 0;
+
+    // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object (see custom_type.hpp)
+    virtual Any get_input_type (size_t index) = 0;
+
+    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
+    virtual std::vector<size_t> get_input_transpose_order (size_t index) = 0;
+
+    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
+    virtual std::vector<size_t> get_output_transpose_order (size_t index) = 0;
+
+    // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
+    virtual PartialShape get_output_shape (size_t index) = 0;
+
+    // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object (see custom_type.hpp)
+    virtual Any get_output_type (size_t index) = 0;
+    // ------------------------------
+
+
     // TODO: required? can be implemented in the context of a single node?
     virtual bool input_is_none (size_t index) const = 0;
 
     // Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
+    // TODO: why OutputVector instead of just single output?
     virtual OutputVector as_constant () = 0;
 
     // Returns PT node kind as a string mnemonics for native type uint32_t Symbol in Torch
@@ -41,6 +68,9 @@ public:
 
     // Return a vector of output IDs
     virtual std::vector<size_t> outputs () const = 0;
+    
+    // Return a vector of output IDs
+    virtual size_t output (size_t index) const = 0;
 
     // Embed mapping to/from the original node representation from/to node passed as a parameter
     // the representation of this mapping is specific for particular decored type and may be NOP
@@ -66,8 +96,9 @@ public:
     /// \brief Returns subgraph converted on demand by the first access
     /// If there is no query for specific sub-graph it shouldn't be converted
     /// idx should be in range 0..get_subgraph_size()-1
-    // TODO: Why int for idx? Why not unsigned? Just reused the same type fro get_input
-    virtual std::shared_ptr<Decoder> get_subgraph(int idx) const = 0;
+    // TODO: Why int for idx? Why not unsigned? Just reused the same type for get_input
+    // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
+    virtual void visit_subgraph(int idx, std::function<void(std::shared_ptr<Decoder>)> node_visitor) const = 0;
 };
 
 }

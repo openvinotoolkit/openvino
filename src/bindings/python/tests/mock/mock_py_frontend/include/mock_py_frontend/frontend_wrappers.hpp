@@ -15,6 +15,10 @@
 #ifdef ENABLE_OV_TF_FRONTEND
 #    include "openvino/frontend/tensorflow/frontend.hpp"
 #endif
+
+#ifdef ENABLE_OV_PYTORCH_FRONTEND
+#    include "openvino/frontend/pytorch/frontend.hpp"
+#endif
 #include "visibility.hpp"
 
 #ifdef ENABLE_OV_ONNX_FRONTEND
