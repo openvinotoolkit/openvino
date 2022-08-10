@@ -54,7 +54,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c ${OpenCV_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c
     commonTestUtils gtest_main)
 
 target_include_directories(${TARGET_NAME} PUBLIC
@@ -62,7 +62,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
-    $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
     DATA_PATH=\"${DATA_PATH}\"
     MODELS_PATH=\"${MODELS_PATH}\")
 

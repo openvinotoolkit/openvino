@@ -99,22 +99,6 @@ typedef enum {
 } ov_element_type_e;
 
 /**
- * @enum ov_color_format_e
- * @brief This enum contains enumerations for color format.
- */
-typedef enum {
-    UNDEFINE = 0U,      //!< Undefine color format
-    NV12_SINGLE_PLANE,  // Image in NV12 format as single tensor
-    NV12_TWO_PLANES,    // Image in NV12 format represented as separate tensors for Y and UV planes.
-    I420_SINGLE_PLANE,  // Image in I420 (YUV) format as single tensor
-    I420_THREE_PLANES,  // Image in I420 format represented as separate tensors for Y, U and V planes.
-    RGB,
-    BGR,
-    RGBX,  // Image in RGBX interleaved format (4 channels)
-    BGRX   // Image in BGRX interleaved format (4 channels)
-} ov_color_format_e;
-
-/**
  * @brief Print the error info.
  * @param ov_status_e a status code.
  */
