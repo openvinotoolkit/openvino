@@ -122,6 +122,13 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                 producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
                                 '\n');
             }
+
+            // skip conditional edges that must be resolved before operation translation
+            // now we can meet them because we still work with TensorFlow protobuf
+            if (is_conditional_edge(producer_name)) {
+                continue;
+            }
+
             // TODO: re-implement the logic below once Place graph structure is implemented
             // Using Place graph structure (OpPlace, In/OutPortPlace places and their connections) can give
             // names of ports and operations that can be used for further check about existence in ng_op_map

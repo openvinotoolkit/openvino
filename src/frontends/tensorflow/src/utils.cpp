@@ -73,6 +73,13 @@ void fill_explicit_pads_vectors(const ov::frontend::tensorflow::NodeContext& nod
                                 const std::vector<int64_t>& tf_explicit_paddings,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end) {
+    auto fullfill_pads = [&](ov::CoordinateDiff& pads, const std::vector<int64_t>& indexes) {
+        pads.resize(indexes.size());
+        for (int i = 0; i < indexes.size(); ++i) {
+            pads[i] = tf_explicit_paddings[indexes[i]];
+        }
+    };
+
     if (spatial_dims_num == 2) {
         TENSORFLOW_OP_VALIDATION(node,
                                  tf_explicit_paddings.size() == 8,
@@ -81,17 +88,13 @@ void fill_explicit_pads_vectors(const ov::frontend::tensorflow::NodeContext& nod
         if (is_nhwc) {
             // For NHWC layout, explicit paddings has the following form:
             // [0, 0, pad_h1, pad_h2, pad_w1, pad_w2, 0, 0]
-            pads_begin.push_back(tf_explicit_paddings[2]);
-            pads_begin.push_back(tf_explicit_paddings[4]);
-            pads_end.push_back(tf_explicit_paddings[3]);
-            pads_end.push_back(tf_explicit_paddings[5]);
+            fullfill_pads(pads_begin, {2, 4});
+            fullfill_pads(pads_end, {3, 5});
         } else {
             // For NCHW layout, explicit paddings has the following form:
             // [0, 0, 0, 0, pad_h1, pad_h2, pad_w1, pad_w2]
-            pads_begin.push_back(tf_explicit_paddings[4]);
-            pads_begin.push_back(tf_explicit_paddings[6]);
-            pads_end.push_back(tf_explicit_paddings[5]);
-            pads_end.push_back(tf_explicit_paddings[7]);
+            fullfill_pads(pads_begin, {4, 6});
+            fullfill_pads(pads_end, {5, 7});
         }
     } else {
         TENSORFLOW_OP_VALIDATION(node,
@@ -101,21 +104,13 @@ void fill_explicit_pads_vectors(const ov::frontend::tensorflow::NodeContext& nod
         if (is_nhwc) {
             // For NDHWC layout, explicit paddings has the following form:
             // [0, 0, pad_d1, pad_d2, pad_h1, pad_h2, pad_w1, pad_w2, 0, 0]
-            pads_begin.push_back(tf_explicit_paddings[2]);
-            pads_begin.push_back(tf_explicit_paddings[4]);
-            pads_begin.push_back(tf_explicit_paddings[6]);
-            pads_end.push_back(tf_explicit_paddings[3]);
-            pads_end.push_back(tf_explicit_paddings[5]);
-            pads_end.push_back(tf_explicit_paddings[7]);
+            fullfill_pads(pads_begin, {2, 4, 6});
+            fullfill_pads(pads_end, {3, 5, 7});
         } else {
             // For NCDHW layout, explicit paddings has the following form:
             // [0, 0, 0, 0, pad_d1, pad_d2, pad_h1, pad_h2, pad_w1, pad_w2]
-            pads_begin.push_back(tf_explicit_paddings[4]);
-            pads_begin.push_back(tf_explicit_paddings[6]);
-            pads_begin.push_back(tf_explicit_paddings[8]);
-            pads_end.push_back(tf_explicit_paddings[5]);
-            pads_end.push_back(tf_explicit_paddings[7]);
-            pads_end.push_back(tf_explicit_paddings[9]);
+            fullfill_pads(pads_begin, {4, 6, 8});
+            fullfill_pads(pads_end, {5, 7, 9});
         }
     }
 }
@@ -158,7 +153,7 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
         is_nhwc = (tf_data_format == "NDHWC");
     }
 
-    // prepare attributes for OpenVINO ConvolutionBackpropData
+    // prepare attributes for OpenVINO Convolution operation
     ov::Strides strides(spatial_dims_num);
     ov::Strides dilations(spatial_dims_num);
     ov::frontend::tensorflow::convert_nhwc_to_hw(is_nhwc, tf_strides, strides);
@@ -182,4 +177,8 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, conv);
     ov::frontend::tensorflow::set_node_name(node.get_name(), conv.get_node_shared_ptr());
     return {conv};
+}
+
+bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
+    return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
 }
