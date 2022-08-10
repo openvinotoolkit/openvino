@@ -117,3 +117,27 @@ Finally, complete the procedure with clicking on **Modify** and then selecting *
 @endsphinxdirective
 
 ## Uninstalling OpenVINO 2022.1.1
+
+If you have installed OpenVINO Runtime 2022.1.1 from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+
+@sphinxdirective
+.. tab:: Windows
+
+  You can choose either of the following methods:
+
+  * Use Windows Explorer to remove the files.
+  * Open a Command Prompt and run:
+    
+    .. code-block:: sh
+  
+      rmdir /s <extracted_folder>
+      del <path_to_archive>
+
+    
+.. tab:: Linux & macOS
+  
+  .. code-block:: sh
+  
+    rm -r <extracted_folder> && rm <path_to_archive>
+
+@endsphinxdirective
