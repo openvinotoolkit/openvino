@@ -987,6 +987,7 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, buf_i
     case Precision::U32:  copyResultToOutputBlob<int32_t, uint32_t>(src, dst, bi, stream);  break;
     case Precision::U64:  copyResultToOutputBlob<int32_t, uint64_t>(src, dst, bi, stream);  break;
     case Precision::U8:   copyResultToOutputBlob<uint8_t, uint8_t>(src, dst, bi, stream);  break;
+    case Precision::BOOL: copyResultToOutputBlob<int8_t, int8_t>(src, dst, bi, stream);  break;
     default: IE_THROW(NotImplemented) << "The plugin does not support output " << dst->getTensorDesc().getPrecision() << " precision";
     }
 }
