@@ -239,6 +239,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SpaceToDepth", translate_space_to_depth_op},
         {"Split", translate_split_op},
         {"SplitV", translate_split_v_op},
+        {"StopGradient", translate_identity_op},
         {"Sqrt", translate_sqrt_op},
         {"Square", translate_square_op},
         {"Squeeze", translate_squeeze_op},

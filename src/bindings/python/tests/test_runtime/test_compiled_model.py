@@ -347,7 +347,12 @@ def test_direct_infer(device):
 
 @pytest.mark.template_plugin()
 def test_compiled_model_after_core_destroyed(device):
-    core, model = get_model_with_template_extension()
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        weights = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    model = core.read_model(model=xml, weights=weights)
     compiled = core.compile_model(model, device)
     del core
     del model

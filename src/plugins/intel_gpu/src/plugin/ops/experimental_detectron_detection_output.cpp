@@ -33,7 +33,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     const auto mutable_precision1 = op->get_output_element_type(1);
     const auto output_shape1 = op->get_output_shape(1);
     const cldnn::layout mutable_layout1{DataTypeFromPrecision(mutable_precision1),
-                                        DefaultFormatForDims(output_shape1.size()),
+                                        cldnn::format::get_default_format(output_shape1.size()),
                                         tensor_from_dims(output_shape1)};
     cldnn::memory::ptr shared_memory1{p.GetEngine().allocate_memory(mutable_layout1)};
 
@@ -46,7 +46,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     const auto mutable_precision2 = op->get_output_element_type(2);
     const auto output_shape2 = op->get_output_shape(2);
     const cldnn::layout mutable_layout2{DataTypeFromPrecision(mutable_precision2),
-                                        DefaultFormatForDims(output_shape2.size()),
+                                        cldnn::format::get_default_format(output_shape2.size()),
                                         tensor_from_dims(output_shape2)};
     cldnn::memory::ptr shared_memory2{p.GetEngine().allocate_memory(mutable_layout2)};
 

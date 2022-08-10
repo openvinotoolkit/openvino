@@ -16,7 +16,7 @@ namespace {
 void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::RandomUniform> &op) {
     auto input_primitives = p.GetInputPrimitiveIDs(op);
     auto output_shape = op->get_output_shape(0);
-    cldnn::format outputFormat = DefaultFormatForDims(output_shape.size());
+    cldnn::format outputFormat = cldnn::format::get_default_format(output_shape.size());
 
     auto random_uniform_prim = cldnn::random_uniform(layer_type_name_ID(op),
                                                      input_primitives,
