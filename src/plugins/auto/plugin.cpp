@@ -53,13 +53,6 @@ namespace {
         return METRIC_VALUE(FP32);
     }
 
-    std::map<std::string, std::string> mergeConfigs(std::map<std::string, std::string> config,
-                                                    const std::map<std::string, std::string> & local) {
-        for (auto && kvp : local) {
-            config[kvp.first] = kvp.second;
-        }
-        return config;
-    }
     std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
                     auto res = PerfHintsConfig::SupportedKeys();
                     res.push_back(ov::device::priorities.name());
@@ -97,7 +90,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     auto setTputAsDefault = [&](const std::string& targetDevice,
                                std::map<std::string, std::string>& deviceConfig,
                                const std::map<std::string, std::string>& mergedConfig) {
-        if (GetName() == "AUTO" && mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) == mergedConfig.end() &&
+        // Default value of PERFORMACE_HINT is empty string.
+        auto iter = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+        if (GetName() == "AUTO" && iter->second.empty() &&
             mergedConfig.find(targetDevice) == mergedConfig.end()) {
             // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
             // specified for target device.
@@ -107,11 +102,11 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (mergedConfig.find(targetDevice) != mergedConfig.end())
+            if (!iter->second.empty() || mergedConfig.find(targetDevice) != mergedConfig.end())
                 return;
             for (auto&& kvp : mergedConfig) {
-                if (kvp.first == ov::hint::performance_mode || kvp.first == ov::affinity ||
-                    kvp.first == ov::num_streams || kvp.first == ov::inference_num_threads) {
+                if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
+                    kvp.first == ov::inference_num_threads) {
                     return;
                 }
             }
@@ -122,7 +117,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = mergeConfigs(_config, config);
+        std::map<std::string, std::string> tconfig = config;
 
         // set device ID if any
         std::string deviceIDLocal = deviceParser.getDeviceID();

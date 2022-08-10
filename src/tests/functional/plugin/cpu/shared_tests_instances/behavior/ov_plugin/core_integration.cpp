@@ -287,7 +287,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithDefaultPropertiesTest,
                                             ::testing::ValuesIn(auto_default_properties)));
 
 const std::vector<ov::AnyMap> default_incorrect_properties = {
-        {ov::device::priorities("CPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
+        {ov::device::priorities("CPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
         {ov::device::priorities("CPU"), ov::device::properties("CPU", ov::hint::allow_auto_batching(true))}
         };
 const std::vector<ov::AnyMap> default_multi_incorrect_properties = {

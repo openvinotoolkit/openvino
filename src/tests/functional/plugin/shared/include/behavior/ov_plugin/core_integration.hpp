@@ -1064,7 +1064,7 @@ TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefa
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
     ov::hint::PerformanceMode value;
     OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
-    ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
+    ASSERT_NE(value, ov::hint::PerformanceMode::THROUGHPUT);
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
