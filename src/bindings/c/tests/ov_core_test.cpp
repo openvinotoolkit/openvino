@@ -234,7 +234,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
-    if(device_name == "CPU") {
+    if (device_name == "CPU") {
         std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
         OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
     }
@@ -246,7 +246,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
 TEST_P(ov_core, ov_core_import_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    if(device_name != "CPU") {
+    if (device_name != "CPU") {
         return;
     }
     OV_ASSERT_OK(ov_core_create("", &core));

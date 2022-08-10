@@ -319,7 +319,7 @@ TEST_P(ov_infer_request, get_profiling_info) {
     OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
-    if(device_name != "CPU") {
+    if (device_name != "CPU") {
         return;
     }
     ov_profiling_info_list_t profiling_infos;
