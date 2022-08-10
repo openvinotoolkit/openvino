@@ -58,7 +58,7 @@ void cell_pass(CellType type,
     size_t num_splits = shapes[0].at(1);
     size_t part_size = x_shape_size / num_splits * sizeof(T);
     std::vector<char> in_seqs(x_shape_size * sizeof(T));
-    std::vector<char*> pointers(num_splits);
+    std::vector<char*> in_seqs_pointers(num_splits);
 
     // in case of seq_lengths input was provided and filled with values !=
     // max_seq_lengths
@@ -84,9 +84,20 @@ void cell_pass(CellType type,
         memcpy(temp_buffer.data(), inputs[0], x_shape_size * sizeof(T));
     }
     for (size_t i = 0; i < num_splits; ++i)
-        pointers[i] = in_seqs.data() + i * part_size;
+        in_seqs_pointers[i] = in_seqs.data() + i * part_size;
 
-    reference::split(temp_buffer.data(), shapes[0], sizeof(T), 1, num_splits, pointers.data());
+    reference::split(temp_buffer.data(), shapes[0], sizeof(T), 1, num_splits, in_seqs_pointers.data());
+
+    // split A
+    const auto a_shape_size = ngraph::shape_size(shapes[6]);
+    std::vector<char> a_seqs(a_shape_size * sizeof(T));
+    if (type == CellType::AUGRU) {
+        std::vector<char*> a_pointers(num_splits);
+        for (size_t i = 0; i < num_splits; ++i) {
+            a_pointers[i] = a_seqs.data() + i * batch * sizeof(T);
+        }
+        reference::split(inputs[6], shapes[6], sizeof(T), 1, num_splits, a_pointers.data());
+    }
 
     Shape part_shape{batch, 1, hidden_size};
     size_t part_shape_size = ngraph::shape_size(part_shape);
@@ -192,7 +203,7 @@ void cell_pass(CellType type,
                                             args.activation_g,
                                             args.clip,
                                             args.linear_before_reset,
-                                            reinterpret_cast<const T*>(inputs[6] + time_step * sizeof(T)));
+                                            reinterpret_cast<const T*>(a_seqs.data() + time_step * batch * sizeof(T)));
         }
 
         if (enable_mask) {
@@ -537,12 +548,11 @@ void gru_sequence(const char* X,
         std::vector<Shape> shapes = {X_shape, seq_lengths_shape, H_shape, W_shape, R_shape, B_shape};
         if (A) {
             inputs.push_back(A);
-            cell_pass<T, U>(CellType::AUGRU,
-                            inputs,
-                            shapes,
-                            outputs,
-                            args,
-                            direction == op::RecurrentSequenceDirection::REVERSE);
+            Shape a_shape = X_shape;
+            a_shape[2] = 1;
+            shapes.push_back(a_shape);
+            cell_pass<T, U>(CellType::AUGRU, inputs, shapes, outputs, args,
+                            false);  // only forward direction
         } else {
             cell_pass<T, U>(CellType::GRU,
                             inputs,
@@ -583,37 +593,20 @@ void gru_sequence(const char* X,
             shapes[i][0] = 1;
         }
 
-        if (A) {
-            // forward pass
-            cell_pass<T, U>(CellType::AUGRU,
-                            {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0], A},
-                            shapes,
-                            {forward_res_y.data(), forward_res_h.data()},
-                            args,
-                            false);
-            // reverse pass
-            cell_pass<T, U>(CellType::AUGRU,
-                            {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1], A},
-                            shapes,
-                            {reverse_res_y.data(), reverse_res_h.data()},
-                            args,
-                            true);
-        } else {
-            // forward pass
-            cell_pass<T, U>(CellType::GRU,
-                            {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0]},
-                            shapes,
-                            {forward_res_y.data(), forward_res_h.data()},
-                            args,
-                            false);
-            // reverse pass
-            cell_pass<T, U>(CellType::GRU,
-                            {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1]},
-                            shapes,
-                            {reverse_res_y.data(), reverse_res_h.data()},
-                            args,
-                            true);
-        }
+        // forward pass
+        cell_pass<T, U>(CellType::GRU,
+                        {X, seq_lengths, h_pointers[0], w_pointers[0], r_pointers[0], b_pointers[0]},
+                        shapes,
+                        {forward_res_y.data(), forward_res_h.data()},
+                        args,
+                        false);
+        // reverse pass
+        cell_pass<T, U>(CellType::GRU,
+                        {X, seq_lengths, h_pointers[1], w_pointers[1], r_pointers[1], b_pointers[1]},
+                        shapes,
+                        {reverse_res_y.data(), reverse_res_h.data()},
+                        args,
+                        true);
 
         // Stack together respective outputs from both forward and reverse passes.
         std::vector<Shape> in_shapes_y = {{H_shape[0], 1, X_shape[1], H_shape[2]},
