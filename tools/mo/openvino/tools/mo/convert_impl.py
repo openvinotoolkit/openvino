@@ -363,13 +363,6 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def prepare_ir(argv: argparse.Namespace):
-    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-    # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    if argv.use_new_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        convert_to_pb(argv)
-
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -391,14 +384,6 @@ def prepare_ir(argv: argparse.Namespace):
                 for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
             ngraph_function = moc_pipeline(argv, moc_front_end)
-
-            # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-            # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-            if argv.use_new_frontend and is_tf:
-                output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-                path_to_tmp_pb_file = os.path.normpath(os.path.join(output_dir, argv.model_name + "_tmp.pb"))
-                if os.path.exists(path_to_tmp_pb_file):
-                    os.remove(path_to_tmp_pb_file)
 
             return graph, ngraph_function
         else:  # apply fallback
