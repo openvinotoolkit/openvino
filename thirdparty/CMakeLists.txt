@@ -51,7 +51,13 @@ if(ENABLE_SYSTEM_PUGIXML)
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
         set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(pugixml::static ALIAS pugixml)
+        if(TARGET pugixml::static)
+            # sometimes pugixml::static target already exists, just need to make it global
+            set_target_properties(pugixml::static PROPERTIES IMPORTED_GLOBAL ON)
+        else()
+            # or create an alias
+            add_library(pugixml::static ALIAS pugixml)
+        endif()
     else()
         # reset to prevent improper code generation in OpenVINODeveloperPackage
         set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)

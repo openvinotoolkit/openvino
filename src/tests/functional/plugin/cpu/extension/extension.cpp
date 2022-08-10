@@ -7,6 +7,7 @@
 #include <ngraph/ngraph.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
+#include "common_test_utils/file_utils.hpp"
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
 public:
@@ -199,7 +200,8 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 

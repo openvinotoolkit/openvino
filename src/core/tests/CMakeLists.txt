@@ -545,7 +545,7 @@ add_executable(ov_core_unit_tests ${SRC})
 
 add_dependencies(ov_core_unit_tests template_extension)
 
-target_include_directories(ov_core_unit_tests PRIVATE ".")
+target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(ov_core_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
 get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
