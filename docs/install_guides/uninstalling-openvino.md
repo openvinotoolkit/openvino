@@ -2,7 +2,9 @@
 
 > **NOTE**: Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files but don't affect user files in the installation directory.
 
-## Uninstall Using the Original Installation Package
+## Uninstalling OpenVINO 2022.1
+
+### Uninstalling Using the Original Installation Package
 
 @sphinxdirective
 .. tab:: Windows
@@ -45,7 +47,7 @@
 
 @endsphinxdirective
 
-## Uninstall Using the Intel® Software Installer
+### Uninstalling Using the Intel® Software Installer
 
 @sphinxdirective
 .. tab:: Windows
@@ -113,3 +115,5 @@ Finally, complete the procedure with clicking on **Modify** and then selecting *
     :align: center
 
 @endsphinxdirective
+
+## Uninstalling OpenVINO 2022.1.1
