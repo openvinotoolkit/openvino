@@ -206,8 +206,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         if (port_type == "none") {
             for (const auto& node_output : ng_op_map[operation_name]) {
                 auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                // for alignment with legacy TensorFlow frontend, we must use OpName:0 for Result node
-                set_node_name(operation_name + ":" + std::to_string(port_index), result_node);
+                set_node_name(model_output_name, result_node);
                 results.push_back(result_node);
             }
         } else if (port_type == "out") {
@@ -268,6 +267,8 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             }
         }
     }
+
+    // TODO: reorder results and params according to indices given in RT info (if any)
 
     // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
@@ -402,7 +403,9 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
+    // and preserve tensor names in case of sinking
+    // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
 }
 
