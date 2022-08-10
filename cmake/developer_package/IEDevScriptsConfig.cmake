@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_VERSION_BUILD
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
                 OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
@@ -87,7 +87,6 @@ endif()
 # Common scripts
 #
 
-include(packaging/packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
@@ -164,13 +163,8 @@ macro(ov_set_if_not_defined var value)
     endif()
 endmacro()
 
-if(NOT UNIX)
-    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-else()
-    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-endif()
+ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -194,6 +188,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
 set(CMAKE_SKIP_INSTALL_RPATH ON)
+
+include(packaging/packaging)
 
 # LTO
 
