@@ -49,10 +49,8 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
     if (!inConst)
         IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
 
-    auto& mvnShape = op->get_output_shape(0);
-    std::vector<int32_t> axes = inConst->cast_vector<int32_t>();
-    for (int32_t& axis : axes)
-        axis = axis < 0 ? axis + mvnShape.size() : axis;
+    std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
+    ov::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
 
     const size_t chanelAxis = 1;
     bool across_channels = std::find(axes.begin(), axes.end(), chanelAxis) != axes.end();

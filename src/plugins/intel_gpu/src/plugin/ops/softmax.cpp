@@ -31,12 +31,7 @@ static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v8::So
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    int64_t axis = op->get_axis();
-    size_t rank = op->get_input_shape(0).size();
-    if (axis < 0)
-        axis += rank;
-    if (axis < 0 || axis >= static_cast<int64_t>(rank))
-        IE_THROW() << "Softmax axis is not correspond to number of dimensions";
+    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputPrimitives[0],
@@ -52,9 +47,7 @@ static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5:
     std::string layerName = layer_type_name_ID(op);
     std::string layerNameSoftmax = layer_type_name_ID(op) + "_softmax";
 
-    auto axis = op->get_axis();
-    if (axis < 0)
-        axis += op->get_input_shape(0).size();
+    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputPrimitives[0],

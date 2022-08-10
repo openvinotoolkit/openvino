@@ -20,7 +20,9 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
     const auto inputs = p.GetInputPrimitiveIDs(op);
     const auto layer_name = layer_type_name_ID(op);
     const auto& op_friendly_name = op->get_friendly_name();
-    const auto& input_shape = op->get_input_shape(0);
+    const auto& input_pshape = op->get_input_partial_shape(0);
+    OPENVINO_ASSERT(input_pshape.is_static(), "Dynamic shapes are not supported for Roll operation yet");
+    const auto& input_shape = input_pshape.to_shape();
     const uint8_t rank = input_shape.size();
     const auto format = cldnn::format::get_default_format(rank);
     const auto default_rank = format.dimension();

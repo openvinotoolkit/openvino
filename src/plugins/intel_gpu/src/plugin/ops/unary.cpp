@@ -76,10 +76,10 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
     p.ValidateInputs(op, {2});
 
     auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto slope_shape = op->get_input_shape(1);
-    auto out_shape = op->get_output_shape(0);
+    auto slope_shape = op->get_input_partial_shape(1);
+    auto out_shape = op->get_output_partial_shape(0);
 
-    if (slope_node && ngraph::shape_size(slope_shape) == 1) {
+    if (slope_node && ngraph::shape_size(slope_shape.to_shape()) == 1) {
         float slope;
         if (!ngraph::op::util::get_single_value(slope_node, slope))
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
