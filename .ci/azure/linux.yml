@@ -35,7 +35,7 @@ jobs:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
         PYTHON_STATIC_ARGS:
         CMAKE_CPACK_GENERATOR: 'DEB'
-        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
         RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
@@ -275,32 +275,14 @@ jobs:
       sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      sudo apt-get install openvino -y
+      # sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
       dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
       echo "deb [trusted=yes] file:$(BUILD_DIR) ./" | sudo tee /etc/apt/sources.list.d/openvino-local.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
-      # sudo apt-get install -f openvino -y
-      # TODO: fix it
-      sudo dpkg -i libopenvino-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-auto-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-auto-batch-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-dev-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-hetero-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-intel-cpu-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-intel-gna-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-intel-gpu-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-intel-vpu-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i libopenvino-python-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i openvino-libraries-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i openvino-libraries-dev-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i openvino-libraries-dev_2022.3.0_amd64.deb
-      sudo dpkg -i openvino-samples-2022.3.0_2022.3.0_all.deb
-      sudo dpkg -i openvino-samples-python-2022.3.0_2022.3.0_all.deb
-      sudo dpkg -i openvino-2022.3.0_2022.3.0_amd64.deb
-      sudo dpkg -i openvino_2022.3.0_amd64.deb
+      sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Install Debian packages'
