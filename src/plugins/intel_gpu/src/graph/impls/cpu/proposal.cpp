@@ -427,8 +427,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     void init_kernels() override {}
 
-    static primitive_impl* create(const proposal_node& arg) {
-        const layout& l = arg.image_info().get_output_layout();
+    static primitive_impl* create(const proposal_node& arg, const kernel_impl_params& impl_param) {
+        const layout& l = impl_param.input_layouts[2];
         const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
 
         // Supported image_info sizes and components meaning:
