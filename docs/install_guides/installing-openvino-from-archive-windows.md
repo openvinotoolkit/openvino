@@ -75,6 +75,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
    * If not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
 4. Unzip the `<archive name>.zip` file using your preferred archive tool. 
+   > **NOTE**: The name of the archive file might be long. Make sure that you have [enabled long paths on Windows](https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#enable-long-paths-in-windows-10-version-1607-and-later) to avoid possible errors in the unzipping process.
  
 The standard OpenVINO `<INSTALL_DIR>` used in this document is `C:\Program Files (x86)\Intel\openvino_<version>\`. You're recommended to move the extracted files to that directory. 
 
