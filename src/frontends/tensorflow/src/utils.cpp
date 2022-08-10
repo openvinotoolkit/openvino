@@ -32,13 +32,14 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
     output.get_tensor().add_names({out_name});
 }
 
-ov::op::PadType ov::frontend::tensorflow::convert_conv_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
-                                                                  const std::string& tf_padding) {
+ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
+                                                             const std::string& tf_padding) {
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
                              op_type == "Conv2D" || op_type == "Conv2DBackpropInput" || op_type == "Conv3D" ||
-                                 op_type == "Conv3DBackpropInputV2",
+                                 op_type == "Conv3DBackpropInputV2" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
+                                 op_type == "MaxPool3D",
                              "The convert_conv_tf_padding routine supports only convolutional operations.");
     TENSORFLOW_OP_VALIDATION(
         node,
@@ -48,14 +49,15 @@ ov::op::PadType ov::frontend::tensorflow::convert_conv_tf_padding(const ov::fron
     if (tf_padding == "VALID") {
         return ov::op::PadType::VALID;
     }
-    if (node.get_op_type() == "Conv2DBackpropInput" || node.get_op_type() == "Conv3DBackpropInputV2") {
+    if (op_type == "Conv2DBackpropInput" || op_type == "Conv3DBackpropInputV2") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // ConvBackpropData layer in the Operation specification,
             // the SAME_LOWER value matches to the SAME value in TensorFlow
             return ov::op::PadType::SAME_LOWER;
         }
-    } else if (node.get_op_type() == "Conv2D" || node.get_op_type() == "Conv3D") {
+    } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
+               op_type == "MaxPool3D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
@@ -68,11 +70,11 @@ ov::op::PadType ov::frontend::tensorflow::convert_conv_tf_padding(const ov::fron
 }
 
 void ov::frontend::tensorflow::fill_explicit_pads_vectors(const ov::frontend::tensorflow::NodeContext& node,
-                                bool is_nhwc,
-                                size_t spatial_dims_num,
-                                const std::vector<int64_t>& tf_explicit_paddings,
-                                ov::CoordinateDiff& pads_begin,
-                                ov::CoordinateDiff& pads_end) {
+                                                          bool is_nhwc,
+                                                          size_t spatial_dims_num,
+                                                          const std::vector<int64_t>& tf_explicit_paddings,
+                                                          ov::CoordinateDiff& pads_begin,
+                                                          ov::CoordinateDiff& pads_end) {
     auto fullfill_pads = [&](ov::CoordinateDiff& pads, const std::vector<int64_t>& indexes) {
         pads.resize(indexes.size());
         for (int i = 0; i < indexes.size(); ++i) {
@@ -127,7 +129,7 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     // retrieve attributes for Conv2D
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    ov::op::PadType auto_pad = convert_conv_tf_padding(node, tf_padding_type);
+    ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);
 
     // retrieve optional attributes
     auto tf_data_format = node.get_attribute<std::string>("data_format", spatial_dims_num == 2 ? "NHWC" : "NDHWC");
