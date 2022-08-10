@@ -19,6 +19,7 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_subdirectory(builder)
+add_subdirectory(dev_api)
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
 

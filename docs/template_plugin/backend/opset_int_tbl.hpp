@@ -140,5 +140,5 @@ NGRAPH_OP(ROIAlign, op::v9)
 NGRAPH_OP(SoftSign, op::v9)
 NGRAPH_OP(MulticlassNms, op::v9)
 
-NGRAPH_OP(AUGRUCell, op::v1)
-NGRAPH_OP(AUGRUSequence, op::v1)
+NGRAPH_OP(AUGRUCell, ov::op::v1)
+NGRAPH_OP(AUGRUSequence, ov::op::v1)

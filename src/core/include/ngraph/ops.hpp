@@ -18,7 +18,6 @@
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/atan.hpp"
 #include "ngraph/op/atanh.hpp"
-#include "ngraph/op/augru_cell.hpp"
 #include "ngraph/op/augru_sequence.hpp"
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/batch_norm.hpp"

@@ -17,7 +17,6 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
-#include "openvino/op/augru_cell.hpp"
 #include "openvino/op/augru_sequence.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/batch_norm.hpp"

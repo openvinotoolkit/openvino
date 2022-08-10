@@ -85,6 +85,7 @@
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
 
+#include "augru_cell.hpp"
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
@@ -3103,7 +3104,7 @@ bool evaluate(const shared_ptr<op::v3::GRUCell>& op, const HostTensorVector& out
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::AUGRUCell>& op,
+bool evaluate(const shared_ptr<ov::op::v1::AUGRUCell>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
