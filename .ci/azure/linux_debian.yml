@@ -22,7 +22,7 @@ resources:
     ref: master
 
 jobs:
-- job: Lin
+- job: Lin-Debian
   # About 150% of total time
   timeoutInMinutes: 120
 
@@ -103,6 +103,7 @@ jobs:
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
       sudo apt --assume-yes install openjdk-11-jdk clang
+      sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
@@ -195,11 +196,7 @@ jobs:
   - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
-  - script: |
-      set -e
-      mkdir -p $(INSTALL_DIR)/opencv/
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
-      cp -R $(REPO_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
 
   - script: ls -alR $(INSTALL_DIR)
@@ -303,7 +300,7 @@ jobs:
     continueOnError: true
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: true

@@ -336,7 +336,10 @@ jobs:
     displayName: 'ONNX Frontend UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: |
+      # tensorflow frontend is not distributed to end users, we have to find it manually
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 
