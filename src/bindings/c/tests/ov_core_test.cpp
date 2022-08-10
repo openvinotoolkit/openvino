@@ -20,7 +20,7 @@ TEST(ov_util, ov_get_error_info_check) {
 }
 
 class ov_core : public ::testing::TestWithParam<std::string> {};
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU", "GPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
     ov_core_t* core = nullptr;
@@ -86,7 +86,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
 }
 
 TEST_P(ov_core, ov_core_compile_model) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -97,7 +97,7 @@ TEST_P(ov_core, ov_core_compile_model) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     ov_property_t* property = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model(core, model, devece_name.c_str(), &compiled_model, property));
+    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, property));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -106,14 +106,14 @@ TEST_P(ov_core, ov_core_compile_model) {
 }
 
 TEST_P(ov_core, ov_core_compile_model_from_file) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
     ov_property_t* property = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, property));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, property));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -121,7 +121,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
 }
 
 TEST_P(ov_core, ov_core_set_property) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -137,26 +137,26 @@ TEST_P(ov_core, ov_core_set_property) {
     value.type = ov_property_value_type_e::ENUM;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
 
-    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
     ov_property_free(property);
     ov_core_free(core);
 }
 
 TEST_P(ov_core, ov_core_get_property) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_property_value_t property_value;
     OV_ASSERT_OK(
-        ov_core_get_property(core, devece_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
+        ov_core_get_property(core, device_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
     ov_property_value_clean(&property_value);
     ov_core_free(core);
 }
 
 TEST_P(ov_core, ov_core_set_get_property_str) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -171,10 +171,10 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     value.cnt = sizeof(cache_dir);
     value.type = ov_property_value_type_e::CHAR;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
-    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
 
     ov_property_value_t property_value;
-    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), key, &property_value));
+    OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     EXPECT_STREQ(cache_dir, (char*)property_value.ptr);
 
     ov_property_free(property);
@@ -183,7 +183,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
 }
 
 TEST_P(ov_core, ov_core_set_get_property_int) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -198,15 +198,17 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     value.cnt = 1;
     value.type = ov_property_value_type_e::INT32;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
-    OV_ASSERT_OK(ov_core_set_property(core, devece_name.c_str(), property));
+    OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
 
-    ov_property_value_t property_value;
-    OV_ASSERT_OK(ov_core_get_property(core, devece_name.c_str(), key, &property_value));
-    int32_t res = *(int32_t*)property_value.ptr;
-    EXPECT_EQ(num, res);
+    if (device_name == "CPU") {
+        ov_property_value_t property_value;
+        OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+        int32_t res = *(int32_t*)property_value.ptr;
+        EXPECT_EQ(num, res);
+        ov_property_value_clean(&property_value);
+    }
 
     ov_property_free(property);
-    ov_property_value_clean(&property_value);
     ov_core_free(core);
 }
 
@@ -223,30 +225,35 @@ TEST(ov_core, ov_core_get_available_devices) {
 }
 
 TEST_P(ov_core, ov_compiled_model_export_model) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, nullptr));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
-    OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
+    if(device_name == "CPU") {
+        std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+        OV_ASSERT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
+    }
 
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
 }
 
 TEST_P(ov_core, ov_core_import_model) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
+    if(device_name != "CPU") {
+        return;
+    }
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, devece_name.c_str(), &compiled_model, nullptr));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
@@ -258,7 +265,7 @@ TEST_P(ov_core, ov_core_import_model) {
     OV_ASSERT_OK(ov_core_import_model(core,
                                       reinterpret_cast<const char*>(buffer.data()),
                                       buffer.size(),
-                                      devece_name.c_str(),
+                                      device_name.c_str(),
                                       &compiled_model_imported));
     ASSERT_NE(nullptr, compiled_model_imported);
     ov_compiled_model_free(compiled_model_imported);
@@ -266,13 +273,13 @@ TEST_P(ov_core, ov_core_import_model) {
 }
 
 TEST_P(ov_core, ov_core_get_versions_by_device_name) {
-    auto devece_name = GetParam();
+    auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ov_core_version_list_t version_list;
-    OV_ASSERT_OK(ov_core_get_versions_by_device_name(core, devece_name.c_str(), &version_list));
+    OV_ASSERT_OK(ov_core_get_versions_by_device_name(core, device_name.c_str(), &version_list));
     EXPECT_EQ(version_list.size, 1);
 
     ov_core_versions_free(&version_list);

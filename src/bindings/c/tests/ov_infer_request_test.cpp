@@ -184,8 +184,8 @@ public:
     ov_preprocess_inputmodelinfo_t* input_model;
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request, ::testing::Values("CPU"));
-INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request, ::testing::Values("CPU", "GPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_infer_request_ppp, ::testing::Values("CPU", "GPU"));
 
 TEST_P(ov_infer_request, set_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
@@ -311,6 +311,7 @@ TEST_P(ov_infer_request, infer_request_set_callback) {
 }
 
 TEST_P(ov_infer_request, get_profiling_info) {
+    auto device_name = GetParam();
     OV_EXPECT_OK(ov_infer_request_set_tensor(infer_request, in_tensor_name, input_tensor));
 
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
@@ -318,6 +319,9 @@ TEST_P(ov_infer_request, get_profiling_info) {
     OV_EXPECT_OK(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
+    if(device_name != "CPU") {
+        return;
+    }
     ov_profiling_info_list_t profiling_infos;
     profiling_infos.size = 0;
     profiling_infos.profiling_infos = nullptr;
