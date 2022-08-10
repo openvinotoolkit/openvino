@@ -12,10 +12,12 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
+#include "cpu/cpu_config.hpp"
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -372,10 +374,6 @@ int main(int argc, char* argv[]) {
             }
             if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-            }
-
-            if (isFlagSetInCommandLine("dopt")) {
-                device_config.emplace(ov::denormals_optimization(true));
             }
 
             if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
