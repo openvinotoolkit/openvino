@@ -73,6 +73,10 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
     }
+
+    std::vector<std::string> get_kernel_ids() override {
+        return {_kernel_id};
+    }
 };
 
 static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
@@ -204,14 +208,14 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
+static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg, *impl_param);
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }
