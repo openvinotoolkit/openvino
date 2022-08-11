@@ -4,7 +4,7 @@
 
 set(TARGET_NAME openvino_c)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/openvino/*.cpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*)
 
 # create library
