@@ -9,6 +9,7 @@
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 #include "pooling_inst.h"
@@ -284,6 +285,8 @@ void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
             if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
+                continue;
+            if (user->is_type<deconvolution>() && user->as<deconvolution>().get_required_output() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();

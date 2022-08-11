@@ -1139,28 +1139,11 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
-    auto input_layout = node.get_dependency(0).get_output_layout();
-    auto is_2d = input_layout.format.spatial_num() == 2;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (use_onednn_impls && is_node_for_onednn(node)) {
-        if (input_layout.data_type == data_types::f16) {
-            if (input_layout.batch() < 16) {
-                expected_format = is_2d ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
-            } else if (input_layout.batch() < 32) {
-                expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv16_fsv16 : cldnn::format::bs_fs_zyx_bsv16_fsv16;
-            } else {
-                expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv32_fsv16 : cldnn::format::bs_fs_zyx_bsv32_fsv16;
-            }
-        } else {
-            if (input_layout.batch() < 16) {
-                expected_format = is_2d ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
-            } else if (input_layout.batch() < 32) {
-                expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv16_fsv32 : cldnn::format::bs_fs_zyx_bsv16_fsv32;
-            } else {
-                expected_format = is_2d ? cldnn::format::bs_fs_yx_bsv32_fsv32 : cldnn::format::bs_fs_zyx_bsv32_fsv32;
-            }
-        }
+        // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
+        expected_format = node.get_required_output();
     } else if (_optimization_attributes.b_fs_zyx_fsv16_network &&
         deconvolution_b_fs_zyx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         if ((current_layout.data_type == data_types::f32 && expected_tensor.batch[0] % 16 == 0) ||

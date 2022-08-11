@@ -369,14 +369,17 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
     }
 }
 
+#define RETURN_REQUIRED_FORMAT(_node_, _prim_name_, _inout_)    \
+    if (_node_->is_type<_prim_name_>()) {                       \
+        auto &_prim_node_ = _node_->as<_prim_name_>();          \
+        auto ret = _prim_node_.get_required_ ## _inout_();      \
+        if (ret != format::any) return ret;                     \
+    }
+
 static format get_target_output_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_output
-    if (node->is_type<convolution>()) {
-        auto &conv = node->as<convolution>();
-        auto ret = conv.get_required_output();
-        if (ret != format::any)
-            return ret;
-    }
+    RETURN_REQUIRED_FORMAT(node, convolution, output);
+    RETURN_REQUIRED_FORMAT(node, deconvolution, output);
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)
@@ -388,12 +391,8 @@ static format get_target_output_format(const std::map<program_node*, format::typ
 
 static format get_target_input0_format(const std::map<program_node*, format::type>& fmt_map, program_node *node) {
     // 1. Check required_input
-    if (node->is_type<convolution>()) {
-        auto &conv = node->as<convolution>();
-        auto ret = conv.get_required_input0();
-        if (ret != format::any)
-            return ret;
-    }
+    RETURN_REQUIRED_FORMAT(node, convolution, input0);
+    RETURN_REQUIRED_FORMAT(node, deconvolution, input0);
 
     // 2. Check fmt
     if (fmt_map.count(node) > 0)

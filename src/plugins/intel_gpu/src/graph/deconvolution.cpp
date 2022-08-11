@@ -87,9 +87,14 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
         z = off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2);
     }
 
+    format out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
+        out_fmt = node.get_required_output();
+    }
+
     tensor output_size(input_layout.batch(),
                        number_of_features, x, y, z);
-    return {data_type, input_layout.format, output_size};
+    return {data_type, out_fmt, output_size};
 }
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {

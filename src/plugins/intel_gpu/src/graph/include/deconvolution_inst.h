@@ -7,6 +7,7 @@
 
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "primitive_inst.h"
+#include "intel_gpu/runtime/format.hpp"
 
 #include <string>
 #include <memory>
@@ -22,7 +23,9 @@ public:
         : parent(prim, prog),
           split(this->get_primitive()->split()),
           depthwise_sep_opt(false),
-          groups(this->get_primitive()->groups) {
+          groups(this->get_primitive()->groups),
+          required_input0(format::type::any),
+          required_output(format::type::any) {
         support_padding_all(true);
     }
 
@@ -73,10 +76,17 @@ public:
         return dependencies.size() == (d_idx + 1);
     }
 
+    format::type get_required_input0() const { return required_input0; }
+    format::type get_required_output() const { return required_output; }
+    void set_required_input0(format::type type) { required_input0 = type; }
+    void set_required_output(format::type type) { required_output = type; }
+
 private:
     int32_t split;
     bool depthwise_sep_opt;
     uint32_t groups;
+    format::type required_input0;
+    format::type required_output;
 };
 
 using deconvolution_node = typed_program_node<deconvolution>;
