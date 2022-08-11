@@ -69,7 +69,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 namespace detail {
 
 attach_softmax_impl::attach_softmax_impl() {
-    const auto types = {data_types::f16, data_types::f32, data_types::i32};
+    const auto types = {data_types::f16, data_types::f32};
     const auto formats = {
             format::bfyx,
             format::yxfb,
