@@ -121,7 +121,7 @@ jobs:
       wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
       tar -xzf Python-"$PYTHON_VERSION".tgz
       cd Python-"$PYTHON_VERSION" || exit
-      ./configure --enable-optimizations
+      ./configure --enable-optimizations --enable-shared
       make -j "$NUM_PROC" python
       sudo make -j "$NUM_PROC" install
       /usr/local/bin/python3.10 -m venv $(PY_VENV)
