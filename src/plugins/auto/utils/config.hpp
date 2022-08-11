@@ -202,6 +202,6 @@ struct PluginConfig {
     PerfHintsConfig  _perfHintsConfig;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
-    const std::set<std::string> _availableDevices = {"CPU", "GPU", "GNA", "TEMPLATE", "MYRAID", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
+    const std::set<std::string> _availableDevices = {"CPU", "GPU", "GNA", "TEMPLATE", "MYRIAD", "HDDL", "VPUX", "MULTI", "HETERO", "CUDA", "HPU_GOYA"};
 };
 } // namespace MultiDevicePlugin
