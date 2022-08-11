@@ -175,7 +175,8 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
-        FRONT_END_GENERAL_CHECK(TYPE_MAP().count(tf_type),
+        FRONT_END_GENERAL_CHECK(
+            TYPE_MAP().count(tf_type),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
         auto ov_type = TYPE_MAP().at(tf_type);
         ov::Tensor res(ov_type, pshape.get_shape());
@@ -212,8 +213,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             default:
                 FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
             }
-        }
-        else {
+        } else {
             int64_t val_size = 0;
             switch (ov_type) {
             case ov::element::boolean:

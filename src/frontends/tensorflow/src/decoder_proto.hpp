@@ -12,7 +12,7 @@
 namespace tensorflow {
 class NodeDef;
 class AttrValue;
-}
+}  // namespace tensorflow
 
 namespace ov {
 namespace frontend {
