@@ -7,10 +7,12 @@
 #include <string>
 #include <vector>
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+
+namespace tensorflow {
+class NodeDef;
+class AttrValue;
+}
 
 namespace ov {
 namespace frontend {
