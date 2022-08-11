@@ -31,10 +31,10 @@ OutputVector generate_proposals(const Node& node) {
     const auto inputs = node.get_ng_inputs();
     validate_generate_proposals_inputs(inputs);
 
-    const auto& scores = inputs[0];
-    const auto& deltas = inputs[1];
-    const auto& im_info = inputs[2];
-    const auto& anchors = inputs[3];
+    const auto& scores = inputs[0];   // shape [N, A, H, W]
+    const auto& deltas = inputs[1];   // shape [N, A*4, H, W]
+    const auto& im_info = inputs[2];  // shape [N, 3] or [N, 4]
+    const auto& anchors = inputs[3];  // shape [A, 4]
 
     ov::op::v9::GenerateProposals::Attributes attrs;
     attrs.min_size = node.get_attribute_value<float>("min_size", 1.f);
@@ -53,9 +53,9 @@ OutputVector generate_proposals(const Node& node) {
         std::make_shared<default_opset::Concat>(OutputVector{new_anchors_shape_front, anchors_shape}, 0);
     const auto new_anchors = std::make_shared<default_opset::Broadcast>(anchors, new_anchors_shape);
 
-    const auto gs = std::make_shared<ov::op::v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);
+    const auto proposals = std::make_shared<ov::op::v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);
 
-    return {gs->output(0), gs->output(1)};
+    return {proposals->output(0), proposals->output(1), proposals->output(2)};
 }
 }  // namespace set_1
 }  // namespace op
