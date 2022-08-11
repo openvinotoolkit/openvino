@@ -44,7 +44,8 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/cache.json",
-        "runtime/bin/intel64/Release/openvino_intel_gpu_plugin.dll"
+        "runtime/bin/intel64/Release/openvino_intel_gpu_plugin.dll",
+        "runtime/bin/intel64/Release/onednn_gpu.dll"
       ]
     },
     "vpu": {

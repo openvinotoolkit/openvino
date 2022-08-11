@@ -1,0 +1,47 @@
+diff --git a/include/oneapi/dnnl/dnnl.h b/include/oneapi/dnnl/dnnl.h
+index 2673c6245..3d64a5d55 100644
+--- a/include/oneapi/dnnl/dnnl.h
++++ b/include/oneapi/dnnl/dnnl.h
+@@ -3781,7 +3781,11 @@ dnnl_status_t DNNL_API dnnl_stream_destroy(dnnl_stream_t stream);
+ /// @returns #dnnl_invalid_arguments/#dnnl::status::invalid_arguments if the
+ ///     @p capacity value is invalid, and #dnnl_success/#dnnl::status::success on
+ ///     success.
++#ifndef OV_GPU_ONEDNN_STRONG_LINK
+ dnnl_status_t DNNL_API dnnl_get_primitive_cache_capacity(int *capacity);
++#else
++dnnl_status_t dnnl_get_primitive_cache_capacity(int *capacity);
++#endif
+ 
+ /// Sets a number of primitives that can be held in the primitive cache
+ /// at a time.
+diff --git a/include/oneapi/dnnl/dnnl_config.h.in b/include/oneapi/dnnl/dnnl_config.h.in
+index e4516a4a0..85443fe5a 100644
+--- a/include/oneapi/dnnl/dnnl_config.h.in
++++ b/include/oneapi/dnnl/dnnl_config.h.in
+@@ -42,7 +42,11 @@
+ #define DNNL_API DNNL_HELPER_DLL_IMPORT
+ #endif
+ #else
++#if defined _WIN32 || defined __CYGWIN__
+ #define DNNL_API
++#else
++#define DNNL_API __attribute__((weak))
++#endif
+ #endif
+ 
+ #if defined(__GNUC__)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index f730b10af..8a96ada81 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -118,8 +118,8 @@ add_library(${DNNL_LIBRARY_NAME} ${DNNL_LIBRARY_TYPE}
+ # LINK_PRIVATE for cmake 2.8.11 compatibility
+ target_link_libraries(${DNNL_LIBRARY_NAME} LINK_PRIVATE ${${DNNL_LIBRARY_NAME}_INTERFACE})
+ 
+-set_property(TARGET ${DNNL_LIBRARY_NAME} PROPERTY VERSION "${DNNL_VERSION_MAJOR}.${DNNL_VERSION_MINOR}")
+-set_property(TARGET ${DNNL_LIBRARY_NAME} PROPERTY SOVERSION "${DNNL_VERSION_MAJOR}")
++# set_property(TARGET ${DNNL_LIBRARY_NAME} PROPERTY VERSION "${DNNL_VERSION_MAJOR}.${DNNL_VERSION_MINOR}")
++# set_property(TARGET ${DNNL_LIBRARY_NAME} PROPERTY SOVERSION "${DNNL_VERSION_MAJOR}")
+ 
+ target_include_directories(${DNNL_LIBRARY_NAME} PUBLIC
+     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>

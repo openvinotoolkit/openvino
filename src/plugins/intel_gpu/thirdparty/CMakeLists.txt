@@ -22,6 +22,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         if(CMAKE_COMPILER_IS_GNUCXX)
             ie_add_compiler_flags(-Wno-undef -Wno-suggest-override)
+            execute_process(COMMAND git apply --verbose ../onednn_gpu.patch
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu")
         endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
@@ -64,6 +66,19 @@ if(ENABLE_ONEDNN_FOR_GPU)
             INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
         )
+        if(WIN32)
+            add_custom_command(TARGET onednn_gpu_build POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_INSTALL_DIR}/bin/onednn_gpu.dll ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ )
+            install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/onednn_gpu.dll
+                DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                COMPONENT gpu)
+        else()
+            add_custom_command(TARGET onednn_gpu_build POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>/libonednn_gpu.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ )
+            install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libonednn_gpu.so
+                DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                COMPONENT gpu)
+        endif()
         add_dependencies(onednn_gpu_tgt onednn_gpu_build)
         # TODO: install onednn_gpu in static builds
     endfunction()

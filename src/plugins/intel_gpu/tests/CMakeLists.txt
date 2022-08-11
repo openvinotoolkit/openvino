@@ -37,6 +37,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()
 
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_link_libraries(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
                                              OpenCL

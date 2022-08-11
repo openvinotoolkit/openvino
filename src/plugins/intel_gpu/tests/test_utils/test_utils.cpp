@@ -4,6 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define OV_GPU_ONEDNN_STRONG_LINK
+
 #include "test_utils.h"
 #include "float16.h"
 #include <iostream>
@@ -315,6 +317,12 @@ cldnn::engine& get_onednn_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
     if (!test_engine) {
         test_engine = create_test_engine(cldnn::queue_types::in_order);
+#ifdef OV_GPU_ONEDNN_STRONG_LINK
+        // It creates a strong link to the 'onednn.so'
+        int dummy_input = 0;
+        dnnl_get_primitive_cache_capacity(&dummy_input);
+        assert(dummy_input >= 0);
+#endif
     }
     return *test_engine;
 }
