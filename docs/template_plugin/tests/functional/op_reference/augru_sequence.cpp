@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/augru_sequence.hpp"
+#include "augru_sequence.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;

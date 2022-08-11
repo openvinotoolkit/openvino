@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/augru_sequence.hpp"
+#include "augru_sequence.hpp"
 
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset9.hpp"

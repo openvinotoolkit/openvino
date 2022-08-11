@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
 using namespace std;
@@ -64,7 +63,7 @@ void op::v5::RNNSequence::validate_and_infer_types() {
     auto r_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
 
-    ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
+    validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,

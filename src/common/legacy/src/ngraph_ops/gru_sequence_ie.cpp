@@ -3,7 +3,6 @@
 //
 
 #include "legacy/ngraph_ops/gru_sequence_ie.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 #include <memory>
 #include <string>
