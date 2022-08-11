@@ -121,16 +121,33 @@ void pre_replace_deconv::run(program& p) {
                                                               "",
                                                               output_padding);
                 } else {
-                    conv_prim = std::make_shared<convolution>(deconv_node_id,
-                                                              input_node_id,
-                                                              weights_nodes_id,
-                                                              groups,
-                                                              stride,
-                                                              pad,
-                                                              dilation,
-                                                              grouped_weights_shape,
-                                                              "",
-                                                              output_padding);
+                    tensor output_size(0);
+                    if (deconv_prim->with_output_size) {
+                        output_size = deconv_prim->output_size;
+                        conv_prim = std::make_shared<convolution>(deconv_node_id,
+                                                                  input_node_id,
+                                                                  weights_nodes_id,
+                                                                  groups,
+                                                                  stride,
+                                                                  pad,
+                                                                  dilation,
+                                                                  output_size,
+                                                                  grouped_weights_shape,
+                                                                  "",
+                                                                  output_padding);
+                    } else {
+                        conv_prim = std::make_shared<convolution>(deconv_node_id,
+                                                                  input_node_id,
+                                                                  weights_nodes_id,
+                                                                  groups,
+                                                                  stride,
+                                                                  pad,
+                                                                  dilation,
+                                                                  output_size,
+                                                                  grouped_weights_shape,
+                                                                  "",
+                                                                  output_padding);
+                    }
                 }
                 program_node& new_node = p.get_or_create(conv_prim);
 
@@ -223,11 +240,11 @@ void pre_replace_deconv::run(program& p) {
 
                      if (weights_data_type == data_types::f16) {
                          mem_lock<half_t, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.size.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
                          mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.size.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
 

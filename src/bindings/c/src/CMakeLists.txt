@@ -30,20 +30,17 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 # export
 
-set_target_properties(${TARGET_NAME} PROPERTIES
-    EXPORT_NAME runtime::c
-    # TODO: define proper library version, currently SOVERSION 2022
-    # SOVERSION ${OpenVINO_VERSION_MAJOR}
-    # VERSION ${OpenVINO_VERSION}
-    )
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
+
+ov_add_library_version(${TARGET_NAME})
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} DEPENDS core)
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} DEPENDS ${OV_CPACK_COMP_CORE_C})
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
+ie_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE_C}

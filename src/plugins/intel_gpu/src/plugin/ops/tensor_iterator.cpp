@@ -38,21 +38,12 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
                                             const cldnn::primitive_id& id, const cldnn::primitive_id& input,
                                             const int32_t output_idx) {
     const auto precision = DataTypeFromPrecision(op->get_output_element_type(output_idx));
-    const auto format = DefaultFormatForDims(op->get_output_shape(output_idx).size());
+    const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {input}, mem, op->get_friendly_name()); // cldnn::data cannot set dependency
     return md;
-}
-
-static void UpdateBackedge(std::vector<cldnn::loop::backedge_mapping>& back_edges,
-        const cldnn::primitive_id& old_primitive_id, const cldnn::primitive_id& new_primitive_id) {
-    for (auto& back_edge : back_edges) {
-        if (back_edge.from == old_primitive_id) {
-            back_edge.from = new_primitive_id;
-        }
-    }
 }
 
 static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {

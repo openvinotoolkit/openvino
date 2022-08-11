@@ -34,7 +34,7 @@ if machine == "x86_64" or machine == "AMD64":
     ARCH = "intel64"
 elif machine == "X86":
     ARCH = "ia32"
-elif machine == "arm":
+elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
 elif machine == "aarch64":
     ARCH = "arm64"
@@ -93,7 +93,7 @@ LIB_INSTALL_CFG = {
 
 PY_INSTALL_CFG = {
     "ie_py": {
-        "name": PYTHON_VERSION,
+        "name": f"pyie_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
     },
@@ -448,7 +448,7 @@ description_md = SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pypi-openv
 md_files = [description_md, SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pre-release-note.md"]
 docs_url = "https://docs.openvino.ai/latest/index.html"
 
-if(os.getenv("CI_BUILD_DEV_TAG")):
+if (os.getenv("CI_BUILD_DEV_TAG")):
     output = Path.cwd() / "build" / "pypi-openvino-rt.md"
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
