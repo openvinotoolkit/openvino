@@ -19,7 +19,7 @@ namespace v0 {
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API AUGRUCell : public util::RNNCellBase {
+class AUGRUCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUCell", "dev_api", op::util::RNNCellBase);
     BWDCMP_RTTI_DECLARATION;

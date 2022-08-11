@@ -18,7 +18,7 @@ namespace v0 {
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API AUGRUSequence : public util::RNNCellBase {
+class AUGRUSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUSequence", "dev_api", op::Op);
     BWDCMP_RTTI_DECLARATION;
