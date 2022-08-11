@@ -8,6 +8,7 @@
 #include "ngraph/op/tile.hpp"
 
 #include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -16,10 +17,39 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
+    size_t rank = op->get_input_shape(0).size();
+
+    auto repeatsNode = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+    if (!repeatsNode)
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() <<
+                                                        " (" << op->get_type_name() << ")";
+    std::vector<int64_t> repeats = repeatsNode->cast_vector<int64_t>();
+
+    int64_t defaultSize = 1;
+    for (size_t i = repeats.size(); i < rank; ++i) {
+        repeats.insert(repeats.begin(), defaultSize);
+    }
+
+    if (repeats.size() > rank) {
+        std::string reshapeName = layerName + "_reshape";
+        auto inputDims = op->get_input_shape(0);
+
+        // Extend input dimensions to the same size as repeats dimensions by prepending ones
+        inputDims.insert(inputDims.begin(), repeats.size() - rank, defaultSize);
+
+        auto targetShape = tensor_from_dims(inputDims);
+
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape, op->get_friendly_name());
+
+        p.AddPrimitive(reshapePrim);
+        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+
+        inputPrimitives[0] = reshapeName;
+    }
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                tensor_from_dims(op->get_output_shape(0)),
+                                repeats,
                                 op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);

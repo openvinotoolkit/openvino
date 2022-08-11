@@ -6,6 +6,7 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/format.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -22,7 +23,14 @@ layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params c
 
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
-    return layout{input_layout.data_type, input_format, desc->out_shape};
+
+    std::vector<int64_t> repeats = desc->repeats;
+
+    auto out_shape = input_layout.get_dims();
+    for (size_t i = 0; i < repeats.size(); ++i) {
+        out_shape[i] *= repeats[i];
+    }
+    return layout{input_layout.data_type, input_format, tensor(input_format, out_shape)};
 }
 
 std::string tile_inst::to_string(tile_node const& node) {
