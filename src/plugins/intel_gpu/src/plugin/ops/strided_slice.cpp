@@ -252,6 +252,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                  op->get_end_mask(),
                                                  op->get_new_axis_mask(),
                                                  op->get_shrink_axis_mask(),
+                                                 op->get_ellipsis_mask(),
                                                  output_shape,
                                                  op->get_friendly_name());
 
