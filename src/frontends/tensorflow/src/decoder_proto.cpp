@@ -31,9 +31,6 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
 
 template <typename T>
 void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
-    // When tensor_shape is set, theoretically the representation of the data
-    // could be compressed. So, before copying values to the returned vector,
-    // make sure no compression happens.
     const auto tensor_content_size = tensor_content.size();
     FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
                             "Size of tensor_content (",
