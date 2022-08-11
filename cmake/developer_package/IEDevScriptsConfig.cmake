@@ -169,6 +169,11 @@ ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FO
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND CPACK_GENERATOR STREQUAL "DEB")
+    # to make sure that lib/<multiarch-tuple> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
+endif()
+
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
     # WA for Xcode generator + object libraries issue:
