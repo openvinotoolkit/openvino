@@ -78,16 +78,6 @@ ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_c
 OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
 
 /**
- * @brief Do reshape in model with partial shape for a specified name.
- * @ingroup model
- * @param model A pointer to the ov_model_t.
- * @param tensor_name input tensor name (char *).
- * @param partialShape A PartialShape.
- */
-OPENVINO_C_API(ov_status_e)
-ov_model_reshape_by_name(const ov_model_t* model, const char* tensor_name, const ov_partial_shape_t* partial_shape);
-
-/**
  * @brief Do reshape in model with a list of <name, partial shape>.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
@@ -96,10 +86,31 @@ ov_model_reshape_by_name(const ov_model_t* model, const char* tensor_name, const
  * @param cnt The item count in the list.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_reshape_by_names(const ov_model_t* model,
-                          const char* tensor_names[],
-                          const ov_partial_shape_t* partial_shapes[],
-                          size_t cnt);
+ov_model_reshape(const ov_model_t* model,
+                 const char* tensor_names[],
+                 const ov_partial_shape_t* partial_shapes[],
+                 size_t cnt);
+
+/**
+ * @brief Do reshape in model with partial shape for a specified name.
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param tensor_name input tensor name (char *).
+ * @param partialShape A PartialShape.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape_input_by_name(const ov_model_t* model,
+                               const char* tensor_name,
+                               const ov_partial_shape_t* partial_shape);
+
+/**
+ * @brief Do reshape in model for one node(port 0).
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param partialShape A PartialShape.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_reshape_one_input(const ov_model_t* model, const ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Do reshape in model with a list of <port id, partial shape>.
@@ -111,14 +122,6 @@ ov_model_reshape_by_names(const ov_model_t* model,
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_ports(const ov_model_t* model, size_t* ports, const ov_partial_shape_t** partial_shape, size_t cnt);
-
-/**
- * @brief Do reshape in model for port 0.
- * @ingroup model
- * @param model A pointer to the ov_model_t.
- * @param partialShape A PartialShape.
- */
-OPENVINO_C_API(ov_status_e) ov_model_reshape(const ov_model_t* model, const ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Do reshape in model with a list of <ov_output_node_t, partial shape>.

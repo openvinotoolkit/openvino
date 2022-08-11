@@ -79,9 +79,9 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
     return model->object->is_dynamic();
 }
 
-ov_status_e ov_model_reshape_by_name(const ov_model_t* model,
-                                     const char* tensor_name,
-                                     const ov_partial_shape_t* partial_shape) {
+ov_status_e ov_model_reshape_input_by_name(const ov_model_t* model,
+                                           const char* tensor_name,
+                                           const ov_partial_shape_t* partial_shape) {
     if (!model || !tensor_name || !partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -98,10 +98,10 @@ ov_status_e ov_model_reshape_by_name(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_reshape_by_names(const ov_model_t* model,
-                                      const char* tensor_names[],
-                                      const ov_partial_shape_t* partial_shapes[],
-                                      size_t cnt) {
+ov_status_e ov_model_reshape(const ov_model_t* model,
+                             const char* tensor_names[],
+                             const ov_partial_shape_t* partial_shapes[],
+                             size_t cnt) {
     if (!model || !tensor_names || !partial_shapes || cnt < 1) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -146,7 +146,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_reshape(const ov_model_t* model, const ov_partial_shape_t* partial_shape) {
+ov_status_e ov_model_reshape_one_input(const ov_model_t* model, const ov_partial_shape_t* partial_shape) {
     size_t port = 0;
     return ov_model_reshape_by_ports(model, &port, &partial_shape, 1);
 }
