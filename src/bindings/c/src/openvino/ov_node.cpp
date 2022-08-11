@@ -38,10 +38,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
     try {
         auto shape = node->object->get_shape();
-        if (shape.size() > MAX_DIMENSION) {
-            return ov_status_e::INVALID_C_PARAM;
-        }
-        tensor_shape->rank = shape.size();
+        ov_shape_init(tensor_shape, shape.size());
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -56,10 +53,7 @@ ov_status_e ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx,
 
     try {
         auto shape = nodes->output_nodes[idx].object->get_shape();
-        if (shape.size() > MAX_DIMENSION) {
-            return ov_status_e::GENERAL_ERROR;
-        }
-        tensor_shape->rank = shape.size();
+        ov_shape_init(tensor_shape, shape.size());
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS

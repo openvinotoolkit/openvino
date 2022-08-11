@@ -5,7 +5,7 @@
 
 TEST(ov_model, ov_model_outputs) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -24,7 +24,7 @@ TEST(ov_model, ov_model_outputs) {
 
 TEST(ov_model, ov_model_inputs) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -43,7 +43,7 @@ TEST(ov_model, ov_model_inputs) {
 
 TEST(ov_model, ov_model_input_by_name) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -61,7 +61,7 @@ TEST(ov_model, ov_model_input_by_name) {
 
 TEST(ov_model, ov_model_input_by_index) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -79,7 +79,7 @@ TEST(ov_model, ov_model_input_by_index) {
 
 TEST(ov_model, ov_model_is_dynamic) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -94,7 +94,7 @@ TEST(ov_model, ov_model_is_dynamic) {
 
 TEST(ov_model, ov_model_reshape_by_name) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -109,9 +109,14 @@ TEST(ov_model, ov_model_reshape_by_name) {
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_get_any_name_by_index(&input_node_list1, 0, &tensor_name));
 
-    ov_shape_t shape = {4, {1, 3, 896, 896}};
-    ov_partial_shape_t* partial_shape = nullptr;
+    ov_shape_t shape = {0, nullptr};
+    OV_ASSERT_OK(ov_shape_init(&shape, 4));
+    shape.dims[0] = 1;
+    shape.dims[1] = 3;
+    shape.dims[2] = 896;
+    shape.dims[3] = 896;
 
+    ov_partial_shape_t* partial_shape = nullptr;
     OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
     OV_ASSERT_OK(ov_model_reshape_by_name(model, tensor_name, partial_shape));
 
@@ -122,6 +127,7 @@ TEST(ov_model, ov_model_reshape_by_name) {
 
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
 
+    ov_shape_deinit(&shape);
     ov_partial_shape_free(partial_shape);
     ov_free(tensor_name);
     ov_output_node_list_free(&input_node_list1);
@@ -132,7 +138,7 @@ TEST(ov_model, ov_model_reshape_by_name) {
 
 TEST(ov_model, ov_model_get_friendly_name) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;

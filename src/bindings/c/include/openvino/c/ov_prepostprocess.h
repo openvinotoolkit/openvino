@@ -29,21 +29,25 @@ typedef struct ov_preprocess_preprocesssteps ov_preprocess_preprocesssteps_t;
  */
 typedef enum {
     UNDEFINE = 0U,      //!< Undefine color format
-    NV12_SINGLE_PLANE,  // !<Image in NV12 format as single tensor
-    NV12_TWO_PLANES,    // !<Image in NV12 format represented as separate tensors for Y and UV planes.
-    I420_SINGLE_PLANE,  // !<Image in I420 (YUV) format as single tensor
-    I420_THREE_PLANES,  // !<Image in I420 format represented as separate tensors for Y, U and V planes.
-    RGB,                // !<Image in RGB interleaved format (3 channels)
-    BGR,                // !<Image in BGR interleaved format (3 channels)
-    RGBX,               // !<Image in RGBX interleaved format (4 channels)
-    BGRX                // !<Image in BGRX interleaved format (4 channels)
+    NV12_SINGLE_PLANE,  //!< Image in NV12 format as single tensor
+    NV12_TWO_PLANES,    //!< Image in NV12 format represented as separate tensors for Y and UV planes.
+    I420_SINGLE_PLANE,  //!< Image in I420 (YUV) format as single tensor
+    I420_THREE_PLANES,  //!< Image in I420 format represented as separate tensors for Y, U and V planes.
+    RGB,                //!< Image in RGB interleaved format (3 channels)
+    BGR,                //!< Image in BGR interleaved format (3 channels)
+    RGBX,               //!< Image in RGBX interleaved format (4 channels)
+    BGRX                //!< Image in BGRX interleaved format (4 channels)
 } ov_color_format_e;
 
 /**
  * @enum ov_preprocess_resizealgorithm_e
  * @brief This enum contains codes for all preprocess resize algorithm.
  */
-typedef enum { RESIZE_LINEAR, RESIZE_CUBIC, RESIZE_NEAREST } ov_preprocess_resizealgorithm_e;
+typedef enum {
+    RESIZE_LINEAR,  //!< linear algorithm
+    RESIZE_CUBIC,   //!< cubic algorithm
+    RESIZE_NEAREST  //!< nearest algorithm
+} ov_preprocess_resizealgorithm_e;
 
 // prepostprocess
 /**

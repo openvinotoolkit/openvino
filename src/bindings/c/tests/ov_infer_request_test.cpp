@@ -41,7 +41,7 @@ protected:
         auto device_name = GetParam();
 
         core = nullptr;
-        OV_ASSERT_OK(ov_core_create("", &core));
+        OV_ASSERT_OK(ov_core_create(&core));
         ASSERT_NE(nullptr, core);
 
         model = nullptr;
@@ -49,7 +49,7 @@ protected:
         EXPECT_NE(nullptr, model);
 
         in_tensor_name = nullptr;
-        ov_shape_t tensor_shape = {0, {0}};
+        ov_shape_t tensor_shape = {0, nullptr};
         ov_element_type_e tensor_type;
         get_tensor_info(model, true, 0, &in_tensor_name, &tensor_shape, &tensor_type);
 
@@ -65,6 +65,8 @@ protected:
         infer_request = nullptr;
         OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
         EXPECT_NE(nullptr, infer_request);
+
+        ov_shape_deinit(&tensor_shape);
     }
     void TearDown() override {
         ov_tensor_free(input_tensor);
@@ -99,7 +101,7 @@ protected:
         output_tensor = nullptr;
 
         core = nullptr;
-        OV_ASSERT_OK(ov_core_create("", &core));
+        OV_ASSERT_OK(ov_core_create(&core));
         ASSERT_NE(nullptr, core);
 
         model = nullptr;
@@ -118,10 +120,16 @@ protected:
         OV_EXPECT_OK(ov_preprocess_inputinfo_tensor(input_info, &input_tensor_info));
         EXPECT_NE(nullptr, input_tensor_info);
 
-        ov_shape_t shape = {4, {1, 224, 224, 3}};
+        ov_shape_t shape = {0, nullptr};
+        OV_ASSERT_OK(ov_shape_init(&shape, 4));
+        shape.dims[0] = 1;
+        shape.dims[1] = 224;
+        shape.dims[2] = 224;
+        shape.dims[3] = 3;
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
         OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));
+        OV_ASSERT_OK(ov_shape_deinit(&shape));
 
         const char* layout_desc = "NHWC";
         ov_layout_t* layout = nullptr;
@@ -222,13 +230,14 @@ TEST_P(ov_infer_request, infer) {
     OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
     char* out_tensor_name = nullptr;
-    ov_shape_t tensor_shape = {0, {0}};
+    ov_shape_t tensor_shape = {0, nullptr};
     ov_element_type_e tensor_type;
     get_tensor_info(model, false, 0, &out_tensor_name, &tensor_shape, &tensor_type);
 
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, out_tensor_name, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
+    ov_shape_deinit(&tensor_shape);
     ov_free(out_tensor_name);
 }
 

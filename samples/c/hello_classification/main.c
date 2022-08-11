@@ -130,6 +130,7 @@ int main(int argc, char** argv) {
     struct infer_result* results = NULL;
     ov_layout_t* input_layout = NULL;
     ov_layout_t* model_layout = NULL;
+    ov_shape_t input_shape;
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
@@ -145,7 +146,7 @@ int main(int argc, char** argv) {
     const char* device_name = argv[3];
 
     // -------- Step 1. Initialize OpenVINO Runtime Core --------
-    CHECK_STATUS(ov_core_create("", &core));
+    CHECK_STATUS(ov_core_create(&core));
 
     // -------- Step 2. Read a model --------
     printf("[INFO] Loading model files: %s\n", input_model);
@@ -169,7 +170,11 @@ int main(int argc, char** argv) {
     c_mat_t img;
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
-    ov_shape_t input_shape = {4, {1, (size_t)img.mat_height, (size_t)img.mat_width, 3}};
+    ov_shape_init(&input_shape, 4);
+    input_shape.dims[0] = 1;
+    input_shape.dims[1] = (size_t)img.mat_height;
+    input_shape.dims[2] = (size_t)img.mat_width;
+    input_shape.dims[3] = 3;
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
@@ -227,6 +232,7 @@ int main(int argc, char** argv) {
 err:
     free(results);
     image_free(&img);
+    ov_shape_deinit(&input_shape);
     ov_output_node_list_free(&output_nodes);
     ov_output_node_list_free(&input_nodes);
     if (output_tensor)

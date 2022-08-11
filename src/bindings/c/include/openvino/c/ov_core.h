@@ -25,7 +25,7 @@ typedef struct ov_core ov_core_t;
  */
 typedef struct ov_version {
     const char* buildNumber;  //!< A string representing OpenVINO version
-    const char* description;
+    const char* description;  //!< A string representing OpenVINO description
 } ov_version_t;
 
 /**
@@ -43,7 +43,7 @@ typedef struct {
  */
 typedef struct {
     ov_core_version_t* versions;  //!< An array of device versions
-    size_t size;              //!< A number of versions in the array
+    size_t size;                  //!< A number of versions in the array
 } ov_core_version_list_t;
 
 /**
@@ -79,6 +79,15 @@ OPENVINO_C_API(void) ov_version_free(ov_version_t* version);
  */
 
 /**
+ * @brief Constructs OpenVINO Core instance by default.
+ * See RegisterPlugins for more details.
+ * @ingroup Core
+ * @param core A pointer to the newly created ov_core_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
+
+/**
  * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
  * See RegisterPlugins for more details.
  * @ingroup Core
@@ -87,7 +96,7 @@ OPENVINO_C_API(void) ov_version_free(ov_version_t* version);
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create(const char* xml_config_file, ov_core_t** core);
+OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
 
 /**
  * @brief Release the memory allocated by ov_core_t.

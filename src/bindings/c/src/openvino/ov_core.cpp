@@ -69,7 +69,7 @@ void ov_version_free(ov_version_t* version) {
     version->description = nullptr;
 }
 
-ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
+ov_status_e ov_core_create_with_config(const char* xml_config_file, ov_core_t** core) {
     if (!core || !xml_config_file) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -81,6 +81,10 @@ ov_status_e ov_core_create(const char* xml_config_file, ov_core_t** core) {
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+ov_status_e ov_core_create(ov_core_t** core) {
+    return ov_core_create_with_config("", core);
 }
 
 void ov_core_free(ov_core_t* core) {

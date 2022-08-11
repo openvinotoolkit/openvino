@@ -24,21 +24,21 @@ INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
 TEST(ov_core, ov_core_create_with_config) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create(plugins_xml, &core));
+    OV_ASSERT_OK(ov_core_create_with_config(plugins_xml, &core));
     ASSERT_NE(nullptr, core);
     ov_core_free(core);
 }
 
 TEST(ov_core, ov_core_create_with_no_config) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
     ov_core_free(core);
 }
 
 TEST(ov_core, ov_core_read_model) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -51,7 +51,7 @@ TEST(ov_core, ov_core_read_model) {
 
 TEST(ov_core, ov_core_read_model_no_bin) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -64,13 +64,16 @@ TEST(ov_core, ov_core_read_model_no_bin) {
 
 TEST(ov_core, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     std::vector<uint8_t> weights_content(content_from_file(bin, true));
 
     ov_tensor_t* tensor = nullptr;
-    ov_shape_t shape = {2, {1, (int64_t)weights_content.size()}};
+    ov_shape_t shape;
+    ov_shape_init(&shape, 2);
+    shape.dims[0] = 1;
+    shape.dims[1] = (int64_t)weights_content.size();
     OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     ASSERT_NE(nullptr, tensor);
 
@@ -80,6 +83,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
         ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
     ASSERT_NE(nullptr, model);
 
+    ov_shape_deinit(&shape);
     ov_tensor_free(tensor);
     ov_model_free(model);
     ov_core_free(core);
@@ -88,7 +92,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
 TEST_P(ov_core, ov_core_compile_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -108,7 +112,7 @@ TEST_P(ov_core, ov_core_compile_model) {
 TEST_P(ov_core, ov_core_compile_model_from_file) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -123,7 +127,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
 TEST_P(ov_core, ov_core_set_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_property_t* property = nullptr;
@@ -145,7 +149,7 @@ TEST_P(ov_core, ov_core_set_property) {
 TEST_P(ov_core, ov_core_get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_property_value_t property_value;
@@ -158,7 +162,7 @@ TEST_P(ov_core, ov_core_get_property) {
 TEST_P(ov_core, ov_core_set_get_property_str) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_property_t* property = nullptr;
@@ -185,7 +189,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
 TEST_P(ov_core, ov_core_set_get_property_int) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_property_t* property = nullptr;
@@ -212,7 +216,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
 
 TEST(ov_core, ov_core_get_available_devices) {
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_available_devices_t devices;
@@ -225,7 +229,7 @@ TEST(ov_core, ov_core_get_available_devices) {
 TEST_P(ov_core, ov_compiled_model_export_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -243,7 +247,7 @@ TEST_P(ov_core, ov_core_import_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -269,7 +273,7 @@ TEST_P(ov_core, ov_core_import_model) {
 TEST_P(ov_core, ov_core_get_versions_by_device_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_core_version_list_t version_list;

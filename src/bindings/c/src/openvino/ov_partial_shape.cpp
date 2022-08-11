@@ -73,9 +73,8 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
             return ov_status_e::PARAMETER_MISMATCH;
         }
         auto rank = partial_shape->rank.get_length();
-        if (rank > MAX_DIMENSION) {
-            return ov_status_e::PARAMETER_MISMATCH;
-        }
+        ov_shape_init(shape, rank);
+
         for (auto i = 0; i < rank; ++i) {
             auto& ov_dim = partial_shape->dims[i];
             if (ov_dim.is_static())
@@ -90,10 +89,7 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
 }
 
 ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t** partial_shape) {
-    if (!partial_shape || !shape) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-    if (shape->rank > MAX_DIMENSION) {
+    if (!partial_shape || !shape || shape->rank <= 0 || !shape->dims) {
         return ov_status_e::INVALID_C_PARAM;
     }
 

@@ -8,7 +8,7 @@ INSTANTIATE_TEST_SUITE_P(device_name, ov_compiled_model, ::testing::Values("CPU"
 TEST_P(ov_compiled_model, get_runtime_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -32,7 +32,7 @@ TEST_P(ov_compiled_model, get_runtime_model) {
 TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -56,7 +56,7 @@ TEST_P(ov_compiled_model, get_runtime_model_error_handling) {
 TEST_P(ov_compiled_model, get_inputs) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -83,7 +83,7 @@ TEST_P(ov_compiled_model, get_inputs) {
 TEST_P(ov_compiled_model, get_inputs_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -109,7 +109,7 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
 TEST_P(ov_compiled_model, get_outputs) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -136,7 +136,7 @@ TEST_P(ov_compiled_model, get_outputs) {
 TEST_P(ov_compiled_model, get_outputs_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -162,7 +162,7 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
 TEST_P(ov_compiled_model, create_infer_request) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
@@ -186,7 +186,7 @@ TEST_P(ov_compiled_model, create_infer_request) {
 TEST_P(ov_compiled_model, create_infer_request_error_handling) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
-    OV_ASSERT_OK(ov_core_create("", &core));
+    OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
