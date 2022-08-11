@@ -22,7 +22,7 @@ OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
     // retrieve attributes for Conv3DBackpropInput
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    ov::op::PadType auto_pad = convert_conv_tf_padding(node, tf_padding_type);
+    ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);
 
     // retrieve optional attributes
     auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1, 1});
