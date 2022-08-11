@@ -32,16 +32,16 @@
 
 **Detailed description**: *DFT* performs the discrete Fourier transformation of input tensor with respect to specified axes. Calculations are performed according to the following rules.
 
-For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{r-1}, 2]`, `axes=[k+1,...,k+r]`, and `signal_size=[S_0,...,S_{r-1}]`.
+For simplicity, assume that an input tensor `A` has the shape `[B_0, ..., B_{k-1}, M_0, ..., M_{r-1}, 2]`, `axes=[k,...,k+r-1]`, and `signal_size=[S_0,...,S_{r-1}]`.
 
 Let `D` be an input tensor `A`, taking into account the `signal_size`, and, hence, `D` has the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]`.
 
 Next, put
-\f[X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r},1]\f]
-for all indices `j_0,...,j_{k+r}`, where `i` is an imaginary unit, that is `X` is a complex tensor.
+\f[X[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1}]=D[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},0]+iD[j_0,\dots,j_{k-1},j_k,\dots,j_{k+r-1},1]\f]
+for all indices `j_0,...,j_{k+r-1}`, where `i` is an imaginary unit, that is `X` is a complex tensor.
 
 Then the discrete Fourier transform is the tensor `Y` of the same shape as the tensor `X`, such that
-\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\sum\limits_{p_0=0}^{S_0}\cdots\sum\limits_{p_{r-1}=0}^{S_{r-1}}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(-2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_s}\right)\f]
+\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\sum\limits_{j_0=0}^{S_0-1}\cdots\sum\limits_{j_{r-1}=0}^{S_{r-1}-1}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(-2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_q}\right)\f]
 for all indices `n_0,...,n_{k-1}`, `m_0,...,m_{r-1}`, and the result of the operation is the real tensor `Z` with the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]` and such that
 \f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],\f]
 \f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 1]=Im Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}].\f]
