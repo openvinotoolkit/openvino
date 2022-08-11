@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "openvino/opsets/opset8.hpp"
+#include "openvino_conversions.hpp"
 
 using namespace ov::opset8;
 

@@ -20,12 +20,9 @@
 
 #pragma once
 
-#include "graph_iterator_proto.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/util/log.hpp"
-#include "openvino_conversions.hpp"
 
 namespace ov {
 namespace frontend {
@@ -80,15 +77,6 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
     }
     FRONT_END_THROW("Node must be converted to Constant.");
 }
-
-template <typename T, typename VecT = T>
-void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
-    std::vector<VecT> const_values;
-    ov::Shape ng_shape;
-
-    auto tensor = node.get_attribute<ov::Tensor>("value");
-    ng_node = std::make_shared<ov::opset8::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
-};
 
 ov::op::PadType convert_tf_padding(const NodeContext& node, const std::string& tf_padding);
 

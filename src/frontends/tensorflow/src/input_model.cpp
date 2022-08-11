@@ -14,8 +14,6 @@
 #include "place.hpp"
 #include "utils.hpp"
 
-using namespace google;
-
 namespace ov {
 namespace frontend {
 namespace tensorflow {
