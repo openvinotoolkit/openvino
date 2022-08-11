@@ -36,22 +36,27 @@ pip3 install cython
 ### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
-The workspace directory is specified by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice:
+The workspace directory is specified by the `${OV_WORKSPACE}` variable. Set this variable to a directory of your choice:
 
 ```bash
-export OPENVINO_BASEDIR=/path/to/my/workspace
+export OV_WORKSPACE=/path/to/my/workspace
 ```
 
 Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`. Please note that we're disabling
 the building of a few modules and plugins by setting the `ENABLE_*` flag to `OFF`.
-In order to build the OpenVINO™ Python APIs
-set the `ENABLE_PYTHON` flag to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
+
+In order to build the OpenVINO™ Python APIs set the `ENABLE_PYTHON` flag to `ON`.
+
+Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
 
 ```bash
-cd ${OPENVINO_BASEDIR}
+cd ${OV_WORKSPACE}
 git clone --recursive https://github.com/openvinotoolkit/openvino.git
 cd openvino
 git submodule update --init
+
+### You may also want to install OpenVINO™ dependencies with:
+# ./install_build_dependencies.sh
 
 mkdir build && cd build
 
@@ -69,20 +74,20 @@ cmake .. \
 -DENABLE_PYTHON=ON \
 -DENABLE_OV_IR_FRONTEND=ON \
 -DENABLE_OV_ONNX_FRONTEND=ON \
--DCMAKE_INSTALL_PREFIX="${OPENVINO_BASEDIR}/openvino_dist"
+-DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
 
 make -j 4 install
 ```
+
 The Python module is installed in the folder:
 
-    ${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/
+    ${OV_WORKSPACE}/openvino_dist/python/python<version>/
 
 You may also find it in:
 
-    ${OPENVINO_BASEDIR}/openvino/bin/intel64/[BUILD_TYPE]/python_api/python<version>/
+    ${OV_WORKSPACE}/openvino/bin/intel64/[BUILD_TYPE]/python_api/python<version>/
 
-If you would like to use a specific version of Python, or use a virtual environment, you can add the `PYTHON_EXECUTABLE`
-variable to your CMake command line. For example:
+If you would like to use a specific version of Python, or use a virtual environment, you can add the `PYTHON_EXECUTABLE` variable to your CMake command line. For example:
 
 ```bash
 -DPYTHON_EXECUTABLE=/path/to/venv/bin/python
@@ -93,20 +98,21 @@ variable to your CMake command line. For example:
 Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
 
 ```bash
-source ${OPENVINO_BASEDIR}/openvino_dist/setupvars.sh
+source ${OV_WORKSPACE}/openvino_dist/setupvars.sh
 ```
 
-If you want more control over enviroment variables, to simply enable OpenVINO™ Python API, export these varaibles:
+If you want more control over enviroment variables, to simply enable OpenVINO™ Python API, export these variables:
+
 ```bash
-export LD_LIBRARY_PATH=${OPENVINO_BASEDIR}/openvino_dist/runtime/lib/intel64/
-export PYTHONPATH=${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/
+export LD_LIBRARY_PATH=${OV_WORKSPACE}/openvino_dist/runtime/lib/intel64/
+export PYTHONPATH=${OV_WORKSPACE}/openvino_dist/python/python<version>/
 ```
 
 ### Rebuild OpenVINO™ project
 
 To rebuild project, simply navigate to build folder and re-run `make` command:
 ```bash
-cd ${OPENVINO_BASEDIR}/openvino/build
+cd ${OV_WORKSPACE}/openvino/build
 
 make -j 4 install
 ```
@@ -117,22 +123,22 @@ make -j 4 install
 You can build the Python wheel running the following command:
 
 ```bash
-cd ${OPENVINO_BASEDIR}/openvino/src/bindings/python/wheel
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel
 python3 setup.py bdist_wheel
 ```
 
 Once completed, the wheel package should be located under the following path:
 
 ```bash
-$ ls ${OPENVINO_BASEDIR}/openvino/src/bindings/python/wheel/dist
-openvino-0.0.0-cp38-cp38-linux_x86_64.whl
+$ ls ${OV_WORKSPACE}/openvino/src/bindings/python/wheel/dist
+openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
 ```
 
 You can now install the wheel in your Python environment:
 
 ```bash
-cd ${OPENVINO_BASEDIR}/openvino/src/bindings/python/wheel/dist
-pip3 install openvino-0.0.0-cp38-cp38-linux_x86_64.whl
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel/dist
+pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
 ```
 
 ## Windows* 10
