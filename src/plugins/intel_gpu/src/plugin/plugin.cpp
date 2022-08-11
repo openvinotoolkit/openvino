@@ -186,7 +186,7 @@ void Plugin::UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &netwo
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(params);
-    if (conf.enableDynamicBatch) {
+    if (conf.enableDynamicBatch && conf.max_dynamic_batch == 1) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 }

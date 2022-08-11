@@ -87,10 +87,15 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound) {
 }
 
 namespace {
-const ov::AnyMap config = {};
+const ov::AnyMap config = {
+    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES},
+    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "19"}
+};
 
 const ov::AnyMap hetero_config = {
-    {"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}
+    {"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU},
+    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES},
+    {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "19"}
 };
 
 const std::vector<InputShape> inputShapes = {

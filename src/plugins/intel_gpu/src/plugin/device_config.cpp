@@ -83,6 +83,15 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
+        } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_LIMIT) == 0) {
+            int val_i = -1;
+            try {
+                val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
+                           << ". Expected only integer numbers";
+            }
+            max_dynamic_batch = val_i;
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 enableDynamicBatch = true;
@@ -367,6 +376,7 @@ void Config::adjustKeyMapValues() {
     else
         key_config_map[CLDNNConfigParams::KEY_CLDNN_MEM_POOL] = PluginConfigParams::NO;
 
+    key_config_map[PluginConfigParams::KEY_DYN_BATCH_LIMIT] = max_dynamic_batch;
     if (enableDynamicBatch)
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::YES;
     else
