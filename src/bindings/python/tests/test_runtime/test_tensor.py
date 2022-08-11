@@ -142,7 +142,7 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert isinstance(ov_tensor.data, np.ndarray)
     assert ov_tensor.data.dtype == numpy_dtype
     assert ov_tensor.data.shape == shape
-    assert not(np.shares_memory(arr, ov_tensor.data))
+    assert not (np.shares_memory(arr, ov_tensor.data))
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
