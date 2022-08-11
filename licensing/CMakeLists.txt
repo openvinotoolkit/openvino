@@ -8,8 +8,6 @@
 
 ie_cpack_add_component(${OV_CPACK_COMP_LICENSING} HIDDEN)
 
-# TODO: exclude from debian and use cmake/developer_package/packaging/copyright
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         DESTINATION ${OV_CPACK_DOCDIR}/licensing
         COMPONENT ${OV_CPACK_COMP_LICENSING}

@@ -29,7 +29,8 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
     unset(OV_CPACK_SHAREDIR)
 
-    set(OV_CPACK_WHEELSDIR .) # TODO
+    # skipped during debian packaging
+    set(OV_CPACK_WHEELSDIR "tools")
 
     # for BW compatibility
     set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
@@ -50,7 +51,7 @@ macro(ov_override_component_names)
     set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
     set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
     # merge all pythons into a single component
-    set(OV_CPACK_COMP_PYTHON_OPENVINO "python")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
     set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
@@ -61,8 +62,6 @@ macro(ov_override_component_names)
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
     set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
-    # move licensing to core
-    set(OV_CPACK_COMP_LICENSING "${OV_CPACK_COMP_CORE}")
 endmacro()
 
 ov_override_component_names()
