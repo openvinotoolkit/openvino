@@ -5,6 +5,7 @@
 add_subdirectory(shared)
 add_subdirectory(abc)
 add_subdirectory(bde)
+add_subdirectory(fgh)
 
 # Use the same code for proxy plugin registration in plugins.xml
 #
