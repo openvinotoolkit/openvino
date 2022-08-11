@@ -257,18 +257,18 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
 #ifdef GPU_DEBUG_CONFIG
 #if GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    device::ptr default_device = next(query.get_available_devices().begin(), debug_config->test_device_index)->second;
+    device::ptr default_device = next(query.get_available_devices().begin(), debug_config->device_index)->second;
+#else
+    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
+#endif
+#else
+    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
+#endif
     const auto& info = default_device->get_info();
     GPU_DEBUG_IF(debug_config->verbose >= 1) {
         GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
         GPU_DEBUG_COUT << "Device support immad: " << (info.supports_immad ? "YES" : "NO") << std::endl;
     }
-#else
-    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
-#endif
-#else
-    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
-#endif
 
     return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
 }
