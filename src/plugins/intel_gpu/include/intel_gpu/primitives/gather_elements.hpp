@@ -19,15 +19,6 @@ namespace cldnn {
 struct gather_elements : public primitive_base<gather_elements> {
     CLDNN_DECLARE_PRIMITIVE(gather_elements)
 
-    enum gather_elements_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z,
-        along_w
-    };
-
     /// @brief Constructs gather_elements primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.
@@ -40,7 +31,7 @@ struct gather_elements : public primitive_base<gather_elements> {
                     const primitive_id& indices,
                     const format& output_format,
                     const tensor& output_shape,
-                    const gather_elements_axis axis,
+                    const int64_t axis,
                     const primitive_id& ext_prim_id = "",
                     const padding& output_padding = padding())
         : primitive_base(id, {data, indices}, ext_prim_id, output_padding), output_format(output_format), output_shape(output_shape), axis(axis) {}
@@ -51,7 +42,7 @@ struct gather_elements : public primitive_base<gather_elements> {
     tensor output_shape;
 
     /// @brief Which axis to gather on.
-    gather_elements_axis axis;
+    int64_t axis;
 };
 /// @}
 /// @}
