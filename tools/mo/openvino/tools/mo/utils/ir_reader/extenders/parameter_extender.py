@@ -24,8 +24,10 @@ class Parameter_extender(Extender):
             for i, dim in enumerate(op.shape):
                 if dim == -1 or (isinstance(dim, str) and ".." in dim):
                     shape[i] = -1
-                    if ".." in dim:
-                        has_shapes_with_boundaries = True
+                    # Check only if dim is not int
+                    if not isinstance(dim, int):
+                        if ".." in dim:
+                            has_shapes_with_boundaries = True
             shape = shape_array([d if d not in [-1, '?'] else dynamic_dimension_value for d in shape])
 
             if has_shapes_with_boundaries:
