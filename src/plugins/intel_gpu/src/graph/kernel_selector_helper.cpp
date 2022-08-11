@@ -763,11 +763,11 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
         vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].v;
+        vec[3].pitch = vec[2].pitch * vec[2].LogicalDimPadded();
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
         vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].v;
+        vec[4].pitch = vec[3].pitch * vec[3].LogicalDimPadded();
     }
 
     const int feature_index =
