@@ -3105,7 +3105,7 @@ bool evaluate(const shared_ptr<op::v3::GRUCell>& op, const HostTensorVector& out
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<ov::op::v1::AUGRUCell>& op,
+bool evaluate(const shared_ptr<ov::op::v0::AUGRUCell>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
@@ -3403,7 +3403,7 @@ bool evaluate(const shared_ptr<op::v5::GRUSequence>& op,
 
 namespace augru_seq {
 template <element::Type_t t1, element::Type_t t2>
-inline void evaluate(const shared_ptr<ov::op::v1::AUGRUSequence>& op,
+inline void evaluate(const shared_ptr<ov::op::v0::AUGRUSequence>& op,
                      const HostTensorVector& outputs,
                      const HostTensorVector& inputs) {
     using T1 = typename element_type_traits<t1>::value_type;
@@ -3432,7 +3432,7 @@ inline void evaluate(const shared_ptr<ov::op::v1::AUGRUSequence>& op,
 }  // namespace augru_seq
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<ov::op::v1::AUGRUSequence>& op,
+bool evaluate(const shared_ptr<ov::op::v0::AUGRUSequence>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
     switch (inputs[2]->get_element_type()) {

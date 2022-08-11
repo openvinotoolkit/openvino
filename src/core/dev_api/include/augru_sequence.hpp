@@ -13,14 +13,14 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
+namespace v0 {
 ///
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API AUGRUSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("AUGRUSequence", "dev_api", op::Op, 1);
+    OPENVINO_OP("AUGRUSequence", "dev_api", op::Op);
     BWDCMP_RTTI_DECLARATION;
 
     AUGRUSequence();
@@ -49,6 +49,6 @@ protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
 };
-}  // namespace v1
+}  // namespace v0
 }  // namespace op
 }  // namespace ov

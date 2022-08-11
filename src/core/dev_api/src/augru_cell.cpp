@@ -15,15 +15,15 @@ using namespace std;
 
 namespace ov {
 
-    BWDCMP_RTTI_DEFINITION(op::v1::AUGRUCell);
+    BWDCMP_RTTI_DEFINITION(op::v0::AUGRUCell);
 
-    op::v1::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
+    op::v0::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
         m_activations = {"sigmoid", "tanh"};
         m_activation_f = get_activation_function(0);
         m_activation_g = get_activation_function(1);
     }
 
-    op::v1::AUGRUCell::AUGRUCell(const Output<Node>& X,
+    op::v0::AUGRUCell::AUGRUCell(const Output<Node>& X,
                                 const Output<Node>& H_t,
                                 const Output<Node>& W,
                                 const Output<Node>& R,
@@ -37,14 +37,14 @@ namespace ov {
         constructor_validate_and_infer_types();
     }
 
-    bool op::v1::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
-        NGRAPH_OP_SCOPE(v1_AUGRUCell_visit_attributes);
+    bool op::v0::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
+        NGRAPH_OP_SCOPE(v0_AUGRUCell_visit_attributes);
         visitor.on_attribute("linear_before_reset", m_linear_before_reset);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
 
-    void op::v1::AUGRUCell::validate_and_infer_types() {
-        NGRAPH_OP_SCOPE(v1_AUGRUCell_validate_and_infer_types);
+    void op::v0::AUGRUCell::validate_and_infer_types() {
+        NGRAPH_OP_SCOPE(v0_AUGRUCell_validate_and_infer_types);
         for (const auto& input : inputs()) {
             if (input.get_partial_shape().rank().is_dynamic()) {
                 set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(2));
@@ -137,8 +137,8 @@ namespace ov {
         set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
     }
 
-    shared_ptr<Node> op::v1::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
-        NGRAPH_OP_SCOPE(v1_AUGRUCell_clone_with_new_inputs);
+    shared_ptr<Node> op::v0::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
+        NGRAPH_OP_SCOPE(v0_AUGRUCell_clone_with_new_inputs);
         check_new_args_count(this, new_args);
         return make_shared<AUGRUCell>(new_args.at(0),
                                         new_args.at(1),

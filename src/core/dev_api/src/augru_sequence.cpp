@@ -13,13 +13,13 @@
 using namespace std;
 
 namespace ov {
-    BWDCMP_RTTI_DEFINITION(op::v1::AUGRUSequence);
+    BWDCMP_RTTI_DEFINITION(op::v0::AUGRUSequence);
 
-    op::v1::AUGRUSequence::AUGRUSequence()
+    op::v0::AUGRUSequence::AUGRUSequence()
         : m_direction(op::RecurrentSequenceDirection::FORWARD),
         m_linear_before_reset(false) {}
 
-    op::v1::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
+    op::v0::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
                                         const Output<Node>& H_t,
                                         const Output<Node>& sequence_lengths,
                                         const Output<Node>& W,
@@ -38,8 +38,8 @@ namespace ov {
         constructor_validate_and_infer_types();
     }
 
-    void op::v1::AUGRUSequence::validate_and_infer_types() {
-        NGRAPH_OP_SCOPE(v1_AUGRUSequence_validate_and_infer_types);
+    void op::v0::AUGRUSequence::validate_and_infer_types() {
+        NGRAPH_OP_SCOPE(v0_AUGRUSequence_validate_and_infer_types);
         for (const auto& input : inputs()) {
             if (input.get_partial_shape().rank().is_dynamic()) {
                 set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(4));
@@ -163,17 +163,17 @@ namespace ov {
         set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
     }
 
-    bool op::v1::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
-        NGRAPH_OP_SCOPE(v1_AUGRUSequence_visit_attributes);
+    bool op::v0::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
+        NGRAPH_OP_SCOPE(v0_AUGRUSequence_visit_attributes);
         visitor.on_attribute("direction", m_direction);
         visitor.on_attribute("linear_before_reset", m_linear_before_reset);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
 
-    shared_ptr<Node> op::v1::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-        NGRAPH_OP_SCOPE(v1_AUGRUSequence_clone_with_new_inputs);
+    shared_ptr<Node> op::v0::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+        NGRAPH_OP_SCOPE(v0_AUGRUSequence_clone_with_new_inputs);
         check_new_args_count(this, new_args);
-        return make_shared<op::v1::AUGRUSequence>(new_args.at(0),
+        return make_shared<op::v0::AUGRUSequence>(new_args.at(0),
                                                 new_args.at(1),
                                                 new_args.at(2),
                                                 new_args.at(3),

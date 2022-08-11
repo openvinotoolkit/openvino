@@ -20,7 +20,7 @@ struct augru_sequence_parameters {
     ngraph::element::Type et = element::f32;
 };
 
-shared_ptr<op::v1::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
+shared_ptr<op::v0::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
     auto batch_size = params.batch_size;
     auto seq_length = params.seq_length;
     auto input_size = params.input_size;
@@ -37,7 +37,7 @@ shared_ptr<op::v1::AUGRUSequence> augru_seq_init(const augru_sequence_parameters
     const auto B = make_shared<opset9::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
     const auto A = make_shared<opset9::Parameter>(et, PartialShape{batch_size, seq_length, 1});
 
-    const auto augru_sequence = make_shared<op::v1::AUGRUSequence>(
+    const auto augru_sequence = make_shared<op::v0::AUGRUSequence>(
         X,
         initial_hidden_state,
         sequence_lengths,
@@ -184,7 +184,7 @@ TEST(type_prop, augru_sequence_invalid_input_dynamic_rank) {
     params.hidden_size = 128;
     params.et = element::f32;
 
-    auto check_dynamic_augru = [](const shared_ptr<op::v1::AUGRUSequence>& augru) -> bool {
+    auto check_dynamic_augru = [](const shared_ptr<op::v0::AUGRUSequence>& augru) -> bool {
         return augru->output(0).get_partial_shape() == PartialShape::dynamic(4) &&
                augru->output(1).get_partial_shape() == PartialShape::dynamic(3) &&
                augru->output(0).get_element_type() == augru->input(0).get_element_type();
