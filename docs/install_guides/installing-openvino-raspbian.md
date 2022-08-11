@@ -1,4 +1,4 @@
-# Install OpenVINO™ toolkit for Raspbian OS {#openvino_docs_install_guides_installing_openvino_raspbian}
+# Install Intel® Distribution of OpenVINO™ Toolkit on Raspbian OS {#openvino_docs_install_guides_installing_openvino_raspbian}
 
 @sphinxdirective
 .. note::

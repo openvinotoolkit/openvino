@@ -1,6 +1,8 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Windows 10 {#openvino_docs_install_guides_installing_openvino_windows}
+# Install Intel® Distribution of OpenVINO™ Toolkit on Windows 10 Using the Installer{#openvino_docs_install_guides_installing_openvino_windows}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
+
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
 
 ## System Requirements
 
@@ -31,9 +33,11 @@
 
 .. tab:: Software
 
-  * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
-  * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_
-  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+  * For C++ developers:
+     * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
+     * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
+  * For Python developers: `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
   
   .. note::
     You can choose to download Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
@@ -78,8 +82,6 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    <br>By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>/`.
 
    <br>For simplicity, a symbolic link to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022/`.
-
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to configure environment.
 

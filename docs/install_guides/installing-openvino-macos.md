@@ -1,8 +1,10 @@
-# Install and Configure Intel® Distribution of OpenVINO™ toolkit for macOS {#openvino_docs_install_guides_installing_openvino_macos}
+# Install Intel® Distribution of OpenVINO™ toolkit on macOS Using the Installer{#openvino_docs_install_guides_installing_openvino_macos}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
 > **NOTE**: The Intel® Distribution of OpenVINO™ toolkit is supported on macOS version 10.15 with Intel® processor-based machines.
+
+You can also check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in this release.
 
 ## System Requirements
 
@@ -69,8 +71,6 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    `/opt/intel/openvino_<version>/`
 
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2022/`.
-
-To check **Release Notes** please visit: [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes).
 
 The core components are now installed. Continue to the next section to configure environment.
 

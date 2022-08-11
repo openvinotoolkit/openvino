@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime 2022.1 {#openvino_docs_install_guides_install_runtime}
+# Install OpenVINO™ Runtime {#openvino_docs_install_guides_install_runtime}
 
 @sphinxdirective
 
@@ -15,9 +15,9 @@
 
 You can choose how to install Intel® Distribution of OpenVINO™ toolkit 2022.1 according to your operating system: 
 
-* [Install OpenVINO Runtime 2022.1 on Linux](installing-openvino-linux-header.md)
-* [Install OpenVINO Runtime 2022.1 on Windows](installing-openvino-windows-header.md)
-* [Install OpenVINO Runtime 2022.1 on macOS](installing-openvino-macos-header.md)
-* [Install OpenVINO Runtime 2022.1 on Raspbian OS](installing-openvino-raspbian.md)
+* [Install OpenVINO Runtime on Linux](installing-openvino-linux-header.md)
+* [Install OpenVINO Runtime on Windows](installing-openvino-windows-header.md)
+* [Install OpenVINO Runtime on macOS](installing-openvino-macos-header.md)
+* [Install OpenVINO Runtime on Raspbian OS](installing-openvino-raspbian.md)
 
 Enjoy your journey with OpenVINO.
