@@ -54,6 +54,10 @@ TEST(ov_model, ov_model_input_by_name) {
     OV_ASSERT_OK(ov_model_input_by_name(model, "data", &input_node));
     ASSERT_NE(nullptr, input_node);
 
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_node_get_shape(input_node, &shape));
+    ov_shape_deinit(&shape);
+
     ov_output_node_free(input_node);
     ov_model_free(model);
     ov_core_free(core);
@@ -71,6 +75,10 @@ TEST(ov_model, ov_model_input_by_index) {
     ov_output_const_node_t* input_node = nullptr;
     OV_ASSERT_OK(ov_model_input_by_index(model, 0, &input_node));
     ASSERT_NE(nullptr, input_node);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_node_get_shape(input_node, &shape));
+    ov_shape_deinit(&shape);
 
     ov_output_node_free(input_node);
     ov_model_free(model);
@@ -107,7 +115,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
 
     char* tensor_name = nullptr;
-    OV_ASSERT_OK(ov_node_get_any_name_by_index(&input_node_list1, 0, &tensor_name));
+    OV_ASSERT_OK(ov_node_list_get_any_name_by_index(&input_node_list1, 0, &tensor_name));
 
     ov_shape_t shape = {0, nullptr};
     OV_ASSERT_OK(ov_shape_init(&shape, 4));

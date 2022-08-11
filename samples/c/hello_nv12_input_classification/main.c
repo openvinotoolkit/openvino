@@ -233,8 +233,8 @@ int main(int argc, char** argv) {
         goto err;
     }
 
-    CHECK_STATUS(ov_node_get_any_name_by_index(&input_nodes, 0, &input_tensor_name));
-    CHECK_STATUS(ov_node_get_any_name_by_index(&output_nodes, 0, &output_tensor_name));
+    CHECK_STATUS(ov_node_list_get_any_name_by_index(&input_nodes, 0, &input_tensor_name));
+    CHECK_STATUS(ov_node_list_get_any_name_by_index(&output_nodes, 0, &output_tensor_name));
 
     // -------- Step 3. Configure preprocessing  --------
     CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
