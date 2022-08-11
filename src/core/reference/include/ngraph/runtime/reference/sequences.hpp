@@ -89,9 +89,10 @@ void cell_pass(CellType type,
     reference::split(temp_buffer.data(), shapes[0], sizeof(T), 1, num_splits, in_seqs_pointers.data());
 
     // split A
-    const auto a_shape_size = ngraph::shape_size(shapes[6]);
-    std::vector<char> a_seqs(a_shape_size * sizeof(T));
+    std::vector<char> a_seqs;
     if (type == CellType::AUGRU) {
+        const auto a_shape_size = ngraph::shape_size(shapes[6]);
+        a_seqs.resize(a_shape_size * sizeof(T));
         std::vector<char*> a_pointers(num_splits);
         for (size_t i = 0; i < num_splits; ++i) {
             a_pointers[i] = a_seqs.data() + i * batch * sizeof(T);
