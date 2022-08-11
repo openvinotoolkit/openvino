@@ -71,7 +71,7 @@ void make_padding(const std::string& tf_padding_type,
     }
 }
 
-void tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
+//void tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
 void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
@@ -90,7 +90,7 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
 // in the std::vector does not match TensorFlow's notion of what the C++ type
 // should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
 // compatibility with OpenVINO).
-template <typename T, typename VecT = T>
+/*template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     const auto* decoder = node.get_decoder();
@@ -188,15 +188,15 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
     } else {
         return;
     }
-}
+}*/
 
 template <typename T, typename VecT = T>
 void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
     std::vector<VecT> const_values;
     ov::Shape ng_shape;
 
-    values_from_const_node<T, VecT>(node, &ng_shape, &const_values);
-    ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
+    auto& tensor = node.get_attribute<ov::Tensor>("value");
+    ng_node = std::make_shared<ov::opset8::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
 };
 
 ov::op::PadType convert_tf_padding(const NodeContext& node, const std::string& tf_padding);
