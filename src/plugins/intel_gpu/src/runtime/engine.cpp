@@ -254,6 +254,8 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
+#ifdef GPU_DEBUG_CONFIG
+#if GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
     device::ptr default_device = next(query.get_available_devices().begin(), debug_config->test_device_index)->second;
     const auto& info = default_device->get_info();
@@ -261,6 +263,12 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
         GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
         GPU_DEBUG_COUT << "Device support immad: " << (info.supports_immad ? "YES" : "NO") << std::endl;
     }
+#else
+    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
+#endif
+#else
+    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
+#endif
 
     return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
 }
