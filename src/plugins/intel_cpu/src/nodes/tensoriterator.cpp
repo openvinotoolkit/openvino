@@ -159,6 +159,35 @@ public:
     }
 };
 
+class BackEdgePortForMergedInputHelper : public PortMapHelper {
+public:
+    BackEdgePortForMergedInputHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
+        const auto &from_desc = from->GetPrimitive().get_desc();
+        const auto &to_desc = to->GetPrimitive().get_desc();
+        if (from_desc != to_desc) { // sounds always be true?
+            DEBUG_LOG("from ", from_desc, " -> to ", to_desc);
+            mem_holder_src = from->GetPrimitive();
+            mem_holder_dst = to->GetPrimitive();
+            reorder = {mem_holder_src, mem_holder_dst};
+            need_reorder = true;
+        } else {
+            // reuse memory
+            std::cout << "from: " << from->GetData() << ", ptr" << from->GetPtr() << ", to: " << to->GetData() << ", ptr" << to->GetPtr() << std::endl;
+            if (from->GetData() != to->GetData())
+                to->setDataHandle(from->GetData());
+        }
+    }
+
+    void execute(dnnl::stream strm, int iter = -1) override {
+        if (iter != 0 && need_reorder) {
+            DEBUG_LOG("reorder back_edge on iter ", iter);
+            reorder.execute(strm, mem_holder_src, mem_holder_dst);
+        }
+    }
+private:
+    bool need_reorder = false;
+};
+
 class IterCountPortHelper : public PortMapHelper {
 public:
     IterCountPortHelper(const MemoryPtr &to, const dnnl::engine& eng) {
@@ -618,7 +647,11 @@ void TensorIterator::prepareDynamicBackEdges() {
         redefineToMemories(to_mems, from_mem->getDescPtr());
 
         // first memory is enough to get common memory ptr
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
+        if (getenv("WA_BACKEDGE") && to_mems.size()==1) {
+            back_mappers.emplace_back(std::make_shared<BackEdgePortForMergedInputHelper>(from_mem, to_mems.front(), eng));
+        } else {
+            back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
+        }
     }
 }
 
