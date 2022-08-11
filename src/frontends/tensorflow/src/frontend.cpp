@@ -213,7 +213,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
         if (port_type == "none") {
             for (const auto& node_output : ng_op_map[operation_name]) {
                 auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                set_node_name(model_output_name, result_node);
+                result_node->set_friendly_name(model_output_name);
                 results.push_back(result_node);
             }
         } else if (port_type == "out") {
@@ -222,7 +222,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                     "Output port with index " + std::to_string(port_index) + " of " + operation_name +
                                         "node specified as custom output does not exist");
             auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
-            set_node_name(model_output_name, result_node);
+            result_node->set_friendly_name(model_output_name);
             results.push_back(result_node);
         } else if (port_type == "in") {
             // TODO: avoid this traversing by having a map for OpPlace objects, for example
@@ -254,7 +254,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                     "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                         producer_name + "node specified as custom output does not exist");
             auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
-            set_node_name(model_output_name, result_node);
+            result_node->set_friendly_name(model_output_name);
             results.push_back(result_node);
         }
     }
@@ -268,7 +268,7 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                     auto model_output_name =
                         output.get_node_shared_ptr()->get_name() + ":" + std::to_string(output_ind);
                     auto result_node = std::make_shared<ov::opset8::Result>(output);
-                    set_node_name(model_output_name, result_node);
+                    result_node->set_friendly_name(model_output_name);
                     results.push_back(result_node);
                 }
             }
