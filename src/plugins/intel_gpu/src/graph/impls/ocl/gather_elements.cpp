@@ -14,22 +14,35 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
-kernel_selector::gather_elements_axis convert_axis(gather_elements::gather_elements_axis axis) {
+
+static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, size_t rank) {
+    if (axis < 0) {
+        axis += rank;
+    }
     switch (axis) {
-        case gather_elements::along_x:
-            return kernel_selector::gather_elements_axis::X;
-        case gather_elements::along_y:
-            return kernel_selector::gather_elements_axis::Y;
-        case gather_elements::along_z:
-            return kernel_selector::gather_elements_axis::Z;
-        case gather_elements::along_w:
-            return kernel_selector::gather_elements_axis::W;
-        case gather_elements::along_f:
-            return kernel_selector::gather_elements_axis::FEATURE;
-        case gather_elements::along_b:
-            return kernel_selector::gather_elements_axis::BATCH;
-        default:
-            return kernel_selector::gather_elements_axis::BATCH;
+        case 0: return kernel_selector::gather_elements_axis::BATCH;
+        case 1: return kernel_selector::gather_elements_axis::FEATURE;
+        case 2:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::W;
+            else if (rank == 5)
+                return kernel_selector::gather_elements_axis::Z;
+            else
+                return kernel_selector::gather_elements_axis::Y;
+        case 3:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::Z;
+            else if (rank == 5)
+                return kernel_selector::gather_elements_axis::Y;
+            else
+                return kernel_selector::gather_elements_axis::X;
+        case 4:
+            if (rank == 6)
+                return kernel_selector::gather_elements_axis::Y;
+            else
+                return kernel_selector::gather_elements_axis::X;
+        case 5: return kernel_selector::gather_elements_axis::X;
+        default: IE_THROW() << "Incorrect gather_elements axis.";
     }
 }
 
@@ -48,7 +61,8 @@ public:
         auto gather_elements_optional_params =
             get_default_optional_params<kernel_selector::gather_elements_optional_params>(arg.get_program());
 
-        gather_elements_params.axis = convert_axis(prim->axis);
+        size_t rank = arg.get_output_layout().get_rank();
+        gather_elements_params.axis = convert_axis(prim->axis, rank);
 
         gather_elements_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 

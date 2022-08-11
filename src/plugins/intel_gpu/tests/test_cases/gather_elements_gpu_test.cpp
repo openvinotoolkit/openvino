@@ -21,7 +21,7 @@ inline void DoTest(engine& engine,
     const cldnn::memory::ptr& input1, // indices
     const std::vector<float>& expected_results,
     const tensor& output_tensor,
-    const cldnn::gather_elements::gather_elements_axis axis) {
+    const int64_t axis) {
     topology topology;
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
@@ -45,7 +45,7 @@ inline void DoTest(engine& engine,
 TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_b;
+    auto axis = 0;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 8, 3 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 8, 3 } }); // indices
 
@@ -106,7 +106,7 @@ TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
 TEST(gather_elements_gpu_fp16, d2235_i2235_a3) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
+    auto axis = 3;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 3, 5 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 3, 5 } }); // indices
     set_values(input0, {
@@ -184,7 +184,7 @@ TEST(gather_elements_gpu_fp16, d2235_i2235_a3) {
 TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
+    auto axis = 3;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 2, 9 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 5, 9 } }); // indices
     set_values(input0, {
@@ -283,7 +283,7 @@ TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
 TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_y;
+    auto axis = 3;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 5, 3 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 2, 3 } }); // indices
 
@@ -356,7 +356,7 @@ TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
 TEST(gather_elements_gpu_fp16, d25441_i22441_an4) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_f;
+    auto axis = 1;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 5, 4, 4, 1 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 2, 2, 4, 4, 1 } }); // indices
 
@@ -448,7 +448,7 @@ TEST(gather_elements_gpu_fp16, d25441_i22441_an4) {
 TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_b;
+    auto axis = 0;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 3, 2, 8, 4, 3 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 2, 8, 4, 3 } }); // indices
 
@@ -588,7 +588,7 @@ TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
 TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_x;
+    auto axis = 5;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 3, 4, 4, 2 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 2, 6, 4, 4, 2 } }); // indices
 
@@ -991,7 +991,7 @@ TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
 TEST(gather_elements_gpu_fp16, d124251_i124221_an3) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_z;
+    auto axis = 3;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 4, 2, 5, 1 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 1, 2, 4, 2, 2, 1 } }); // indices
 
@@ -1046,7 +1046,7 @@ TEST(gather_elements_gpu_fp16, d124251_i124221_an3) {
 TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
     auto& engine = get_test_engine();
 
-    auto axis = cldnn::gather_elements::gather_elements_axis::along_w;
+    auto axis = 2;
     auto input0 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 3 } }); // data
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfwzyx, { 2, 3, 3, 1, 1, 5 } }); // indices
 

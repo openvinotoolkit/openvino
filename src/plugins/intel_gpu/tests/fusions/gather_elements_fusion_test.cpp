@@ -29,7 +29,7 @@ struct gather_elements_test_params {
     format output_format;
     tensor output_shape;
 
-    cldnn::gather_elements::gather_elements_axis axis;
+    int64_t axis;
 
     data_types default_type;
     format default_format;
@@ -50,22 +50,10 @@ public:
     }
 
     size_t get_axis_dim(gather_elements_test_params& p) {
-        switch (p.axis) {
-            case cldnn::gather_elements::gather_elements_axis::along_x:
-                return p.input_shape.spatial[0];
-            case cldnn::gather_elements::gather_elements_axis::along_y:
-                return p.input_shape.spatial[1];
-            case cldnn::gather_elements::gather_elements_axis::along_z:
-                return p.input_shape.spatial[2];
-            case cldnn::gather_elements::gather_elements_axis::along_w:
-                return p.input_shape.spatial[3];
-            case cldnn::gather_elements::gather_elements_axis::along_f:
-                return p.input_shape.feature[0];
-            case cldnn::gather_elements::gather_elements_axis::along_b:
-                return p.input_shape.batch[0];
-            default:
-                return 1;
-        }
+        size_t rank = p.input_format.dimension();
+        auto default_fmt = format::get_default_format(rank);
+        auto dims = p.input_shape.sizes(default_fmt);
+        return dims[p.axis];
     }
 
     layout get_input_layout(gather_elements_test_params& p) {
@@ -89,28 +77,28 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 /* ------------------------------------------ GatherElements cases ------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-#define CASE_GATHER_ELEMENTS_FP16_4D_1 data_types::f16, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, cldnn::gather_elements::gather_elements_axis::along_y, data_types::f16, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP16_4D_2 data_types::f16, format::bfyx, { 3, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, cldnn::gather_elements::gather_elements_axis::along_b, data_types::f16, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP16_4D_3 data_types::f16, format::bfyx, { 1, 3, 2, 9 }, format::bfyx, { 1, 3, 5, 9 }, format::bfyx, { 1, 3, 5, 9 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_1 data_types::f16, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, 2, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_2 data_types::f16, format::bfyx, { 3, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, 0, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_3 data_types::f16, format::bfyx, { 1, 3, 2, 9 }, format::bfyx, { 1, 3, 5, 9 }, format::bfyx, { 1, 3, 5, 9 }, 3, data_types::f16, format::bfyx
 
-#define CASE_GATHER_ELEMENTS_FP16_5D_1 data_types::f16, format::bfzyx, { 3, 2, 5, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f16, format::bfzyx
-#define CASE_GATHER_ELEMENTS_FP16_5D_2 data_types::f16, format::bfzyx, { 5, 4, 7, 4, 4 }, format::bfzyx, { 5, 4, 7, 4, 3 }, format::bfzyx, { 5, 4, 7, 4, 3 }, cldnn::gather_elements::gather_elements_axis::along_z, data_types::f16, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP16_5D_1 data_types::f16, format::bfzyx, { 3, 2, 5, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, 4, data_types::f16, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP16_5D_2 data_types::f16, format::bfzyx, { 5, 4, 7, 4, 4 }, format::bfzyx, { 5, 4, 7, 4, 3 }, format::bfzyx, { 5, 4, 7, 4, 3 }, 2, data_types::f16, format::bfzyx
 
-#define CASE_GATHER_ELEMENTS_FP16_6D_1 data_types::f16, format::bfwzyx, { 5, 4, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, cldnn::gather_elements::gather_elements_axis::along_f, data_types::f16, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP16_6D_2 data_types::f16, format::bfwzyx, { 2, 1, 2, 3, 2, 1 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, cldnn::gather_elements::gather_elements_axis::along_w, data_types::f16, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP16_6D_3 data_types::f16, format::bfwzyx, { 2, 2, 3, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f16, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP16_6D_1 data_types::f16, format::bfwzyx, { 5, 4, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, 1, data_types::f16, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP16_6D_2 data_types::f16, format::bfwzyx, { 2, 1, 2, 3, 2, 1 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, 2, data_types::f16, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP16_6D_3 data_types::f16, format::bfwzyx, { 2, 2, 3, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, 5, data_types::f16, format::bfwzyx
 
 
-#define CASE_GATHER_ELEMENTS_FP32_4D_1 data_types::f32, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, cldnn::gather_elements::gather_elements_axis::along_y, data_types::f32, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP32_4D_2 data_types::f32, format::bfyx, { 3, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, cldnn::gather_elements::gather_elements_axis::along_b, data_types::f32, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP32_4D_3 data_types::f32, format::bfyx, { 1, 3, 2, 9 }, format::bfyx, { 1, 3, 5, 9 }, format::bfyx, { 1, 3, 5, 9 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_1 data_types::f32, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, format::bfyx, { 3, 7, 9, 8 }, 2, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_2 data_types::f32, format::bfyx, { 3, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, format::bfyx, { 2, 2, 8, 3 }, 0, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_3 data_types::f32, format::bfyx, { 1, 3, 2, 9 }, format::bfyx, { 1, 3, 5, 9 }, format::bfyx, { 1, 3, 5, 9 }, 3, data_types::f32, format::bfyx
 
-#define CASE_GATHER_ELEMENTS_FP32_5D_1 data_types::f32, format::bfzyx, { 3, 2, 5, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f32, format::bfzyx
-#define CASE_GATHER_ELEMENTS_FP32_5D_2 data_types::f32, format::bfzyx, { 5, 4, 7, 4, 4 }, format::bfzyx, { 5, 4, 7, 4, 3 }, format::bfzyx, { 5, 4, 7, 4, 3 }, cldnn::gather_elements::gather_elements_axis::along_z, data_types::f32, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP32_5D_1 data_types::f32, format::bfzyx, { 3, 2, 5, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, format::bfzyx, { 3, 2, 2, 2, 3 }, 4, data_types::f32, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP32_5D_2 data_types::f32, format::bfzyx, { 5, 4, 7, 4, 4 }, format::bfzyx, { 5, 4, 7, 4, 3 }, format::bfzyx, { 5, 4, 7, 4, 3 }, 2, data_types::f32, format::bfzyx
 
-#define CASE_GATHER_ELEMENTS_FP32_6D_1 data_types::f32, format::bfwzyx, { 5, 4, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, cldnn::gather_elements::gather_elements_axis::along_f, data_types::f32, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP32_6D_2 data_types::f32, format::bfwzyx, { 2, 1, 2, 3, 2, 1 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, cldnn::gather_elements::gather_elements_axis::along_w, data_types::f32, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP32_6D_3 data_types::f32, format::bfwzyx, { 2, 2, 3, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, cldnn::gather_elements::gather_elements_axis::along_x, data_types::f32, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP32_6D_1 data_types::f32, format::bfwzyx, { 5, 4, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, format::bfwzyx, { 5, 2, 6, 7, 8, 2 }, 1, data_types::f32, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP32_6D_2 data_types::f32, format::bfwzyx, { 2, 1, 2, 3, 2, 1 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, format::bfwzyx, { 2, 1, 2, 3, 2, 3 }, 2, data_types::f32, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP32_6D_3 data_types::f32, format::bfwzyx, { 2, 2, 3, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, format::bfwzyx, { 2, 2, 6, 4, 4, 2 }, 5, data_types::f32, format::bfwzyx
 
 class gather_elements_quantize : public GatherElementsPrimitiveFusingTest {};
 TEST_P(gather_elements_quantize, basic) {
