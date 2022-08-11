@@ -71,8 +71,6 @@ void make_padding(const std::string& tf_padding_type,
     }
 }
 
-//void tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
-
 template <typename T>
 void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
     auto ng_input = node.get_input(input_index);
@@ -83,119 +81,12 @@ void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T
     FRONT_END_THROW("Node must be converted to Constant.");
 }
 
-// Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
-// Extract values from a Const op to `values`. Returns true if succeeds.
-//
-// Modified with an extra `VecT` parameter to handle the case where the type
-// in the std::vector does not match TensorFlow's notion of what the C++ type
-// should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
-// compatibility with OpenVINO).
-/*template <typename T, typename VecT = T>
-void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
-    const auto* decoder = node.get_decoder();
-    auto dt = decoder->get_native_attribute("dtype").as<::tensorflow::DataType>();
-
-    // TODO: investigate why as<>() && method using std::move leads to the issue (75371) in OVTF integration with
-    //  tensorflow frontend. The current fix: replace it with as<>() & method. But in fact, both
-    //  approaches should work the same way.
-    // auto tensor_proto = decoder->get_native_attribute("value").as<::tensorflow::TensorProto>();
-    auto value = decoder->get_native_attribute("value");
-    auto tensor_proto = value.as<::tensorflow::TensorProto>();
-
-    const ::tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
-    ov::PartialShape pshape;
-    tf_shape_to_ov_shape(shape, &pshape);
-    *const_tensor_shape = pshape.get_shape();
-    TENSORFLOW_OP_VALIDATION(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
-    auto tensor_content = tensor_proto.tensor_content();
-    std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
-    const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());
-
-    if (!tensor_values_plain.empty() && tensor_proto.has_tensor_shape()) {
-        // When tensor_shape is set, theoretically the representation of the data
-        // could be compressed. So, before copying values to the returned vector,
-        // make sure no compression happens.
-        // if (shape.dim_size() == 1 && shape.dim(0).size() == tensor_values_plain.size()/sizeof(T)) {
-        values->insert(values->end(), tensor_values, tensor_values + tensor_values_plain.size() / sizeof(T));
-        return;
-        //}
-    }
-    const auto tensor_content_size = tensor_proto.tensor_content().size();
-    if (tensor_content_size % sizeof(VecT)) {
-        std::cerr << "[ ERROR ] tensor_content_size (" << tensor_content_size << ") is not a multiple of "
-                  << sizeof(VecT);
-    }
-
-    // If tensor_content_size is zero, we'll have to take the values from
-    // int_val, float_val, etc.
-    if (tensor_content_size == 0) {
-        int64_t n_elements = 1;
-        for (auto i = 0; i < shape.dim_size(); i++) {
-            TENSORFLOW_OP_VALIDATION(node,
-                                     shape.dim(i).size() >= 0,
-                                     "Const node has empty tensor and an unknown dimension size");
-            n_elements *= shape.dim(i).size();
-        }
-        values->resize(n_elements);
-
-        auto val_lastsaved = (T)0;  // cast
-        for (auto i = 0; i < n_elements; i++) {
-            int64_t val_size = 0;
-            auto val_i = (T)0;  // cast
-            switch (dt) {
-            // TODO: there are more element types to support
-            // here
-            case ::tensorflow::DT_INT32:
-                val_size = tensor_proto.int_val_size();
-                if (val_size > 0)
-                    val_i = tensor_proto.int_val()[i];
-                break;
-            case ::tensorflow::DT_INT64:
-                val_size = tensor_proto.int64_val_size();
-                if (val_size > 0)
-                    val_i = tensor_proto.int64_val()[i];
-                break;
-            case ::tensorflow::DT_FLOAT:
-                val_size = tensor_proto.float_val_size();
-                if (val_size > 0)
-                    val_i = tensor_proto.float_val()[i];
-                break;
-            case ::tensorflow::DT_BOOL:
-                val_size = tensor_proto.bool_val_size();
-                if (val_size > 0)
-                    val_i = tensor_proto.bool_val()[i];
-                break;
-            case ::tensorflow::DT_DOUBLE:
-                val_size = tensor_proto.double_val_size();
-                if (val_size > 0)
-                    val_i = tensor_proto.double_val()[i];
-                break;
-            default:
-                OPENVINO_DEBUG << "Const node has empty tensor_proto and we don't know how to "
-                                  "handle this element type";
-                FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
-            }
-            if (val_size == 0) {
-                (*values)[i] = static_cast<T>(0);
-            } else if (i < val_size) {
-                (*values)[i] = val_i;
-                val_lastsaved = val_i;
-            } else {
-                (*values)[i] = val_lastsaved;
-            }
-        }
-    } else {
-        return;
-    }
-}*/
-
 template <typename T, typename VecT = T>
 void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
     std::vector<VecT> const_values;
     ov::Shape ng_shape;
 
-    auto& tensor = node.get_attribute<ov::Tensor>("value");
+    auto tensor = node.get_attribute<ov::Tensor>("value");
     ng_node = std::make_shared<ov::opset8::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
 };
 

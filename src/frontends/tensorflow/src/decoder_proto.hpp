@@ -22,8 +22,6 @@ public:
 
     ov::Any get_attribute(const std::string& name) const override;
 
-    ov::Any get_native_attribute(const std::string& name) const override;
-
     size_t get_input_size() const override;
 
     void get_input_node(size_t input_port_idx,
