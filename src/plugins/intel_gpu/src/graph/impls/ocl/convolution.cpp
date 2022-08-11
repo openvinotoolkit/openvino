@@ -25,15 +25,31 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
         return make_unique<convolution_impl>(*this);
     }
 
+    explicit convolution_impl(const convolution_impl& other) : parent(other),
+      _split(other._split),
+      _groups(other._groups),
+      _depthwise_sep_opt(other._depthwise_sep_opt) {}
+
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<convolution>());
+        const auto& node = arg.as<convolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+        _depthwise_sep_opt = node.get_depthwise_sep_opt();
+    }
+
 protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -55,9 +71,9 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
-    uint32_t get_groups() const override { return _outer.get_groups(); }
-    bool get_depthwise_sep_opt() const override { return _outer.get_depthwise_sep_opt(); }
+    int32_t get_split() const override { return _split; }
+    uint32_t get_groups() const override { return _groups; }
+    bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
     static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
@@ -157,6 +173,11 @@ public:
 
         return conv;
     }
+
+private:
+    int32_t _split;
+    uint32_t _groups;
+    bool _depthwise_sep_opt;
 };
 
 namespace detail {

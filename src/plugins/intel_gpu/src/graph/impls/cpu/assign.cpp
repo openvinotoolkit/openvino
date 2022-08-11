@@ -35,7 +35,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
         return ev_set_memory;
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 
 public:
     static primitive_impl* create(const assign_node& arg, const kernel_impl_params& impl_param) {

@@ -24,7 +24,6 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
-    const custom_gpu_primitive_node& outer;
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -34,23 +33,23 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
-    : outer(other.outer)
-    , cl_kernel(other.cl_kernel)
+    : cl_kernel(other.cl_kernel)
     , _kernels({})
     , _kernel_id(other._kernel_id) {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)->clone()));
+        for (const auto& kernel : other._kernels) {
+            _kernels.emplace_back(std::move(kernel->clone()));
+        }
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : outer(arg)
-        , cl_kernel(cl_kernel)
+        : cl_kernel(cl_kernel)
         , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(cl_kernel->code.kernelString);
+        _kernel_id = arg.get_program().add_kernel(cl_kernel->code.kernelString);
     }
 
-    void init_kernels() override {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)));
+    void init_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {

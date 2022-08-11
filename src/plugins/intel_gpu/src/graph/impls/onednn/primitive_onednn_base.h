@@ -235,7 +235,7 @@ protected:
         return args;
     }
 
-    void init_kernels() override { }
+    void init_kernels(const kernels_cache&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)

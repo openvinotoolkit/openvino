@@ -21,16 +21,31 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
+    explicit reorder_impl(const reorder_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized),
+        _has_mean(other._has_mean) {}
+
+    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<reorder>());
+        const auto& node = arg.as<reorder>();
+        _can_be_optimized = node.can_be_optimized();
+        _has_mean = node.has_mean();
+    }
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
     kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
-        if (_outer.has_mean()) {
+        if (_has_mean) {
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -112,6 +127,10 @@ public:
 
         return reorder;
     }
+
+private:
+    bool _can_be_optimized;
+    bool _has_mean;
 };
 
 namespace detail {
