@@ -66,7 +66,6 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    std::vector<std::string > ParsePrioritiesDevices(const std::string& priorities, const char separator = ',');
     PluginConfig _pluginConfig;
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
