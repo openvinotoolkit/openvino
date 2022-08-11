@@ -46,11 +46,6 @@ function(ie_add_plugin)
         message(FATAL_ERROR "Please, specify device name for ${IE_PLUGIN_NAME}")
     endif()
 
-    if ("${IE_PLUGIN_NAME}" STREQUAL "PROXY")
-        # Disable plugin creation for proxy plugin
-        set(IE_PLUGIN_PSEUDO_PLUGIN_FOR "PROXY")
-    endif()
-
     # create and configure target
 
     if(NOT IE_PLUGIN_PSEUDO_PLUGIN_FOR)
@@ -179,9 +174,6 @@ function(ie_add_plugin)
 
         # append plugin to the list to register
 
-        if ("${IE_PLUGIN_PSEUDO_PLUGIN_FOR}" STREQUAL "PROXY")
-            set(IE_PLUGIN_NAME "")
-        endif()
         list(APPEND PLUGIN_FILES "${IE_PLUGIN_DEVICE_NAME}:${IE_PLUGIN_NAME}")
         set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
         set(${IE_PLUGIN_DEVICE_NAME}_CONFIG "${IE_PLUGIN_DEFAULT_CONFIG}" CACHE INTERNAL "" FORCE)
@@ -244,12 +236,7 @@ macro(ie_register_plugins_dynamic)
 
         # create plugin file
         set(config_file_name "${CMAKE_BINARY_DIR}/plugins/${device_name}.xml")
-        # library name should be empty for proxy plugin
-        if (NOT name STREQUAL "")
-            ie_plugin_get_file_name(${name} library_name)
-        else()
-            set(library_name "")
-        endif()
+        ie_plugin_get_file_name(${name} library_name)
 
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
            COMMAND
