@@ -83,18 +83,17 @@ LIB_INSTALL_CFG = {
         "name": "batch",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
-        "rpath": LIBS_RPATH,
     },
     "pugixml_libs": {
         "name": "pugixml",
         "prefix": "libs.pugixml",
         "install_dir": PUGIXML_LIBS_DIR,
-        "rpath": LIBS_RPATH,
     },
 }
 
