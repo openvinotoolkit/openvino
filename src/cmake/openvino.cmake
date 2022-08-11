@@ -103,11 +103,7 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 
 list(APPEND PATH_VARS "IE_INCLUDE_DIR")
 
-# TODO: dpkg-shlibdeps does not work otherwise
-# TODO: define proper library version, currently SOVERSION 2022
-# set_target_properties(${TARGET_NAME} PROPERTIES
-#     SOVERSION ${OpenVINO_VERSION_MAJOR}
-#     VERSION ${OpenVINO_VERSION})
+ov_add_library_version(${TARGET_NAME})
 
 if(ENABLE_INTEL_GNA)
     list(APPEND PATH_VARS "GNA_PATH")
@@ -125,14 +121,10 @@ if(BUILD_SHARED_LIBS)
             DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE})
 
-    # for InferenceEngineUnitTest
-    # For public tests
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    # For private tests
-    if (NOT WIN32)
+    if(ENABLE_TESTS)
+        # for InferenceEngineUnitTest
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
 endif()
 

@@ -70,18 +70,67 @@ namespace {
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
-std::string parseXmlConfig(const std::string& xmlFile) {
+std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
-        // register plugins from default plugins.xml config
+        const auto ielibraryDir = ie::getInferenceEngineLibraryPath();
+
+        // plugins.xml can be found in either:
+
+        // 1. openvino-X.Y.Z relative to libopenvino.so folder
+        std::ostringstream str;
+        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+        const auto subFolder = ov::util::to_file_path(str.str());
+
+        // register plugins from default openvino-<openvino version>/plugins.xml config
         ov::util::FilePath xmlConfigFileDefault =
-            FileUtils::makePath(ie::getInferenceEngineLibraryPath(), ov::util::to_file_path("plugins.xml"));
-        xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+            FileUtils::makePath(FileUtils::makePath(ielibraryDir, subFolder), ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        // 2. in folder with libopenvino.so
+        xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        throw ov::Exception("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
 
 #endif
+
+ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
+    const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
+
+    auto pluginPath = ov::util::to_file_path(pluginName.c_str());
+
+    // 0. user can provide a full path
+    if (FileUtils::fileExist(pluginPath))
+        return pluginPath;
+
+    if (needAddSuffixes)
+        pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
+
+    // plugin can be found either:
+
+    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
+    std::ostringstream str;
+    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+    const auto subFolder = ov::util::to_file_path(str.str());
+
+    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath);
+    if (FileUtils::fileExist(absFilePath))
+        return absFilePath;
+
+    // 2. in the openvino.so location
+    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
+    if (FileUtils::fileExist(absFilePath))
+        return absFilePath;
+
+    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
+    return pluginPath;
+}
 
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
@@ -522,20 +571,10 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            std::string pluginLocation = GetStrAttr(pluginNode, "location");
-            ov::util::FilePath pluginPath;
-            if (!pluginLocation.empty())
-                pluginPath = ov::util::to_file_path(GetStrAttr(pluginNode, "location").c_str());
+            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
 
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
-            }
-
-            // append IR library path for default IE plugins
-            if (!pluginPath.empty()) {
-                ov::util::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
-                if (FileUtils::fileExist(absFilePath))
-                    pluginPath = absFilePath;
             }
 
             // check properties
@@ -924,6 +963,15 @@ public:
             }
         }
 
+        // BATCH case
+        {
+            if (deviceName.find("BATCH:") == 0) {
+                IE_THROW()
+                    << "You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately";
+            }
+        }
+
         auto parsed = parseDeviceNameIntoConfig(deviceName);
         for (auto o : options) {
             parsed._config.insert(o);
@@ -942,6 +990,9 @@ public:
         OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
                         "set_property is supported only for AUTO itself (without devices). "
                         "You can configure the devices with set_property before creating the AUTO on top.");
+        OPENVINO_ASSERT(device_name.find("BATCH:") != 0,
+                        "set_property is supported only for BATCH itself (without devices). "
+                        "You can configure the devices with set_property before creating the BATCH on top.");
 
         ExtractAndSetDeviceConfig(properties);
         SetConfigForPlugins(any_copy(properties), device_name);
@@ -961,14 +1012,17 @@ public:
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override {
         OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
-                        "You can only get_config of the HETERO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the HETERO on top.");
+                        "You can only get_property of the HETERO itself (without devices). "
+                        "get_property is also possible for the individual devices before creating the HETERO on top.");
         OPENVINO_ASSERT(device_name.find("MULTI:") != 0,
-                        "You can only get_config of the MULTI itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the MULTI on top.");
+                        "You can only get_property of the MULTI itself (without devices). "
+                        "get_property is also possible for the individual devices before creating the MULTI on top.");
         OPENVINO_ASSERT(device_name.find("AUTO:") != 0,
-                        "You can only get_config of the AUTO itself (without devices). "
-                        "get_config is also possible for the individual devices before creating the AUTO on top.");
+                        "You can only get_property of the AUTO itself (without devices). "
+                        "get_property is also possible for the individual devices before creating the AUTO on top.");
+        OPENVINO_ASSERT(device_name.find("BATCH:") != 0,
+                        "You can only get_property of the BATCH itself (without devices). "
+                        "get_property is also possible for the individual devices before creating the BATCH on top.");
 
         if (device_name.empty()) {
             return get_property_for_core(name);
@@ -1064,7 +1118,7 @@ public:
                 if (pluginName == ov::DEFAULT_DEVICE_NAME)
                     IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
                 else
-                    IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+                    IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
             }
         }
         std::lock_guard<std::mutex> lock(get_mutex(deviceName));
@@ -1195,7 +1249,7 @@ public:
         std::lock_guard<std::mutex> lock(get_mutex());
         auto it = plugins.find(deviceName);
         if (it == plugins.end()) {
-            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
         }
 
         plugins.erase(deviceName);
@@ -1212,30 +1266,14 @@ public:
 
         auto it = pluginRegistry.find(deviceName);
         if (it != pluginRegistry.end()) {
-            IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the InferenceEngine";
+            IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the OpenVINO Runtime";
         }
 
         if (deviceName.find('.') != std::string::npos) {
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        // append IR library path for default IE plugins
-        ov::util::FilePath pluginPath;
-        if (pluginName != "PROXY" && !pluginName.empty()) {
-            pluginPath = FileUtils::makePluginLibraryName({}, ov::util::to_file_path(pluginName.c_str()));
-
-            ov::util::FilePath absFilePath = FileUtils::makePath(ie::getInferenceEngineLibraryPath(), pluginPath);
-            if (FileUtils::fileExist(absFilePath))
-                pluginPath = absFilePath;
-        }
-
-        PluginDescriptor desc{pluginPath};
-        if (pluginPath.empty()) {
-            // Register proxy plugin
-            desc = PluginDescriptor(ov::proxy::create_plugin, config);
-        } else {
-            desc = PluginDescriptor(pluginPath, config);
-        }
+        PluginDescriptor desc{getPluginPath(pluginName, true)};
         pluginRegistry[deviceName] = desc;
         add_mutex(deviceName);
     }
@@ -1303,7 +1341,7 @@ public:
             }
 
             if (!configIsSet && !deviceName.empty()) {
-                IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
+                IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
             }
 
             // set config for already created plugins
@@ -1620,7 +1658,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::parseXmlConfig(xmlConfigFile));
+    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
 #endif
 }
 
@@ -1899,7 +1937,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    register_plugins(parseXmlConfig(xmlConfigFile));
+    register_plugins(findPluginXML(xmlConfigFile));
 #endif
 }
 
@@ -2084,6 +2122,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
+    OPENVINO_ASSERT(deviceName.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
@@ -2093,9 +2132,10 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
 }
 
 RemoteContext Core::get_default_context(const std::string& deviceName) {
-    OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
-    OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
-    OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
+    OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support default remote context");
+    OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support default remote context");
+    OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support default remote context");
+    OPENVINO_ASSERT(deviceName.find("BATCH") != 0, "BATCH device does not support default remote context");
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});

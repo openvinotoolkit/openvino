@@ -25,9 +25,9 @@ jobs:
 - job: Lin
   strategy:
     matrix:
-      Dynamic:
-        CMAKE_BUILD_SHARED_LIBS: 'ON'
-        PYTHON_STATIC_ARGS:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
@@ -161,8 +161,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
@@ -185,23 +185,21 @@ jobs:
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_DIR)
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install'
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
-        $(REPO_DIR)/tests/layer_tests
-      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+        -S $(REPO_DIR)/tests/layer_tests
+        -B $(BUILD_LAYER_TESTS_DIR)
 
   - script: ninja
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
   - script: ls -alR $(INSTALL_DIR)
@@ -213,161 +211,151 @@ jobs:
   - script: |
       set -e
       mkdir -p $(INSTALL_DIR)/opencv/
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
       cp -R $(REPO_DIR)/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
-    workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh -i $(INSTALL_DIR)
-    workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export CC=clang
       export CXX=clang++
       $(INSTALL_DIR)/samples/cpp/build_samples.sh -i $(INSTALL_DIR)
-    workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples - clang'
-    continueOnError: true
+    continueOnError: false
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh -i $(INSTALL_DIR)
-    workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-    continueOnError: true
+    continueOnError: false
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
-    continueOnError: true
+    continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'OV Core UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/openvino_proxy_plugin_tests --gtest_print_time=1--gtest_output=xml:TEST-ProxyTests.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'Proxy Tests'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXImportUT.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'ONNX Frontend UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
-    displayName: 'Paddle Frontend UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:TEST-Paddle.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
-    displayName: 'ONNX Frontend UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
-    displayName: 'Tensorflow Frontend UT'
-    continueOnError: true
-
-    # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
-    displayName: 'IE UT old'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
-    displayName: 'IE UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
-    displayName: 'CPU UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
-    displayName: 'GNA UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:TEST-XLinkTests.xml
-    displayName: 'XLink Tests'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
-    displayName: 'MULTI UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-    displayName: 'IE FuncTests'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
-    displayName: 'TEMPLATE FuncTests'
-    continueOnError: true
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
-    displayName: 'CPU FuncTests'
-    continueOnError: true
-
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
-    displayName: 'IE CAPITests'
-    continueOnError: true
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph and IE Python Bindings Tests'
+    continueOnError: false
 
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:TEST-OpenVinoCAPITests.xml
-    displayName: 'OV CAPITests'
-    continueOnError: true
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
+    displayName: 'Python API 2.0 Tests'
+    continueOnError: false
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/mo
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
-    continueOnError: true
+    continueOnError: false
 
-    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+    displayName: 'OV Core UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    displayName: 'ONNX Frontend UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+    displayName: 'Tensorflow Frontend UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
+    displayName: 'IE UT old'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
+    displayName: 'IE UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuUnitTests.xml
+    displayName: 'CPU UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-gnaUnitTests.xml
+    displayName: 'GNA UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
+    displayName: 'VPU UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
+    displayName: 'XLink Tests'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+    displayName: 'MULTI UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
+    displayName: 'ONNX Importer UT'
+    continueOnError: false
+
+  - script: |
+      # because of IR reader v7 
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
+    displayName: 'IE FuncTests'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
+    displayName: 'TEMPLATE FuncTests'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
+    displayName: 'CPU FuncTests'
+    continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
+
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
-    displayName: 'nGraph and IE Python Bindings Tests'
-    continueOnError: true
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+    displayName: 'IE CAPITests'
+    continueOnError: false
 
-    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
-    displayName: 'Python API 2.0 Tests'
-    continueOnError: true
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/OpenVinoCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OpenVinoCAPITests.xml
+    displayName: 'OV CAPITests'
+    continueOnError: false
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
-        $(REPO_DIR)/tests/samples_tests
-      workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+        -S $(REPO_DIR)/tests/samples_tests
+        -B $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
   - script: |
       python3 -m pip install -r $(INSTALL_DIR)/tests/smoke_tests/requirements.txt
-    workingDirectory: $(INSTALL_DIR)
     displayName: 'Install dependencies for samples smoke tests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export PATH=$HOME/.local/bin:$PATH
@@ -376,20 +364,18 @@ jobs:
       export IE_APP_PYTHON_PATH=$(INSTALL_DIR)/samples/python/
       export SHARE=$(INSTALL_DIR)/tests/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
-      . $(SETUPVARS) && python3 -m pytest $(INSTALL_DIR)/tests/smoke_tests/  --env_conf $(INSTALL_DIR)/tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
-    workingDirectory: $(INSTALL_DIR)/samples_bin
+      . $(SETUPVARS) && python3 -m pytest $(INSTALL_DIR)/tests/smoke_tests/  --env_conf $(INSTALL_DIR)/tests/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     displayName: 'Samples Smoke Tests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       . $(SETUPVARS)
-      python3 -m pip install -r requirements.txt
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export MO_ROOT=$(INSTALL_DIR)/tools/mo
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
-    workingDirectory: $(LAYER_TESTS_DIR)
+      python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'Layer Tests'
-    continueOnError: true
+    continueOnError: false
 
   - task: PublishTestResults@2
     condition: always()
