@@ -5,19 +5,6 @@
 
 #include "common.h"
 
-ov_status_e ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name) {
-    if (!node || !tensor_name) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        *tensor_name = str_to_char_array(node->object->get_any_name());
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
 ov_status_e ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name) {
     if (!nodes || !tensor_name || idx >= nodes->size) {
         return ov_status_e::INVALID_C_PARAM;
@@ -92,20 +79,6 @@ ov_status_e ov_node_get_element_type_by_index(ov_output_node_list_t* nodes,
 
     try {
         auto type = (ov::element::Type_t)nodes->output_nodes[idx].object->get_element_type();
-        *tensor_type = (ov_element_type_e)type;
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type) {
-    if (!node || !tensor_type) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        auto type = (ov::element::Type_t)node->object->get_element_type();
         *tensor_type = (ov_element_type_e)type;
     }
     CATCH_OV_EXCEPTIONS

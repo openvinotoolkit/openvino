@@ -45,15 +45,6 @@ typedef struct {
 OPENVINO_C_API(ov_status_e) ov_node_get_any_name_by_index(ov_output_node_list_t* nodes, size_t idx, char** tensor_name);
 
 /**
- * @brief Get the tensor name of node.
- * @ingroup node
- * @param node A pointer to the ov_output_const_node_t.
- * @param tensor_name A pointer to the tensor name.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e) ov_node_get_any_name(ov_output_const_node_t* node, char** tensor_name);
-
-/**
  * @brief Get the shape of ov_output_node.
  * @ingroup node
  * @param nodes A pointer to the ov_output_node_list_t.
@@ -75,15 +66,6 @@ ov_node_get_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_shape_t*
 OPENVINO_C_API(ov_status_e)
 ov_node_get_partial_shape_by_index(ov_output_node_list_t* nodes, size_t idx, ov_partial_shape_t** partial_shape);
 
-/**
- * @brief Get the tensor shape of ov_output_node.
- * @ingroup node
- * @param nodes A pointer to the ov_output_node_list_t.
- * @param idx Index of the input tensor
- * @param tensor_shape tensor shape.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e) ov_node_get_element_type(ov_output_const_node_t* node, ov_element_type_e* tensor_type);
 /**
  * @brief Get the tensor type of ov_output_node.
  * @ingroup node
