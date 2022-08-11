@@ -4,6 +4,7 @@
 
 #include <exception>
 
+#include "common_test_utils/file_utils.hpp"
 #include "exceptions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -16,14 +17,17 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 
 TEST(onnx_importer, exception_throws_ngraph_error) {
-    EXPECT_THROW(
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx")),
-        ngraph_error);
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                     SERIALIZED_ZOO,
+                                                                     "onnx/depth_to_space_bad_blocksize.onnx")),
+                 ngraph_error);
 }
 
 TEST(onnx_importer, exception_msg_ngraph_error) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/depth_to_space_bad_blocksize.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const ngraph_error& e) {
@@ -35,7 +39,9 @@ TEST(onnx_importer, exception_msg_ngraph_error) {
 
 TEST(onnx_importer, exception_msg_onnx_node_validation_failure) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_bad_scale_type.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/instance_norm_bad_scale_type.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& e) {
@@ -54,7 +60,9 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure) {
 // This test should throw a std error because of attempt to access shape from dynamic tensor.
 TEST(onnx_importer, exception_msg_std_err_wrapped) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like_wrong_shape.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/eye_like_wrong_shape.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const std::exception& e) {

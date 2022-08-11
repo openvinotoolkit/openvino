@@ -401,7 +401,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return ev;
     }
 
-    static primitive_impl* create(const non_max_suppression_node&, std::shared_ptr<kernel_impl_params>) {
+    static primitive_impl* create(const non_max_suppression_node&, const kernel_impl_params&) {
         return new non_max_suppression_impl();
     }
     void init_kernels() override {}

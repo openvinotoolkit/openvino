@@ -20,7 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(gpu_properties)),
-        OVPropertiesDefaultTests::getTestCaseName);
+        OVPropertiesTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
