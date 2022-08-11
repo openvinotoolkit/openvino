@@ -50,7 +50,7 @@ inline int set_test_env(const char* name, const char* value) {
 
 inline void setupTestEnv() {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    std::string fePath = ov::util::get_ov_library_path();
+    std::string fePath = ov::util::get_ov_lib_path();
     set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
