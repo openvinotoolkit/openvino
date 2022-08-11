@@ -561,3 +561,48 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/generate_proposals.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // scores
+    test_case.add_input<float>(Shape{1, 3, 2, 6}, {6, 1, 1, 1, 1, 2, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1,
+                                                   1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1});
+    // deltas
+    test_case.add_input<float>(Shape{1, 12, 2, 6}, std::vector<float>(144, 1));
+    // im_info
+    test_case.add_input<float>(Shape{1, 3}, {1, 1, 0});
+    // anchors
+    test_case.add_input<float>(Shape{3, 4}, std::vector<float>(12, 1));
+
+    test_case.add_expected_output<float>(Shape{6, 4}, std::vector<float>(24, 1));
+    test_case.add_expected_output<float>(Shape{6}, {8, 6, 4, 3, 2, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/generate_proposals_batch2.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    // scores
+    test_case.add_input<float>(Shape{2, 3, 2, 3}, {5, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 7, 1, 1, 1, 1,
+                                                   1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 8, 1});
+    // deltas
+    test_case.add_input<float>(Shape{2, 12, 2, 3}, std::vector<float>(144, 1));
+    // im_info
+    test_case.add_input<float>(Shape{2, 3}, {1, 1, 0, 1, 1, 0});
+    // anchors
+    test_case.add_input<float>(Shape{3, 4}, std::vector<float>(12, 1));
+
+    //
+    test_case.add_expected_output<float>(Shape{10, 4}, std::vector<float>(40, 1));
+    test_case.add_expected_output<float>(Shape{10}, {7, 5, 3, 1, 1, 8, 4, 2, 1, 1});
+
+    test_case.run();
+}
