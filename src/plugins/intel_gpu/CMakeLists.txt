@@ -33,6 +33,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${PLUGIN_SOURCES}
               DEFAULT_CONFIG 
                   ALIAS:GPU
+                  DEVICE_PRIORITY:0
               VERSION_DEFINES_FOR src/plugin/plugin.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE

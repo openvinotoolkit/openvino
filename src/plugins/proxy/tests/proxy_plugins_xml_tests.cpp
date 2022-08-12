@@ -92,48 +92,14 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallback) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    // No ALIAS HERE
+    std::set<std::string> mock_reference_dev = {"MOCK.abc_a", "MOCK.abc_b", "MOCK.abc_c", "BDE.0", "BDE.1", "BDE.2"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
         }
-    }
-    // All devices should be found
-    EXPECT_TRUE(mock_reference_dev.empty());
-}
-
-TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackAndPriority) {
-    // clang-format off
-    // <ie>
-    //     <plugins>
-    //         <plugin name="MOCK" location="libmock_abc_plugind.so">
-    //         </plugin>
-    //         <plugin name="BDE" location="libmock_bde_plugind.so">
-    //             <properties>
-    //                 <property key="FALLBACK" value="MOCK">
-    //                 <property key="DEVICE_PRIORITY" value="2">
-    //             </properties>
-    //         </plugin>
-    //     </plugins>
-    // </ie>
-    // default key="" value=""
-    xml_builder.add_plugin_config("MOCK", PluginXMLGenerator::get_plugin_location("mock_abc_plugin"));
-    xml_builder.add_plugin_config("BDE", PluginXMLGenerator::get_plugin_location("mock_bde_plugin"), {
-        "<property key=\"FALLBACK\" value=\"MOCK\"/>",
-        "<property key=\"PRIORITY\" value=\"2\"/>"
-    });
-    // clang-format on
-    xml_builder.build_and_load(core);
-
-    auto available_devices = core.get_available_devices();
-    // 0, 1, 2 is ABC plugin
-    // 1, 3, 4 is BDE plugin
-    // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
-    for (const auto& dev : available_devices) {
-        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
-            mock_reference_dev.erase(dev);
-        }
+        EXPECT_NE(dev, "BDE.3");
+        EXPECT_NE(dev, "BDE.4");
     }
     // All devices should be found
     EXPECT_TRUE(mock_reference_dev.empty());
@@ -150,7 +116,8 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAlias) {
     //         </plugin>
     //         <plugin name="BDE" location="libmock_bde_plugind.so">
     //             <properties>
-    //                 <property key="FALLBACK" value="MOCK">
+    //                 <property key="ALIAS" value="MOCK">
+    //                 <property key="FALLBACK" value="ABC">
     //             </properties>
     //         </plugin>
     //     </plugins>
@@ -160,7 +127,8 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAlias) {
         "<property key=\"ALIAS\" value=\"MOCK\"/>"
     });
     xml_builder.add_plugin_config("BDE", PluginXMLGenerator::get_plugin_location("mock_bde_plugin"), {
-        "<property key=\"FALLBACK\" value=\"MOCK\"/>"
+        "<property key=\"ALIAS\" value=\"MOCK\"/>",
+        "<property key=\"FALLBACK\" value=\"ABC\"/>"
     });
     // clang-format on
     xml_builder.build_and_load(core);
@@ -169,7 +137,7 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAlias) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "BDE.0", "BDE.1", "BDE.2"};
+    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
@@ -177,6 +145,105 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAlias) {
     }
     // All devices should be found
     EXPECT_TRUE(mock_reference_dev.empty());
+
+    auto model = create_model_with_subtract();
+    EXPECT_THROW(core.compile_model(model, "MOCK.0"), ov::Exception);
+}
+
+TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasAndMainPriority) {
+    // clang-format off
+    // <ie>
+    //     <plugins>
+    //         <plugin name="ABC" location="libmock_abc_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK">
+    //                 <property key="DEVICE_PRIORITY" value="0">
+    //             </properties>
+    //         </plugin>
+    //         <plugin name="BDE" location="libmock_bde_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK">
+    //                 <property key="FALLBACK" value="ABC">
+    //             </properties>
+    //         </plugin>
+    //     </plugins>
+    // </ie>
+    // default key="" value=""
+    xml_builder.add_plugin_config("ABC", PluginXMLGenerator::get_plugin_location("mock_abc_plugin"), {
+        "<property key=\"DEVICE_PRIORITY\" value=\"0\"/>",
+        "<property key=\"ALIAS\" value=\"MOCK\"/>"
+    });
+    xml_builder.add_plugin_config("BDE", PluginXMLGenerator::get_plugin_location("mock_bde_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>",
+        "<property key=\"FALLBACK\" value=\"ABC\"/>"
+    });
+    // clang-format on
+    xml_builder.build_and_load(core);
+
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    for (const auto& dev : available_devices) {
+        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
+            mock_reference_dev.erase(dev);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+
+    auto model = create_model_with_subtract();
+    EXPECT_THROW(core.compile_model(model, "MOCK.0"), ov::Exception);
+}
+
+TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasAndPriority) {
+    // clang-format off
+    // <ie>
+    //     <plugins>
+    //         <plugin name="ABC" location="libmock_abc_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK">
+    //                 <property key="DEVICE_PRIORITY" value="3">
+    //             </properties>
+    //         </plugin>
+    //         <plugin name="BDE" location="libmock_bde_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK">
+    //                 <property key="FALLBACK" value="ABC">
+    //                 <property key="DEVICE_PRIORITY" value="2">
+    //             </properties>
+    //         </plugin>
+    //     </plugins>
+    // </ie>
+    // default key="" value=""
+    xml_builder.add_plugin_config("ABC", PluginXMLGenerator::get_plugin_location("mock_abc_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>",
+        "<property key=\"DEVICE_PRIORITY\" value=\"3\"/>"
+    });
+    xml_builder.add_plugin_config("BDE", PluginXMLGenerator::get_plugin_location("mock_bde_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>",
+        "<property key=\"FALLBACK\" value=\"ABC\"/>",
+        "<property key=\"DEVICE_PRIORITY\" value=\"2\"/>"
+    });
+    // clang-format on
+    xml_builder.build_and_load(core);
+
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    for (const auto& dev : available_devices) {
+        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
+            mock_reference_dev.erase(dev);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+
+    auto model = create_model_with_subtract();
+    EXPECT_NO_THROW(core.compile_model(model, "MOCK.0"));
 }
 
 TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasForPluginName) {
@@ -190,7 +257,6 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasForPluginName) {
     //         </plugin>
     //         <plugin name="BDE" location="libmock_bde_plugind.so">
     //             <properties>
-    //                 <property key="ALIAS" value="MOCK"/>
     //                 <property key="FALLBACK" value="ABC"/>
     //             </properties>
     //         </plugin>
@@ -210,7 +276,7 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasForPluginName) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "BDE.0", "BDE.1", "BDE.2"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
@@ -247,7 +313,7 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithHetero) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"BDE.0", "BDE.1", "BDE.2", "FGH.0", "FGH.1", "FGH.2"};
+    std::set<std::string> mock_reference_dev = {"BDE.0", "BDE.1", "BDE.2", "FGH.fgh_f", "FGH.fgh_g", "FGH.fgh_h"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);

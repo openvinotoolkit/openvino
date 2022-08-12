@@ -362,24 +362,6 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     const bool newAPI;
 
-    bool IsHiddenDevice(const std::string& deviceName) const {
-        std::lock_guard<std::mutex> lock(get_mutex());
-        const auto& plugin = pluginRegistry.at(deviceName);
-        auto it = plugin.defaultConfig.find("PRIMARY_DEVICE");
-        if (it != plugin.defaultConfig.end() && it->second == "YES")
-            return false;
-        for (auto&& it : pluginRegistry) {
-            auto it_priority = it.second.defaultConfig.find("FALLBACK_PRIORITY");
-            if (it.first == deviceName || it_priority == it.second.defaultConfig.end())
-                continue;
-            std::string devices = it_priority->second;
-            std::regex reg("^.*\\b" + deviceName + "\\b.*$");
-            if (std::regex_match(devices, reg))
-                return true;
-        }
-        return false;
-    }
-
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
@@ -534,6 +516,88 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return ie::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
 
+    bool IsHiddenDevice(const std::string& deviceName) const {
+        std::lock_guard<std::mutex> lock(get_mutex());
+
+        // Alias hides the device
+        const auto& plugin = pluginRegistry.at(deviceName);
+        return plugin.defaultConfig.find("ALIAS") != plugin.defaultConfig.end() ||
+               deviceName.find("_ov_internal") != std::string::npos;
+    }
+
+    void RegisterPluginInRegistryUnsafe(const std::string& deviceName, PluginDescriptor& desc) {
+        const auto& fill_config = [](std::map<std::string, std::string>& defaultConfig,
+                                     const std::map<std::string, std::string>& config,
+                                     const std::string& dev_name) {
+            // Configure aliases for proxy plugin
+            auto it = config.find("ALIAS");
+            if (it != config.end()) {
+                if (defaultConfig.find("ALIAS_FOR") == defaultConfig.end()) {
+                    defaultConfig["ALIAS_FOR"] = dev_name;
+                } else {
+                    defaultConfig["ALIAS_FOR"] += "," + dev_name;
+                }
+            }
+
+            // Configure device order for proxy_plugin
+            it = config.find("DEVICE_PRIORITY");
+            if (it != config.end()) {
+                if (defaultConfig.find("DEVICES_ORDER") == defaultConfig.end()) {
+                    defaultConfig["DEVICES_ORDER"] = dev_name + ":" + it->second;
+                } else {
+                    defaultConfig["DEVICES_ORDER"] += "," + dev_name + ":" + it->second;
+                }
+            }
+
+            // Configure devices fallback order for proxy_plugin
+            // Can use substring to configure the order
+            // CUDA->iGPU : CUDA,iGPU   // just create a new elememnt
+            // AMD->iGPU : CUDA,AMD,iGPU // use substring to find the right place
+            // What else?
+            // CUDA->iGPU : CUDA,iGPU
+            // AMD->CPU ???
+            // CPU->iGPU
+            it = config.find("FALLBACK");
+            if (it != config.end()) {
+                if (defaultConfig.find("FALLBACK") == defaultConfig.end()) {
+                    defaultConfig["FALLBACK_PRIORITY"] = dev_name + "," + it->second;
+                } else {
+                    // TODO: implement insert
+                }
+            }
+        };
+        auto&& config = desc.defaultConfig;
+        std::string dev_name = deviceName;
+        if (config.find("ALIAS") != config.end()) {
+            // Create proxy plugin for alias
+            auto alias = config.at("ALIAS");
+            if (alias == deviceName)
+                dev_name += "_ov_internal";
+            // Alias can be registered by several plugins
+            if (pluginRegistry.find(alias) == pluginRegistry.end()) {
+                PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+                fill_config(desc.defaultConfig, config, dev_name);
+                pluginRegistry[alias] = desc;
+                add_mutex(alias);
+            } else {
+                auto& plugin = pluginRegistry.at(alias);
+                // Error if we have an alias for HW plugin
+                OPENVINO_ASSERT(plugin.pluginCreateFunc == ov::proxy::create_plugin);
+                fill_config(plugin.defaultConfig, config, dev_name);
+            }
+        } else if (config.find("FALLBACK") != config.end()) {
+            // Fallback without alias means that we need to replace original plugin to proxy
+            dev_name += "_ov_internal";
+            PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+            fill_config(desc.defaultConfig, config, dev_name);
+            pluginRegistry[deviceName] = desc;
+            add_mutex(deviceName);
+        }
+        // TODO: Remove proxy specific unnecessary properties from device default config
+        pluginRegistry[dev_name] = desc;
+        add_mutex(dev_name);
+    }
+
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
@@ -602,17 +666,8 @@ public:
             }
 
             // fill value in plugin registry for later lazy initialization
-            {
-                PluginDescriptor desc;
-                if (pluginPath.empty()) {
-                    // Register proxy plugin
-                    desc = PluginDescriptor(ov::proxy::create_plugin, config);
-                } else {
-                    desc = PluginDescriptor(pluginPath, config, listOfExtentions);
-                }
-                pluginRegistry[deviceName] = desc;
-                add_mutex(deviceName);
-            }
+            PluginDescriptor desc(pluginPath, config, listOfExtentions);
+            RegisterPluginInRegistryUnsafe(deviceName, desc);
         }
     }
 
@@ -633,15 +688,7 @@ public:
             }
             const auto& value = plugin.second;
             PluginDescriptor desc{value.m_create_plugin_func, value.m_default_config, value.m_create_extension_func};
-            if (value.m_default_config.find("PROXY_NAME") != value.m_default_config.end()) {
-                desc.proxy_name = value.m_default_config.at("PROXY_NAME");
-                if (value.m_default_config.find("PROXY_PRIORITY") != value.m_default_config.end()) {
-                    desc.proxy_priority = string_to_size_t(value.m_default_config.at("PROXY_PRIORITY"));
-                }
-                RegisterProxyPlugin(desc.proxy_name);
-            }
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
+            RegisterPluginInRegistryUnsafe(deviceName, desc);
         }
     }
 
@@ -1168,10 +1215,15 @@ public:
 
             // configuring
             {
-                if (desc.defaultConfig.find("DEVICE_ORDER") != desc.defaultConfig.end() ||
+                if (desc.defaultConfig.find("ALIAS_FOR") != desc.defaultConfig.end() ||
+                    desc.defaultConfig.find("DEVICES_ORDER") != desc.defaultConfig.end() ||
                     desc.defaultConfig.find("FALLBACK_PRIORITY") != desc.defaultConfig.end()) {
                     std::map<std::string, std::string> initial_config;
-                    auto it = desc.defaultConfig.find("DEVICE_ORDER");
+                    auto it = desc.defaultConfig.find("ALIAS_FOR");
+                    if (it != desc.defaultConfig.end()) {
+                        initial_config[it->first] = it->second;
+                    }
+                    it = desc.defaultConfig.find("DEVICES_ORDER");
                     if (it != desc.defaultConfig.end()) {
                         initial_config[it->first] = it->second;
                     }

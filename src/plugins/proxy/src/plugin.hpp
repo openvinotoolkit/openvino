@@ -42,6 +42,7 @@ private:
     size_t get_device_from_config(const std::map<std::string, std::string>& config) const;
 
     std::vector<std::string> fallback_order, device_order;
+    std::unordered_set<std::string> alias_for;
 };
 
 }  // namespace proxy
