@@ -83,7 +83,7 @@ private:
     std::string _dump_dir;     // Dump file path
     std::string _output_precision;
 
-    uint32_t _output_max_num;            // For each image, the maximum number of distinct outputs saveds
+    uint32_t _output_max_num;        // For each image, the maximum number of distinct outputs saveds
     uint64_t _binary_file_max_size;  // The maximum size of a single binary file
     int _binary_file_index = 0;
     std::string _separator;
