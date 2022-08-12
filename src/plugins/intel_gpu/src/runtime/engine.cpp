@@ -254,16 +254,9 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
-#ifdef GPU_DEBUG_CONFIG
-#if GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    device::ptr default_device = next(query.get_available_devices().begin(), debug_config->device_index)->second;
-#else
-    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
-#endif
-#else
-    device::ptr default_device = next(query.get_available_devices().begin(), 0)->second;
-#endif
+    device::ptr default_device = next(query.get_available_devices().begin(), GPU_DEBUG_VALUE_OR(debug_config->device_index, 0))->second;
+
     const auto& info = default_device->get_info();
     GPU_DEBUG_IF(debug_config->verbose >= 1) {
         GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;

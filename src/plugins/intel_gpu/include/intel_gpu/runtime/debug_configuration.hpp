@@ -9,8 +9,10 @@
 
 #ifdef GPU_DEBUG_CONFIG
 #define GPU_DEBUG_IF(cond) if (cond)
+#define GPU_DEBUG_VALUE_OR(value, default_value) (value)
 #else
 #define GPU_DEBUG_IF(cond) if (0)
+#define GPU_DEBUG_VALUE_OR(value, default_value) (default_value)
 #endif
 
 #define GPU_DEBUG_COUT std::cout << cldnn::debug_configuration::prefix
