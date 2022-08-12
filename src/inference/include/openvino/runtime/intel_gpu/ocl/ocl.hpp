@@ -209,8 +209,7 @@ public:
     ClContext(Core& core, cl_command_queue queue) {
         cl_context ctx;
         auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
-        if (res != CL_SUCCESS)
-            IE_THROW() << "Can't get context from given opencl queue";
+        OPENVINO_ASSERT(res == CL_SUCCESS, "Can't get context from given opencl queue");
         AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                                  {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
                                  {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
