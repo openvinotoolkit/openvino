@@ -957,14 +957,14 @@ def validate_layout(layout: str):
     """
     error_msg = 'Invalid layout parsed: {}'.format(layout)
     if layout:
-        incorrect_brackets = not xor(layout[0] == '[', layout[-1] == ']')
+        incorrect_brackets = xor(layout[0] == '[', layout[-1] == ']')
         if incorrect_brackets or layout[-1] == '-':
             error_msg += ', did you forget quotes?'
         else:
             valid_layout_re = re.compile(r'\[?[^\[\]\(\)\-\s]*\]?')
             if valid_layout_re.fullmatch(layout):
                 return
-    raise Error(error_msg)
+        raise Error(error_msg)
 
 
 def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = None):
