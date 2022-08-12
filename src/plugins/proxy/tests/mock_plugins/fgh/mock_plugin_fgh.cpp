@@ -204,4 +204,3 @@ std::string MockPluginFgh::GetName() const noexcept {
 
 static const Version version = {{2, 1}, "test_plugin", "MockPluginFgh"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(MockPluginFgh, version)
-

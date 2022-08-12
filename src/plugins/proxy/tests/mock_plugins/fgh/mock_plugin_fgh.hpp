@@ -68,4 +68,3 @@ private:
     std::vector<ov::Extension::Ptr> m_extensions;
     bool m_profiling{false};
 };
-
