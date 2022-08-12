@@ -61,5 +61,6 @@ def main():
     condition = (np.random.randint(0, 5, size=[4, 6, 8, 2, 5]) * 1.1).astype(datatype)
     paddle_out = where_index("where_index_4", condition)
 
+
 if __name__ == "__main__":
     main()
