@@ -53,6 +53,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         buffer >> _split;
         buffer >> _groups;
     }
+
 protected:
     // TODO: share it with convolution and fully connected
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {

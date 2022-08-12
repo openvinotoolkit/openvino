@@ -54,6 +54,7 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         buffer >> _split;
         buffer >> _groups;
     }
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);

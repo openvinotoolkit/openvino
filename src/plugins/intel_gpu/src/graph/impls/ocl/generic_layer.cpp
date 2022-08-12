@@ -51,7 +51,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     void load(BufferType& buffer) {
         buffer(_cl_kernel_data, _kernel_id);
     }
-    
+
     void init_kernels(const kernels_cache& kernels_cache) override {
         _kernels.push_back(std::move(kernels_cache.get_kernel(_kernel_id)));
     }
