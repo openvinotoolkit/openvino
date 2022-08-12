@@ -104,9 +104,20 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
     auto pluginPath = ov::util::to_file_path(pluginName.c_str());
 
     // 0. user can provide a full path
+
+#ifndef _WIN32
+    try {
+        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
+        pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
+    } catch (const std::runtime_error&) {
+        // failed to resolve absolute path; not critical
+    }
+#endif  // _WIN32
+
     if (FileUtils::fileExist(pluginPath))
         return pluginPath;
 
+    // ov::Core::register_plugin(plugin_name, device_name) case
     if (needAddSuffixes)
         pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
 
