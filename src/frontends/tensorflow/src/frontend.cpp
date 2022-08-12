@@ -359,7 +359,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     }
 
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
     normalize(f);
     // TODO: check that OV function does not contain operations which are not in the opset
 
@@ -383,7 +383,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     }
 
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, false, f);
     normalize(f);
     return f;
 }
@@ -391,7 +391,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, true, f);
     return f;
 }
 
