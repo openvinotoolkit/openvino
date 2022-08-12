@@ -563,8 +563,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/generate_proposals.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/org.openvinotoolkit/generate_proposals.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -585,8 +587,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/generate_proposals_batch2.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/org.openvinotoolkit/generate_proposals_batch2.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
