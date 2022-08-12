@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <queue>
+#include <iterator>
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
