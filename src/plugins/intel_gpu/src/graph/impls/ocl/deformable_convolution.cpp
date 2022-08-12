@@ -23,6 +23,21 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         return make_unique<deformable_conv_impl>(*this);
     }
 
+    explicit deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
+        _split(other._split),
+        _groups(other._groups) {}
+
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<deformable_conv>());
+        const auto& node = arg.as<deformable_conv>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+    }
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
@@ -32,9 +47,9 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
-    uint32_t get_groups() const override { return _outer.get_groups(); }
+    uint32_t get_groups() const override { return _groups; }
 
 public:
     static primitive_impl* create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
@@ -76,6 +91,10 @@ public:
 
         return conv;
     }
+
+private:
+    int32_t _split;
+    uint32_t _groups;
 };
 
 struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
