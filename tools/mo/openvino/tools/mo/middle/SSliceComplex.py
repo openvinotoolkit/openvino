@@ -7,7 +7,7 @@ from typing import Dict
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.front.tf.graph_utils import add_constant_to_negative_values, create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.transpose import Transpose
@@ -109,7 +109,10 @@ class SSliceComplex(MiddleReplacementPattern):
 
         for dst in complex_node.out_port(0).get_connection().get_destinations():
             after_complex_node = dst.node
-            after_complex_node['input_rank_changed'] = True
+            if after_complex_node.type == 'Roll':
+                add_constant_to_negative_values(after_complex_node, 2, int64_array(emulated_complex_tensor_rank))
+            else:
+                after_complex_node['input_rank_changed'] = True
 
         input_slices_have_ellipsis = len(np.argwhere(real_slices == Ellipsis).flatten()) != 0
 
