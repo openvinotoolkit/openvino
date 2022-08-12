@@ -170,48 +170,56 @@ public:
 
     template <typename BufferType>
     void save(BufferType& buffer) const {
-        // primitive_impl
-        buffer << _impl;
+        if (type() == cldnn::data::type_id()) {
+            
+        } else {
+            // primitive_impl
+            buffer << _impl;
 
-        // output memory
-        const auto output_layout = _output->get_layout();
-        buffer << make_data(&output_layout, sizeof(output_layout));
+            // output memory
+            const auto output_layout = _output->get_layout();
+            buffer << make_data(&output_layout, sizeof(output_layout));
 
-        const auto _allocation_type = _output->get_allocation_type();
-        buffer << make_data(&_allocation_type, sizeof(_allocation_type));
+            const auto _allocation_type = _output->get_allocation_type();
+            buffer << make_data(&_allocation_type, sizeof(_allocation_type));
 
-        buffer << _node.id();
-        buffer << _node.get_memory_dependencies();
-        buffer << _output->get_reused();
+            buffer << _node.id();
+            buffer << _node.get_memory_dependencies();
+            buffer << _output->get_reused();
 
-        buffer << _mem_allocated;
+            buffer << _mem_allocated;
+        }
     }
 
     template <typename BufferType>
     void load(BufferType& buffer) {
-        // primitive_impl
-        _impl.release();
-        buffer >> _impl;
+        if (type() == cldnn::data::type_id()) {
+            
+        } else {
+            // primitive_impl
+            _impl.release();
+            buffer >> _impl;
 
-        // output memory
-        layout output_layout = layout(data_types::bin, format::any, tensor());
-        buffer >> make_data(&output_layout, sizeof(output_layout));
+            // output memory
+            layout output_layout = layout(data_types::bin, format::any, tensor());
+            buffer >> make_data(&output_layout, sizeof(output_layout));
 
-        allocation_type _allocation_type;
-        buffer >> make_data(&_allocation_type, sizeof(_allocation_type));
+            allocation_type _allocation_type;
+            buffer >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-        primitive_id _node_id;
-        buffer >> _node_id;
+            primitive_id _node_id;
+            buffer >> _node_id;
 
-        std::set<primitive_id> _node_mem_deps;
-        buffer >> _node_mem_deps;
+            std::set<primitive_id> _node_mem_deps;
+            buffer >> _node_mem_deps;
 
-        bool output_reused;
-        buffer >> output_reused;
+            bool output_reused;
+            buffer >> output_reused;
 
-        _output = get_network().get_memory_pool().get_memory(output_layout, _node_id, get_network_id(), _node_mem_deps, _allocation_type, true);
-        _output_changed = false;
-        buffer >> _mem_allocated;
+            _output = get_network().get_memory_pool().get_memory(output_layout, _node_id, get_network_id(), _node_mem_deps, _allocation_type, true);
+            _output_changed = false;
+            buffer >> _mem_allocated;
+        }
     }
 
 protected:

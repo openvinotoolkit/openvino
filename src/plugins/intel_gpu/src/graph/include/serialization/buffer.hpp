@@ -1,3 +1,8 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <type_traits>
@@ -68,15 +73,10 @@ public:
     }
 private:
     template <typename T>
-    inline /*typename std::enable_if<!std::is_same<std::unique_ptr<B>, typename std::remove_reference<T>::type>::value>::type*/ void process(T&& object) {
+    inline void process(T&& object) {
         Serializer<BufferType, typename std::remove_reference<T>::type>::load(*Buffer<BufferType>::buffer, object);
     }
 
-    // template <typename T>
-    // inline /*typename std::enable_if<std::is_same<std::unique_ptr<B>, typename std::remove_reference<T>::type>::value>::type*/ void process(std::unique_ptr<T>& object) {
-    //     Serializer<BufferType, std::unique_ptr<T>>::load(*Buffer<BufferType>::buffer, object, _engine);
-    // }
-
     engine& _engine;
 };
-}
+}  // namespace cldnn

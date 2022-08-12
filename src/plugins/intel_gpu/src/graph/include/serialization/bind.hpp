@@ -1,3 +1,8 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <type_traits>
@@ -95,7 +100,6 @@ public:
 
 private:
     buffer_binder() {
-        // std::cout << "add save" << std::endl;
         saver_storage<BufferType>::instance().set_save_function({T::type, save});
     }
 
@@ -129,7 +133,6 @@ private:
             derived_ptr->load(buffer);
             result_ptr.reset(derived_ptr.release());
         }});
-        // std::cout << "add load" << std::endl;
     }
 
     buffer_binder(const buffer_binder&) = delete;
@@ -171,4 +174,4 @@ public:
     }
 };
 
-}
+}  // namespace cldnn

@@ -1,3 +1,8 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <type_traits>
@@ -48,4 +53,4 @@ private:
 template <typename T>
 const T& static_instance<T, typename std::enable_if<!std::is_default_constructible<T>::value>::type>::instance = static_instance<T>::instantiate();
 
-}
+}  // namespace cldnn

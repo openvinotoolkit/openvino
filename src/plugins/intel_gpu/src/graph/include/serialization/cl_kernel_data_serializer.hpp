@@ -1,6 +1,10 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-// #include <iostream>
 #include <type_traits>
 #include "buffer.hpp"
 #include "helpers.hpp"
@@ -16,10 +20,8 @@ public:
         const auto& params = data.params;
         buffer(params.workGroups.global, params.workGroups.local);
         buffer << params.arguments.size();
-        // std::cout << "\n+++SAVE+++\narg.index: ";
         for (const auto& arg : params.arguments) {
             buffer << make_data(&arg.t, sizeof(argument_desc::Types)) << arg.index;
-            // std::cout << arg.index << " ";
         }
         buffer << params.scalars.size();
         for (const auto& scalar : params.scalars) {
@@ -39,10 +41,8 @@ public:
         typename arguments_desc::size_type arguments_desc_size = 0UL;
         buffer >> arguments_desc_size;
         params.arguments.resize(arguments_desc_size);
-        // std::cout << "\n+++LOAD+++\narg.index: ";
         for (auto& arg : params.arguments) {
             buffer >> make_data(&arg.t, sizeof(argument_desc::Types)) >> arg.index;
-            // std::cout << arg.index << " ";
         }
 
         typename scalars_desc::size_type scalars_desc_size = 0UL;
@@ -56,4 +56,4 @@ public:
     }
 };
 
-}
+}  // namespace cldnn

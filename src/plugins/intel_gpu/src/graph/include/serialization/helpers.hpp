@@ -1,3 +1,8 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <type_traits>
@@ -17,4 +22,4 @@ namespace cldnn {
     static Data<T> make_data(T&& data, uint64_t number_of_bytes) {
         return {std::forward<T>(data), number_of_bytes};
     }
-}
+}  // namespace cldnn
