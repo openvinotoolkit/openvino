@@ -41,13 +41,25 @@ def where_index(name: str, x):
 
 
 def main():
+    # case of int32
     datatype = "int32"
     condition = np.random.randint(0, 5, size=[5, 8, 2], dtype=datatype)
     paddle_out = where_index("where_index_1", condition)
 
+    # case of float32
     datatype = "float32"
-    condition = (np.random.randint(0, 5, size=[8, 3, 2]) * 1.1).astype(datatype)
+    condition = (np.random.randint(
+        0, 5, size=[8, 3, 2]) * 1.1).astype(datatype)
     paddle_out = where_index("where_index_2", condition)
+
+    # case of dimension 4
+    condition = (np.random.randint(
+        -1, 2, size=[8, 3, 2, 6]) * 1.1).astype(datatype)
+    paddle_out = where_index("where_index_3", condition)
+
+    # case of dimension 5
+    condition = (np.random.randint(0, 5, size=[4, 6, 8, 2, 5]) * 1.1).astype(datatype)
+    paddle_out = where_index("where_index_4", condition)
 
 if __name__ == "__main__":
     main()
