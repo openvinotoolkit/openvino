@@ -62,6 +62,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace ov
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
@@ -71,6 +72,7 @@ bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Mode
 }
 
 bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(GraphRewrite);
     // Initialize execution queue with nodes in topological order
     std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {

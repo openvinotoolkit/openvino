@@ -82,6 +82,7 @@ std::tuple<ov::pass::MakeStateful::ParamResPairs, std::vector<std::string>> find
 }  // namespace
 
 bool ov::pass::MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(MakeStateful);
     // in case of user passes the tensor names to find Parameter/Result nodes, we use these tensor names
     // to generate variable names. In case of user passes Parameter/Result nodes directly, we use friendly
     // names of these nodes to generate variable names.
