@@ -16,13 +16,15 @@
     static const object_type type; \
     object_type get_type() const override { return type; }
 
-#define BIND_TO_BUFFER(buffer, type)                              \
-        template <>                                               \
-        class bind_creator<buffer, type> {                        \
-        private:                                                  \
-            static const instance_creator<buffer, type>& creator; \
-        };                                                        \
-        const instance_creator<buffer, type>& bind_creator<buffer, type>::creator = static_instance<instance_creator<buffer, type>>::get_instance().instantiate();
+#define BIND_TO_BUFFER(buffer, type)                                                       \
+        template <>                                                                        \
+        class bind_creator<buffer, type> {                                                 \
+        private:                                                                           \
+            static const instance_creator<buffer, type>& creator;                          \
+        };                                                                                 \
+        const instance_creator<buffer, type>& bind_creator<buffer, type>::creator =        \
+            static_instance<instance_creator<buffer, type>>::get_instance().instantiate();
+
 namespace cldnn {
 
 template <typename BufferType>
@@ -118,7 +120,7 @@ private:
 };
 
 template <typename BufferType, typename T>
-class buffer_binder<BufferType, T, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value && 
+class buffer_binder<BufferType, T, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
                                                            std::is_default_constructible<T>::value>::type> {
 public:
     static buffer_binder& instance() {
@@ -140,7 +142,7 @@ private:
 };
 
 template <typename BufferType, typename T>
-class buffer_binder<BufferType, T, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value && 
+class buffer_binder<BufferType, T, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
                                                            !std::is_default_constructible<T>::value>::type> {
 public:
     static buffer_binder& instance() {

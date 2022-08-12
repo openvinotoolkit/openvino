@@ -6,15 +6,15 @@
 #pragma once
 
 namespace cldnn {
-    template <typename BufferType, typename T, typename Enable = void>
-    class Serializer {
-    public:
-        static void save(BufferType& buffer, const T& object) {
-            object.save(buffer);
-        }
+template <typename BufferType, typename T, typename Enable = void>
+class Serializer {
+public:
+    static void save(BufferType& buffer, const T& object) {
+        object.save(buffer);
+    }
 
-        static void load(BufferType& buffer, T& object) {
-            object.load(buffer);
-        }
-    };
+    static void load(BufferType& buffer, T& object) {
+        object.load(buffer);
+    }
+};
 }  // namespace cldnn
