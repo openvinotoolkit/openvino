@@ -152,12 +152,12 @@ endif()
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-                              INSTALL_DESTINATION cmake
+                              INSTALL_DESTINATION runtime/cmake
                               PATH_VARS ${PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
-                              INSTALL_DESTINATION share
+                              INSTALL_DESTINATION runtime/cmake
                               PATH_VARS ${PATH_VARS})
 
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"

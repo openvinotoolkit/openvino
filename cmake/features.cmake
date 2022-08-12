@@ -137,7 +137,8 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
 
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
+if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$"
+   AND NOT DEFINED ENV{TBBROOT} AND NOT DEFINED ENV{TBB_DIR})
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB can be tried for usage
     set(ENABLE_SYSTEM_TBB_DEFAULT ON)
