@@ -286,6 +286,57 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithFallbackWithAliasForPluginName) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
+TEST_F(PluginsXmlProxyTests, MatchingAliasWithoutFallback) {
+    // clang-format off
+    // <ie>
+    //     <plugins>
+    //         <plugin name="ABC" location="libmock_abc_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK"/>
+    //             </properties>
+    //         </plugin>
+    //         <plugin name="BDE" location="libmock_bde_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK"/>
+    //             </properties>
+    //         </plugin>
+    //         <plugin name="FGH" location="libmock_fgh_plugind.so">
+    //             <properties>
+    //                 <property key="ALIAS" value="MOCK"/>
+    //             </properties>
+    //         </plugin>
+    //     </plugins>
+    // </ie>
+    // FGH - no uuid, BDE devices ->Fallback FGH
+    // default key="" value=""
+    xml_builder.add_plugin_config("ABC", PluginXMLGenerator::get_plugin_location("mock_abc_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>"
+    });
+    xml_builder.add_plugin_config("BDE", PluginXMLGenerator::get_plugin_location("mock_bde_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>"
+    });
+    xml_builder.add_plugin_config("FGH", PluginXMLGenerator::get_plugin_location("mock_fgh_plugin"), {
+        "<property key=\"ALIAS\" value=\"MOCK\"/>"
+    });
+    // clang-format on
+    xml_builder.build_and_load(core);
+
+    auto available_devices = core.get_available_devices();
+    // 0, 1, 2 is ABC plugin
+    // 1, 3, 4 is BDE plugin
+    // ABC doesn't support subtract operation
+    std::set<std::string> mock_reference_dev =
+        {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4", "MOCK.5", "MOCK.6", "MOCK.7"};
+    for (const auto& dev : available_devices) {
+        std::cout << dev << std::endl;
+        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
+            mock_reference_dev.erase(dev);
+        }
+    }
+    // All devices should be found
+    EXPECT_TRUE(mock_reference_dev.empty());
+}
+
 TEST_F(PluginsXmlProxyTests, MatchingModeWithHetero) {
     // clang-format off
     // <ie>

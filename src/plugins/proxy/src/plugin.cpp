@@ -227,10 +227,6 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     const auto core = GetCore();
     OPENVINO_ASSERT(core != nullptr);
 
-    std::unordered_map<std::string, size_t> dev_fallback_priority;
-    for (size_t i = 0; i < fallback_order.size(); i++) {
-        dev_fallback_priority[fallback_order[i]] = i;
-    }
     std::map<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>, std::string> first_uuid_dev_map;
     std::vector<std::vector<std::pair<std::string, size_t>>> ordered_result;
 
@@ -253,6 +249,10 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         // First of all create a vector of primary devices with device order.
         // after that use FALLBACK_PRIORITY for right fallback order
         //
+        std::unordered_map<std::string, size_t> dev_fallback_priority;
+        for (size_t i = 0; i < fallback_order.size(); i++) {
+            dev_fallback_priority[fallback_order[i]] = i;
+        }
         for (const auto& device : device_order) {
             const std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
             // Case for fallback without alias
