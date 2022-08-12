@@ -73,7 +73,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             if (!node.is_in_place())
                 return;
 
-            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+            if (input_lay.identical(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }
