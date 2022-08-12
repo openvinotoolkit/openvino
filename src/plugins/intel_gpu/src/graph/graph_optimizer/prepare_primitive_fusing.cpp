@@ -73,7 +73,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             if (!node.is_in_place())
                 return;
 
-            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+            if (input_lay.identical(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }
@@ -637,7 +637,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
             if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                  !_lo.get_optimization_attributes().use_onednn_impls) ||
+                 out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
             return true;

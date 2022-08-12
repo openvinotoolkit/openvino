@@ -20,7 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::ValuesIn(cpu_properties)),
-        OVPropertiesDefaultTests::getTestCaseName);
+        OVPropertiesTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multi_Auto_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_CPU), ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
@@ -73,4 +73,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(auto_multi_plugin_properties),
                                             ::testing::ValuesIn(auto_multi_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> default_properties = {
+        {ov::enable_profiling(false)},
+        {ov::log::level("LOG_NONE")},
+        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
+        {ov::hint::allow_auto_batching(true)},
+        {ov::auto_batch_timeout("1000")},
+        {ov::intel_auto::device_bind_buffer(false)},
+        {ov::device::priorities("")}
+};
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(default_properties)),
+        OVPropertiesDefaultTests::getTestCaseName);
 } // namespace

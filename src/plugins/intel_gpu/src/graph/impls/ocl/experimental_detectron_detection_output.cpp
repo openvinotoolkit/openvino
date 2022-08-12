@@ -31,8 +31,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_detection_output_node& arg, std::shared_ptr<kernel_impl_params> impl_param) {
-        auto params = get_default_params<kernel_selector::experimental_detectron_detection_output_params>(*impl_param);
+    static primitive_impl* create(const experimental_detectron_detection_output_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::experimental_detectron_detection_output_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::experimental_detectron_detection_output_optional_params>(
                 arg.get_program());

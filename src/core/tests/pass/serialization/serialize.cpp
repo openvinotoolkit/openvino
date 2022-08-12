@@ -8,6 +8,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/serialize.hpp"
@@ -39,9 +40,11 @@ public:
     }
 
     void SetUp() override {
-        m_model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())});
+        m_model_path = CommonTestUtils::getModelFromTestModelZoo(
+            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
         if (!std::get<1>(GetParam()).empty()) {
-            m_binary_path = ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())});
+            m_binary_path = CommonTestUtils::getModelFromTestModelZoo(
+                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
         }
 
         const std::string test_name = GetTestName() + "_" + GetTimestamp();
