@@ -171,7 +171,7 @@ public:
     template <typename BufferType>
     void save(BufferType& buffer) const {
         if (type() == cldnn::data::type_id()) {
-            
+
         } else {
             // primitive_impl
             buffer << _impl;
@@ -194,7 +194,7 @@ public:
     template <typename BufferType>
     void load(BufferType& buffer) {
         if (type() == cldnn::data::type_id()) {
-            
+
         } else {
             // primitive_impl
             _impl.release();
