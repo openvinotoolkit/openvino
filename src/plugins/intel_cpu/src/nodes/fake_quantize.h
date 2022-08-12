@@ -230,6 +230,12 @@ private:
     std::string errorPrefix;
 
     BroadcastingPolicy broadcastingPolicy;
+
+    bool perTensorShift = false;
+    bool perChannelShift = false;
+    bool inputIsSymmetricS8 = false;
+    bool inputIsSymmetricU8 = false;
+    bool levelNot256 = false;
 };
 
 }   // namespace node

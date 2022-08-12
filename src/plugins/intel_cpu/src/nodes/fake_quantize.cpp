@@ -4,26 +4,26 @@
 
 #include "fake_quantize.h"
 
-#include <string>
-#include <vector>
-#include <math.h>
-#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
+#include <dnnl_types.h>
+#include <math.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <algorithm>
-#include <set>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include "ie_parallel.hpp"
-
-#include <ngraph/opsets/opset1.hpp>
-#include <memory_desc/cpu_memory_desc_utils.h>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
-#include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
+#include "ie_parallel.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -49,7 +49,9 @@ template <cpu_isa_t isa>
 struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
-    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp)
+        : jit_uni_quantize_kernel(jqp),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -75,7 +77,8 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
         Label tail_label;
         Label exit_label;
 
-        L(unrolled_loop_label); {
+        L(unrolled_loop_label);
+        {
             int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
             const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
             const int unrolled_loop_step = ur_ch * step;
@@ -85,9 +88,9 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
             xor_(reg_bin_32, reg_bin_32);
             for (int ch = 0; ch < ur_ch; ch++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
+                uni_vmovups(vmm_src(0), ptr[reg_from + ch * step * sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + ch * step * sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch * step * sizeof(float)]);
                 if (isa == avx512_core) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
@@ -103,16 +106,17 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
             }
             mov(ptr[reg_to], reg_bin_32);
 
-            add(reg_from, unrolled_loop_step*sizeof(float));
-            add(reg_thresholds, unrolled_loop_step*sizeof(float));
-            add(reg_output_mask, unrolled_loop_step*sizeof(float));
+            add(reg_from, unrolled_loop_step * sizeof(float));
+            add(reg_thresholds, unrolled_loop_step * sizeof(float));
+            add(reg_output_mask, unrolled_loop_step * sizeof(float));
             add(reg_to, sizeof(uint32_t));
             sub(reg_work_amount, unrolled_loop_step);
 
             jmp(unrolled_loop_label, T_NEAR);
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             int repeats = isa == cpu::x64::sse41 ? 2 : 1;
             int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
             const int main_loop_step = step * repeats;
@@ -122,9 +126,9 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
             xor_(reg_bin_32, reg_bin_32);
             for (int i = 0; i < repeats; i++) {
-                uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
-                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i*step*sizeof(float)]);
-                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
+                uni_vmovups(vmm_src(0), ptr[reg_from + i * step * sizeof(float)]);
+                uni_vmovups(vmm_wei(0), ptr[reg_thresholds + i * step * sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i * step * sizeof(float)]);
                 if (isa == avx512_core) {
                     vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
                     vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
@@ -143,16 +147,17 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
             else
                 mov(ptr[reg_to], reg_bin_8);
 
-            add(reg_from, main_loop_step*sizeof(float));
-            add(reg_thresholds, main_loop_step*sizeof(float));
-            add(reg_output_mask, main_loop_step*sizeof(float));
+            add(reg_from, main_loop_step * sizeof(float));
+            add(reg_thresholds, main_loop_step * sizeof(float));
+            add(reg_output_mask, main_loop_step * sizeof(float));
             add(reg_to, isa == avx512_core ? sizeof(uint16_t) : sizeof(uint8_t));
             sub(reg_work_amount, main_loop_step);
 
             jmp(main_loop_label, T_NEAR);
         }
 
-        L(tail_label); {
+        L(tail_label);
+        {
             if (tail_size != 0) {
                 xor_(reg_bin_32, reg_bin_32);
                 mov(reg_mask, 1);
@@ -186,15 +191,27 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    inline Vmm vmm_src(int idx) { return Vmm(idx); }
-    inline Xmm xmm_src(int idx) { return Xmm(idx); }
-    inline Vmm vmm_wei(int idx) { return Vmm(idx + 4); }
-    inline Vmm vmm_mask(int idx) { return Vmm(idx + 5); }
-    inline Xmm xmm_wei(int idx) { return Xmm(idx + 4); }
-    inline Xmm xmm_mask(int idx) { return Xmm(idx + 5); }
+    inline Vmm vmm_src(int idx) {
+        return Vmm(idx);
+    }
+    inline Xmm xmm_src(int idx) {
+        return Xmm(idx);
+    }
+    inline Vmm vmm_wei(int idx) {
+        return Vmm(idx + 4);
+    }
+    inline Vmm vmm_mask(int idx) {
+        return Vmm(idx + 5);
+    }
+    inline Xmm xmm_wei(int idx) {
+        return Xmm(idx + 4);
+    }
+    inline Xmm xmm_mask(int idx) {
+        return Xmm(idx + 5);
+    }
 
     Reg64 param = abi_param1;
     Reg64 reg_from = r8;
@@ -217,7 +234,9 @@ template <cpu_isa_t isa>
 struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
-    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp)
+        : jit_uni_quantize_kernel(jqp),
+          jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -235,37 +254,78 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
         else
             compute_generic();
 
-
         this->postamble();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    inline Vmm vmm_val(int idx) { return Vmm(idx + 0); }
-    inline Vmm vmm_crop_low(int idx) { return Vmm(idx + 2); }
-    inline Vmm vmm_crop_high(int idx) { return Vmm(idx + 4); }
-    inline Vmm vmm_input_scale(int idx) { return Vmm(idx + 6); }
-    inline Vmm vmm_input_shift(int idx) { return Vmm(idx + 8); }
-    inline Vmm vmm_output_scale(int idx) { return Vmm(idx + 10); }
-    inline Vmm vmm_output_shift(int idx) { return Vmm(idx + 12); }
+    inline Vmm vmm_val(int idx) {
+        return Vmm(idx + 0);
+    }
+    inline Vmm vmm_crop_low(int idx) {
+        return Vmm(idx + 2);
+    }
+    inline Vmm vmm_crop_high(int idx) {
+        return Vmm(idx + 4);
+    }
+    inline Vmm vmm_input_scale(int idx) {
+        return Vmm(idx + 6);
+    }
+    inline Vmm vmm_input_shift(int idx) {
+        return Vmm(idx + 8);
+    }
+    inline Vmm vmm_output_scale(int idx) {
+        return Vmm(idx + 10);
+    }
+    inline Vmm vmm_output_shift(int idx) {
+        return Vmm(idx + 12);
+    }
 
-    inline Ymm ymm_val(int idx) { return Ymm(idx + 0); }
-    inline Ymm ymm_crop_low(int idx) { return Ymm(idx + 2); }
-    inline Ymm ymm_crop_high(int idx) { return Ymm(idx + 4); }
-    inline Ymm ymm_input_scale(int idx) { return Ymm(idx + 6); }
-    inline Ymm ymm_input_shift(int idx) { return Ymm(idx + 8); }
-    inline Ymm ymm_output_scale(int idx) { return Ymm(idx + 10); }
-    inline Ymm ymm_output_shift(int idx) { return Ymm(idx + 12); }
+    inline Ymm ymm_val(int idx) {
+        return Ymm(idx + 0);
+    }
+    inline Ymm ymm_crop_low(int idx) {
+        return Ymm(idx + 2);
+    }
+    inline Ymm ymm_crop_high(int idx) {
+        return Ymm(idx + 4);
+    }
+    inline Ymm ymm_input_scale(int idx) {
+        return Ymm(idx + 6);
+    }
+    inline Ymm ymm_input_shift(int idx) {
+        return Ymm(idx + 8);
+    }
+    inline Ymm ymm_output_scale(int idx) {
+        return Ymm(idx + 10);
+    }
+    inline Ymm ymm_output_shift(int idx) {
+        return Ymm(idx + 12);
+    }
 
-    inline Xmm xmm_val(int idx) { return Xmm(idx + 0); }
-    inline Xmm xmm_crop_low(int idx) { return Xmm(idx + 2); }
-    inline Xmm xmm_crop_high(int idx) { return Xmm(idx + 4); }
-    inline Xmm xmm_input_scale(int idx) { return Xmm(idx + 6); }
-    inline Xmm xmm_input_shift(int idx) { return Xmm(idx + 8); }
-    inline Xmm xmm_output_scale(int idx) { return Xmm(idx + 10); }
-    inline Xmm xmm_output_shift(int idx) { return Xmm(idx + 12); }
+    inline Xmm xmm_val(int idx) {
+        return Xmm(idx + 0);
+    }
+    inline Xmm xmm_crop_low(int idx) {
+        return Xmm(idx + 2);
+    }
+    inline Xmm xmm_crop_high(int idx) {
+        return Xmm(idx + 4);
+    }
+    inline Xmm xmm_input_scale(int idx) {
+        return Xmm(idx + 6);
+    }
+    inline Xmm xmm_input_shift(int idx) {
+        return Xmm(idx + 8);
+    }
+    inline Xmm xmm_output_scale(int idx) {
+        return Xmm(idx + 10);
+    }
+    inline Xmm xmm_output_shift(int idx) {
+        return Xmm(idx + 12);
+    }
 
     Vmm vmm_zero = Vmm(14);
 
@@ -332,7 +392,8 @@ private:
             uni_vbroadcastss(vmm_output_shift(0), ptr[reg_output_shift]);
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             cmp(reg_work_amount, simd_w);
             jl(tail_blk4_label, T_NEAR);
 
@@ -342,8 +403,10 @@ private:
                 uni_vminps(vmm_val(i), vmm_val(i), vmm_crop_high(0));
                 uni_vmaxps(vmm_val(i), vmm_val(i), vmm_crop_low(0));
                 uni_vfmadd213ps(vmm_val(i), vmm_input_scale(0), vmm_input_shift(0));
-                if (do_rounding) uni_vroundps(vmm_val(i), vmm_val(i), 0);
-                if (do_dequantization) uni_vfmadd213ps(vmm_val(i), vmm_output_scale(0), vmm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(vmm_val(i), vmm_val(i), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(vmm_val(i), vmm_output_scale(0), vmm_output_shift(0));
 
                 store_vector(ptr[reg_to + i * (simd_w / 2) * dst_type_size], vmm_val(i), jqp_.dst_prc);
             }
@@ -355,7 +418,8 @@ private:
             jmp(main_loop_label, T_NEAR);
         }
 
-        L(tail_blk4_label); {
+        L(tail_blk4_label);
+        {
             cmp(reg_work_amount, tail_simd_w);
             jl(tail_blk4_exit_label, T_NEAR);
 
@@ -364,8 +428,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_vector(ptr[reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -379,7 +445,8 @@ private:
         mov(aux_reg_from, reg_from);
         mov(aux_reg_to, reg_to);
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -388,8 +455,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_scalar(ptr[aux_reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -458,7 +527,8 @@ private:
             }
         }
 
-        L(main_loop_label); {
+        L(main_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -468,8 +538,10 @@ private:
                 uni_vminps(vmm_val(i), vmm_val(i), vmm_crop_high(i));
                 uni_vmaxps(vmm_val(i), vmm_val(i), vmm_crop_low(i));
                 uni_vfmadd213ps(vmm_val(i), vmm_input_scale(i), vmm_input_shift(i));
-                if (do_rounding) uni_vroundps(vmm_val(i), vmm_val(i), 0);
-                if (do_dequantization) uni_vfmadd213ps(vmm_val(i), vmm_output_scale(i), vmm_output_shift(i));
+                if (do_rounding)
+                    uni_vroundps(vmm_val(i), vmm_val(i), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(vmm_val(i), vmm_output_scale(i), vmm_output_shift(i));
 
                 store_vector(ptr[reg_to + i * (simd_w / 2) * dst_type_size], vmm_val(i), jqp_.dst_prc);
             }
@@ -500,7 +572,8 @@ private:
                 uni_vmovups(ymm_output_shift(0), ptr[reg_output_shift]);
             }
 
-            L(tail_blk8_loop_label); {
+            L(tail_blk8_loop_label);
+            {
                 cmp(reg_work_amount, 0);
                 jle(tail_blk8_exit_label, T_NEAR);
 
@@ -509,8 +582,10 @@ private:
                 uni_vminps(ymm_val(0), ymm_val(0), ymm_crop_high(0));
                 uni_vmaxps(ymm_val(0), ymm_val(0), ymm_crop_low(0));
                 uni_vfmadd213ps(ymm_val(0), ymm_input_scale(0), ymm_input_shift(0));
-                if (do_rounding) uni_vroundps(ymm_val(0), ymm_val(0), 0);
-                if (do_dequantization) uni_vfmadd213ps(ymm_val(0), ymm_output_scale(0), ymm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(ymm_val(0), ymm_val(0), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(ymm_val(0), ymm_output_scale(0), ymm_output_shift(0));
 
                 store_vector(ptr[aux_reg_to], ymm_val(0), jqp_.dst_prc);
 
@@ -554,7 +629,8 @@ private:
             uni_vmovups(xmm_output_shift(0), ptr[reg_output_shift]);
         }
 
-        L(tail_blk4_loop_label); {
+        L(tail_blk4_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(tail_blk4_exit_label, T_NEAR);
 
@@ -563,8 +639,10 @@ private:
             uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
             uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
             uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-            if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-            if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+            if (do_rounding)
+                uni_vroundps(xmm_val(0), xmm_val(0), 0);
+            if (do_dequantization)
+                uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
             store_vector(ptr[aux_reg_to], xmm_val(0), jqp_.dst_prc);
 
@@ -597,7 +675,8 @@ private:
         mov(aux_reg_from, reg_from);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             jle(exit_label, T_NEAR);
 
@@ -616,8 +695,10 @@ private:
                 uni_vminps(xmm_val(0), xmm_val(0), xmm_crop_high(0));
                 uni_vmaxps(xmm_val(0), xmm_val(0), xmm_crop_low(0));
                 uni_vfmadd213ps(xmm_val(0), xmm_input_scale(0), xmm_input_shift(0));
-                if (do_rounding) uni_vroundps(xmm_val(0), xmm_val(0), 0);
-                if (do_dequantization) uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
+                if (do_rounding)
+                    uni_vroundps(xmm_val(0), xmm_val(0), 0);
+                if (do_dequantization)
+                    uni_vfmadd213ps(xmm_val(0), xmm_output_scale(0), xmm_output_shift(0));
 
                 store_scalar(ptr[aux_reg_to + i * dst_type_size], xmm_val(0), jqp_.dst_prc);
             }
@@ -632,20 +713,20 @@ private:
         L(exit_label);
     }
 
-    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Zmm zmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(zmm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(zmm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(zmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(zmm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(zmm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(zmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -653,20 +734,20 @@ private:
         }
     }
 
-    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Ymm ymm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(ymm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(ymm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(ymm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(ymm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(ymm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(ymm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -674,20 +755,20 @@ private:
         }
     }
 
-    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Xmm xmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(xmm_src, op);
-                break;
-            case Precision::I8:
-                uni_vpmovsxbd(xmm_src, op);
-                break;
-            case Precision::U8:
-                uni_vpmovzxbd(xmm_src, op);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(xmm_src, op);
+            break;
+        case Precision::I8:
+            uni_vpmovsxbd(xmm_src, op);
+            break;
+        case Precision::U8:
+            uni_vpmovzxbd(xmm_src, op);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -695,22 +776,22 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, Precision src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovss(xmm_src, op);
-                break;
-            case Precision::I8:
-                movsx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            case Precision::U8:
-                movzx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            default:
-                assert(!"unknown src_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovss(xmm_src, op);
+            break;
+        case Precision::I8:
+            movsx(reg_tmp_32, op);
+            uni_vmovq(xmm_src, reg_tmp_64);
+            break;
+        case Precision::U8:
+            movzx(reg_tmp_32, op);
+            uni_vmovq(xmm_src, reg_tmp_64);
+            break;
+        default:
+            assert(!"unknown src_prc");
         }
 
         if (src_prc != Precision::FP32) {
@@ -718,29 +799,29 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Zmm zmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(zmm_dst, zmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, zmm_dst);
-                break;
-            case Precision::I8:
-                vpmovsdb(op, zmm_dst);
-                break;
-            case Precision::U8:
-                vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
-                vpmovusdb(op, zmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, zmm_dst);
+            break;
+        case Precision::I8:
+            vpmovsdb(op, zmm_dst);
+            break;
+        case Precision::U8:
+            vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
+            vpmovusdb(op, zmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Ymm ymm_dst, Precision dst_prc) {
         Xmm xmm_dst = Xmm(ymm_dst.getIdx());
 
         if (dst_prc != Precision::FP32) {
@@ -748,87 +829,88 @@ private:
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, ymm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, ymm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
 
-                vpermq(ymm_dst, ymm_dst, 0x08);
+            vpermq(ymm_dst, ymm_dst, 0x08);
 
-                uni_vpacksswb(ymm_dst, ymm_dst, ymm_dst);
+            uni_vpacksswb(ymm_dst, ymm_dst, ymm_dst);
 
-                vmovq(op, xmm_dst);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
+            vmovq(op, xmm_dst);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
 
-                vpermq(ymm_dst, ymm_dst, 0x08);
+            vpermq(ymm_dst, ymm_dst, 0x08);
 
-                uni_vpackuswb(ymm_dst, ymm_dst, ymm_dst);
+            uni_vpackuswb(ymm_dst, ymm_dst, ymm_dst);
 
-                vmovq(op, xmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+            vmovq(op, xmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address& op, Xmm xmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovups(op, xmm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovd(op, xmm_dst);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovd(op, xmm_dst);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovups(op, xmm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovd(op, xmm_dst);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovd(op, xmm_dst);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
+    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, Precision dst_prc) {
         if (dst_prc != Precision::FP32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
-                uni_vmovss(op, xmm_dst);
-                break;
-            case Precision::I8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            default:
-                assert(!"unknown dst_prc");
+        case Precision::FP32:
+        case Precision::I32:
+            uni_vmovss(op, xmm_dst);
+            break;
+        case Precision::I8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        case Precision::U8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        default:
+            assert(!"unknown dst_prc");
         }
     }
 };
 
-bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+                                        std::string& errorMessage) noexcept {
     try {
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
         if (!fq) {
@@ -842,7 +924,8 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ngraph::Node
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
             if (fq->get_input_partial_shape(i).rank().get_length() > 5) {
-                errorMessage = "Doesn't support 'range' input with rank: " + std::to_string(fq->get_input_partial_shape(i).rank().get_length());
+                errorMessage = "Doesn't support 'range' input with rank: " +
+                               std::to_string(fq->get_input_partial_shape(i).rank().get_length());
                 return false;
             }
         }
@@ -914,8 +997,8 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
+    : Node(op, eng, cache) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
@@ -987,16 +1070,20 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
         }
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode =
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
@@ -1047,7 +1134,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 }
             }
         } else {
-            auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
+            auto allElementsAreEqual = [&](const std::vector<float>& data, size_t size) {
                 if (size == 0)
                     return true;
 
@@ -1094,9 +1181,21 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
 
-            if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+            if (everyone_is(1,
+                            cropLowSize,
+                            cropHighSize,
+                            inputScaleSize,
+                            inputShiftSize,
+                            outputScaleSize,
+                            outputShiftSize))
                 broadcastingPolicy = PerTensor;
-            else if (one_of(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+            else if (one_of(1,
+                            cropLowSize,
+                            cropHighSize,
+                            inputScaleSize,
+                            inputShiftSize,
+                            outputScaleSize,
+                            outputShiftSize))
                 broadcastingPolicy = Mixed;
             else
                 broadcastingPolicy = PerChannel;
@@ -1116,10 +1215,11 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
-            }
+                if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
+                    std::isinf(ih)) {
+                    IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+                               << "inputLow = " << il << ", inputHigh = " << ih;
+                }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
@@ -1136,7 +1236,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
                     IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                       << "outputLow = " << ol << ", outputHigh = " << oh;
+                               << "outputLow = " << ol << ", outputHigh = " << oh;
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1161,14 +1261,22 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
 
-            printf("===========================================================================\n");
-            printf("name=%s precision=%s levels=%zu channel_num=%zu\n", getName().c_str(),  getOriginalOutputPrecisionAtPort(0).name(),
-                                            levels, std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
-            bool levelNot256 = (levels != 256);
-            bool perTensorShift = true;
-            bool perChannelShift = true;
-            bool inputIsSymmetricS8 = true;
-            bool inputIsSymmetricU8 = true;
+            if (getOriginalOutputPrecisionAtPort(0) == Precision::I8 ||
+                getOriginalOutputPrecisionAtPort(0) == Precision::U8) {
+                printf("===========================================================================\n");
+                printf("name=%s precision=%s levels=%zu channel_num=%zu\n",
+                       getName().c_str(),
+                       getOriginalOutputPrecisionAtPort(0).name(),
+                       levels,
+                       std::max(inputLowAxisSize,
+                                std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
+            }
+            levelNot256 = (levels != 256);
+            perTensorShift = true;
+            perChannelShift = true;
+            inputIsSymmetricS8 = true;
+            inputIsSymmetricU8 = true;
+            auto precision = getOriginalOutputPrecisionAtPort(0);
 
             printf("%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s%-15s\n",
                    "channel",
@@ -1188,15 +1296,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
-                //symmetricToAsymmetric = symmetricToAsymmetric && (il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.001f && ol == 0.0f);
-                //asymmetric = asymmetric && ((il < 0.0f && ol < 0.0f && std::abs(inputShift[i] - 128.0000) > 0.001f) || il > 0.0f);
+                // symmetricToAsymmetric = symmetricToAsymmetric && (il < 0.0f && abs(-128.0 / 127.0 - il / ih) < 0.001f
+                // && ol == 0.0f); asymmetric = asymmetric && ((il < 0.0f && ol < 0.0f && std::abs(inputShift[i] -
+                // 128.0000) > 0.001f) || il > 0.0f);
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
                                               (abs(ol / (oh - ol) - il / (ih - il)) < (levels == 256 ? 0.001f : 0.01f));
-                //At least input is standard POT input.
-                inputIsSymmetricS8 = inputIsSymmetricS8 && (abs(il / ih + 128.0f / 127.0f) < 0.001f);
-                inputIsSymmetricU8 = inputIsSymmetricU8 && (abs(il) < 0.0001f);
+                // At least input is standard POT input.
+                inputIsSymmetricS8 = inputIsSymmetricS8 && (abs(inputShift[i] - 128.0f) < 0.001f);
+                inputIsSymmetricU8 = inputIsSymmetricU8 && (abs(inputShift[i]) < 0.001f);
                 // Having shift. Not standard POT input.
                 // shift is per-tensor
                 perTensorShift = perTensorShift && (!inputIsSymmetricS8 && !inputIsSymmetricU8) &&
@@ -1206,7 +1315,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
                 if (i < 4 &&
                     (perTensorShift || perChannelShift || levelNot256 ||
-                     (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::U8)))
+                     (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::U8) ||
+                     (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::I8)))
                     printf("%-15d%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f\n",
                            i,
                            inputShift[i],
@@ -1226,9 +1336,12 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 */
             }
 
-            //DEBUG_LOG(getName(), levels, "isfqscale = " , static_cast<int>(isFakeQuantizationWithScale));
+            // DEBUG_LOG(getName(), levels, "isfqscale = " , static_cast<int>(isFakeQuantizationWithScale));
             if (isFakeQuantizationWithScale) {
-                for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+                for (int i = 0;
+                     i < std::max(inputLowAxisSize,
+                                  std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize)));
+                     i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                     float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                     float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1237,20 +1350,9 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                     fqScales.push_back(1 / ((ih - il) / (oh - ol)));
                 }
             }
-
-            algorithm = quantizationOnly ? Algorithm::FQQuantization :
-                        (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon : Algorithm::FQRequantization;
-            if (perTensorShift || perChannelShift || levelNot256 ||
-                (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8))
-                printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s %s %s %s %s\n",
-                       getName().c_str(),
-                       inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8 ? "LPT_I2U_symmetric_to_asymmetric=true" : "",
-                       inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8 ? "LPT_ScaleI8=true" : "",
-                       inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8 ? "LPT_ScaleU8=true" : "",
-                       inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8 ? "LPT_U2I_symmetric_to_asymmetric=true" : "",
-                       perTensorShift ? "LPT_perTensorShift=true" : "",
-                       perChannelShift ? "LPT_perChannelShift=true" : "",
-                       levelNot256 ? "level_changed=true" : "");
+            algorithm = quantizationOnly                                      ? Algorithm::FQQuantization
+                        : (isFakeQuantization || isFakeQuantizationWithScale) ? Algorithm::FQCommon
+                                                                              : Algorithm::FQRequantization;
         }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1259,22 +1361,22 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 
 std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     // Special case for first FQ in the network
-    const auto &dims = getInputShapeAtPort(0).getDims();
+    const auto& dims = getInputShapeAtPort(0).getDims();
     if (dims[getAxis()] == 3) {
-        return { LayoutType::ncsp };
+        return {LayoutType::ncsp};
     } else {
         if (isBinarization()) {
-            return { LayoutType::nspc };
+            return {LayoutType::nspc};
         } else {
             if (one_of(dims.size(), 4, 5)) {
                 if (getAxis() == 1) {
                     auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-                    return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
+                    return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
                 } else {
-                    return { LayoutType::ncsp };
+                    return {LayoutType::ncsp};
                 }
             } else {
-                return { LayoutType::ncsp };
+                return {LayoutType::ncsp};
             }
         }
     }
@@ -1293,6 +1395,48 @@ void FakeQuantize::init() {
 
         if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
             outputPrecision = Precision::FP32;
+    }
+    if (getOriginalOutputPrecisionAtPort(0) == Precision::I8 || getOriginalOutputPrecisionAtPort(0) == Precision::U8) {
+        if (perTensorShift || perChannelShift ||
+            (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8) ||
+            (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8) ||
+            (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8) ||
+            (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8) || levelNot256) {
+            printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s %s %s %s %s\n",
+                getName().c_str(),
+                (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8)
+                    ? "LPT_I2U_symmetric_to_asymmetric=true"
+                    : "",
+                (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8) ? "LPT_ScaleI8=true" : "",
+                (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8) ? "LPT_ScaleU8=true" : "",
+                (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8)
+                    ? "LPT_U2I_symmetric_to_asymmetric=true"
+                    : "",
+                perTensorShift ? "LPT_perTensorShift=true" : "",
+                perChannelShift ? "LPT_perChannelShift=true" : "",
+                levelNot256 ? "levelNot256" : "");
+        }
+    }
+    if ((inputIsSymmetricS8 && outputPrecision == Precision::U8) ||
+        (inputIsSymmetricU8 && outputPrecision == Precision::I8))  {
+        printf("<<<<<<<output_precision = %s\n", outputPrecision.name());
+        for (int i = 0; i < getChildEdgesAtPort(0).size(); i++) {
+            auto child = getChildEdgesAtPort(0)[i]->getChild();
+            printf("child[%d] type = %s ", i, child->getTypeStr().c_str());
+            if (getChildEdgesAtPort(0)[i]->getChild()->getTypeStr() == std::string("Subtract"))
+                printf("grand-child type = %s ",  child->getChildEdgesAtPort(0)[0]->getChild()->getTypeStr().c_str());
+        }
+        printf("\n");
+    }
+    if ((outputPrecision == Precision::U8 || outputPrecision ==  Precision::I8) && levelNot256) {
+        printf("$$$$$$$$ levels: %zu\n", levels);
+        for (int i = 0; i < getChildEdgesAtPort(0).size(); i++) {
+            auto child = getChildEdgesAtPort(0)[i]->getChild();
+            printf("child[%d] type = %s ", i, child->getTypeStr().c_str());
+            if (getChildEdgesAtPort(0)[i]->getChild()->getTypeStr() == std::string("Subtract"))
+                printf("grand-child type = %s ",  child->getChildEdgesAtPort(0)[0]->getChild()->getTypeStr().c_str());
+        }
+        printf("\n");
     }
 }
 
@@ -1328,7 +1472,6 @@ void FakeQuantize::getSupportedDescriptors() {
 void FakeQuantize::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
@@ -1383,7 +1526,8 @@ bool FakeQuantize::needPrepareParams() const {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
+    if (internalBlobMemory.empty() ||
+        (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
         return true;
     }
 
@@ -1391,8 +1535,8 @@ bool FakeQuantize::needPrepareParams() const {
     const auto newPaddedSize = rnd_up(axisSize, 16);
     const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
-    return newPaddedSize != currPaddedSize || (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) &&
-                                                 axisSize != currentAxisSize);
+    return newPaddedSize != currPaddedSize ||
+           (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize);
 }
 
 void FakeQuantize::prepareParams() {
@@ -1401,22 +1545,28 @@ void FakeQuantize::prepareParams() {
     IE_ASSERT(newPaddedSize != 0);
 
     if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
-            (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
-        DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
+        (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
+        DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}),
+                                              memory::data_type::f32,
+                                              memory::format_tag::x);
 
         if (isBinarization()) {
             constexpr size_t numBinFqIntBlob = 2;
             bool needUpdThr = false, needUpdMask = false;
             if (isInputLowBroadcasted && axisSize != currentAxisSize) {
                 binarizationThresholds.resize(newPaddedSize);
-                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + axisSize, binarizationThresholds[0]);
+                std::fill(binarizationThresholds.begin() + 1,
+                          binarizationThresholds.begin() + axisSize,
+                          binarizationThresholds[0]);
                 std::fill(binarizationThresholds.begin() + axisSize, binarizationThresholds.end(), 0);
                 needUpdThr = true;
             }
 
             if (isOutputHighBroadcasted && axisSize != currentAxisSize) {
                 binarizationOutputMask.resize(newPaddedSize);
-                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + axisSize, binarizationOutputMask[0]);
+                std::fill(binarizationOutputMask.begin() + 1,
+                          binarizationOutputMask.begin() + axisSize,
+                          binarizationOutputMask[0]);
                 std::fill(binarizationOutputMask.begin() + axisSize, binarizationOutputMask.end(), 0);
                 needUpdMask = true;
             }
@@ -1445,10 +1595,11 @@ void FakeQuantize::prepareParams() {
 
             auto pushInternalBlob = [&](std::vector<float>& data, size_t idx) {
                 auto memory = std::make_shared<Memory>(getEngine());
-                bool needOverwrite = getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
+                bool needOverwrite =
+                    getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
                 if (needOverwrite) {
                     memory->Create(weightsDataDesc);
-                    float *ptr = reinterpret_cast<float *>(memory->GetPtr());
+                    float* ptr = reinterpret_cast<float*>(memory->GetPtr());
                     std::fill(ptr, ptr + newPaddedSize, data[0]);
                 } else {
                     if (data.size() == 1) {
@@ -1484,7 +1635,7 @@ void FakeQuantize::prepareParams() {
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
         const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-        //Form FakeQuanKey
+        // Form FakeQuanKey
         FakeQuantKey key = {};
         key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
         key.jqp.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
@@ -1509,10 +1660,10 @@ void FakeQuantize::prepareParams() {
 }
 
 void FakeQuantize::executeReference() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
+    auto src = reinterpret_cast<const float*>(srcMemory->GetPtr());
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
@@ -1539,7 +1690,7 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
@@ -1550,11 +1701,10 @@ void FakeQuantize::executeReference() {
         parallel_nd(N, CB, D, H, W, [&](int n, int cb, int d, int h, int w) {
             uint8_t bin_val = 0x00;
             for (int c = cb * nbits, shift = 0; c < std::min(C, (cb + 1) * nbits); c++, shift++) {
-                size_t src_off = srcDims.size() == 4 ?
-                                    n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3] :
-                                 srcDims.size() == 5 ?
-                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
-                                    n * s_str[0] + c * s_str[1];
+                size_t src_off = srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
+                                 : srcDims.size() == 5
+                                     ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
+                                     : n * s_str[0] + c * s_str[1];
 
                 float val = src[src_off];
                 float thr = thresholds[c];
@@ -1566,16 +1716,15 @@ void FakeQuantize::executeReference() {
                 bin_val |= (bit << shift);
             }
 
-            size_t dst_off = dstDims.size() == 4 ?
-                                n * d_str[0] + (cb * nbits) * d_str[1] + h * d_str[2] + w * d_str[3] :
-                             dstDims.size() == 5 ?
-                                 n * d_str[0] + (cb * nbits) * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4] :
-                                 n * d_str[0] + (cb * nbits) * d_str[1];
+            size_t dst_off = dstDims.size() == 4 ? n * d_str[0] + (cb * nbits) * d_str[1] + h * d_str[2] + w * d_str[3]
+                             : dstDims.size() == 5
+                                 ? n * d_str[0] + (cb * nbits) * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
+                                 : n * d_str[0] + (cb * nbits) * d_str[1];
 
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<float*>(dstMemory->GetPtr());
 
         auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
         auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1585,15 +1734,12 @@ void FakeQuantize::executeReference() {
         auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
         parallel_nd(N, C, D, H, W, [&](int n, int c, int d, int h, int w) {
-            size_t src_off = srcDims.size() == 5 ?
-                                n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4] :
-                             srcDims.size() == 4 ?
-                                n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3] :
-                             srcDims.size() == 3 ?
-                                n * s_str[0] + c * s_str[1] + h * s_str[2] :
-                             srcDims.size() == 2 ?
-                                n * s_str[0] + c * s_str[1] :
-                                n * s_str[0];
+            size_t src_off = srcDims.size() == 5
+                                 ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
+                             : srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
+                             : srcDims.size() == 3 ? n * s_str[0] + c * s_str[1] + h * s_str[2]
+                             : srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
+                                                   : n * s_str[0];
 
             float src_val = src[src_off];
 
@@ -1610,34 +1756,31 @@ void FakeQuantize::executeReference() {
             dst_val = roundf(dst_val);
             dst_val = dst_val * osc + osh;
 
-            size_t dst_off = dstDims.size() == 5 ?
-                             n * d_str[0] + c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4] :
-                             dstDims.size() == 4 ?
-                             n * d_str[0] + c * d_str[1] + h * d_str[2] + w * d_str[3] :
-                             dstDims.size() == 3 ?
-                             n * d_str[0] + c * d_str[1] + h * d_str[2] :
-                             dstDims.size() == 2 ?
-                             n * d_str[0] + c * d_str[1] :
-                             n * d_str[0];
+            size_t dst_off = dstDims.size() == 5
+                                 ? n * d_str[0] + c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
+                             : dstDims.size() == 4 ? n * d_str[0] + c * d_str[1] + h * d_str[2] + w * d_str[3]
+                             : dstDims.size() == 3 ? n * d_str[0] + c * d_str[1] + h * d_str[2]
+                             : dstDims.size() == 2 ? n * d_str[0] + c * d_str[1]
+                                                   : n * d_str[0];
 
             dst[dst_off] = dst_val;
         });
     }
 }
 
-void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const {
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
 
     auto src_dims = srcMemory->getStaticDims();
 
-    const auto &jqp = pKernel->jqp_;
+    const auto& jqp = pKernel->jqp_;
     std::vector<size_t> s_str = jqp.s_str;
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
@@ -1655,8 +1798,8 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     parallel_nd(N, H, W, [&](int n, int h, int w) {
         auto arg = jit_quantize_call_args();
 
-        arg.from    = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
-        arg.to      = &dst[(n * s_str[0] + h * s_str[2] + w * s_str[3]) / nbits];
+        arg.from = &src[(n * s_str[0] + h * s_str[2] + w * s_str[3]) * sizeof(float)];
+        arg.to = &dst[(n * s_str[0] + h * s_str[2] + w * s_str[3]) / nbits];
         arg.thresholds = &thresholds[0];
         arg.output_mask = &output_mask[0];
         arg.work_amount = (size_t)C;
@@ -1665,12 +1808,12 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     });
 }
 
-void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const {
+    auto& srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto crop_low = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto crop_high = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
@@ -1683,10 +1826,11 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
-    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
-                    ? 1 : mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5)) ? 1
+                   : mayiuse(cpu::x64::avx512_core)                                                           ? 16
+                                                                                                              : 8;
 
-    const auto &jqp = pKernel->jqp_;
+    const auto& jqp = pKernel->jqp_;
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
@@ -1728,9 +1872,9 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             arg.output_scale = &output_scale[c];
             arg.output_shift = &output_shift[c];
 
-            arg.src_step = (size_t) blk_size * src_type_size;
-            arg.dst_step = (size_t) blk_size * dst_type_size;
-            arg.block_size = (size_t) blk_size;
+            arg.src_step = (size_t)blk_size * src_type_size;
+            arg.dst_step = (size_t)blk_size * dst_type_size;
+            arg.block_size = (size_t)blk_size;
             arg.work_amount = (size_t)H;
 
             (*pKernel)(&arg);
@@ -1745,9 +1889,9 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             const int h = b * batch_size / W;
             const int w = b * batch_size % W;
 
-            const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4 ?
-                                    n * s_str[0] + c * s_str[1] + h * s_str[2] + w :
-                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w;
+            const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4
+                                        ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w
+                                        : n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w;
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
@@ -1758,9 +1902,9 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             arg.output_scale = &output_scale[c];
             arg.output_shift = &output_shift[c];
 
-            arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
-            arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = is_blk_format ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.src_step = is_blk_format ? (size_t)blk_size * src_type_size : (size_t)C * src_type_size;
+            arg.dst_step = is_blk_format ? (size_t)blk_size * dst_type_size : (size_t)C * dst_type_size;
+            arg.block_size = is_blk_format ? (size_t)blk_size : nstl::min(blk_size, C - c);
             arg.work_amount = (size_t)std::min(batch_size, H * W - b * batch_size);
 
             (*pKernel)(&arg);
@@ -1771,11 +1915,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             int c = cb * blk_size;
 
-            size_t data_off = srcDims.size() == 2 ?
-                                    n * s_str[0] + c * s_str[1] :
-                              srcDims.size() == 3 || srcDims.size() == 4 ?
-                                    n * s_str[0] + c * s_str[1] + h * s_str[2] :
-                                    n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
+            size_t data_off = srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
+                              : srcDims.size() == 3 || srcDims.size() == 4
+                                  ? n * s_str[0] + c * s_str[1] + h * s_str[2]
+                                  : n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
@@ -1786,10 +1929,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             arg.output_scale = &output_scale[c];
             arg.output_shift = &output_shift[c];
 
-            arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
-            arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = (is_blk_format && srcDims.size() != 2) ? (size_t) blk_size : nstl::min(blk_size, C - c);
-            arg.work_amount = (size_t) W;
+            arg.src_step = is_blk_format ? (size_t)blk_size * src_type_size : (size_t)C * src_type_size;
+            arg.dst_step = is_blk_format ? (size_t)blk_size * dst_type_size : (size_t)C * dst_type_size;
+            arg.block_size = (is_blk_format && srcDims.size() != 2) ? (size_t)blk_size : nstl::min(blk_size, C - c);
+            arg.work_amount = (size_t)W;
 
             (*pKernel)(&arg);
         });
@@ -1812,7 +1955,7 @@ void FakeQuantize::execute(dnnl::stream strm) {
     }
 }
 
-void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment) {
+void FakeQuantize::initializePostOpData(const VectorDims& dims, const size_t bufferAlignment) {
     if (isPostOpDataInitialized)
         return;
 
@@ -1823,11 +1966,15 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
         binarizationOutputMask.resize(axisPaddedSize, 0);
 
         if (isInputLowBroadcasted) {
-            std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
+            std::fill(binarizationThresholds.begin() + 1,
+                      binarizationThresholds.begin() + realAxisSize,
+                      binarizationThresholds[0]);
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
         if (isOutputHighBroadcasted) {
-            std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
+            std::fill(binarizationOutputMask.begin() + 1,
+                      binarizationOutputMask.begin() + realAxisSize,
+                      binarizationOutputMask[0]);
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
     } else {
@@ -1855,7 +2002,7 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
     isPostOpDataInitialized = true;
 }
 
-void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
+void FakeQuantize::initializePostOpDataLegacy(const VectorDims& dims, const size_t bufferAlignment) {
     if (isLegacyPostOpDataInitialized)
         return;
 
@@ -1867,11 +2014,15 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
         binarizationOutputMask.resize(axisPaddedSize, 0);
 
         if (isInputLowBroadcasted) {
-            std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
+            std::fill(binarizationThresholds.begin() + 1,
+                      binarizationThresholds.begin() + realAxisSize,
+                      binarizationThresholds[0]);
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
         if (isOutputHighBroadcasted) {
-            std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
+            std::fill(binarizationOutputMask.begin() + 1,
+                      binarizationOutputMask.begin() + realAxisSize,
+                      binarizationOutputMask[0]);
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
         }
 
@@ -1891,7 +2042,10 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
     isLegacyPostOpDataInitialized = true;
 }
 
-void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
+void FakeQuantize::appendMemory(const size_t dataSize,
+                                const void* data,
+                                MemoryPtr& memPtr,
+                                std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
         memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
@@ -1901,12 +2055,15 @@ void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryP
     }
 }
 
-void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem) {
+void FakeQuantize::appendMemory(const size_t dataSize,
+                                const void* data,
+                                MemoryPtr& memPtr,
+                                std::vector<const void*>& postOpsMem) {
     postOpsMem.push_back(data);
 }
 
 template <typename T>
-void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem) {
+void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<T>& postOpsMem) {
     // oneDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
@@ -1915,21 +2072,40 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
     initializePostOpDataLegacy(postOpDims, bufferAlignment);
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
-        ops.append_binarization(dnnl::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
+        ops.append_binarization(dnnl::algorithm::binarization_depthwise,
+                                (const float*)&binarizationThresholds[0],
+                                (const float*)&binarizationOutputMask[0]);
     } else {
-        dnnl::algorithm alg = getAlgorithm() == Algorithm::FQQuantization ? dnnl::algorithm::quantization_quantize :
-                                                                            dnnl::algorithm::quantization_quantize_dequantize;
+        dnnl::algorithm alg = getAlgorithm() == Algorithm::FQQuantization
+                                  ? dnnl::algorithm::quantization_quantize
+                                  : dnnl::algorithm::quantization_quantize_dequantize;
 
-        std::array<bool, 6> per_channel = {cropLowSize > 1, cropHighSize > 1, inputScaleSize > 1,
-                                           inputShiftSize > 1, outputScaleSize > 1, outputShiftSize > 1};
+        std::array<bool, 6> per_channel = {cropLowSize > 1,
+                                           cropHighSize > 1,
+                                           inputScaleSize > 1,
+                                           inputShiftSize > 1,
+                                           outputScaleSize > 1,
+                                           outputShiftSize > 1};
 
         std::array<bool, 6> all_default = {false};
-        all_default[0] = std::all_of(cropLow.cbegin(), cropLow.cend(), [](float val){ return val == 0.f; });
-        all_default[1] = std::all_of(cropHigh.cbegin(), cropHigh.cend(), [](float val){ return val == 0.f; });
-        all_default[2] = std::all_of(inputScale.cbegin(), inputScale.cend(), [](float val){ return val == 1.f; });
-        all_default[3] = std::all_of(inputShift.cbegin(), inputShift.cend(), [](float val){ return val == 0.f; });
-        all_default[4] = std::all_of(outputScale.cbegin(), outputScale.cend(), [](float val){ return val == 1.f; });
-        all_default[5] = std::all_of(outputShift.cbegin(), outputShift.cend(), [](float val){ return val == 0.f; });
+        all_default[0] = std::all_of(cropLow.cbegin(), cropLow.cend(), [](float val) {
+            return val == 0.f;
+        });
+        all_default[1] = std::all_of(cropHigh.cbegin(), cropHigh.cend(), [](float val) {
+            return val == 0.f;
+        });
+        all_default[2] = std::all_of(inputScale.cbegin(), inputScale.cend(), [](float val) {
+            return val == 1.f;
+        });
+        all_default[3] = std::all_of(inputShift.cbegin(), inputShift.cend(), [](float val) {
+            return val == 0.f;
+        });
+        all_default[4] = std::all_of(outputScale.cbegin(), outputScale.cend(), [](float val) {
+            return val == 1.f;
+        });
+        all_default[5] = std::all_of(outputShift.cbegin(), outputShift.cend(), [](float val) {
+            return val == 0.f;
+        });
 
         std::array<size_t, 6> offsets = {0};
         offsets[1] = offsets[0] + cropLowSize;
@@ -1944,25 +2120,32 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
     }
 }
 
-void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem,
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
+                                 const VectorDims& postOpDims,
+                                 std::vector<MemoryPtr>& postOpsMem,
                                  const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem,
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
+                                 const VectorDims& postOpDims,
+                                 std::vector<const void*>& postOpsMem,
                                  const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 
-void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) {
+void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops,
+                                    const VectorDims& postOpDims,
+                                    std::vector<MemoryPtr>& binaryPostOpsMem) {
     static const size_t bufferAlignment = 1;
 
     initializePostOpData(postOpDims, bufferAlignment);
 
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
+    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr& memPtr, const void* data) {
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32,
+                                         dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
         ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
         if (!memPtr) {
@@ -1974,8 +2157,8 @@ void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postO
     };
 
     dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon || getAlgorithm() == Algorithm::FQRequantization
-                                ? dnnl::algorithm::quantization_quantize_dequantize
-                                : dnnl::algorithm::quantization_quantize;
+                              ? dnnl::algorithm::quantization_quantize_dequantize
+                              : dnnl::algorithm::quantization_quantize;
 
     appendBinary(dnnl::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
     appendBinary(dnnl::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
@@ -1988,16 +2171,20 @@ void FakeQuantize::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postO
     appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
-void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
-                                             bool isLastPostOp, dnnl::memory::data_type outDataType) {
+void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops,
+                                             const VectorDims& postOpDims,
+                                             std::vector<MemoryPtr>& binaryPostOpsMem,
+                                             bool isLastPostOp,
+                                             dnnl::memory::data_type outDataType) {
     static const size_t bufferAlignment = 1;
 
     initializePostOpData(postOpDims, bufferAlignment);
 
     VectorDims broadcastBinaryShape(postOpDims.size(), 1);
 
-    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr &memPtr, const void *data) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
+    auto appendBinary = [&](const dnnl::algorithm alg, const size_t dataSize, MemoryPtr& memPtr, const void* data) {
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32,
+                                         dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(postOpDims));
         ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
         if (!memPtr) {
@@ -2009,24 +2196,34 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
     };
 
     dnnl::algorithm alg = getAlgorithm() == Algorithm::FQCommon || getAlgorithm() == Algorithm::FQRequantization
-                                ? dnnl::algorithm::quantization_quantize_dequantize
-                                : dnnl::algorithm::quantization_quantize;
+                              ? dnnl::algorithm::quantization_quantize_dequantize
+                              : dnnl::algorithm::quantization_quantize;
 
-    if (isLastPostOp &&
-        outDataType == memory::data_type::u8 &&
-        getAlgorithm() == Algorithm::FQQuantization
+    if (isLastPostOp && outDataType == memory::data_type::u8 && getAlgorithm() == Algorithm::FQQuantization
         /*levels == 256*/) {
-        auto &cl = getCropLow();
-        auto &isc = getInputScale();
-        auto &ish = getInputShift();
+        auto& cl = getCropLow();
+        auto& isc = getInputScale();
+        auto& ish = getInputShift();
 
-        if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(isc.cbegin(), isc.cend(), [&](float val) { return val == isc[0]; }) &&
-            std::all_of(ish.cbegin(), ish.cend(), [&](float val) { return val == ish[0]; })) {
+        if (std::all_of(cl.cbegin(),
+                        cl.cend(),
+                        [](float val) {
+                            return val == 0.0f;
+                        }) &&
+            std::all_of(isc.cbegin(),
+                        isc.cend(),
+                        [&](float val) {
+                            return val == isc[0];
+                        }) &&
+            std::all_of(ish.cbegin(), ish.cend(), [&](float val) {
+                return val == ish[0];
+            })) {
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, isc[0], ish[0]);
 
             return;
-        } else if (std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; })) {
+        } else if (std::all_of(cl.cbegin(), cl.cend(), [](float val) {
+                       return val == 0.0f;
+                   })) {
             appendBinary(dnnl::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
             appendBinary(dnnl::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
 
@@ -2045,23 +2242,30 @@ void FakeQuantize::appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDi
     appendBinary(dnnl::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
-std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType, size_t OC, const float zpErrorThreashold) {
-    auto &cl = getCropLow();
-    auto &ch = getCropHigh();
-    auto &isc = getInputScale();
-    auto &ish = getInputShift();
-    auto &osc = getOutputScale();
-    auto &osh = getOutputShift();
+std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outDataType,
+                                                 size_t OC,
+                                                 const float zpErrorThreashold) {
+    auto& cl = getCropLow();
+    auto& ch = getCropHigh();
+    auto& isc = getInputScale();
+    auto& ish = getInputShift();
+    auto& osc = getOutputScale();
+    auto& osh = getOutputShift();
 
     std::vector<float> outScale;
-    //OV POT model will tune the inputL/InputHigh = -128.0 / 127.0.
+    // OV POT model will tune the inputL/InputHigh = -128.0 / 127.0.
     const float s8InputZeroPoint = static_cast<float>(levels - 1) / 255.0 * 128.0;
     const float s8OutputZeroPoint = (0.0 - std::floor(static_cast<float>(levels - 1) / 2.0 + 0.5));
 
-    if (outDataType == memory::data_type::u8 &&
-        getAlgorithm() == Algorithm::FQQuantization &&
-        std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-        std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; })) {
+    if (outDataType == memory::data_type::u8 && getAlgorithm() == Algorithm::FQQuantization &&
+        std::all_of(cl.cbegin(),
+                    cl.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(ish.cbegin(), ish.cend(), [](float val) {
+            return val == 0.0f;
+        })) {
         outScale = isc;
         if (!outScale.empty()) {
             size_t size = outScale.size();
@@ -2078,8 +2282,16 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
                     ish.cend(),
                     [this, zpErrorThreashold, s8InputZeroPoint](float val) {
                         if (abs(val - s8InputZeroPoint) >= zpErrorThreashold) {
-                            DEBUG_LOG("ish check :" , getName(), " ", (val + s8InputZeroPoint), " >= " , zpErrorThreashold
-                            , " levels: " , levels, " value: " , val);
+                            DEBUG_LOG("ish check :",
+                                      getName(),
+                                      " ",
+                                      (val + s8InputZeroPoint),
+                                      " >= ",
+                                      zpErrorThreashold,
+                                      " levels: ",
+                                      levels,
+                                      " value: ",
+                                      val);
                         }
                         return std::abs(val - s8InputZeroPoint) < zpErrorThreashold;
                     }) &&
@@ -2090,26 +2302,46 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [this, zpErrorThreashold, s8OutputZeroPoint](float val) {
             if (abs(val - s8OutputZeroPoint) >= zpErrorThreashold) {
-                DEBUG_LOG("osh check :" ,  getName() , " " , val - s8OutputZeroPoint,  " >= " , zpErrorThreashold,
-                            " levels: " , levels, " value: " , val);
+                DEBUG_LOG("osh check :",
+                          getName(),
+                          " ",
+                          val - s8OutputZeroPoint,
+                          " >= ",
+                          zpErrorThreashold,
+                          " levels: ",
+                          levels,
+                          " value: ",
+                          val);
             }
             return std::abs(val - s8OutputZeroPoint) < zpErrorThreashold;
         })) {
         bool isCropAligned = true;
         for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + static_cast<float>(levels - 1) / 255.0 * 128.0) >
-            (zpErrorThreashold)) {
-                    DEBUG_LOG("input low cropcheck :", getName(), " " , (cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i]),
-                         " levels: " , levels, " inputzp: ", s8InputZeroPoint);
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] +
+                         static_cast<float>(levels - 1) / 255.0 * 128.0) > (zpErrorThreashold)) {
+                DEBUG_LOG("input low cropcheck :",
+                          getName(),
+                          " ",
+                          (cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i]),
+                          " levels: ",
+                          levels,
+                          " inputzp: ",
+                          s8InputZeroPoint);
                 isCropAligned = false;
             }
         }
 
         for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - static_cast<float>(levels - 1) / 255.0 * 127.0) >
-                (zpErrorThreashold)) {
-                    DEBUG_LOG("input high cropcheck :" , getName(), " ", (ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i])
-                        , " levels: ", levels, " inputzp: ", s8InputZeroPoint);
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] -
+                         static_cast<float>(levels - 1) / 255.0 * 127.0) > (zpErrorThreashold)) {
+                DEBUG_LOG("input high cropcheck :",
+                          getName(),
+                          " ",
+                          (ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i]),
+                          " levels: ",
+                          levels,
+                          " inputzp: ",
+                          s8InputZeroPoint);
                 isCropAligned = false;
             }
         }
@@ -2130,7 +2362,7 @@ std::vector<float> FakeQuantize::simplifyToScale(dnnl::memory::data_type outData
     return outScale;
 }
 
-FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params &_jqp) {
+FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params& _jqp) {
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {
         if (isBinarization)
@@ -2170,6 +2402,6 @@ bool FakeQuantize::created() const {
     return getType() == Type::FakeQuantize;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

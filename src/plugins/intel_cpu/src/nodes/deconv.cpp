@@ -465,10 +465,11 @@ void Deconvolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dim
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
             const Dim OC = dims[1];
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC, 0.0001);
-            if (!scale.empty())
+            /*if (!scale.empty())
                 printf("deconv simplifyToScale success\n");
             else
                 printf("deconv simplifyToScale fail\n");
+                */
             if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
                 attr.set_output_scales(1 << 1, scale);
                 continue;
