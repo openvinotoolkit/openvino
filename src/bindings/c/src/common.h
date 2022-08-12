@@ -11,6 +11,9 @@
 
 #include "openvino/openvino.hpp"
 
+// TODO: we need to catch ov::Exception instead of ie::Exception
+#include "details/ie_exception.hpp"
+
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
     catch (const InferenceEngine::ExceptionType&) {   \
         return ov_status_e::StatusCode;               \
