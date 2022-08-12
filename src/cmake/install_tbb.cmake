@@ -106,8 +106,16 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             message(FATAL_ERROR "Failed to deduce TBBROOT, please define env var TBBROOT")
         endif()
 
-        file(RELATIVE_PATH IE_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
-        set(IE_TBB_DIR_INSTALL "${IE_TBBROOT_INSTALL}/${IE_TBB_DIR_INSTALL}")
+        if(TBB_DIR MATCHES "^${TBBROOT}.*")
+            file(RELATIVE_PATH IE_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
+            set(IE_TBB_DIR_INSTALL "${IE_TBBROOT_INSTALL}/${IE_TBB_DIR_INSTALL}")
+        else()
+            # TBB_DIR is not a subdirectory of TBBROOT
+            # example: old TBB 2017 with no cmake support at all
+            # - TBBROOT point to actual root of TBB
+            # - TBB_DIR points to cmake/developer_package/tbb/<lnx|mac|win>
+            set(IE_TBB_DIR_INSTALL "${TBB_DIR}")
+        endif()
 
         install(DIRECTORY "${TBBROOT}/"
                 DESTINATION "${IE_TBBROOT_INSTALL}"
