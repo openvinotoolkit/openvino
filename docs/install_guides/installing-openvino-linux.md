@@ -158,10 +158,6 @@ The environment variables are set. Next, you can download some additional tools.
 ## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-   
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
@@ -179,6 +175,10 @@ The environment variables are set. Next, you can download some additional tools.
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
 
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   
 @endsphinxdirective
 
 ## <a name="get-started"></a>Step 6: What's Next?

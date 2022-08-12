@@ -112,15 +112,11 @@ The environment variables are set. Next, you can download some additional tools.
 
 Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can only be installed via PyPI. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. You are recommended to build OpenCV from source using the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
 
 @sphinxdirective
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-   
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
@@ -137,6 +133,10 @@ OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO sample
 
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
+
+.. tab:: GNA
+
+   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
 
 @endsphinxdirective
 
