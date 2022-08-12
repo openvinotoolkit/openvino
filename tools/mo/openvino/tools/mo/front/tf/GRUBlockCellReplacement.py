@@ -12,7 +12,10 @@ from openvino.tools.mo.ops.transpose import Transpose
 
 
 class GRUBlockCellToGRUCell(FrontReplacementPattern):
-
+    """
+    This transformation converts TF GRUBlockCell to mo.ops.GRUCell
+    by alignment of weights and bias inputs.
+    """
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -23,50 +26,49 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             new_gru_cell = GRUCell(graph, {}).create_node()
             rename_node(new_gru_cell, original_name)
 
+            # Connect X data port
             tf_gru_block_cell.in_port(0).get_connection().set_destination(new_gru_cell.in_port(0))
+            # Connect hidden state port
             tf_gru_block_cell.in_port(1).get_connection().set_destination(new_gru_cell.in_port(1))
 
             # W (Weights)
             # z - update, r - reset, h - hidden
-            # Convert gate order "rzh" -> "zrh"
+            # Convert gate order W_rz, W_h -> W_zrh
             split_rz_w = AttributedSplit(graph, {'name': original_name + '/Split_W_rz', 'axis': 1, 'num_splits': 2}).create_node()
 
-            # W_rz -> W_r, W_z
+            # Split W_rz to W_r and W_z
             tf_gru_block_cell.in_port(2).get_connection().set_destination(split_rz_w.in_port(0))
 
             concat_zrh_w = Concat(graph, {'name': original_name + '/Concat_W_zrh', 'in_ports_count': 3,
                                           'axis': 1}).create_node()
 
-            # W_r -> r at 1
+            # Swap and concat gates: W_rz -> W_zr
             split_rz_w.out_port(0).connect(concat_zrh_w.in_port(1))
-
-            # W_z -> z at 0
             split_rz_w.out_port(1).connect(concat_zrh_w.in_port(0))
 
-            # W_h -> h at 2
+            # Conncat W_h gate: W_zr -> W_zrh
             tf_gru_block_cell.in_port(3).get_connection().set_destination(concat_zrh_w.in_port(2))
 
 
             # B (Bias)
             # z - update, r - reset, h - hidden
-            # Convert gate order "rzh" -> "zrh"
+            # Convert gate order B_rz, B_h -> B_zrh
             split_rz_b = AttributedSplit(graph, {'name': original_name + '/Split_B_rz', 'axis': 0, 'num_splits': 2}).create_node()
 
-            # B_rz -> B_r, B_z
+            # Split B_rz to B_r and B_z
             tf_gru_block_cell.in_port(4).get_connection().set_destination(split_rz_b.in_port(0))
 
             concat_zrh_b = Concat(graph, {'name': original_name + '/Concat_B_zrh', 'in_ports_count': 3,
-                                                   'axis': 0}).create_node()
+                                          'axis': 0}).create_node()
 
-            # B_r -> r at 1
+            # Swap and concat gates: B_rz -> B_zr
             split_rz_b.out_port(0).connect(concat_zrh_b.in_port(1))
-
-            # B_z -> z at 0
             split_rz_b.out_port(1).connect(concat_zrh_b.in_port(0))
 
-            # B_h -> h at 2
+            # Conncat B_h gate: B_zr -> B_zrh
             tf_gru_block_cell.in_port(5).get_connection().set_destination(concat_zrh_b.in_port(2))
 
+            # Transpose W Shape [input_size + hidden_size, 3 * hidden_size] to [3 * hidden_size, input_size + hidden_size]
             permute_order = int64_array([1, 0])
             transpose_w = create_op_node_with_second_input(graph, Transpose, permute_order,
                                                           dict(name=original_name + '/Transpose_W'), concat_zrh_w)
