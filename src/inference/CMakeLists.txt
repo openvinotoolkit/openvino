@@ -101,7 +101,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
 target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -131,7 +131,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -192,7 +192,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations pugixml::static)
+    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
