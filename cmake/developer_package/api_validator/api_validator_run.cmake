@@ -46,7 +46,8 @@ if(NOT UWP_HAS_BINARY_EXCLUSION)
     if(CMAKE_TOOLCHAIN_FILE MATCHES "onecoreuap.toolchain.cmake$")
         # empty since we compile with static MSVC runtime
     else()
-        set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
+        # we are using static runtime
+        # set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
     endif()
 
     # remove exclusions from error_message

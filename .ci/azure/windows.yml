@@ -59,7 +59,7 @@ jobs:
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
-    OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+    OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\onecoreuap.toolchain.cmake
 
   steps:
   - script: |
@@ -122,20 +122,18 @@ jobs:
       rem Speed up build
       powershell -command "Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip -OutFile cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
-      powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
-      powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - powershell: |
       Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(OV_CMAKE_TOOLCHAIN_FILE)"
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    # condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
     displayName: "Set cmake toolchain"
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" \
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) \
         -DENABLE_WHEEL=ON \
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) \
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) \
@@ -186,11 +184,15 @@ jobs:
   - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      set CMAKE_TOOLCHAIN_FILE=$(OV_CMAKE_TOOLCHAIN_FILE)
+      $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
     displayName: 'Build cpp samples'
     continueOnError: false
 
-  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      set CMAKE_TOOLCHAIN_FILE=$(OV_CMAKE_TOOLCHAIN_FILE)
+      $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
     displayName: 'Build c samples'
     continueOnError: false
 
