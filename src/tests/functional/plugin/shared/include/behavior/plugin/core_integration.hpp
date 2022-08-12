@@ -12,6 +12,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -38,6 +39,9 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(pluginName, deviceName) = GetParam();
         pluginName += IE_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        }
     }
 };
 
@@ -122,7 +126,7 @@ TEST_P(IEClassBasicTestP, registerNewPluginNoThrows) {
     ASSERT_NO_THROW(ie.GetMetric("NEW_DEVICE_NAME", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
-TEST(IEClassBasicTest, smoke_registerExistingPluginFileThrows) {
+TEST(IEClassBasicTest, smoke_registerNonExistingPluginFileThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_THROW(ie.RegisterPlugins("nonExistPlugins.xml"), InferenceEngine::Exception);
 }
@@ -131,12 +135,19 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(InferenceEngine::Core  ie("nonExistPlugins.xml"), InferenceEngine::Exception);
 }
 
-#ifdef __linux__
+inline std::string getPluginFile() {
+    std::string filename{"mock_engine_valid.xml"};
+    std::ostringstream stream;
+    stream << "<ie><plugins><plugin name=\"mock\" location=\"";
+    stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        std::string("mock_engine") + IE_BUILD_POSTFIX);
+    stream << "\"></plugin></plugins></ie>";
+    CommonTestUtils::createFile(filename, stream.str());
+    return filename;
+}
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
-    std::string filename{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(filename, content);
+    const std::string filename = getPluginFile();
     ASSERT_NO_THROW(InferenceEngine::Core  ie(filename));
     CommonTestUtils::removeFile(filename.c_str());
 }
@@ -149,14 +160,10 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::removeFile(filename.c_str());
 }
 
-#endif
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
-    std::string pluginXML{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(pluginXML, content);
+    const std::string pluginXML = getPluginFile();
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
@@ -176,9 +183,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Core created " << testIndex << std::endl;
             ASSERT_NO_THROW(ie.RegisterPlugins(ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
-#if defined __linux__  && !defined(__APPLE__)
-            ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
-#endif
+            ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXM
             ASSERT_NO_THROW(ie.GetVersions(deviceName));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
@@ -280,6 +285,18 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
                                  CommonTestUtils::DEVICE_HETERO));
+}
+
+TEST_P(IEClassBasicTestP, SetGetConfigForTbbTerminateThrows) {
+    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    bool value = false;
+    ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}));
+    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_TRUE(value);
+
+    ASSERT_NO_THROW(ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(NO)}}));
+    ASSERT_NO_THROW(value = ie.GetConfig(deviceName, CONFIG_KEY(FORCE_TBB_TERMINATE)).as<bool>());
+    ASSERT_FALSE(value);
 }
 
 TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {

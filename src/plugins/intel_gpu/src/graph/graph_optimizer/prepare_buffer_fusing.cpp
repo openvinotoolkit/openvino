@@ -110,7 +110,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
         if (!use_usm)
             return false;
-        if (out_l.size.batch[0] > 1)
+        if (out_l.batch() > 1)
             return false;
     }
 
@@ -210,7 +210,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 return false;
         }
 
-        lower_padd_in_axis += input->get_output_layout().size.sizes(def_fmt)[concat_axis];
+        lower_padd_in_axis += input->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
         idx += 1;
     }
 
@@ -345,7 +345,7 @@ void prepare_buffer_fusing::run(program& p) {
                 auto format = crop_layout.format;
                 auto crop_prim = node.get_primitive();
                 auto input_layout = node.get_dependency(0).get_output_layout();
-                const auto& crop_size = crop_layout.size;
+                const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
                 const auto opt_lower_pad = crop_prim->offsets.feature[0];
                 const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
@@ -407,6 +407,7 @@ void prepare_buffer_fusing::run(program& p) {
         auto& node = (*node_itr++);
         if (!can_optimize(node))
             continue;
+
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             node.get_output_layout();
             node.can_be_optimized(can_reshape_be_optimized(node));
