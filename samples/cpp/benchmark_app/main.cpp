@@ -976,8 +976,11 @@ int main(int argc, char* argv[]) {
             if (useGpuMem) {
                 slog::warn << "dump_output is disabled when using device memory" << slog::endl;
             } else {
-                std::string model_name = compiledModel.get_property(ov::model_name);
-                inferRequestsQueue.set_config(device_name, model_name, FLAGS_dump_output);
+                inferRequestsQueue.set_config(device_name,
+                                              compiledModel,
+                                              FLAGS_dump_output,
+                                              FLAGS_dump_output_max_num,
+                                              FLAGS_dump_output_binary_size);
             }
         }
         /** Start inference & calculate performance **/

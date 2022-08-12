@@ -249,7 +249,11 @@ public:
         return _latency_groups;
     }
 
-    void set_config(const std::string& device_name, const std::string& model_name, const std::string& dump_dir) {
+    void set_config(const std::string& device_name,
+                    const ov::CompiledModel& model,
+                    const std::string& dump_dir,
+                    const uint32_t& output_max_num,
+                    const uint32_t& binary_max_size) {
         struct stat dirstat;
         if (stat(dump_dir.c_str(), &dirstat) != 0) {
             slog::warn << dump_dir << " cannot be opened, dump_output is disabled" << slog::endl;
@@ -261,8 +265,24 @@ public:
             return;
         }
 
+        auto model_name = model.get_property(ov::model_name);
+        auto output_size = model.outputs().size();
+        std::string output_precision;
+        for (size_t i = 0; i < output_size; i++) {
+            auto type_name = model.output(i).get_element_type().get_type_name();
+            output_precision += type_name + ",";
+        }
+        if (!output_precision.empty()) {
+            output_precision.pop_back();
+        }
+
         if (nullptr == _result_dump) {
-            _result_dump = std::make_shared<ResultDump>(device_name, model_name, dump_dir);
+            _result_dump = std::make_shared<ResultDump>(device_name,
+                                                        model_name,
+                                                        dump_dir,
+                                                        output_precision,
+                                                        output_max_num,
+                                                        binary_max_size);
         }
     }
 

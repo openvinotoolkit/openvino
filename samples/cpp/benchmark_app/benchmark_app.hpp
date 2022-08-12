@@ -233,6 +233,12 @@ static constexpr char inference_only_message[] =
 static constexpr char dump_output_message[] =
     "Optional. Directory to dump inference outputs, which were set by application.";
 
+static constexpr char dump_output_binary_size_message[] =
+    "Optional. The maximum size of a single binary file in MB. Default value is 1024";
+
+static constexpr char dump_output_max_num_message[] =
+    "Optional. The maximum number of saved outputs for the same input. Default value is 10";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -369,6 +375,12 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /// @brief Define flag for dumping output directory <br>
 DEFINE_string(dump_output, "", dump_output_message);
 
+/// @brief Define parameter for the maximum size of dump binary file <br>
+DEFINE_uint32(dump_output_binary_size, 1024, dump_output_binary_size_message);
+
+/// @brief Define parameter for the maximum number of saved outputs for the same input <br>
+DEFINE_uint32(dump_output_max_num, 10, dump_output_max_num_message);
+
 /**
  * @brief This function show a help message
  */
@@ -423,4 +435,6 @@ static void show_usage() {
     std::cout << "    -imean                    " << input_image_mean_message << std::endl;
     std::cout << "    -inference_only           " << inference_only_message << std::endl;
     std::cout << "    -dump_output              " << dump_output_message << std::endl;
+    std::cout << "    -dump_output_binary_size  " << dump_output_binary_size_message << std::endl;
+    std::cout << "    -dump_output_max_num      " << dump_output_max_num_message << std::endl;
 }
