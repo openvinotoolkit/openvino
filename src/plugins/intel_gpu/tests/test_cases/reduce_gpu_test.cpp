@@ -378,7 +378,7 @@ using TestParamType_general_reduce_gpu = ::testing::tuple<int, int, int,        
                                                           int, int, int,          // 3, 4, 5  -  z, y, x
                                                           format,                 // 6  -  input_dt format
                                                           reduce_mode,            // 7  -  reduce mode
-                                                          std::vector<int64_t>,  // 8  -  reduce axis
+                                                          std::vector<int64_t>,   // 8  -  reduce axis
                                                           std::string,            // 9  -  kernel name
                                                           bool,                   // 10 -  keepDims
                                                           data_types,             // 11 -  input_dt
@@ -1820,7 +1820,7 @@ protected:
     int batch_num, input_f, input_w, input_z, input_y, input_x;
     cldnn::format input_format = format::any;
     cldnn::reduce_mode reduce_mode;
-    std::vector<uint16_t> reduce_axis;
+    std::vector<int64_t> reduce_axis;
     std::string kernel_name;
     bool keep_dims;
     cldnn::data_types input_dt;
@@ -1946,76 +1946,76 @@ TEST_P(onednn_reduce_gpu_f16_f16, base) { execute_onednn(); }
 INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_i8_f32,
                         onednn_reduce_gpu_i8_f32,
                         ::testing::Values(
-                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 2, 11, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_f, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 5, 5, format::b_fs_yx_fsv16, reduce_mode::prod, {reduce::along_x, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_y, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 2, 11, format::b_fs_yx_fsv16, reduce_mode::min, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 5, 5, format::b_fs_yx_fsv16, reduce_mode::prod, {3, 1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
 
-                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_f, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(2, 5, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_y, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32)
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(2, 5, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::max, {3, 1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32)
                         ), general_reduce_gpu::PrintToStringParamName);
 
  INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_f16_f16,
                         onednn_reduce_gpu_f16_f16,
                         ::testing::Values(
-                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::l1, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 2, 11, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 12, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_f, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 12, format::b_fs_yx_fsv16, reduce_mode::l2, {reduce::along_b, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_y, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::l2, {reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 8, format::b_fs_yx_fsv16, reduce_mode::sum_square, {reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::l1, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(3, 3, 1, 1, 2, 11, format::b_fs_yx_fsv16, reduce_mode::min, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 12, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 12, format::b_fs_yx_fsv16, reduce_mode::l2, {0, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::l2, {1}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 8, format::b_fs_yx_fsv16, reduce_mode::sum_square, {2}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
 
-                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 12, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_f, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 9, format::b_fs_yx_fsv16, reduce_mode::l2, {reduce::along_b, reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(2, 5, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_y, reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {reduce::along_y, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::b_fs_yx_fsv16, reduce_mode::l1, {reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 8, format::b_fs_yx_fsv16, reduce_mode::sum_square, {reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16)
+                            TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(26, 12, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 12, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::l1, {2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::max, {1, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 13, 9, format::b_fs_yx_fsv16, reduce_mode::l2, {0, 2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 3}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(2, 5, 1, 1, 3, 3, format::b_fs_yx_fsv16, reduce_mode::max, {3, 1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 26, 1, 1, 16, 8, format::b_fs_yx_fsv16, reduce_mode::mean, {3, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 18, 11, format::b_fs_yx_fsv16, reduce_mode::max, {2, 1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 17, 8, format::b_fs_yx_fsv16, reduce_mode::min, {2, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 16, 15, format::b_fs_yx_fsv16, reduce_mode::l1, {1, 0}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 8, format::b_fs_yx_fsv16, reduce_mode::sum_square, {2}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
 
  INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_ref_f16_f16,
                         onednn_reduce_gpu_f16_f16,
                         ::testing::Values(
-                            TestParamType_general_reduce_gpu(3, 11, 1, 1, 7, 17, format::bfyx, reduce_mode::l1, {reduce::along_f, reduce::along_b}, "reduce_ref", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(3, 7, 1, 1, 7, 17, format::bfyx, reduce_mode::sum, {reduce::along_b}, "reduce_ref", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(6, 9, 1, 1, 7, 17, format::bfyx, reduce_mode::l2, {reduce::along_f}, "reduce_ref", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(5, 5, 1, 1, 17, 17, format::bfyx, reduce_mode::mean, {reduce::along_y}, "reduce_ref", false, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 4, format::bfyx, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 12, 12, format::bfyx, reduce_mode::mean, {reduce::along_b, reduce::along_y, reduce::along_f}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(4, 3, 1, 1, 7, 12, format::bfyx, reduce_mode::sum, {reduce::along_x, reduce::along_f, reduce::along_b}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 4, 11, format::bfyx, reduce_mode::mean, {reduce::along_y, reduce::along_f}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(2, 16, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {reduce::along_f, reduce::along_y}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(7, 4, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {reduce::along_x}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(7, 32, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {reduce::along_b}, "reduce_ref", true, data_types::f16, false, data_types::f16),
-                            TestParamType_general_reduce_gpu(17, 4, 1, 1, 12, 15, format::bfyx, reduce_mode::mean, {reduce::along_b}, "reduce_ref", true, data_types::f16, false, data_types::f16)
+                            TestParamType_general_reduce_gpu(3, 11, 1, 1, 7, 17, format::bfyx, reduce_mode::l1, {1, 0}, "reduce_ref", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(3, 7, 1, 1, 7, 17, format::bfyx, reduce_mode::sum, {0}, "reduce_ref", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(6, 9, 1, 1, 7, 17, format::bfyx, reduce_mode::l2, {1}, "reduce_ref", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(5, 5, 1, 1, 17, 17, format::bfyx, reduce_mode::mean, {2}, "reduce_ref", false, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 4, format::bfyx, reduce_mode::mean, {3, 2, 1, 0}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 4, 1, 1, 12, 12, format::bfyx, reduce_mode::mean, {0, 2, 1}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(4, 3, 1, 1, 7, 12, format::bfyx, reduce_mode::sum, {3, 1, 0}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(16, 16, 1, 1, 4, 11, format::bfyx, reduce_mode::mean, {2, 1}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(2, 16, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {1, 2}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(7, 4, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {3}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(7, 32, 1, 1, 3, 6, format::bfyx, reduce_mode::mean, {0}, "reduce_ref", true, data_types::f16, false, data_types::f16),
+                            TestParamType_general_reduce_gpu(17, 4, 1, 1, 12, 15, format::bfyx, reduce_mode::mean, {0}, "reduce_ref", true, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
 #endif  // ENABLE_ONEDNN_FOR_GPU
