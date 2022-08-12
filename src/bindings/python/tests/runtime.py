@@ -117,6 +117,9 @@ class Computation(object):
         input_shapes = [get_shape(input_value) for input_value in input_values]
         if self.network_cache.get(str(input_shapes)) is None:
             model = self.model
+            if self.model.is_dynamic():
+                model = model.clone()
+                model.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
             self.network_cache[str(input_shapes)] = model
         else:
             model = self.network_cache[str(input_shapes)]
