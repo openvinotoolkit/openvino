@@ -176,11 +176,11 @@ jobs:
     displayName: 'Install Wheels'
 
   - script: |
-    call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) \
-      -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-      -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-      -S $(REPO_DIR)\tests\samples_tests \
-      -B $(BUILD_SAMPLES_TESTS_DIR)
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) \
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
+        -S $(REPO_DIR)\tests\samples_tests \
+        -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake'
 
   - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
