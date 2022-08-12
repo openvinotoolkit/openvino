@@ -3,6 +3,7 @@
 //
 
 #include <openvino/frontend/exception.hpp>
+#include <openvino/frontend/manager.hpp>
 #include <openvino/op/util/framework_node.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
