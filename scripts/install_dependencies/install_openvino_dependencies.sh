@@ -148,6 +148,7 @@ elif [ "$os" == "rhel8" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
+    pkgs_python=(python38 python38-devel python38-setuptools python38-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
     pkgs_myriad=()
     pkgs_opencv_opt=(
