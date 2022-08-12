@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "roi_pooling/roi_pooling_kernel_selector.h"
 #include "roi_pooling/roi_pooling_kernel_ref.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -36,6 +37,8 @@ kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
 struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
     using parent = typed_primitive_impl_ocl<roi_pooling>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roi_pooling_impl>(*this);
@@ -125,3 +128,5 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl, cldnn::object_type::ROI_POOLING_IMPL)

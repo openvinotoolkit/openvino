@@ -9,6 +9,7 @@
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<crop_impl>(*this);
@@ -40,6 +43,18 @@ protected:
     }
 
 public:
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _can_be_optimized;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _can_be_optimized;
+    }
+
     static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
@@ -155,3 +170,5 @@ attach_crop_impl::attach_crop_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::crop_impl, cldnn::object_type::CROP_IMPL)

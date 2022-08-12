@@ -9,7 +9,7 @@
 
 #include <impls/implementation_map.hpp>
 #include <intel_gpu/runtime/error_handler.hpp>
-
+#include "serialization/binary_buffer.hpp"
 #include "primitive_base.hpp"
 
 namespace cldnn {
@@ -17,6 +17,8 @@ namespace ocl {
 
 struct dft_impl : typed_primitive_impl_ocl<dft> {
     using typed_primitive_impl_ocl::typed_primitive_impl_ocl;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<dft_impl>(*this);
@@ -61,3 +63,5 @@ attach_dft_impl::attach_dft_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl, cldnn::object_type::DFT_IMPL)

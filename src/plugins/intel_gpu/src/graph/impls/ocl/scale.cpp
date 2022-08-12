@@ -9,6 +9,7 @@
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +19,8 @@ namespace ocl {
 struct scale_impl : typed_primitive_impl_ocl<scale> {
     using parent = typed_primitive_impl_ocl<scale>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scale_impl>(*this);
@@ -36,6 +39,17 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
         _has_bias_term = node.bias_term();
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _has_bias_term;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _has_bias_term;
+    }
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
@@ -150,3 +164,5 @@ attach_scale_impl::attach_scale_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scale_impl, cldnn::object_type::SCALE_IMPL)

@@ -10,6 +10,7 @@
 #include "embedding_bag/embedding_bag_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "data_inst.h"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +19,8 @@ namespace ocl {
 struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     using parent = typed_primitive_impl_ocl<embedding_bag>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<embedding_bag_impl>(*this);
@@ -77,3 +80,5 @@ attach_embedding_bag_impl::attach_embedding_bag_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::embedding_bag_impl, cldnn::object_type::EMBEDDING_BAG_IMPL)

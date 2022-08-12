@@ -10,6 +10,7 @@
 #include "border/border_kernel_selector.h"
 #include "border/border_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,6 +18,8 @@ namespace ocl {
 struct border_impl : typed_primitive_impl_ocl<border> {
     using parent = typed_primitive_impl_ocl<border>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<border_impl>(*this);
@@ -169,3 +172,5 @@ attach_border_impl::attach_border_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::border_impl, cldnn::object_type::BORDER_IMPL)

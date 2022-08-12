@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "shape_of/shape_of_kernel_selector.h"
 #include "shape_of/shape_of_kernel_ref.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
     using parent = typed_primitive_impl_ocl<shape_of>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<shape_of_impl>(*this);
@@ -52,3 +55,5 @@ attach_shape_of_impl::attach_shape_of_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shape_of_impl, cldnn::object_type::SHAPE_OF_IMPL)

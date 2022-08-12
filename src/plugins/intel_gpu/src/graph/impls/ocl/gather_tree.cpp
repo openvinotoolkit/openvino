@@ -10,6 +10,7 @@
 #include "gather_tree/gather_tree_kernel_selector.h"
 #include "gather_tree/gather_tree_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,6 +18,8 @@ namespace ocl {
 struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
     using parent = typed_primitive_impl_ocl<gather_tree>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_tree_impl>(*this);
@@ -57,3 +60,5 @@ attach_gather_tree_impl::attach_gather_tree_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_tree_impl, cldnn::object_type::GATHER_TREE_IMPL)

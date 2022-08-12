@@ -14,6 +14,8 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "serialization/object_types.hpp"
+#include "serialization/polymorphic_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
 
 #include <memory>
@@ -41,6 +43,7 @@ struct primitive_impl {
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
+    virtual object_type get_type() const { return object_type::NONE; }
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -110,7 +113,9 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events);
-    void init_kernels();
+    void init_kernels(const kernels_cache& kernels_cache) {
+        _impl->init_kernels(kernels_cache);
+    }
     void set_arguments();
 
     bool validate() const {
@@ -162,6 +167,52 @@ public:
                                        const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        // primitive_impl
+        buffer << _impl;
+
+        // output memory
+        const auto output_layout = _output->get_layout();
+        buffer << make_data(&output_layout, sizeof(output_layout));
+
+        const auto _allocation_type = _output->get_allocation_type();
+        buffer << make_data(&_allocation_type, sizeof(_allocation_type));
+
+        buffer << _node.id();
+        buffer << _node.get_memory_dependencies();
+        buffer << _output->get_reused();
+
+        buffer << _mem_allocated;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        // primitive_impl
+        _impl.release();
+        buffer >> _impl;
+
+        // output memory
+        layout output_layout = layout(data_types::bin, format::any, tensor());
+        buffer >> make_data(&output_layout, sizeof(output_layout));
+
+        allocation_type _allocation_type;
+        buffer >> make_data(&_allocation_type, sizeof(_allocation_type));
+
+        primitive_id _node_id;
+        buffer >> _node_id;
+
+        std::set<primitive_id> _node_mem_deps;
+        buffer >> _node_mem_deps;
+
+        bool output_reused;
+        buffer >> output_reused;
+
+        _output = get_network().get_memory_pool().get_memory(output_layout, _node_id, get_network_id(), _node_mem_deps, _allocation_type, true);
+        _output_changed = false;
+        buffer >> _mem_allocated;
+    }
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

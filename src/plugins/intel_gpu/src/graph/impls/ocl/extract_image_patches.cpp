@@ -10,6 +10,7 @@
 
 #include "extract_image_patches/extract_image_patches_kernel_selector.h"
 #include "extract_image_patches/extract_image_patches_kernel_ref.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,6 +18,8 @@ namespace ocl {
 struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patches> {
     using parent = typed_primitive_impl_ocl<extract_image_patches>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<extract_image_patches_impl>(*this);
@@ -64,3 +67,5 @@ attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl, cldnn::object_type::EXTRACT_IMAGE_PATCHES_IMPL)

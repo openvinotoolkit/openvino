@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "deconvolution/deconvolution_kernel_selector.h"
 #include "deconvolution/deconvolution_kernel_base.h"
+#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 
 namespace cldnn {
@@ -17,6 +18,8 @@ namespace ocl {
 struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
@@ -37,6 +40,19 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         _groups = node.get_groups();
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+        buffer << _groups;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+        buffer >> _groups;
+    }
 protected:
     // TODO: share it with convolution and fully connected
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
@@ -172,3 +188,5 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deconvolution_impl, cldnn::object_type::DECONVOLUTION_IMPL)

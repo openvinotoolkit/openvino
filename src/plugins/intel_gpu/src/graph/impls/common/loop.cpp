@@ -8,12 +8,15 @@
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
+#include "serialization/binary_buffer.hpp"
 #include <vector>
 #include <algorithm>
 
 namespace cldnn {
 namespace common {
 struct loop_impl : typed_primitive_impl<loop> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
     }
@@ -49,6 +52,46 @@ struct loop_impl : typed_primitive_impl<loop> {
         _is_current_iteration_used = node.is_current_iteration_used();
         _is_execution_condition_used = node.is_execution_condition_used();
         _back_edges = node.get_back_edges();
+    }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer(_is_current_iteration_used,
+               _current_iteration_id,
+               _node_id,
+               _trip_count_id,
+               _max_iteration,
+               _initial_execution_id,
+               _is_execution_condition_used,
+               _condition_id,
+               _num_iteration_id);
+        buffer(_back_edges.size());
+        for (const auto& edge : _back_edges) {
+            buffer(edge.from, edge.to);
+        }
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer(_is_current_iteration_used,
+               _current_iteration_id,
+               _node_id,
+               _trip_count_id,
+               _max_iteration,
+               _initial_execution_id,
+               _is_execution_condition_used,
+               _condition_id,
+               _num_iteration_id);
+        std::vector<cldnn::loop::backedge_mapping>::size_type vector_size = 0UL;
+        buffer >> vector_size;
+        _back_edges.reserve(vector_size);
+        _back_edges.clear();
+        primitive_id from;
+        primitive_id to;
+        for (std::size_t i = 0; i < vector_size; i++) {
+            buffer(from, to);
+            _back_edges.emplace_back(std::move(from), std::move(to));
+        }
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
@@ -188,6 +231,9 @@ struct loop_impl : typed_primitive_impl<loop> {
     static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
 
 private:
+    using parent = typed_primitive_impl<loop>;
+    using parent::parent;
+    
     primitive_id _node_id;
     primitive_id _current_iteration_id;
     primitive_id _trip_count_id;
@@ -208,3 +254,5 @@ attach_loop_common::attach_loop_common() {
 
 }  // namespace common
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::loop_impl, cldnn::object_type::LOOP_IMPL)

@@ -9,6 +9,7 @@
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -38,6 +39,8 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
 struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     using parent = typed_primitive_impl_ocl<softmax>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<softmax_impl>(*this);
@@ -84,3 +87,5 @@ attach_softmax_impl::attach_softmax_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl, cldnn::object_type::SOFTMAX_IMPL)

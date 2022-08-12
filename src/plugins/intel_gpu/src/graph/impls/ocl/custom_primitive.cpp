@@ -9,7 +9,9 @@
 #include "jitter.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
-
+#include "serialization/binary_buffer.hpp"
+#include "serialization/cl_kernel_data_serializer.hpp"
+#include "serialization/string_serializer.hpp"
 #include <map>
 #include <sstream>
 #include <vector>
@@ -24,6 +26,8 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -76,6 +80,21 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     std::vector<std::string> get_kernel_ids() override {
         return {_kernel_id};
     }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer(*cl_kernel, _kernel_id);
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
+        buffer(*cl_kernel, _kernel_id);
+    }
+
+private:
+    using parent = typed_primitive_impl<custom_gpu_primitive>;
+    using parent::parent;
 };
 
 static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
@@ -238,3 +257,5 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl, cldnn::object_type::CUSTOM_GPU_PRIMITIVE_IMPL)

@@ -9,6 +9,7 @@
 #include "tile/tile_kernel_selector.h"
 #include "tile/tile_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +19,8 @@ namespace ocl {
 struct tile_impl : typed_primitive_impl_ocl<tile> {
     using parent = typed_primitive_impl_ocl<tile>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<tile_impl>(*this);
@@ -68,3 +71,5 @@ attach_tile_impl::attach_tile_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tile_impl, cldnn::object_type::TILE_IMPL)

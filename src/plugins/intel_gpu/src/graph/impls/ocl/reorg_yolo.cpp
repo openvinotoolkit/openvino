@@ -9,6 +9,7 @@
 #include "reorg_yolo/reorg_yolo_kernel_selector.h"
 #include "reorg_yolo/reorg_yolo_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
     using parent = typed_primitive_impl_ocl<reorg_yolo>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorg_yolo_impl>(*this);
@@ -59,3 +62,5 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl, cldnn::object_type::REORG_YOLO_IMPL)

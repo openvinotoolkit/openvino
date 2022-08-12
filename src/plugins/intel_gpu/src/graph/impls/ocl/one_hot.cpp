@@ -10,6 +10,7 @@
 #include "one_hot/one_hot_kernel_selector.h"
 #include "one_hot/one_hot_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -18,6 +19,8 @@ namespace ocl {
 struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
     using parent = typed_primitive_impl_ocl<one_hot>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<one_hot_impl>(*this);
@@ -71,3 +74,5 @@ attach_one_hot_impl::attach_one_hot_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::one_hot_impl, cldnn::object_type::ONE_HOT_IMPL)

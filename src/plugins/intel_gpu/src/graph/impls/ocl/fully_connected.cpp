@@ -16,6 +16,7 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "serialization/binary_buffer.hpp"
 #include <memory>
 
 namespace cldnn {
@@ -24,6 +25,8 @@ namespace ocl {
 struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent = typed_primitive_impl_ocl<fully_connected>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_impl>(*this);
@@ -106,3 +109,5 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::fully_connected_impl, cldnn::object_type::FULLY_CONNECTED_IMPL)

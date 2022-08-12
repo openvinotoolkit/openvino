@@ -5,6 +5,7 @@
 #include "condition_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
+#include "serialization/binary_buffer.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -13,6 +14,8 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
@@ -25,6 +28,16 @@ struct condition_impl : typed_primitive_impl<condition> {
         IE_ASSERT(arg.is_type<condition>());
         const auto& node = arg.as<condition>();
         _node_id = node.id();
+    }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer << _node_id;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer >> _node_id;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
@@ -52,6 +65,9 @@ struct condition_impl : typed_primitive_impl<condition> {
     void init_kernels(const kernels_cache&) override {}
 
 private:
+    using parent = typed_primitive_impl<condition>;
+    using parent::parent;
+
     primitive_id _node_id;
 
     /*
@@ -133,3 +149,5 @@ attach_condition_common::attach_condition_common() {
 }  // namespace detail
 }  // namespace common
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::condition_impl, cldnn::object_type::CONDITION_IMPL)

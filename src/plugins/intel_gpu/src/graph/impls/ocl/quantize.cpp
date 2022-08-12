@@ -9,6 +9,7 @@
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +19,8 @@ namespace ocl {
 struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using parent = typed_primitive_impl_ocl<quantize>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
@@ -195,3 +198,5 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl, cldnn::object_type::QUANTIZE_IMPL)

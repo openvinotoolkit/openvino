@@ -9,6 +9,7 @@
 #include "roi_align/roi_align_kernel_ref.h"
 #include "roi_align/roi_align_kernel_selector.h"
 #include "roi_align_inst.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -40,6 +41,8 @@ kernel_selector::roi_aligned_mode from(roi_align::AlignedMode mode) {
 struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using parent = typed_primitive_impl_ocl<roi_align>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roi_align_impl>(*this);
@@ -118,3 +121,5 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl, cldnn::object_type::ROI_ALIGN_IMPL)

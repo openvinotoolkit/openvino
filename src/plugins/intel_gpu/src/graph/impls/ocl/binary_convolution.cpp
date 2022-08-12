@@ -14,6 +14,7 @@
 #include "kernel_selector/core/actual_kernels/binary_convolution/binary_convolution_params.h"
 #include <algorithm>
 #include <memory>
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -21,6 +22,8 @@ namespace ocl {
 struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     using parent = typed_primitive_impl_ocl<binary_convolution>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<binary_convolution_impl>(*this);
@@ -72,6 +75,18 @@ protected:
     int32_t get_split() const override { return _split; }
 
 public:
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+    }
+
     static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = (*impl_param.weights_layout).convert_to_weights_layout(false);
@@ -155,3 +170,5 @@ attach_binary_convolution_impl::attach_binary_convolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::binary_convolution_impl, cldnn::object_type::BINARY_CONVOLUTION_IMPL)

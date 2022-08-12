@@ -13,6 +13,7 @@
 #include "convolution/convolution_params.h"
 #include <algorithm>
 #include <memory>
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -20,6 +21,8 @@ namespace ocl {
 struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
@@ -76,6 +79,23 @@ protected:
     bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+        buffer << _groups;
+        buffer << _depthwise_sep_opt;
+;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+        buffer >> _groups;
+        buffer >> _depthwise_sep_opt;
+    }
+
     static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
@@ -266,3 +286,5 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl, cldnn::object_type::CONVOLUTION_IMPL)

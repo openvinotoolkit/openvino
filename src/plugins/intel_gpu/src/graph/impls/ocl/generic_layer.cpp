@@ -7,15 +7,20 @@
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
+#include "serialization/binary_buffer.hpp"
+#include "serialization/cl_kernel_data_serializer.hpp"
+#include "serialization/string_serializer.hpp"
 #include <vector>
 
 namespace cldnn {
 namespace ocl {
 
 struct generic_layer_impl : typed_primitive_impl<generic_layer> {
-    const kernel_selector::cl_kernel_data& _cl_kernel_data;
+    kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generic_layer_impl>(*this);
@@ -28,17 +33,27 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         if (other._kernels.empty()) {
             throw std::runtime_error("Can't copy generic_layer_impl node: kernels vector is empty");
         }
-        _kernels.push_back(other._kernels.front()->clone());
+        _kernels.push_back(std::move(other._kernels.front()->clone()));
     }
 
     generic_layer_impl(const generic_layer_node& arg)
         : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
         , _kernels() {
-        _kernel_id = arg.get_program().add_kernel(arg.get_primitive()->generic_params.clKernel->code.kernelString);
+        _kernel_id = arg.get_program().add_kernel(_cl_kernel_data.code.kernelString);
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer(_cl_kernel_data, _kernel_id);
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer(_cl_kernel_data, _kernel_id);
+    }
+    
     void init_kernels(const kernels_cache& kernels_cache) override {
-        _kernels.push_back(kernels_cache.get_kernel(_kernel_id));
+        _kernels.push_back(std::move(kernels_cache.get_kernel(_kernel_id)));
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {
@@ -64,6 +79,10 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         args.outputs.push_back(instance.output_memory_ptr());
         return stream.enqueue_kernel(*_kernels.front(), _cl_kernel_data.params, args, events, true);
     }
+
+private:
+    using parent = typed_primitive_impl<generic_layer>;
+    using parent::parent;
 };
 
 // TODO: move this file to cpu folder and add a new traget to 'cldnn::engine_types'
@@ -118,3 +137,5 @@ attach_generic_layer_impl::attach_generic_layer_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generic_layer_impl, cldnn::object_type::GENERIC_LAYER_IMPL)

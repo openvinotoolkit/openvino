@@ -9,6 +9,7 @@
 #include "reverse_sequence/reverse_sequence_kernel_selector.h"
 #include "reverse_sequence/reverse_sequence_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -17,6 +18,8 @@ namespace ocl {
 struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     using parent = typed_primitive_impl_ocl<reverse_sequence>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reverse_sequence_impl>(*this);
@@ -63,3 +66,5 @@ attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_sequence_impl, cldnn::object_type::REVERSE_SEQUENCE_IMPL)

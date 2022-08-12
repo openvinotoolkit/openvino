@@ -16,6 +16,12 @@
 #include <set>
 
 #include <threading/ie_cpu_streams_executor.hpp>
+#include "kernels_factory.hpp"
+#include "ocl/ocl_engine.hpp"
+#include "serialization/set_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
+#include "serialization/map_serializer.hpp"
+#include "serialization/string_serializer.hpp"
 
 namespace cldnn {
 class kernels_cache {
@@ -70,7 +76,67 @@ public:
 
     using kernels_code = std::set<kernel_code, cmp_kernel_code>;
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer << _prog_id;
+        buffer << batch_header_str;
+        buffer << serialize_info_container;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer >> serialize_info_container;
+        _kernels.clear();
+        std::unique_ptr<ocl::ocl_engine> build_engine = nullptr;
+        if (_engine.type() == engine_types::ocl) {
+            build_engine = make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
+        }
+        for (auto& si : serialize_info_container) {
+            cl::Program::Binaries binary_kernels{si.precompiled_kernels};
+            try {
+                cl::vector<cl::Kernel> kernels;
+                cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, binary_kernels);
+                program.build(build_engine->get_cl_device(), si.build_options.c_str());
+                program.createKernels(&kernels);
+                {
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    for (auto& k : kernels) {
+                        const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                        const auto& k_id = si.entry_point_to_id.find(entry_point);
+                        if (k_id != si.entry_point_to_id.end()) {
+                            cl_kernel cl_kernel = k.get();
+                            cl_context cl_context = build_engine->get_cl_context().get();
+                            kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
+                            _kernels.insert({k_id->second, kernel});
+                        } else {
+                            throw std::runtime_error("Could not find entry point");
+                        }
+                    }
+                }
+            } catch (const cl::BuildError& err) {
+                std::cout << "+++++ OpenCL build error" << std::endl;
+            }
+        }
+    }
+
 private:
+    struct serialize_info {
+        std::string build_options;
+        std::map<std::string, std::string> entry_point_to_id;
+        std::vector<unsigned char> precompiled_kernels;
+
+        template <typename BufferType>
+        void save(BufferType& buffer) const {
+            buffer(build_options, entry_point_to_id, precompiled_kernels);
+        }
+
+        template <typename BufferType>
+        void load(BufferType& buffer) {
+            buffer(build_options, entry_point_to_id, precompiled_kernels);
+        }
+    };
+    std::vector<serialize_info> serialize_info_container;
+    const bool need_serialize = true;
     static std::mutex _mutex;
     engine& _engine;
     uint32_t _prog_id = 0;

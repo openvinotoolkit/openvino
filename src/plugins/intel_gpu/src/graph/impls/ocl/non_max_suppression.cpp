@@ -9,12 +9,15 @@
 #include "non_max_suppression_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
 struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> {
     using parent = typed_primitive_impl_ocl<non_max_suppression>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
@@ -205,3 +208,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_OCL)

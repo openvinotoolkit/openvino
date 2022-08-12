@@ -8,6 +8,7 @@
 #include "kernel_selector_helper.h"
 #include "gather/gather_nd_kernel_selector.h"
 #include "gather/gather_nd_kernel_ref.h"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -17,6 +18,8 @@ namespace ocl {
 struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
     using parent = typed_primitive_impl_ocl<gather_nd>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_nd_impl>(*this);
@@ -67,3 +70,5 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl, cldnn::object_type::GATHER_ND_IMPL)

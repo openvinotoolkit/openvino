@@ -5,11 +5,20 @@
 #include "assign_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace cpu {
 
 struct assign_impl : public typed_primitive_impl<assign> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {}
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {}
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<assign_impl>(*this);
     }
@@ -53,3 +62,5 @@ attach_assign_impl::attach_assign_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl, cldnn::object_type::ASSIGN_IMPL)

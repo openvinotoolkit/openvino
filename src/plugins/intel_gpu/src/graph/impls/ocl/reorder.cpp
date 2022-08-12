@@ -9,6 +9,7 @@
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);
@@ -36,6 +39,19 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         _has_mean = node.has_mean();
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _can_be_optimized;
+        buffer << _has_mean;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _can_be_optimized;
+        buffer >> _has_mean;
+    }
 protected:
     bool optimized_out(reorder_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;
@@ -142,3 +158,5 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl, cldnn::object_type::REORDER_IMPL)

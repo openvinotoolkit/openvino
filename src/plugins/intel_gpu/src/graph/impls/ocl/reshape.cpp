@@ -9,6 +9,7 @@
 #include "reshape/reshape_kernel_ref.h"
 #include "reshape/reshape_kernel_selector.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     using parent = typed_primitive_impl_ocl<reshape>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reshape_impl>(*this);
@@ -53,3 +56,5 @@ attach_reshape_impl::attach_reshape_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reshape_impl, cldnn::object_type::RESHAPE_IMPL)

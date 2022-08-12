@@ -9,6 +9,7 @@
 #include "shuffle_channels/shuffle_channels_kernel_selector.h"
 #include "shuffle_channels/shuffle_channels_kernel_ref.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -18,6 +19,8 @@ namespace ocl {
 struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
     using parent = typed_primitive_impl_ocl<shuffle_channels>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<shuffle_channels_impl>(*this);
@@ -81,3 +84,5 @@ attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shuffle_channels_impl, cldnn::object_type::SHUFFLE_CHANNELS_IMPL)

@@ -15,6 +15,8 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
+#include "serialization/binary_buffer.hpp"
+
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "assign_inst.h"
@@ -29,6 +31,7 @@
 #include "kernel_selector_helper.h"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
+#include "runtime/kernels_cache.hpp"
 
 #include <algorithm>
 #include <string>
@@ -39,6 +42,7 @@
 #include <utility>
 #include <map>
 #include <functional>
+#include <fstream>
 
 #ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
@@ -265,6 +269,53 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
+
+    if (!is_internal) {
+        {
+            std::ofstream ofs("archive.bin", std::ios::binary);
+            cldnn::BinaryOutputBuffer ob(ofs);
+            ob << _program->get_kernels_cache();
+
+            int num_data_nodes = 0;
+            for (const auto& p_inst : _primitives) {
+                if (p_inst.second->type() == cldnn::data::type_id()) {
+                    num_data_nodes += 1;
+                    ob << *(p_inst.second);
+                }
+            }
+            ob << num_data_nodes;
+
+            int exec_order_size;
+            exec_order_size = _exec_order.size();
+            ob << exec_order_size;
+            for (const auto& p_inst : _exec_order) {
+                ob << *p_inst;
+            }
+        }
+        {
+            _memory_pool->clear_pool_for_network(net_id);
+            std::ifstream ifs("archive.bin", std::ios::binary);
+            cldnn::BinaryInputBuffer ib(ifs, get_engine());
+
+            uint32_t prog_id;
+            std::vector<std::string> batch_header_str;
+            ib >> prog_id;
+            ib >> batch_header_str;
+            kernels_cache kernels_cache(get_engine(), prog_id, batch_header_str);
+            ib >> kernels_cache;
+
+            int num_data_nodes;
+            ib >> num_data_nodes;
+
+            int exec_order_size;
+            ib >> exec_order_size;
+            // _exec_order.clear();
+            for (const auto& p_inst : _exec_order) {
+                ib >> *p_inst;
+                p_inst->init_kernels(kernels_cache);
+            }
+        }
+    }
 }
 
 network::network(engine& engine,

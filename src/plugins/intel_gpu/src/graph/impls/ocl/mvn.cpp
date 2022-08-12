@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "mvn/mvn_kernel_selector.h"
 #include "mvn/mvn_kernel_base.h"
-
+#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 
 using namespace cldnn;
@@ -20,6 +20,8 @@ namespace ocl {
 struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     using parent = typed_primitive_impl_ocl<mvn>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<mvn_impl>(*this);
@@ -107,3 +109,5 @@ attach_mvn_impl::attach_mvn_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl, cldnn::object_type::MVN_IMPL)

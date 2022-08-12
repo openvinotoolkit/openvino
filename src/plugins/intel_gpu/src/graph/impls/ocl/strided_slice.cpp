@@ -9,6 +9,7 @@
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 #include "data_inst.h"
 #include <vector>
 
@@ -20,6 +21,8 @@ namespace ocl {
 struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     using parent = typed_primitive_impl_ocl<strided_slice>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<strided_slice_impl>(*this);
@@ -139,3 +142,5 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl, cldnn::object_type::STRIDED_SLICE_IMPL)

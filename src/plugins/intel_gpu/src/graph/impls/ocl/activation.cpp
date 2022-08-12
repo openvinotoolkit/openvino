@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "activation/activation_kernel_selector.h"
 #include "activation/activation_kernel_base.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,6 +17,8 @@ namespace ocl {
 struct activation_impl : typed_primitive_impl_ocl<activation> {
     using parent = typed_primitive_impl_ocl<activation>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<activation_impl>(*this);
@@ -43,6 +46,19 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         return args;
     }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _is_parameterized;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _is_parameterized;
+    }
+
     static primitive_impl* create(const activation_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto activation_params = get_default_params<kernel_selector::activation_params>(impl_param);
@@ -153,3 +169,5 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl, cldnn::object_type::ACTIVATION_IMPL)

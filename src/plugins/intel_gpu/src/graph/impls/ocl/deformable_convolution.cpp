@@ -10,6 +10,7 @@
 #include "kernel_runner.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
+#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 
 namespace cldnn {
@@ -18,6 +19,8 @@ namespace ocl {
 struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     using parent = typed_primitive_impl_ocl<deformable_conv>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_conv_impl>(*this);
@@ -38,6 +41,19 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         _groups = node.get_groups();
     }
 
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        parent::save(buffer);
+        buffer << _split;
+        buffer << _groups;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        parent::load(buffer);
+        buffer >> _split;
+        buffer >> _groups;
+    }
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
@@ -100,6 +116,8 @@ private:
 struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     using parent = typed_primitive_impl_ocl<deformable_interp>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_interp_impl>(*this);
@@ -193,3 +211,6 @@ attach_deformable_interp_impl::attach_deformable_interp_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_conv_impl, cldnn::object_type::DEFORMABLE_CONV_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_interp_impl, cldnn::object_type::DEFORMABLE_INTERP_IMPL)

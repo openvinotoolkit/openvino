@@ -8,6 +8,7 @@
 #include <impls/implementation_map.hpp>
 #include <edtopkroi/experimental_detectron_topk_rois_kernel_selector.h>
 #include "primitive_base.hpp"
+#include "serialization/binary_buffer.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -16,6 +17,8 @@ namespace ocl {
 struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experimental_detectron_topk_rois> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_topk_rois>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
@@ -52,3 +55,6 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl,
+                             cldnn::object_type::EXPERIMENTAL_DETECTRON_TOPK_ROIS_IMPL)

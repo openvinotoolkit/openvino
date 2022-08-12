@@ -7,7 +7,7 @@
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
-
+#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -188,7 +188,13 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
-    explicit proposal_impl(const proposal_node& arg) {}
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {}
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -437,7 +443,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return new proposal_impl(arg);
+        return new proposal_impl();
     }
 };
 
@@ -453,3 +459,5 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl, cldnn::object_type::PROPOSAL_IMPL_CPU)

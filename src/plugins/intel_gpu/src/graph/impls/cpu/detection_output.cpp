@@ -7,7 +7,8 @@
 #include "math_utils.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
-
+#include "serialization/binary_buffer.hpp"
+#include "serialization/helpers.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <string>
@@ -43,8 +44,15 @@ bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<in
 
 /************************ Detection Output CPU ************************/
 struct detection_output_impl : typed_primitive_impl<detection_output> {
+private:
+    using parent = typed_primitive_impl<detection_output>;
+    using parent::parent;
+
+public:
     enum NMSType {CAFFE, MXNET};
     NMSType nms_type;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
@@ -57,6 +65,16 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         IE_ASSERT(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
+    }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer << make_data(&nms_type, sizeof(NMSType));
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer >> make_data(&nms_type, sizeof(NMSType));
     }
 
     static inline void intersect_bbox(const bounding_box& bbox1,
@@ -288,7 +306,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 #pragma omp parallel for num_threads(num_threads_to_use) reduction(+ : num_det)
 #endif
 #endif
-            if (nms_type == CAFFE) {
+            if (nms_type == NMSType::CAFFE) {
                 for (int cls = 0; cls < static_cast<int>(args.num_classes); ++cls) {
                     if (static_cast<int>(cls) == args.background_label_id) {
                         conf_per_image[cls].clear();
@@ -802,7 +820,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
             }
         }
         // Extract confidences per image.
-        if (nms_type == CAFFE) {
+        if (nms_type == NMSType::CAFFE) {
             extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors);
         } else {
             extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, scoreIndexPairs);
@@ -854,3 +872,5 @@ attach_detection_output_impl::attach_detection_output_impl() {
 
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_CPU)

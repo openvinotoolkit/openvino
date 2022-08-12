@@ -9,7 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "normalize/normalize_kernel_selector.h"
 #include "normalize/normalize_kernel_base.h"
-
+#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 
 using namespace cldnn;
@@ -20,6 +20,8 @@ namespace ocl {
 struct normalize_impl : typed_primitive_impl_ocl<normalize> {
     using parent = typed_primitive_impl_ocl<normalize>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<normalize_impl>(*this);
@@ -82,3 +84,5 @@ attach_normalize_impl::attach_normalize_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::normalize_impl, cldnn::object_type::NORMALIZE_IMPL)

@@ -9,12 +9,15 @@
 #include "kernel_selector_helper.h"
 #include "edrfe/experimental_detectron_roi_feature_extractor_kernel_selector.h"
 #include "edrfe/experimental_detectron_roi_feature_extractor_kernel_ref.h"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace ocl {
 struct experimental_detectron_roi_feature_extractor_impl : public typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_roi_feature_extractor_impl>(*this);
@@ -85,3 +88,6 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl,
+                             cldnn::object_type::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR_IMPL)

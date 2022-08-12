@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
+#include "serialization/binary_buffer.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -17,6 +18,8 @@ namespace ocl {
 struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
     using parent = typed_primitive_impl_ocl<eltwise>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<eltwise_impl>(*this);
@@ -260,3 +263,5 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl, cldnn::object_type::ELTWISE_IMPL)

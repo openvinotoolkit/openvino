@@ -7,7 +7,7 @@
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 #include "impls/implementation_map.hpp"
-
+#include "serialization/binary_buffer.hpp"
 #include <vector>
 #include <queue>
 #include <algorithm>
@@ -381,11 +381,19 @@ void run(non_max_suppression_inst& instance) {
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
     }
 
     non_max_suppression_impl() : parent(kernel_selector::weights_reorder_params(), "non_max_suppression_impl") {}
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {}
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {}
 
     event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) override {
         for (auto e : event) {
@@ -419,3 +427,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_CPU)

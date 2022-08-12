@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "data_inst.h"
 #include <vector>
+#include "serialization/binary_buffer.hpp"
 
 using namespace cldnn;
 
@@ -19,6 +20,8 @@ namespace ocl {
 struct convert_color_impl : typed_primitive_impl_ocl<convert_color> {
     using parent = typed_primitive_impl_ocl<convert_color>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convert_color_impl>(*this);
@@ -76,3 +79,5 @@ attach_convert_color_impl::attach_convert_color_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convert_color_impl, cldnn::object_type::CONVERT_COLOR_IMPL)

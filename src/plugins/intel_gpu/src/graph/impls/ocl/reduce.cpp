@@ -10,6 +10,7 @@
 #include "reduce/reduce_kernel_ref.h"
 #include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "serialization/binary_buffer.hpp"
 #include "data_inst.h"
 
 using namespace cldnn;
@@ -52,6 +53,8 @@ kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
 struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     using parent = typed_primitive_impl_ocl<reduce>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reduce_impl>(*this);
@@ -123,3 +126,5 @@ attach_reduce_impl::attach_reduce_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl, cldnn::object_type::REDUCE_IMPL)

@@ -12,6 +12,11 @@
 #include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
 #include "register.hpp"
+#include "serialization/set_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
+#include "serialization/string_serializer.hpp"
+#include "serialization/cl_kernel_data_serializer.hpp"
+#include "serialization/helpers.hpp"
 #include <vector>
 #include <list>
 #include <utility>
@@ -25,10 +30,16 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const primitive_id& _node_id;
+    primitive_id _node_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
+
+    typed_primitive_impl_ocl() : _node_id(""), _kernel_data({}), _kernel_ids({}), _kernels({}) {
+        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
+        _kernel_data.weightsReorderParams.clKernel = nullptr;
+    }
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
@@ -59,6 +70,24 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
     bool is_cpu() const override { return false; }
+
+    template <typename BufferType>
+    void save(BufferType& buffer) const {
+        buffer << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
+        buffer << _kernel_data.internalBufferSizes;
+        buffer << _kernel_data.kernels;
+        buffer << _kernel_ids;
+        // buffer << *_outer;
+    }
+
+    template <typename BufferType>
+    void load(BufferType& buffer) {
+        buffer >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
+        buffer(_kernel_data.internalBufferSizes, _kernel_data.kernels, _kernel_ids);
+        // std::string unique_id;
+        // buffer >> unique_id;
+        // _outer->set_unique_id(unique_id);
+    }
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }

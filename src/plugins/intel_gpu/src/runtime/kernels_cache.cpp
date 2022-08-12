@@ -255,6 +255,14 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
                 ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
             }
+
+            if (need_serialize) {
+                serialize_info si;
+                si.build_options = batch.options;
+                si.entry_point_to_id = batch.entry_point_to_id;
+                si.precompiled_kernels = getProgramBinaries(program);
+                serialize_info_container.push_back(std::move(si));
+            }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
             program.build(cl_build_engine.get_cl_device(), batch.options.c_str());
