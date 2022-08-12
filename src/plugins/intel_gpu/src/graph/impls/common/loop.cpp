@@ -233,7 +233,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 private:
     using parent = typed_primitive_impl<loop>;
     using parent::parent;
-    
+
     primitive_id _node_id;
     primitive_id _current_iteration_id;
     primitive_id _trip_count_id;
