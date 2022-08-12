@@ -51,6 +51,8 @@ macro(ov_cpack_settings)
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
+           # the same for pugixml
+           NOT item STREQUAL "pugixml" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # not appropriate components
