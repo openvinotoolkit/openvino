@@ -320,6 +320,8 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         if (tile_id_itr != params.end()) {
             target_tile_id = tile_id_itr->second.as<int>();
         }
+        // if (true)
+        //     ctx_device_id = 1;
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
@@ -327,6 +329,7 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     auto runtime_type = cldnn::runtime_types::ocl;
     // Use actual runtime and engine types
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
+
     auto device_map = device_query.get_available_devices();
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));

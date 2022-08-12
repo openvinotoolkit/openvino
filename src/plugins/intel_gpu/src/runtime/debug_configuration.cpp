@@ -126,6 +126,7 @@ static void print_help_messages() {
                               " For primitives, fc:onednn, fc:ocl, do:cpu, do:ocl, reduce:onednn, reduce:ocl, concat:onednn,"
                               " and concat:ocl are supported");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_TestDeviceIndex", "Set test device by index");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -159,7 +160,8 @@ debug_configuration::debug_configuration()
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , forced_impl_type(std::string())
-        , max_kernels_per_batch(0) {
+        , max_kernels_per_batch(0)
+        , test_device_index(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -183,6 +185,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("SerialCompile", serialize_compile);
     get_gpu_debug_env_var("ForceImplType", forced_impl_type);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    get_gpu_debug_env_var("TestDeviceIndex", test_device_index);
 
     if (help > 0) {
         print_help_messages();

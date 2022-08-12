@@ -93,6 +93,7 @@ public:
     int serialize_compile;                  // Serialize creating primitives and compiling kernels
     std::string forced_impl_type;           // Force implementation type either ocl or onednn
     int max_kernels_per_batch;              // Maximum number of kernels in a batch during compiling kernels
+    int test_device_index;
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
 };
