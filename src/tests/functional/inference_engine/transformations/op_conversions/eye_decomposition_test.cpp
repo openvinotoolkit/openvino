@@ -120,14 +120,6 @@ TEST_F(EyeTransformationTests, shift_is_not_const) {
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
-
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
-        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
-        auto node = make_test_eye<ov::op::v9::Eye>(k);
-
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, k});
-    }
 }
 
 /** \brief Batch size is not `Constant`, there should be no decompose. */
@@ -141,14 +133,6 @@ TEST_F(EyeTransformationTests, batch_is_not_const) {
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
-
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
-        auto batch = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
-        auto node = make_test_eye_batch<ov::op::v9::Eye>(batch);
-
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, batch});
-    }
 }
 
 /** \brief Use fake eye as not supported op type, there should be no decompose. */
@@ -160,13 +144,6 @@ TEST_F(EyeTransformationTests, use_fake_eye) {
         model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
-    }
-
-    {
-        auto data = std::make_shared<ov::op::v0::Parameter>(dtype, ov::Shape{h, w});
-        auto node = make_test_eye<FakeEye>();
-
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
     }
 }
 
