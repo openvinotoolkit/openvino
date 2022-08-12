@@ -5,8 +5,8 @@
 #include "input_model.hpp"
 
 #include <fstream>
-#include <queue>
 #include <iterator>
+#include <queue>
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
