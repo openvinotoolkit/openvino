@@ -19,7 +19,7 @@ function (commitHash VAR)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
     execute_process(
-            COMMAND git rev-parse HEAD
+            COMMAND git rev-parse --short=11 HEAD
             WORKING_DIRECTORY ${repo_root}
             OUTPUT_VARIABLE GIT_COMMIT_HASH
             OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -33,6 +33,7 @@ macro(ie_parse_ci_build_number)
         set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
         set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
         set(IE_VERSION_BUILD ${CMAKE_MATCH_4})
+        set(ci_build_number_available_parsed ON)
     endif()
 
     if(NOT DEFINED repo_root)
@@ -91,22 +92,34 @@ macro(ie_parse_ci_build_number)
     endif()
 
     set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
-    message(STATUS "OpenVINO version is ${IE_VERSION}")
+    message(STATUS "OpenVINO version is ${IE_VERSION} (Build ${IE_VERSION_BUILD})")
+
+    if(NOT ci_build_number_available_parsed)
+        # create CI_BUILD_NUMBER
+
+        branchName(GIT_BRANCH)
+        commitHash(GIT_COMMIT_HASH)
+
+        if(NOT GIT_BRANCH STREQUAL "master")
+            set(GIT_BRANCH_POSTFIX "-${GIT_BRANCH}")
+        endif()
+
+        set(CI_BUILD_NUMBER "${IE_VERSION}-${IE_VERSION_BUILD}-${GIT_COMMIT_HASH}${GIT_BRANCH_POSTFIX}")
+
+        unset(GIT_BRANCH_POSTFIX)
+        unset(GIT_BRANCH)
+        unset(GIT_COMMIT_HASH)
+    else()
+        unset(ci_build_number_available_parsed)
+    endif()
 endmacro()
-
-if (DEFINED ENV{CI_BUILD_NUMBER})
-    set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
-else()
-    branchName(GIT_BRANCH)
-    commitHash(GIT_COMMIT_HASH)
-
-    set(custom_build "custom_${GIT_BRANCH}_${GIT_COMMIT_HASH}")
-    set(CI_BUILD_NUMBER "${custom_build}")
-endif()
 
 # provides Inference Engine version
 # 1. If CI_BUILD_NUMBER is defined, parses this information
-# 2. Otherwise, parses ie_version.hpp
+# 2. Otherwise, parses openvino/core/version.hpp, 
+if (DEFINED ENV{CI_BUILD_NUMBER})
+    set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
+endif()
 ie_parse_ci_build_number()
 
 macro (addVersionDefines FILE)
