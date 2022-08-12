@@ -52,6 +52,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         buffer >> _can_be_optimized;
         buffer >> _has_mean;
     }
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;

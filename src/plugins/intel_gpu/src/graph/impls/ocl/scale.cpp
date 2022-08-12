@@ -50,6 +50,7 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
         parent::load(buffer);
         buffer >> _has_bias_term;
     }
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
