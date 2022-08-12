@@ -22,7 +22,7 @@ resources:
     ref: master
 
 jobs:
-- job: Lin-Debian
+- job: Lin_Debian
   # About 150% of total time
   timeoutInMinutes: 120
 
