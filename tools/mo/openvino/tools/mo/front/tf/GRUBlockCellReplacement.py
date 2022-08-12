@@ -21,10 +21,8 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for tf_gru_block_cell in graph.get_op_nodes(op='GRUBlockCell'):
             original_name = tf_gru_block_cell.soft_get('name', tf_gru_block_cell.id)
-            tf_gru_block_cell['name'] = original_name + '/to_be_removed'
-
             new_gru_cell = GRUCell(graph, {}).create_node()
-            rename_node(new_gru_cell, original_name)
+            rename_nodes([(tf_gru_block_cell, original_name + '/to_be_removed'), (new_gru_cell , original_name)])
 
             # Connect X data port
             tf_gru_block_cell.in_port(0).get_connection().set_destination(new_gru_cell.in_port(0))
@@ -49,7 +47,6 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             # Conncat W_h gate: W_zr -> W_zrh
             tf_gru_block_cell.in_port(3).get_connection().set_destination(concat_zrh_w.in_port(2))
 
-
             # B (Bias)
             # z - update, r - reset, h - hidden
             # Convert gate order B_rz, B_h -> B_zrh
@@ -65,7 +62,7 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             split_rz_b.out_port(0).connect(concat_zrh_b.in_port(1))
             split_rz_b.out_port(1).connect(concat_zrh_b.in_port(0))
 
-            # Conncat B_h gate: B_zr -> B_zrh
+            # Concat B_h gate: B_zr -> B_zrh
             tf_gru_block_cell.in_port(5).get_connection().set_destination(concat_zrh_b.in_port(2))
 
             # Transpose W Shape [input_size + hidden_size, 3 * hidden_size] to [3 * hidden_size, input_size + hidden_size]
@@ -77,4 +74,4 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
             concat_zrh_b.out_port(0).connect(new_gru_cell.in_port(3))
 
             tf_gru_block_cell.out_port(3).get_connection().set_source(new_gru_cell.out_port(0))
-            graph.remove_node(tf_gru_block_cell.id)
+            graph.remove_nodes_from([tf_gru_block_cell.id])
