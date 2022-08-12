@@ -81,8 +81,7 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
         new_pad = std::vector<int32_t>(rank, 0);
     } else {
         new_pad = std::vector<int32_t>(pad.begin(), pad.end());
-        if (new_pad.size() > 2)
-            std::reverse(new_pad.begin() + 2, new_pad.end());
+        std::reverse(new_pad.begin() + 2, new_pad.end());
         for (size_t i = new_pad.size(); i < rank || i < 4; ++i)
             new_pad.push_back(0);
     }
@@ -137,11 +136,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         auto us_optional_params =
             get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
 
-<<<<<<< HEAD
-        size_t dimsNum = impl_param.output_layout.format.dimension();
-=======
-        size_t dimsNum = impl_param->output_layout.get_rank();
->>>>>>> c44488bb4... [GPU] Align Interpolate primitive with nGraph's parameters
+        size_t dimsNum = impl_param.output_layout.get_rank();
         us_params.resampleType = convert_to_sample_type(primitive->operation_type);
         us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
         us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);

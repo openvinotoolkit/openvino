@@ -14,16 +14,6 @@
 namespace ov {
 namespace intel_gpu {
 
-static int64_t GetInterpolationAxis(int64_t axis, uint32_t rank) {
-    if (axis < 0)
-        axis += rank;
-
-    if (axis < 0 || axis >= static_cast<int64_t>(rank))
-        IE_THROW() << "Interpolate axis is not correspond to number of dimensions";
-
-    return axis;
-}
-
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
     p.ValidateInputs(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
@@ -48,13 +38,11 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         if (!axes_constant) {
             IE_THROW() << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
-        auto ie_axes = axes_constant->cast_vector<int64_t>();
-        for (auto axis : ie_axes) {
-            axes.push_back(GetInterpolationAxis(axis, inputRank));
-        }
+        axes = axes_constant->cast_vector<int64_t>();
+        ov::normalize_axes(op.get(), inputRank, axes);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            axes.push_back(GetInterpolationAxis(i, inputRank));
+            ov::normalize_axis(op.get(), i, inputRank);
         }
     }
 
