@@ -59,11 +59,16 @@ protected:
         // Benchmark
         for (int i = 0; i < num_attempts_; ++i) {
             LayerTestsUtils::LayerTestsCommon::Infer();
-            const auto& perfResults = LayerTestsUtils::LayerTestsCommon::inferRequest.GetPerformanceCounts();
+            const auto& perf_results = LayerTestsUtils::LayerTestsCommon::inferRequest.GetPerformanceCounts();
             for (auto& res : results_us) {
                 const std::string name = res.first;
                 long long& time = res.second;
-                time += perfResults.at(name).realTime_uSec;
+                auto found_profile = std::find_if(perf_results.begin(), perf_results.end(),
+                    [&name](const InferenceEngine::InferenceEngineProfileInfo& profile) {
+                        return profile.layer_type == name;
+                    });
+                assert(found_profile != perf_results.end());
+                time += found_profile->second.realTime_uSec;
             }
         }
 
