@@ -10,10 +10,10 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_layout.h"
-#include "ov_model.h"
-#include "ov_tensor.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_layout.h"
+#include "openvino/c/ov_model.h"
+#include "openvino/c/ov_tensor.h"
 
 typedef struct ov_preprocess_prepostprocessor ov_preprocess_prepostprocessor_t;
 typedef struct ov_preprocess_inputinfo ov_preprocess_inputinfo_t;

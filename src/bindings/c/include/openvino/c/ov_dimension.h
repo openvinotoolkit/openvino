@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "ov_common.h"
+#include "openvino/c/ov_common.h"
 
 typedef struct ov_dimension ov_dimension_t;
 typedef struct ov_dimensions ov_dimensions_t;

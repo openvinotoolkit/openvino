@@ -10,9 +10,9 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_partial_shape.h"
-#include "ov_shape.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_partial_shape.h"
+#include "openvino/c/ov_shape.h"
 
 typedef struct ov_output_const_node ov_output_const_node_t;
 typedef struct ov_output_node ov_output_node_t;

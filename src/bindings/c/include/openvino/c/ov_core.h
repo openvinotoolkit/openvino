@@ -10,12 +10,12 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_compiled_model.h"
-#include "ov_model.h"
-#include "ov_node.h"
-#include "ov_property.h"
-#include "ov_tensor.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_compiled_model.h"
+#include "openvino/c/ov_model.h"
+#include "openvino/c/ov_node.h"
+#include "openvino/c/ov_property.h"
+#include "openvino/c/ov_tensor.h"
 
 typedef struct ov_core ov_core_t;
 

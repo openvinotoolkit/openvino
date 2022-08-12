@@ -10,11 +10,11 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_dimension.h"
-#include "ov_layout.h"
-#include "ov_rank.h"
-#include "ov_shape.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_dimension.h"
+#include "openvino/c/ov_layout.h"
+#include "openvino/c/ov_rank.h"
+#include "openvino/c/ov_shape.h"
 
 typedef struct ov_partial_shape ov_partial_shape_t;
 

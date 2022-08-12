@@ -11,11 +11,11 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_infer_request.h"
-#include "ov_model.h"
-#include "ov_node.h"
-#include "ov_property.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_infer_request.h"
+#include "openvino/c/ov_model.h"
+#include "openvino/c/ov_node.h"
+#include "openvino/c/ov_property.h"
 
 typedef struct ov_compiled_model ov_compiled_model_t;
 

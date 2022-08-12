@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "ov_common.h"
+#include "openvino/c/ov_common.h"
 
 typedef struct ov_property ov_property_t;
 

@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_tensor.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_tensor.h"
 
 typedef struct ov_infer_request ov_infer_request_t;
 

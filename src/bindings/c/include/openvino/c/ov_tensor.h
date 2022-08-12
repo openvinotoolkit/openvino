@@ -10,9 +10,9 @@
 
 #pragma once
 
-#include "ov_common.h"
-#include "ov_partial_shape.h"
-#include "ov_shape.h"
+#include "openvino/c/ov_common.h"
+#include "openvino/c/ov_partial_shape.h"
+#include "openvino/c/ov_shape.h"
 
 typedef struct ov_tensor ov_tensor_t;
 

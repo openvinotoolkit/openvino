@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "ov_common.h"
+#include "openvino/c/ov_common.h"
 typedef struct ov_rank ov_rank_t;
 
 // Rank
