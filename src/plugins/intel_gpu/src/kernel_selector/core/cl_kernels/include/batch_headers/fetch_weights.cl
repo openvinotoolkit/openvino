@@ -50,6 +50,17 @@
         ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH)                          \
     )
 
+#define GET_FILTER_IS_OS_YX_ISV16_OSV8_INDEX(prefix, o, i, y, x, sub_group_size) \
+    CAT(prefix, _OFFSET) +                                                        \
+    ((o) % (sub_group_size)) +                                                    \
+    (sub_group_size)*(                                                            \
+        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) +                              \
+        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) +                              \
+        ((i) % (sub_group_size)) +                                                \
+        ((o) / (sub_group_size))*(sub_group_size)*CAT(prefix, _OFM_PITCH) +       \
+        ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH)                          \
+    )
+
 #define GET_FILTER_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, y, x, sub_group_size) \
     get_os_is_zyx_isv8_osv16_isv2_index(                                              \
         0, o, i, 0, y, x,                                                             \

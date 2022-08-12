@@ -86,6 +86,7 @@ enum WeightsLayout {
     os_is_zyx_isv16_osv16,
     is_os_zyx_isv16_osv16,
     is_os_yx_isv16_osv16,
+    is_os_yx_isv16_osv8,
     os_is_zyx_isv8_osv16_isv2,
     os_is_yx_isv8_osv16_isv2,
     os_is_yx_isv16_osv16,
