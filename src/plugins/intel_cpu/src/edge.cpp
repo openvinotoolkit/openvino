@@ -150,14 +150,6 @@ bool Edge::enforceReorder() {
         }
     }
 
-    if (in_place) {
-        int outNumber = getOutputNum();
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
-            parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
-            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
-            canBeInPlaceConflicts = true;
-    }
-
     if (canBeInPlaceConflicts) {
         return true;
     }
