@@ -85,7 +85,6 @@ public:
         buffer << _split;
         buffer << _groups;
         buffer << _depthwise_sep_opt;
-
     }
 
     template <typename BufferType>
