@@ -200,6 +200,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LRN", translate_lrn_op},
         {"MatMul", translate_mat_mul_op},
         {"MaxPool", translate_max_pool_op},
+        {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
         {"MirrorPad", translate_pad_op},
         {"NonMaxSuppression", translate_non_max_suppression_op},
