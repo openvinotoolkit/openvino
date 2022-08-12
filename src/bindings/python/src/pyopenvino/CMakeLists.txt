@@ -76,7 +76,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 

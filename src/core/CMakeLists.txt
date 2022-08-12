@@ -73,7 +73,7 @@ ie_faster_build(ngraph_obj
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         pugixml::static ov_shape_inference openvino::core::dev)
+                                         openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
