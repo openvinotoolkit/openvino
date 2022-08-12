@@ -286,8 +286,16 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
 
     bool memory_reuse_by_user = true;
     for (auto user : _node.get_users()) {
-        if (user->get_selected_impl()->can_reuse_memory == false) {
+        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             memory_reuse_by_user = false;
+            continue;
+        } else if (user->get_selected_impl() == nullptr) {
+            for (auto sub_user : user->get_users()) {
+                if ((sub_user->get_selected_impl() != nullptr) && (sub_user->get_selected_impl()->can_reuse_memory == false)) {
+                    memory_reuse_by_user = false;
+                    continue;
+                }
+            }
         }
     }
 
