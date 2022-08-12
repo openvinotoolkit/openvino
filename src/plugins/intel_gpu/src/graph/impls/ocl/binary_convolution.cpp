@@ -26,21 +26,33 @@ struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
         return make_unique<binary_convolution_impl>(*this);
     }
 
+    explicit binary_convolution_impl(const binary_convolution_impl& other) : parent(other),
+        _split(other._split) {}
+
+    binary_convolution_impl(const binary_convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<binary_convolution>());
+        const auto& node = arg.as<binary_convolution>();
+        _split = node.get_split();
+    }
+
 protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
         bool res = true;
 
-        auto outer_id = _outer.id();
         auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Check whether all memory elements use the same unit type (FP16 or FP32).
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(_node_id,
                                         "Input memory",
                                         data_type,
                                         "output memory",
                                         instance.node.get_output_layout().data_type,
                                         "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -57,7 +69,7 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
 public:
     static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
@@ -127,6 +139,9 @@ public:
 
         return conv;
     }
+
+private:
+    int32_t _split;
 };
 
 namespace detail {

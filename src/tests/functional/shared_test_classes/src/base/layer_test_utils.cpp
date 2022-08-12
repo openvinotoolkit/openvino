@@ -9,8 +9,6 @@
 
 #include <thread>
 
-#include "pugixml.hpp"
-
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 
