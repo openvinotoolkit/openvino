@@ -92,7 +92,8 @@ struct PluginConfig {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
             } else if (kvp.first == ov::device::priorities.name()) {
-                ParsePrioritiesDevices(kvp.second);
+                if (!kvp.second.empty())
+                    ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
