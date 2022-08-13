@@ -135,24 +135,23 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" \
-        -DENABLE_WHEEL=ON \
-        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) \
-        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) \
-        -DENABLE_REQUIREMENTS_INSTALL=OFF \
-        -DENABLE_FASTER_BUILD=ON \
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-        -DENABLE_TESTS=ON
-        -DENABLE_STRICT_DEPENDENCIES=OFF \
-        -DENABLE_PYTHON=ON \
-        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" \
-        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" \
-        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" \
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules \
-        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-        -S $(REPO_DIR) \
-        -B $(BUILD_DIR)
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+        -DENABLE_WHEEL=ON ^
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
+        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
+        -DENABLE_REQUIREMENTS_INSTALL=OFF ^
+        -DENABLE_FASTER_BUILD=ON ^
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
+        -DENABLE_TESTS=ON ^
+        -DENABLE_STRICT_DEPENDENCIES=OFF ^
+        -DENABLE_PYTHON=ON ^
+        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
+        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
+        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" ^
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -S $(REPO_DIR) -B $(BUILD_DIR)
     displayName: 'CMake'
 
   - script: dir $(REPO_DIR)\temp\ /s
@@ -176,11 +175,11 @@ jobs:
     displayName: 'Install Wheels'
 
   - script: |
-    call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) \
-      -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-      -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" \
-      -S $(REPO_DIR)\tests\samples_tests \
-      -B $(BUILD_SAMPLES_TESTS_DIR)
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -S $(REPO_DIR)\tests\samples_tests ^
+        -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake'
 
   - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
@@ -222,7 +221,7 @@ jobs:
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+    displayName: 'ONNX Import UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
