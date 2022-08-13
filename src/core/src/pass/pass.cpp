@@ -8,6 +8,7 @@
 #endif
 
 #include <memory>
+#include <openvino/cc/pass/itt.hpp>
 
 #include "atomic_guard.hpp"
 #include "ngraph/pass/pass.hpp"

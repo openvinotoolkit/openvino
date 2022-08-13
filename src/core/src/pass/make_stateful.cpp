@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
 

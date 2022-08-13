@@ -4,6 +4,8 @@
 
 #include "ngraph/pass/convert_fp32_to_fp16.hpp"
 
+#include <openvino/cc/pass/itt.hpp>
+
 #include "ngraph/graph_util.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "transformations/convert_precision.hpp"

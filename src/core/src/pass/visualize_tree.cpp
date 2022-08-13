@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <openvino/cc/pass/itt.hpp>
 
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"

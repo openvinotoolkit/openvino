@@ -4,6 +4,8 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <openvino/cc/pass/itt.hpp>
+
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"

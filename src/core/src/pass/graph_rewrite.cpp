@@ -8,11 +8,11 @@
 #include <deque>
 #include <iostream>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
