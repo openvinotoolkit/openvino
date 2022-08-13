@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <opencv2/opencv.hpp>
 #include <condition_variable>
 #include <mutex>
 #include "test_model_repo.hpp"
@@ -15,14 +14,10 @@
 #include "openvino/openvino.hpp"
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
-            bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
-            input_image_std = TestDataHelpers::generate_image_path("224x224", "dog.bmp"),
-            input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
+            bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin");
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
-const char* input_image = input_image_std.c_str();
-const char* input_image_nv12 = input_image_nv12_std.c_str();
 
 std::mutex m;
 bool ready = false;
@@ -77,29 +72,6 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
         fclose(fp);
     }
     return read_size;
-}
-
-void mat_2_tensor(const cv::Mat& img, ov_tensor_t* tensor)
-{
-    ov_shape_t shape = {0};
-    OV_EXPECT_OK(ov_tensor_get_shape(tensor, &shape));
-    size_t channels = shape.dims[1];
-    size_t width = shape.dims[3];
-    size_t height = shape.dims[2];
-    void* tensor_data = NULL;
-    OV_EXPECT_OK(ov_tensor_get_data(tensor, &tensor_data));
-    uint8_t *tmp_data = (uint8_t *)(tensor_data);
-    cv::Mat resized_image;
-    cv::resize(img, resized_image, cv::Size(width, height));
-
-    for (size_t c = 0; c < channels; c++) {
-        for (size_t  h = 0; h < height; h++) {
-            for (size_t w = 0; w < width; w++) {
-                tmp_data[c * width * height + h * width + w] =
-                        resized_image.at<cv::Vec3b>(h, w)[c];
-            }
-        }
-    }
 }
 
 size_t find_device(ov_available_devices_t avai_devices, const char *device_name) {
@@ -306,7 +278,7 @@ TEST_P(ov_core, ov_core_import_model) {
     OV_ASSERT_OK(ov_compiled_model_export(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 
-    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
+    std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
     ov_compiled_model_t* compiled_model_imported = nullptr;
     OV_ASSERT_OK(ov_core_import_model(core, reinterpret_cast<const char *>(buffer.data()), buffer.size(), devece_name.c_str(), &compiled_model_imported));
     ASSERT_NE(nullptr, compiled_model_imported);
