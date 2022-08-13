@@ -11,7 +11,6 @@ std::string bin_std = TestDataHelpers::generate_model_path("test_model", "test_m
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
 
-
 #ifdef _WIN32
 #    ifdef __MINGW32__
 std::string plugins_xml_std = TestDataHelpers::generate_ieclass_xml_path("plugins_mingw.xml");
