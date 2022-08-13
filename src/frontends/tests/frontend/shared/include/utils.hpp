@@ -9,10 +9,10 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "file_utils.h"
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
-#include "file_utils.h"
 
 // Helper functions
 namespace FrontEndTestUtils {
