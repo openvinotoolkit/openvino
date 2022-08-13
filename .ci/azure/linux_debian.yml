@@ -140,6 +140,7 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
+        -DENABLE_OPENCV=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -232,7 +233,6 @@ jobs:
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package -j8
-    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
     continueOnError: true
 
@@ -253,10 +253,6 @@ jobs:
       sudo apt-get install openvino -y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install Debian packages'
-    continueOnError: true
-
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
-    displayName: 'Install openvino'
     continueOnError: true
 
   - script: ls -alR $(INSTALL_DIR)
