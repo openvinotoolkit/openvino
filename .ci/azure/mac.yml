@@ -163,7 +163,7 @@ jobs:
     enabled: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+    displayName: 'ONNX Import UT'
     continueOnError: false
     enabled: false
 
