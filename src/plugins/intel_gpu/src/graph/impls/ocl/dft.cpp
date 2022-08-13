@@ -22,8 +22,8 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         return make_unique<dft_impl>(*this);
     }
 
-    static primitive_impl* create(const dft_node& arg) {
-        auto params = get_default_params<kernel_selector::dft_params>(arg);
+    static primitive_impl* create(const dft_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         auto primitive = arg.get_primitive();
         params.axes = primitive->axes;
         if (primitive->kind == dft_kind::inverse) {

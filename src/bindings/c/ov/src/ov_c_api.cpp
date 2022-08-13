@@ -20,6 +20,9 @@
 #include "c_api/ov_c_api.h"
 #include "openvino/openvino.hpp"
 
+// TODO: we need to catch ov::Exception instead of ie::Exception
+#include "details/ie_exception.hpp"
+
 struct ov_core {
     std::shared_ptr<ov::Core> object;
 };

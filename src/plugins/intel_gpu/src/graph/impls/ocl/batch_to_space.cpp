@@ -25,12 +25,11 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     }
 
 public:
-    static primitive_impl* create(const batch_to_space_node& arg) {
-        auto batch_to_space_params = get_default_params<kernel_selector::batch_to_space_params>(arg);
+    static primitive_impl* create(const batch_to_space_node& arg, const kernel_impl_params& impl_param) {
+        auto primitive = arg.get_primitive();
+        auto batch_to_space_params = get_default_params<kernel_selector::batch_to_space_params>(impl_param);
         auto batch_to_space_optional_params =
             get_default_optional_params<kernel_selector::batch_to_space_optional_params>(arg.get_program());
-
-        auto primitive = arg.get_primitive();
 
         batch_to_space_params.block_shape = convert_dim_vector(primitive->block_shape);
         batch_to_space_params.crops_begin = convert_dim_vector(primitive->crops_begin);

@@ -23,15 +23,16 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     }
 
 public:
-    static primitive_impl* create(const reverse_sequence_node& arg) {
-        auto reverse_sequence_params = get_default_params<kernel_selector::reverse_sequence_params>(arg);
+    static primitive_impl* create(const reverse_sequence_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto reverse_sequence_params = get_default_params<kernel_selector::reverse_sequence_params>(impl_param);
         auto reverse_sequence_optional_params =
             get_default_optional_params<kernel_selector::reverse_sequence_optional_params>(arg.get_program());
 
-        reverse_sequence_params.seq_axis = arg.get_primitive()->seq_axis;
-        reverse_sequence_params.batch_axis = arg.get_primitive()->batch_axis;
+        reverse_sequence_params.seq_axis = prim->seq_axis;
+        reverse_sequence_params.batch_axis = prim->batch_axis;
 
-        reverse_sequence_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
+        reverse_sequence_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::reverse_sequence_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reverse_sequence_params, reverse_sequence_optional_params);

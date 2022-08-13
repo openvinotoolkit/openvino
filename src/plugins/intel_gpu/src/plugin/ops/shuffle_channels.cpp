@@ -17,22 +17,8 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto in_rank = op->get_input_shape(0).size();
-
     int32_t group = op->get_group();
-    int32_t axis = op->get_axis();
-
-    if (axis < 0)
-        axis += in_rank;
-
-    if (axis < 0 || axis >= in_rank)
-        IE_THROW() << "Incorrect axis value! Actual axis is" + std::to_string(group);
-
-    if (group < 1)
-        IE_THROW() << "Invalid group size value (should equal at least one). Actual block size is" << std::to_string(group);
-
-    if (op->get_input_shape(0)[axis] % group != 0)
-        IE_THROW() << "Group parameter must evenly divide the channel dimension. Actual group size is " << std::to_string(axis);
+    int64_t axis = ov::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputPrimitives[0],

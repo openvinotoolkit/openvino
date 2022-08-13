@@ -50,16 +50,39 @@ if(ENABLE_SYSTEM_PUGIXML)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
-        set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(pugixml::static ALIAS pugixml)
+        if(TARGET pugixml::static)
+            # sometimes pugixml::static target already exists, just need to make it global
+            # example: building using conda environment
+            set(pugixml_target pugixml::static)
+        elseif(TARGET pugixml)
+            # or create an alias for pugixml shared library
+            # example: libpugixml-dev debian package
+            set(pugixml_target pugixml)
+        else()
+            message(FATAL_ERROR "Failed to detect pugixml library target name")
+        endif()
+
+        # we need to install dynamic library for wheel package
+        get_target_property(target_type ${pugixml_target} TYPE)
+        if(target_type STREQUAL "SHARED_LIBRARY")
+            ie_cpack_add_component(pugixml HIDDEN)
+            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_NOCONFIG)
+            install(FILES ${pugixml_loc}
+                    DESTINATION runtime/3rdparty/pugixml/lib
+                    COMPONENT pugixml EXCLUDE_FROM_ALL)
+        endif()
+
+        set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
+        # create an alias for real target which can be shared or static
+        add_library(openvino::pugixml ALIAS ${pugixml_target})
     else()
         # reset to prevent improper code generation in OpenVINODeveloperPackage
         set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
     endif()
 endif()
 
-if(NOT TARGET pugixml::static)
-    # use OpenVINO pugixml copy if system one if not found
+if(NOT TARGET openvino::pugixml)
+    # use OpenVINO pugixml copy if system one is not found
     function(ie_build_pugixml)
         function(ie_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
@@ -67,7 +90,8 @@ if(NOT TARGET pugixml::static)
         endfunction()
         ie_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+        add_library(openvino::pugixml ALIAS pugixml-static)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
         ov_install_static_lib(pugixml-static openvino_common)
     endfunction()
 
@@ -201,21 +225,18 @@ if(CPACK_GENERATOR STREQUAL "DEB")
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            USE_SOURCE_PERMISSIONS)
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        USE_SOURCE_PERMISSIONS)
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})

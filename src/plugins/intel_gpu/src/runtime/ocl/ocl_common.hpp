@@ -5,6 +5,8 @@
 
 #include "ocl_wrapper.hpp"
 
+#include "openvino/core/except.hpp"
+
 #include <vector>
 
 namespace cldnn {
@@ -21,7 +23,7 @@ typedef CL_API_ENTRY cl_command_queue(CL_API_CALL* pfn_clCreateCommandQueueWithP
 using ocl_queue_type = cl::CommandQueue;
 using ocl_kernel_type = cl::KernelIntel;
 
-class ocl_error : public std::runtime_error {
+class ocl_error : public ov::Exception {
 public:
     explicit ocl_error(cl::Error const& err);
 };
