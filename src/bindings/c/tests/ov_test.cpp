@@ -7,13 +7,10 @@
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml");
 std::string bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin");
-std::string input_image_std = TestDataHelpers::generate_image_path("224x224", "dog.bmp");
-std::string input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
-const char* input_image = input_image_std.c_str();
-const char* input_image_nv12 = input_image_nv12_std.c_str();
+
 
 #ifdef _WIN32
 #    ifdef __MINGW32__
