@@ -31,6 +31,8 @@ function(ov_check_pip_package)
 
     if(NOT ARG_MESSAGE_MODE)
         set(ARG_MESSAGE_MODE WARNING)
+    elseif(CMAKE_VERSION VERSION_LESS 3.15 AND ARG_MESSAGE_MODE STREQUAL "TRACE")
+        set(ARG_MESSAGE_MODE WARNING)
     endif()
 
     if(ARG_UNPARSED_ARGUMENTS)
@@ -82,6 +84,8 @@ function(ov_check_pip_packages)
     endforeach()
 
     if(NOT ARG_MESSAGE_MODE)
+        set(ARG_MESSAGE_MODE WARNING)
+    elseif(CMAKE_VERSION VERSION_LESS 3.15 AND ARG_MESSAGE_MODE STREQUAL "TRACE")
         set(ARG_MESSAGE_MODE WARNING)
     endif()
 
