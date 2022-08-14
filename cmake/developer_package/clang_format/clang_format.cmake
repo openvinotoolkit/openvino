@@ -3,9 +3,21 @@
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_FILENAME clang-format)
+    set(CLANG_FORMAT_FILENAME clang-format-9 clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
-    if(NOT CLANG_FORMAT)
+    if(CLANG_FORMAT)
+        execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
+        if(NOT CLANG_VERSION OR CLANG_VERSION STREQUAL "")
+            message(WARNING "Supported clang-format version is 9!")
+            set(ENABLE_CLANG_FORMAT OFF)
+        else()
+            string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
+            if(NOT ${CLANG_FORMAT_MAJOR_VERSION} EQUAL "9")
+                message(WARNING "Supported clang-format version is 9!")
+                set(ENABLE_CLANG_FORMAT OFF)
+            endif()
+        endif()
+    else()
         message(WARNING "Supported clang-format version is not found!")
         set(ENABLE_CLANG_FORMAT OFF)
     endif()
@@ -16,7 +28,6 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all
                           PROPERTIES FOLDER clang_format)
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All clang-format output files")
 endif()
 
 function(add_clang_format_target TARGET_NAME)
@@ -80,11 +91,6 @@ function(add_clang_format_target TARGET_NAME)
         list(APPEND all_output_files "${output_file}")
     endforeach()
 
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES
-        ${CLANG_FORMAT_ALL_OUTPUT_FILES} ${all_output_files}
-        CACHE INTERNAL
-        "All clang-format output files")
-
     add_custom_target(${TARGET_NAME}
         DEPENDS ${all_output_files}
         COMMENT "[clang-format] ${TARGET_NAME}")
@@ -93,7 +99,7 @@ function(add_clang_format_target TARGET_NAME)
         COMMAND
         "${CMAKE_COMMAND}"
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
-        -D "INPUT_FILES=${CLANG_FORMAT_FOR_SOURCES}"
+        -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
         -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
