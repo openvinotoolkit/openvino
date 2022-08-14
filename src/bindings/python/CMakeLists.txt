@@ -24,7 +24,7 @@ set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 # TODO: Remove this condition as 76672 will be fixed
 if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
-    set(DISABLE_PYOPENVINO ON)
+    set(DISABLE_PYBIND11 ON CACHE BOOL "Whether pybind11 can be used in python bindings")
 endif()
 
 #
@@ -114,7 +114,7 @@ else()
     message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
 endif()
 
-if(DISABLE_PYOPENVINO)
+if(DISABLE_PYBIND11)
     message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
 else()
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
@@ -126,7 +126,7 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
-if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYOPENVINO)
+if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYBIND11)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_dependencies(pyopenvino openvino_mock_py_frontend)
     set_target_properties(openvino_mock_py_frontend PROPERTIES
