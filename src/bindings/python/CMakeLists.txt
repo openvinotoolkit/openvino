@@ -31,20 +31,31 @@ endif()
 # Options
 #
 
-set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.22")
+function(ov_check_python_build_conditions)
+    set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
+    set(ie_python_req "cython>=0.29.22")
 
-# Try to find python3
-find_package(PythonLibs 3 QUIET)
-# pyopenvino requirements
-ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
-                      RESULT_VAR ov_python_reqs_FOUND
-                      MESSAGE_MODE WARNING)
-# Check for Cython to build IE_API
-ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                     RESULT_VAR ie_python_req_FOUND)
+    # Try to find python3
+    find_package(PythonLibs 3 QUIET)
+    # pyopenvino requirements
+    ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
+                        RESULT_VAR ov_python_reqs_FOUND
+                        MESSAGE_MODE WARNING)
+    # Check for Cython to build IE_API
+    ov_check_pip_package(REQUIREMENT ${ie_python_req}
+                        RESULT_VAR ie_python_req_FOUND)
 
-ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ie_python_req_FOUND;ov_python_reqs_FOUND" OFF)
+    # ov_python_req are not mandatory for build
+    set(ov_python_reqs_FOUND ON)
+
+    set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
+    set(ov_python_reqs_FOUND ${ov_python_reqs_FOUND} PARENT_SCOPE)
+    set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
+endfunction()
+
+ov_check_python_build_conditions()
+
+ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
@@ -79,14 +90,16 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL_CON
 # Build the code
 #
 
-if(DISABLE_PYOPENVINO)
+if(ie_python_req_FOUND)
     add_subdirectory(src/compatibility/openvino)
+else()
+    message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
+endif()
+
+if(DISABLE_PYOPENVINO)
     message(WARNING "NOTE: Python API for OpenVINO 2.0 is disabled")
 else()
-    add_subdirectory(src/compatibility/openvino)
-
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-
     add_subdirectory(src/compatibility/pyngraph)
     add_subdirectory(src/pyopenvino)
 endif()
