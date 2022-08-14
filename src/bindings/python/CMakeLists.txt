@@ -31,7 +31,7 @@ endif()
 # Options
 #
 
-set(ov_python_req "${CMAKE_SOURCE_DIR}/src/bindings/python/requirements.txt")
+set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
 set(ie_python_req "cython>=0.29.22")
 
 # Try to find python3
@@ -55,7 +55,7 @@ if(NOT ENABLE_PYTHON)
 endif()
 
 # Check for wheel package
-ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/wheel/requirements-dev.txt"
+ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
                       RESULT_VAR wheel_req_FOUND
                       MESSAGE_MODE WARNING)
 
