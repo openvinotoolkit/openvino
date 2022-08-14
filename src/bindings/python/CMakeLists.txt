@@ -38,7 +38,8 @@ set(ie_python_req "cython>=0.29.22")
 find_package(PythonLibs 3 QUIET)
 # pyopenvino requirements
 ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
-                      RESULT_VAR ov_python_reqs_FOUND)
+                      RESULT_VAR ov_python_reqs_FOUND
+                      MESSAGE_MODE WARNING)
 # Check for Cython to build IE_API
 ov_check_pip_package(REQUIREMENT ${ie_python_req}
                      RESULT_VAR ie_python_req_FOUND)
@@ -56,7 +57,7 @@ endif()
 # Check for wheel package
 ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/wheel/requirements-dev.txt"
                       RESULT_VAR wheel_req_FOUND
-                      FAIL_FAST)
+                      MESSAGE_MODE WARNING)
 
 set(WHEEL_CONDITION "PYTHONINTERP_FOUND;ENABLE_PYTHON;wheel_req_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR")
 
