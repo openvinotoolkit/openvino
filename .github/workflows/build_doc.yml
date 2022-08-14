@@ -17,11 +17,11 @@ jobs:
           set -e
           # install doc dependencies
           sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
+          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive liblua5.2-0
           cd docs
-          python -m pip install -r requirements.txt --user
+          python3 -m pip install -r requirements.txt --user
           cd openvino_sphinx_theme
-          python setup.py install --user
+          python3 setup.py install --user
           cd ../..
           # install doxyrest
           wget https://github.com/vovkos/doxyrest/releases/download/doxyrest-2.1.3/doxyrest-2.1.3-linux-amd64.tar.xz
