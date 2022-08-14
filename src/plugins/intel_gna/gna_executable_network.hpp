@@ -47,7 +47,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         setOutputs(plg->GetOutputs());
     }
 
-    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+    GNAExecutableNetwork(const InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
     }
@@ -69,10 +69,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     InferenceEngine::IInferRequestInternal::Ptr
         CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
-        if (!this->_plugin)
-            return nullptr;
-        const auto& core = _plugin->GetCore();
-        if (!core || !core->isNewAPI())
+        if (!this->_plugin || !_plugin->IsNewAPI())
             return nullptr;
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }

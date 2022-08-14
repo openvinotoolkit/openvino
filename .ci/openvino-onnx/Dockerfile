@@ -36,6 +36,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         ocl-icd-opencl-dev \
         pkg-config \
         unzip \
+        libtbb-dev \
+        libpugixml-dev \
         wget \
 # Python dependencies
         python3 \
@@ -59,7 +61,6 @@ RUN cmake .. \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DENABLE_INTEL_MYRIAD_COMMON=OFF \
     -DENABLE_INTEL_GNA=OFF \
-    -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \
     -DENABLE_NCC_STYLE=OFF \
     -DENABLE_TESTS=OFF \
@@ -81,5 +82,5 @@ RUN ninja install
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
-ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/lib/python_api/python3.8:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.8:${PYTHONPATH}
 CMD tox

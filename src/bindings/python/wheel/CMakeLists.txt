@@ -6,12 +6,13 @@ find_package(PythonInterp 3 REQUIRED)
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-set(PYTHON_BRIDGE_CPACK_PATH "python")
+set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
 if(WIN32)
     set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
 endif()
+set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 
 # create target for openvino.wheel
 
@@ -40,14 +41,16 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E env WHEEL_VERSION=${WHEEL_VERSION}
         WHEEL_BUILD=${WHEEL_BUILD}
         CMAKE_BUILD_DIR=${CMAKE_BINARY_DIR}
-        OV_RUNTIME_LIBS_DIR=${IE_CPACK_RUNTIME_PATH}
+        OV_RUNTIME_LIBS_DIR=${OV_CPACK_RUNTIMEDIR}
         TBB_LIBS_DIR=${TBB_LIBS_DIR}
+        PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
         PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
         ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean bdist_wheel
         --dist-dir ${openvino_wheels_output_dir}
         --build=${WHEEL_BUILD}
         --plat-name=${WHEEL_PLATFORM}
-    DEPENDS ${openvino_wheel_deps} 
+    DEPENDS ${openvino_wheel_deps}
+           "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
@@ -56,8 +59,8 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
 
 # install
 
-ie_cpack_add_component(python_wheels)
+ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
-        DESTINATION tools
-        COMPONENT python_wheels)
+        DESTINATION ${OV_CPACK_WHEELSDIR}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})

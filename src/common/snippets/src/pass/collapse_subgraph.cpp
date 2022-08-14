@@ -525,7 +525,7 @@ TokenizeSnippets::TokenizeSnippets() {
 
         return true;
     };
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label, matcher_name);
     register_matcher(matcher, callback);
 }
 } // namespace pass

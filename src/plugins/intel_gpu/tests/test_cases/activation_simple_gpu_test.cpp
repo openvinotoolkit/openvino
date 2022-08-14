@@ -55,10 +55,10 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -100,10 +100,10 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -146,10 +146,10 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -192,10 +192,10 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -239,10 +239,10 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -286,10 +286,10 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -332,10 +332,10 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -345,6 +345,41 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
         float res = input_ptr[i] / (1 + std::abs(input_ptr[i]));
         EXPECT_FLOAT_EQ(res, output_ptr[i]);
+    }
+}
+
+TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f16, format::yxfb, {1, 1, 2, 2}});
+    set_values(input, {FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f)});
+    VF<FLOAT16> output_vec = {FLOAT16(0.5f), FLOAT16(0.66650391f), FLOAT16(0.75f), FLOAT16(0.81835938f)};
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("not", "input", activation_func::softsign));
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "not");
+
+    auto output_memory = outputs.at("not").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 2);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
+        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -378,10 +413,10 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -415,10 +450,10 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 2);
@@ -451,10 +486,10 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 2);
     EXPECT_EQ(x_size, 2);
@@ -508,10 +543,10 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -584,11 +619,11 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int z_size = output_layout.size.spatial[2];
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfzyx);
     EXPECT_EQ(z_size, 2);
     EXPECT_EQ(y_size, 4);
@@ -682,10 +717,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
             cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-            int y_size = output_layout.size.spatial[1];
-            int x_size = output_layout.size.spatial[0];
-            int f_size = output_layout.size.feature[0];
-            int b_size = output_layout.size.batch[0];
+            int y_size = output_layout.spatial(1);
+            int x_size = output_layout.spatial(0);
+            int f_size = output_layout.feature();
+            int b_size = output_layout.batch();
             EXPECT_EQ(output_layout.format, format::yxfb);
             EXPECT_EQ(y_size, 4);
             EXPECT_EQ(x_size, 5);
@@ -832,10 +867,10 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
             cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
 
-            int y_size = output_layout.size.spatial[1];
-            int x_size = output_layout.size.spatial[0];
-            int f_size = output_layout.size.feature[0];
-            int b_size = output_layout.size.batch[0];
+            int y_size = output_layout.spatial(1);
+            int x_size = output_layout.spatial(0);
+            int f_size = output_layout.feature();
+            int b_size = output_layout.batch();
             EXPECT_EQ(output_layout.format, format::bfyx);
             EXPECT_EQ(y_size, 4);
             EXPECT_EQ(x_size, 2);
@@ -910,10 +945,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-        int y_size = output_layout.size.spatial[1];
-        int x_size = output_layout.size.spatial[0];
-        int f_size = output_layout.size.feature[0];
-        int b_size = output_layout.size.batch[0];
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
         EXPECT_EQ(output_layout.format, format::yxfb);
         EXPECT_EQ(y_size, 4);
         EXPECT_EQ(x_size, 2);
@@ -995,10 +1030,10 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -1060,10 +1095,10 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::yxfb);
     EXPECT_EQ(y_size, 4);
     EXPECT_EQ(x_size, 5);
@@ -1148,11 +1183,11 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int z_size = output_layout.size.spatial[2];
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
     EXPECT_EQ(output_layout.format, format::bfzyx);
     EXPECT_EQ(z_size, 2);
     EXPECT_EQ(y_size, 4);
@@ -1265,10 +1300,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> input_ptr(input, get_test_stream());
 
-        int y_size = output_layout.size.spatial[1];
-        int x_size = output_layout.size.spatial[0];
-        int f_size = output_layout.size.feature[0];
-        int b_size = output_layout.size.batch[0];
+        int y_size = output_layout.spatial(1);
+        int x_size = output_layout.spatial(0);
+        int f_size = output_layout.feature();
+        int b_size = output_layout.batch();
         EXPECT_EQ(output_layout.format, format::yxfb);
         EXPECT_EQ(y_size, 4);
         EXPECT_EQ(x_size, 2);
@@ -1464,14 +1499,12 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     }
 }
 
-struct activation_random_test_params {
-    data_types input_type;
-    format::type input_format;
-    tensor input_size;
-    activation_func func_type;
-    activation_additional_params additional_params;
-    padding padd;
-};
+using activation_random_test_params = std::tuple<data_types,
+                                                 format::type,                  // input_format
+                                                 tensor,                        // input_size
+                                                 activation_func,               // func_type
+                                                 activation_additional_params,  // additional_params
+                                                 padding>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
@@ -1487,11 +1520,11 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
-        auto size = mem->get_layout().size;
-        size_t b = size.batch[0];
-        size_t f = size.feature[0];
-        size_t x = size.spatial[0];
-        size_t y = size.spatial[1];
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
 
         auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
@@ -1532,10 +1565,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
-        size_t b = output_lay.size.batch[0];
-        size_t f = output_lay.size.feature[0];
-        size_t x = output_lay.size.spatial[0];
-        size_t y = output_lay.size.spatial[1];
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
         cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
         cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
 
@@ -1563,15 +1596,23 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     void execute_compare(const activation_random_test_params& params, bool check_result) {
         auto& engine = get_test_engine();
 
-        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        data_types input_type;
+        format::type input_format;
+        tensor input_size;
+        activation_func func_type;
+        activation_additional_params additional_params;
+        padding padd;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd) = params;
+        auto in_layout = layout(input_type, format::bfyx, input_size);
+
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
 
         /// bfyx
         cldnn::topology topo;
         topo.add(input_layout("in", in_layout));
-        auto prim = activation("activation", "in", params.func_type);
-        prim.additional_params = params.additional_params;
+        auto prim = activation("activation", "in", func_type);
+        prim.additional_params = additional_params;
         topo.add(prim);
 
         auto build_opts = build_options();
@@ -1586,18 +1627,19 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         cldnn::topology topo_opt;
         topo_opt.add(input_layout("in", in_layout));
-        topo_opt.add(reorder("in_to_input_type", "in", params.input_format, params.input_type));
-        auto prim_opt = activation("activation_blocked", "in_to_input_type", params.func_type);
-        prim_opt.additional_params = params.additional_params;
+        topo_opt.add(reorder("in_to_input_type", "in", input_format, input_type));
+        auto prim_opt = activation("activation_blocked", "in_to_input_type", func_type);
+        prim_opt.additional_params = additional_params;
         topo_opt.add(prim_opt);
         // force output format to input format.
-        topo_opt.add(reorder("res_to_input_format", "activation_blocked", params.input_format, params.input_type));
+        topo_opt.add(reorder("res_to_input_format", "activation_blocked", input_format, input_type));
 
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"activation_blocked", "res_to_input_format"}));
         auto activation_impl_desc = implementation_desc();
-        activation_impl_desc.output_format = params.input_format;
-        build_opts_opt.set_option(build_option::force_implementations({{"activation_blocked", {params.input_format, "activation_ref"} }}));
+        activation_impl_desc.output_format = input_format;
+        build_opts_opt.set_option(
+            build_option::force_implementations({{"activation_blocked", {input_format, "activation_ref"}}}));
 
         network net_opt(engine, topo_opt, build_opts_opt);
 
@@ -1610,16 +1652,16 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         if (check_result == true) {
             // Check data_types
-            if (params.input_type == data_types::f32) {
+            if (input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
-            } else if (params.input_type == data_types::f16) {
+            } else if (input_type == data_types::f16) {
                 compare_outputs<FLOAT16>(output, output_opt);
-            } else if (params.input_type == data_types::i8) {
+            } else if (input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
-            } else if (params.input_type == data_types::u8) {
+            } else if (input_type == data_types::u8) {
                 compare_outputs<uint8_t>(output, output_opt);
             } else {
-                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+                FAIL() << "Not supported data type: " << static_cast<size_t>(input_type);
             }
         }
     }
@@ -1630,14 +1672,86 @@ TEST_P(activation_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_SUITE_P(activation_blocked_tests,
-                         activation_random_test,
-                         testing::ValuesIn(
-                            std::vector<activation_random_test_params>{
-                                { data_types::i8,  format::b_fs_yx_fsv32,        { 1, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-                            }
-                        ));
+const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+});
+
+INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
+
+const std::vector<data_types> dataTypes = {data_types::f16, data_types::f32};
+const std::vector<format::type> types = {format::bfyx,
+                                         format::bfzyx,
+                                         format::yxfb,
+                                         format::byxf,
+                                         format::fyxb,
+                                         format::b_fs_yx_fsv2,
+                                         format::b_fs_zyx_fsv2,
+                                         format::bs_fs_yx_bsv32_fsv32,
+                                         format::bs_fs_yx_bsv32_fsv16};
+
+// TODO: need to investigate input for commented activation functions
+const std::vector<activation_func> activationFunctions = {activation_func::none,
+                                                          activation_func::logistic,
+                                                          activation_func::gelu,
+                                                          activation_func::hyperbolic_tan,
+                                                          activation_func::relu,
+                                                          activation_func::relu_negative_slope,
+                                                          activation_func::clamp,
+                                                          activation_func::softrelu,
+                                                          activation_func::abs,
+                                                          activation_func::linear,
+                                                          activation_func::square,
+//                                                          activation_func::sqrt,
+                                                          activation_func::elu,
+                                                          activation_func::sin,
+//                                                          activation_func::asin,
+                                                          activation_func::sinh,
+//                                                          activation_func::asinh,
+                                                          activation_func::cos,
+//                                                          activation_func::acos,
+                                                          activation_func::cosh,
+//                                                          activation_func::acosh,
+//                                                          activation_func::log,
+//                                                          activation_func::log2,
+                                                          activation_func::exp,
+                                                          activation_func::tan,
+                                                          activation_func::atan,
+//                                                          activation_func::atanh,
+                                                          activation_func::floor,
+                                                          activation_func::ceil,
+                                                          activation_func::negative,
+                                                          activation_func::negation,
+                                                          activation_func::pow,
+                                                          activation_func::reciprocal,
+                                                          activation_func::erf,
+                                                          activation_func::hard_sigmoid,
+                                                          activation_func::hsigmoid,
+                                                          activation_func::selu,
+                                                          activation_func::sign,
+                                                          activation_func::softplus,
+                                                          activation_func::swish,
+                                                          activation_func::hswish,
+                                                          activation_func::mish,
+                                                          activation_func::round_half_to_even,
+                                                          activation_func::round_half_away_from_zero,
+                                                          activation_func::gelu_tanh,
+                                                          activation_func::softsign};
+
+const std::vector<tensor> inputShapes = {
+    {1, 32, 5, 5},
+    {32, 32, 5, 5},
+    {16, 16, 5, 5},
+};
+
+const auto fpFunctionsParams = ::testing::Combine(::testing::ValuesIn(dataTypes),
+                                                  ::testing::ValuesIn(types),
+                                                  ::testing::ValuesIn(inputShapes),
+                                                  ::testing::ValuesIn(activationFunctions),
+                                                  ::testing::Values(activation_additional_params{}),
+                                                  ::testing::Values(padding{}));
+
+INSTANTIATE_TEST_SUITE_P(fp_activation_blocked_tests, activation_random_test, fpFunctionsParams);

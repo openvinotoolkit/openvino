@@ -47,10 +47,42 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PugiXML REQUIRED)
-    set_target_properties(pugixml PROPERTIES IMPORTED_GLOBAL ON)
-    add_library(pugixml::static ALIAS pugixml)
-else()
+    # try system pugixml first
+    find_package(PugiXML QUIET)
+    if(PugiXML_FOUND)
+        if(TARGET pugixml::static)
+            # sometimes pugixml::static target already exists, just need to make it global
+            # example: building using conda environment
+            set(pugixml_target pugixml::static)
+        elseif(TARGET pugixml)
+            # or create an alias for pugixml shared library
+            # example: libpugixml-dev debian package
+            set(pugixml_target pugixml)
+        else()
+            message(FATAL_ERROR "Failed to detect pugixml library target name")
+        endif()
+
+        # we need to install dynamic library for wheel package
+        get_target_property(target_type ${pugixml_target} TYPE)
+        if(target_type STREQUAL "SHARED_LIBRARY")
+            ie_cpack_add_component(pugixml HIDDEN)
+            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_NOCONFIG)
+            install(FILES ${pugixml_loc}
+                    DESTINATION runtime/3rdparty/pugixml/lib
+                    COMPONENT pugixml EXCLUDE_FROM_ALL)
+        endif()
+
+        set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
+        # create an alias for real target which can be shared or static
+        add_library(openvino::pugixml ALIAS ${pugixml_target})
+    else()
+        # reset to prevent improper code generation in OpenVINODeveloperPackage
+        set(ENABLE_SYSTEM_PUGIXML OFF CACHE BOOL "" FORCE)
+    endif()
+endif()
+
+if(NOT TARGET openvino::pugixml)
+    # use OpenVINO pugixml copy if system one is not found
     function(ie_build_pugixml)
         function(ie_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
@@ -58,7 +90,8 @@ else()
         endfunction()
         ie_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+        add_library(openvino::pugixml ALIAS pugixml-static)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
         ov_install_static_lib(pugixml-static openvino_common)
     endfunction()
 
@@ -74,6 +107,11 @@ target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
 add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+    target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+endif()
+
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
@@ -84,7 +122,11 @@ ov_install_static_lib(fluid openvino_common)
 # Gflags
 #
 
-find_package(gflags QUIET COMPONENTS nothreads_shared)
+if(NOT APPLE)
+    # on Apple only dynamic libraries are available
+    find_package(gflags QUIET COMPONENTS nothreads_static)
+endif()
+
 if(gflags_FOUND)
     set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
     message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
@@ -175,29 +217,26 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     # These libraries are dependencies for openvino-samples-2022.1 package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a debian package. Install libflags-dev")
+        message(FATAL_ERROR "gflags must be used as a debian package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)
         message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
-            USE_SOURCE_PERMISSIONS)
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
-            USE_SOURCE_PERMISSIONS)
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json
-            DESTINATION "samples/cpp/thirdparty"
-            COMPONENT cpp_samples
-            USE_SOURCE_PERMISSIONS)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            REGEX .*json/nlohmann_json/test/.* EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy
-        DESTINATION "samples/cpp/thirdparty"
-        COMPONENT cpp_samples
-        USE_SOURCE_PERMISSIONS)
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})

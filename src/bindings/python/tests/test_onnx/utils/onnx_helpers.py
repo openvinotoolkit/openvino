@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -20,7 +21,7 @@ def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
 def import_onnx_model(model: onnx.ModelProto) -> Model:
     onnx.checker.check_model(model)
     model_byte_string = model.SerializeToString()
-    ie = Core()
-    func = ie.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
+    core = Core()
+    model = core.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
 
-    return func
+    return model

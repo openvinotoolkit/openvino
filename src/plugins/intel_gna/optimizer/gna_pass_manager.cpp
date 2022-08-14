@@ -57,6 +57,16 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
     return sharedMgr;
 }
 
+static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::string& name = {}) {
+    auto blob = Blob::CreateFromData(std::make_shared<Data>(name, readOnlyBlob->getTensorDesc()));
+    blob->allocate();
+    const auto ret = ie_memcpy(blob->buffer().as<uint8_t*>(),
+        blob->size() * blob->getTensorDesc().getPrecision().size(),
+        readOnlyBlob->buffer().as<uint8_t*>(),
+        readOnlyBlob->size() * readOnlyBlob->getTensorDesc().getPrecision().size());
+    IE_ASSERT(ret == 0);
+    return blob;
+}
 
 static bool fp32eq(float p1, float p2) {
     return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
@@ -284,10 +294,10 @@ void InsertDiagonalLayerPass::run() {
             if (!eltwise) {
                 continue;
             }
-            // in case of eltwise sum in 16-bit input precision one of input would be 4 bytes one - 2
-            // in case of eltwise mul in 16-bit input precision one of input would be 2 bytes one - 2
-            // in case of eltwise sum in low (8-bit) input precision both inputs are 1 byte
-            // in case of eltwise mul in low (8-bit) input precision both inputs are 1 byte
+            // in case of eltwise sum in 16-bit input precision, one of inputs is 4 bytes, the other is 2 bytes
+            // in case of eltwise mul in 16-bit input precision, both inputs are 2 bytes
+            // in case of eltwise sum in low (8-bit) input precision, both inputs are 1 byte
+            // in case of eltwise mul in low (8-bit) input precision, both inputs are 1 byte
             // for e sum if we have 4-4 inputs we will handle that by inserting identity activation
             // for e sum if we have 4-2 - OK
             // for e sum if we have 2-2 inputs we need to insert diagonal -- handling here
@@ -685,21 +695,40 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             data->setLayout(layout);
         };
 
-        auto input_to = getInputTo(pattern_start->outData[0]);
-        IE_ASSERT(!input_to.empty());
-        auto current_layer = input_to.begin()->second;
-        setTransposedOrder(current_layer->input());
-        std::function<void(CNNLayerPtr)> propogateNHWCOrderRecursive =
-            [pattern_end, &propogateNHWCOrderRecursive, &setTransposedOrder](CNNLayerPtr current_layer) {
-            if (current_layer == pattern_end) return;
-            for (size_t i = 0; i < current_layer->outData.size(); ++i) {
-                setTransposedOrder(current_layer->outData[i]);
-                auto input_to = getInputTo(current_layer->outData[i]);
-                IE_ASSERT(!input_to.empty());
-                propogateNHWCOrderRecursive(input_to.begin()->second);
+        std::function<std::list<InferenceEngine::DataPtr>(CNNLayerPtr, const std::list<InferenceEngine::DataPtr>&)> getPathBetweenTransposes =
+            [pattern_start, pattern_end, &getPathBetweenTransposes](CNNLayerPtr current_layer, const std::list<InferenceEngine::DataPtr>& path) {
+            if (current_layer == pattern_end) {
+                // the pattern end has been found, return the full path
+                return path;
             }
+
+            // transpose is reached, the pattern end hasn't been found
+            if (current_layer != pattern_start &&
+                (LayerInfo(current_layer).isPermute() || LayerInfo(current_layer).isPermuteViaReshape())) {
+                return std::list<InferenceEngine::DataPtr>();
+            }
+
+            auto new_path(path);
+            std::list<InferenceEngine::DataPtr> mergedChildPath;
+            for (const auto& output : current_layer->outData) {
+                new_path.push_back(output);
+                for (const auto& input : getInputTo(output)) {
+                    auto childPath = getPathBetweenTransposes(input.second, new_path);
+                    // only the branch with the pattern end will return not empty list
+                    if (!childPath.empty()) {
+                        mergedChildPath.insert(std::end(mergedChildPath), std::begin(childPath), std::end(childPath));
+                        break;
+                    }
+                }
+            }
+
+            return mergedChildPath;
         };
-        propogateNHWCOrderRecursive(current_layer);
+
+        auto path = getPathBetweenTransposes(pattern_start, std::list<InferenceEngine::DataPtr>());
+        for (const auto& data : path) {
+            setTransposedOrder(data);
+        }
 
         if ((LayerInfo(pattern_start).isPermute() || LayerInfo(pattern_start).isPermuteViaReshape()) &&
          !getInputTo(pattern_start->outData.front()).empty()) {
@@ -1331,10 +1360,9 @@ void InsertSplitAligningFilterPass::run() {
                 if (getInputTo(splitOutput).empty()) {
                     gnalog() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
                 } else {
-                    auto lastDimSize = GetDataDimSize(splitOutput, 1);
-                    if (lastDimSize != outputSize) {
-                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support these input dimensions: lastDimSize="
-                            << lastDimSize << ", outputSize=" << outputSize;
+                    if (splitOutput->getDims().size() > 1 && splitOutput->getDims().front() > 1) {
+                        THROW_GNA_EXCEPTION << l->name << " Convolution Filter doesn't support batch="
+                            << splitOutput->getDims().front();
                     }
 
                     // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning filter layer
@@ -2315,7 +2343,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
                     transpInfoMatchWeightsSize(transpositionInfo, weightsColumns, l->name);
 
-                    ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
+                    weightable->_weights = convertToRWBlob(weightable->_weights);
+
+                    ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->buffer().as<uint8_t*>(),
                                                 true, transpositionInfo);
                     gnalog() << l->name << " weights rows transposition info:\n";
                     printTranspositionInfo(transpositionInfo);
@@ -2336,6 +2366,8 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                     }
 
                     transpInfoMatchWeightsSize(transpositionInfo, weightsRows, l->name);
+
+                    weightable->_weights = convertToRWBlob(weightable->_weights);
 
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 false, transpositionInfo);
@@ -2401,7 +2433,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             for (auto && input : constInputs) {
                 auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
                 auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
-                auto blob = input->blobs["custom"];
+
+                auto blob = convertToRWBlob(input->blobs["custom"]);
+                input->blobs["custom"] = blob;
+
                 // A constant should have the same number of channels since concatenation will be in height/weight dimension
                 TranspositionInfo concatTranspositionInfo{true, rows, columns};
                 ConvertTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
@@ -2414,7 +2449,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 }
 
 int PassManager::run(int index) {
-#if defined PLOT || defined ENABLE_V7_SERIALIZE
+#if defined PLOT
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
 #ifdef PLOT
@@ -2422,9 +2457,6 @@ int PassManager::run(int index) {
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
-#endif
-#ifdef ENABLE_V7_SERIALIZE
-        network.serialize(name + ".xml", name + ".bin");
 #endif
     };
 #else

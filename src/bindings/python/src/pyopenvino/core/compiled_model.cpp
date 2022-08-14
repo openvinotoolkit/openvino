@@ -42,35 +42,6 @@ void regclass_CompiledModel(py::module m) {
         )");
 
     cls.def(
-        "infer_new_request",
-        [](ov::CompiledModel& self, const py::dict& inputs) {
-            auto request = self.create_infer_request();
-            // Update inputs if there are any
-            Common::set_request_tensors(request, inputs);
-            {
-                py::gil_scoped_release release;
-                request.infer();
-            }
-            return Common::outputs_to_dict(self.outputs(), request);
-        },
-        py::arg("inputs"),
-        R"(
-            Infers specified input(s) in synchronous mode.
-            Blocks all methods of CompiledModel while the request is running.
-
-            Method creates new temporary InferRequest and run inference on it.
-            It is advised to use a dedicated InferRequest class for performance,
-            optimizing workflows, and creating advanced pipelines.
-
-            GIL is released during the inference.
-
-            :param inputs: Data to set on input tensors.
-            :type inputs: Dict[Union[int, str, openvino.runtime.ConstOutput], openvino.runtime.Tensor]
-            :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
-        )");
-
-    cls.def(
         "export_model",
         [](ov::CompiledModel& self) {
             std::stringstream _stream;

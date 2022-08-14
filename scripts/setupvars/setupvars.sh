@@ -51,8 +51,19 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
     fi
-    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-    export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+
+    if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+    else
+        echo "TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
+    fi
 fi
 
 if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
@@ -72,10 +83,20 @@ if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
 fi
 
-version_arr=(${python_version//./ })
-if [ "${#version_arr[@]}" -ge "2" ]; then
-    python_version_major=${version_arr[0]}
-    python_version_minor=${version_arr[1]}
+# splitting Python version variable depending on the used shell
+if [ -n "$ZSH_VERSION" ]; then
+    version_arr=(${(@s:.:)python_version})
+    if [ "${#version_arr[@]}" -ge "2" ]; then
+        # zsh starts indexing from 1
+        python_version_major=${version_arr[1]}
+        python_version_minor=${version_arr[2]}
+    fi
+else
+    version_arr=(${python_version//./ })
+    if [ "${#version_arr[@]}" -ge "2" ]; then
+        python_version_major=${version_arr[0]}
+        python_version_minor=${version_arr[1]}
+    fi
 fi
 
 PYTHON_VERSION_MAJOR="3"

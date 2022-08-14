@@ -16,28 +16,17 @@ primitive_type_id border::type_id() {
     return &instance;
 }
 
-layout border_inst::calc_output_layout(border_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for border_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<border>();
 
-    auto&& new_size = input_layout.size;
+    auto new_size = input_layout.get_tensor();
     new_size += desc->left_top_sizes.sub(tensor(0));
     new_size += desc->right_bottom_sizes.sub(tensor(0));
 
-    auto ret_data_t = input_layout.data_type;
-    auto ret_format = input_layout.format;
-
-    if (ret_format == format::bfwzyx) {
-        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2], new_size.spatial[3])) };
-    } else if (ret_format == format::bfzyx) {
-        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2])) };
-    }
-    return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
-        spatial(new_size.spatial[0], new_size.spatial[1])) };
+    return layout{ input_layout.data_type, input_layout.format, new_size };
 }
 
 std::string border_inst::to_string(border_node const& node) {
@@ -87,7 +76,7 @@ std::string border_inst::to_string(border_node const& node) {
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto& input_sizes = input_layout.size;
+    const auto& input_sizes = input_layout.get_tensor();
 
     auto lt_sizes = argument.left_top_sizes.sub(tensor(0));
     auto rb_sizes = argument.right_bottom_sizes.sub(tensor(0));

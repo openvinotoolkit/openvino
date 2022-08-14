@@ -116,7 +116,7 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    if (cpu::x64::mayiuse(cpu::x64::avx512_common)) {
+    if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;

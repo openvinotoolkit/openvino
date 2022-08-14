@@ -39,12 +39,21 @@ public:
                                      InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
+    void SetBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& blob,
+                 const InferenceEngine::PreProcessInfo& info) override;
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
+    InferenceEngine::SoIInferRequestInternal& GetSharedRequest() { return _sharedRequest; }
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
 
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
                             InferenceEngine::RemoteContext::Ptr ctx);
+    InferenceEngine::SoIInferRequestInternal _sharedRequest;
 };
 
 }  // namespace MultiDevicePlugin

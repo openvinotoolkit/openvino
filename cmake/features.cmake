@@ -148,7 +148,7 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
-ie_option (ENABLE_OPENCV "enables OpenCV" ON)
+ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
@@ -156,16 +156,22 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
-
 get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$" AND NOT DEFINED ENV{TBBROOT})
+if(LINUX_OS_NAME MATCHES "^Ubuntu [0-9]+\.[0-9]+$")
     # Debian packages are enabled on Ubuntu systems
-    # so, system TBB can be tried for usage
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
+    # so, system TBB / pugixml can be tried for usage
+    set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
+    set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
+endif()
+
+set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
 endif()
+
+# for static libraries case libpugixml.a must be compiled with -fPIC
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" ${ENABLE_SYSTEM_LIBS_DEFAULT} "BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option (ENABLE_SYSTEM_TBB  "use the system version of TBB" ${ENABLE_SYSTEM_TBB_DEFAULT} "THREADING MATCHES TBB;LINUX" OFF)
 

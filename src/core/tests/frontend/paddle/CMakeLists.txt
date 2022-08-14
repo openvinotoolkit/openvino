@@ -4,13 +4,12 @@
 
 set(TARGET_NAME "paddle_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE cnpy frontend_shared_test_classes
-        openvino_paddle_frontend openvino::runtime)
+    openvino_paddle_frontend openvino::runtime gtest_main_manifest)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -22,22 +21,36 @@ install(TARGETS ${TARGET_NAME}
 # Test model generating
 ov_check_pip_package(REQUIREMENT paddlepaddle
                      MESSAGE_MODE WARNING
-                     RESULT_VAR paddlepaddle)
+                     RESULT_VAR paddlepaddle_FOUND)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
+
+set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.1/ppdet/modeling/ops.py")
+set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/ppdet/modeling/)
+set(PADDLEDET_OPS_SHA256 "5cc079eda295ed78b58fba8223c51d85a931a7069ecad51c6af5c2fd26b7a8cb")
+
+DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 
 # If 'paddlepaddle' is not found, code will still be compiled
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
-if(paddlepaddle)
+if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
+
+    if(WIN32)
+        set(SETENV "set")
+        set(PATHSEP ";")
+    else()
+        set(SETENV "export")
+        set(PATHSEP ":")
+    endif()
 
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
-            COMMAND ${PYTHON_EXECUTABLE}
+            COMMAND ${SETENV} PYTHONPATH=${PADDLEDET_DIRNAME}${PATHSEP}$ENV{PYTHONPATH} && ${PYTHON_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
             ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
             ${TEST_PADDLE_MODELS}
@@ -62,7 +75,7 @@ add_dependencies(${TARGET_NAME} paddle_test_models)
 add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
-if (ENABLE_INTEL_CPU)
+if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 

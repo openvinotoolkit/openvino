@@ -82,7 +82,7 @@ struct reg_traits_by_size<64> {
     using type = Xbyak::Zmm;
     constexpr static size_t size = 64;          // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_common;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core;
 };
 
 template<typename T>
@@ -127,7 +127,7 @@ struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx2> {
 };
 
 template<>
-struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx512_common> {
+struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx512_core> {
     struct reg {
         using type = Xbyak::Zmm;
         constexpr static size_t size = 16 * 4;  // in bytes

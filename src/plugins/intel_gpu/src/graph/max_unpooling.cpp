@@ -21,15 +21,15 @@ max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim
     can_share_buffer(false);  // for max_unpooling initial zero values are significant
 }
 
-layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for max_unpooling_node!");
-    auto desc = node.get_primitive();
+    auto desc = impl_param.typed_desc<max_unpooling>();
 
-    auto input_layout = node.input().get_output_layout();
-    auto argmax_layout = node.argmax().get_output_layout();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto argmax_layout = impl_param.get_input_layout(1);
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
+    CLDNN_ERROR_NOT_EQUAL(desc->id,
                           "Argmax data type",
                           static_cast<size_t>(argmax_layout.data_type),
                           "expected to be fp32",
@@ -37,8 +37,8 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                           "Argmax data type is not fp32.");
 
     if (desc->with_output_size) {
-        tensor output_size(input_layout.size.batch[0],
-                           input_layout.size.feature[0],
+        tensor output_size(input_layout.batch(),
+                           input_layout.feature(),
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1]);
         return {input_layout.data_type, input_layout.format, output_size};
@@ -48,32 +48,32 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
     auto stride = desc->stride;
     auto window_size = desc->size;
 
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "stride spatial X",
                                    stride.spatial[0],
                                    "",
                                    0,
                                    "Stride spatial X must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "stride spatial Y",
                                    stride.spatial[1],
                                    "",
                                    0,
                                    "Stride spatial Y must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "window size spatial X",
                                    window_size.spatial[0],
                                    "",
                                    0,
                                    "Size X (of pooling window) must be positive (>= 1)");
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+    CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                    "window size spatial Y",
                                    window_size.spatial[1],
                                    "",
                                    0,
                                    "Size Y (of pooling window) must be positive (>= 1)");
 
-    auto output_range = calc_sliding_window_needed_input_range(input_layout.size,
+    auto output_range = calc_sliding_window_needed_input_range(input_layout.get_tensor(),
                                                                window_size,
                                                                pad,
                                                                stride,
@@ -81,8 +81,8 @@ layout max_unpooling_inst::calc_output_layout(max_unpooling_node const& node) {
                                                                true,
                                                                1);
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature(),
                        output_range.spatial[0],
                        output_range.spatial[1]);
     return {input_layout.data_type, input_layout.format, output_size};

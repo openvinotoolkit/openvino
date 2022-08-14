@@ -75,7 +75,16 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
                 (curr->input_value(0) != next->input_value(0))) {
                 ++i;
                 continue;
-            }  // curr and next are the same type of gather which takes data from the same source
+            }
+
+            // Scalar inputs are not supported by Concat and we don't want to throw an exception here.
+            // The transformation should not be applied instead.
+            if (curr->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
+                next->input_value(1).get_partial_shape().same_scheme(Shape{})) {
+                return false;
+            }
+
+            // curr and next are the same type of gather which takes data from the same source
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(
                 OutputVector{curr->input_value(1), next->input_value(1)},
                 0);
@@ -234,7 +243,7 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
 
         const auto concat_axis = concat->get_axis();
-        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
+        OPENVINO_ASSERT(concat_axis == 0 || concat_axis == -1, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||

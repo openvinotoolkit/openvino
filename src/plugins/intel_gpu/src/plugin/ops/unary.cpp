@@ -44,7 +44,6 @@
 #include "intel_gpu/primitives/activation.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
@@ -77,15 +76,15 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
     p.ValidateInputs(op, {2});
 
     auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto slope_shape = op->get_input_shape(1);
-    auto out_shape = op->get_output_shape(0);
+    auto slope_shape = op->get_input_partial_shape(1);
+    auto out_shape = op->get_output_partial_shape(0);
 
-    if (slope_node && ngraph::shape_size(slope_shape) == 1) {
+    if (slope_node && ngraph::shape_size(slope_shape.to_shape()) == 1) {
         float slope;
         if (!ngraph::op::util::get_single_value(slope_node, slope))
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
-    } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
+    } else if (out_shape.size() >= 2) {
         auto inputs = p.GetInputPrimitiveIDs(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName,
@@ -263,6 +262,10 @@ static void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gelu>
     CreateUnaryEltwiseOp(p, op, activationFunc, {});
 }
 
+static void CreateSoftSignOp(Program& p, const std::shared_ptr<ngraph::op::v9::SoftSign>& op) {
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::softsign, {});
+}
+
 static void CreateGeluOp(Program &p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
     CreateUnaryEltwiseOp(p, op,  cldnn::activation_func::gelu, {});
 }
@@ -322,7 +325,7 @@ REGISTER_FACTORY_IMPL(v7, Gelu);
 REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
+REGISTER_FACTORY_IMPL(v9, SoftSign);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

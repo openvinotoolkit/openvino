@@ -12,6 +12,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
+#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
 
 #include <mutex>
 
@@ -103,7 +104,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MulticlassNms>, ngraph::op::internal)
+        NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
         NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
 #undef NGRAPH_OP
 

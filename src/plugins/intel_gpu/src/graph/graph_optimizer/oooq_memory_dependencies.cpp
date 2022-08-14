@@ -78,14 +78,19 @@ void oooq_memory_dependencies::run(program& p) {
     // First create transitive closure of the graph,
     // giving us mapping of node to set of all users that can be reached from this node.
     auto& processing_order = p.get_processing_order();
-
-    // maps program nodes to bimap vector ids
-    auto user_map = std::map<program_node*, unsigned int>();
-    unsigned int processing_order_idx = 0;
-    for (auto node : processing_order) {
-        user_map[node] = processing_order_idx++;
+    std::list<program_node*> processing_order_except_const;
+    for (auto n : processing_order) {
+        if (!n->is_type<data>()) {
+            processing_order_except_const.push_back(n);
+        }
     }
 
+    // maps program nodes to bimap vector ids
+    auto user_map = std::unordered_map<program_node*, unsigned int>();
+    unsigned int processing_order_idx = 0;
+    for (auto node : processing_order_except_const) {
+        user_map[node] = processing_order_idx++;
+    }
     unsigned int num_nodes = static_cast<unsigned int>(user_map.size());
 
     // full cross ref [node<->node] bitmap.
@@ -118,9 +123,7 @@ void oooq_memory_dependencies::run(program& p) {
         for (unsigned int n = 0; n < num_nodes; n++) {
             auto& users = user_bitmap[n];
 
-            // iterate over all users
-            for (unsigned int user_id = 0; user_id < num_nodes; user_id++) {
-                // if we have this user set, then add its sub-users to the map
+            for (unsigned int user_id = n + 1; user_id < num_nodes; user_id++) {
                 if (users.is_set(user_id)) {
                     changed |= users._or(user_bitmap[user_id]);
                 }
@@ -134,13 +137,15 @@ void oooq_memory_dependencies::run(program& p) {
     };
 
     unsigned int A = 0;
-    auto itr_A = processing_order.begin();
+    auto itr_A = processing_order_except_const.begin();
 
-    while (itr_A != processing_order.end()) {
+    while (itr_A != processing_order_except_const.end()) {
         if (suspect_nodes.is_set(A)) {
             std::vector<std::pair<program_node*, unsigned int>> deps;
             for (const auto& dep : (*itr_A)->get_dependencies()) {
-                deps.emplace_back(dep, user_map.at(dep));
+                if (!dep->is_type<data>()) {
+                    deps.emplace_back(dep, user_map.at(dep));
+                }
             }
 
             std::sort(deps.begin(), deps.end(),
@@ -161,7 +166,7 @@ void oooq_memory_dependencies::run(program& p) {
         }
         unsigned int B = ++A;
         auto itr_B = ++itr_A;
-        while (itr_B != processing_order.end()) {
+        while (itr_B != processing_order_except_const.end()) {
             if (!are_connected(A, B)) {
                 add_memory_dependency(*itr_A, *itr_B);
                 add_memory_dependency(*itr_B, *itr_A);

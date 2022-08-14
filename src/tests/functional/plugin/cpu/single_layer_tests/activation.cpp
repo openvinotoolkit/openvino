@@ -147,7 +147,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Mish,        {{}}},
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
-        {GeluTanh,    {{}}}
+        {GeluTanh,    {{}}},
+        {SoftSign,    {{}}}
 };
 
 std::vector<Precision> netPrc = {
@@ -242,7 +243,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Tan,         {{}}},
         {HardSigmoid, {{0.2f, 0.5f}}},
         {Selu,        {{1.6732f, 1.0507f}}},
-        {Ceiling,     {{}}}
+        {Ceiling,     {{}}},
+        {SoftSign,    {{}}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {

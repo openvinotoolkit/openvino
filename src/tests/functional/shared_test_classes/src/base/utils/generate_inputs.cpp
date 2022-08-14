@@ -629,6 +629,33 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppres
     }
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppression>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    switch (port) {
+        case 1: {
+            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
+
+            const size_t range = 1;
+            const size_t startFrom = 0;
+            const size_t k = 1000;
+            const int seed = 1;
+            std::default_random_engine random(seed);
+            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < tensor.get_size(); i++) {
+                auto value = static_cast<float>(distribution(random));
+                dataPtr[i] = value / static_cast<float>(k);
+            }
+            return tensor;
+        }
+        default:
+            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+    }
+}
+
 template<ov::element::Type_t elemType>
 ov::runtime::Tensor generate_unique_possibilities(const ov::Shape &targetShape) {
     using value_type = typename element_type_traits<elemType>::value_type;
@@ -704,6 +731,7 @@ InputsMap getInputMap() {
 #include "ngraph/opsets/opset6_tbl.hpp"
 #include "ngraph/opsets/opset7_tbl.hpp"
 #include "ngraph/opsets/opset8_tbl.hpp"
+#include "ngraph/opsets/opset9_tbl.hpp"
 
 #undef NGRAPH_OP
     };

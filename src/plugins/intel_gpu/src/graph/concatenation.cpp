@@ -17,22 +17,22 @@ primitive_type_id concatenation::type_id() {
     return &instance;
 }
 
-layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
-    auto desc = node.get_primitive();
+layout concatenation_inst::calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<concatenation>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
     auto result_sizes = input_layout.get_dims();
 
     auto output_dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
 
-    auto axis_index = node.get_primitive()->axis;
+    auto axis_index = desc->axis;
 
     // calculate sum of features from all inputs
     result_sizes[axis_index] = 0;
     for (size_t i = 0; i < desc->input.size(); ++i) {
-        auto input_sizes = node.input(i).get_output_layout().get_dims();
-        if (node.input(i).get_output_layout().format == format::b_fs_yx_fsv16)
+        auto input_sizes = impl_param.get_input_layout(i).get_dims();
+        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
             output_format = format::b_fs_yx_fsv16;
 
         result_sizes[axis_index] += input_sizes[axis_index];
@@ -78,7 +78,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     for (const auto& i : node.get_dependencies()) {
         auto input_i_layout = i->get_output_layout();
         auto input_mem_size = input_i_layout.get_dims();
-        for (int64_t dim = 0; dim < output_layout.get_rank(); ++dim) {
+        for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
             if (dim == node.get_primitive()->axis) {
                 concat_count += input_mem_size[dim];
             } else {
@@ -92,7 +92,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
         }
     }
 
-    for (int64_t dim = 0; dim < output_layout.get_rank(); ++dim) {
+    for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
         if (dim == node.get_primitive()->axis) {
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Concat count",

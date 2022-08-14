@@ -10,6 +10,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -40,6 +41,9 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(pluginName, deviceName) = GetParam();
         pluginName += IE_BUILD_POSTFIX;
+        if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
+            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+        }
     }
 };
 
@@ -81,6 +85,7 @@ using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
 using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
+using OVClassGetMetricTest_DEVICE_UUID = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
@@ -95,10 +100,13 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
 using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
@@ -144,9 +152,8 @@ TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
     OV_ASSERT_NO_THROW(ie.get_property("NEW_DEVICE_NAME", ov::supported_properties));
 }
 
-TEST(OVClassBasicTest, smoke_registerExistingPluginFileThrows) {
+TEST(OVClassBasicTest, smoke_registerNonExistingPluginFileThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
 
@@ -154,12 +161,19 @@ TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(ov::Core ie("nonExistPlugins.xml"), ov::Exception);
 }
 
-#ifdef __linux__
+inline std::string getPluginFile() {
+    std::string filename{"mock_engine_valid.xml"};
+    std::ostringstream stream;
+    stream << "<ie><plugins><plugin name=\"mock\" location=\"";
+    stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        std::string("mock_engine") + IE_BUILD_POSTFIX);
+    stream << "\"></plugin></plugins></ie>";
+    CommonTestUtils::createFile(filename, stream.str());
+    return filename;
+}
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
-    std::string filename{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(filename, content);
+    const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
     CommonTestUtils::removeFile(filename.c_str());
 }
@@ -172,14 +186,10 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::removeFile(filename.c_str());
 }
 
-#endif
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
-    std::string pluginXML{"mock_engine_valid.xml"};
-    std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(pluginXML, content);
+    const std::string pluginXML = getPluginFile();
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
@@ -200,9 +210,7 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Core created " << testIndex << std::endl;
             OV_ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
-#    if defined __linux__ && !defined(__APPLE__)
             OV_ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
-#    endif
             OV_ASSERT_NO_THROW(ie.get_versions(deviceName));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
@@ -382,6 +390,35 @@ TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, configuration));
     OV_ASSERT_NO_THROW(devicePriority = ie.get_property(deviceName, ov::device::priorities));
     ASSERT_EQ(devicePriority, configuration[ov::device::priorities.name()].as<std::string>());
+}
+
+TEST(OVClassBasicTest, SetCacheDirPropertyCoreNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Cache_dir property test
+    ov::Any value;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::cache_dir("./tmp_cache_dir")));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::cache_dir.name()));
+    EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
+}
+
+TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    bool value = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
+    EXPECT_EQ(value, false);
+    OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
+    EXPECT_EQ(value, true);
+}
+
+TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    // Unsupported property test
+    ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
@@ -639,6 +676,16 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNo
     }
 }
 
+TEST_P(OVClassGetMetricTest_DEVICE_UUID, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::device::UUID t;
+
+    OV_ASSERT_NO_THROW(t = ie.get_property(deviceName, ov::device::uuid));
+    std::cout << "Device uuid: " << std::endl << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::uuid);
+}
+
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::vector<std::string> t;
@@ -697,7 +744,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    unsigned int start, end;
+    unsigned int start = 0, end = 0;
 
     ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(deviceName, ov::range_for_streams));
 
@@ -1002,6 +1049,24 @@ TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectProper
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName, configuration));
 }
 
+TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    ASSERT_EQ(value, ov::hint::PerformanceMode::THROUGHPUT);
+}
+
+TEST_P(OVClassLoadNetworkWithDefaultIncorrectPropertiesTest, LoadNetworkWithDefaultIncorrectPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, deviceName, configuration));
+    ov::hint::PerformanceMode value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::performance_mode));
+    ASSERT_EQ(value, ov::hint::PerformanceMode::UNDEFINED);
+}
+
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     ov::Core ie = createCoreWithTemplate();
 
@@ -1034,6 +1099,31 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       ov::device::priorities(deviceName, CommonTestUtils::DEVICE_CPU),
                                       ov::device::id("110")),
                      ov::Exception);
+    } else {
+        GTEST_SKIP();
+    }
+}
+
+//
+// LoadNetwork with AUTO on MULTI combinations particular device
+//
+TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
+        std::string devices;
+        auto availableDevices = ie.get_property(deviceName, ov::available_devices);
+        for (auto&& device : availableDevices) {
+            devices += deviceName + '.' + device;
+            if (&device != &(availableDevices.back())) {
+                devices += ',';
+            }
+        }
+        OV_ASSERT_NO_THROW(
+            ie.compile_model(actualNetwork,
+                             CommonTestUtils::DEVICE_MULTI,
+                             ov::device::properties(CommonTestUtils::DEVICE_AUTO, ov::device::priorities(devices)),
+                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                                    ov::device::priorities(CommonTestUtils::DEVICE_AUTO, deviceName))));
     } else {
         GTEST_SKIP();
     }

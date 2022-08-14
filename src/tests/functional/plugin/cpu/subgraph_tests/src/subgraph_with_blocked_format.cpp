@@ -40,7 +40,8 @@ protected:
             if (layer_type == "Subgraph") {
                 nodes_found++;
                 auto output_layout = n->get_rt_info().at(ExecGraphInfoSerialization::OUTPUT_LAYOUTS).as<std::string>();
-                ASSERT_TRUE(output_layout == "aBcd8b" || output_layout == "aBcd16b");
+                // convolution maybe chooses 'nhwc' and the subgraph will follow it
+                ASSERT_TRUE(output_layout == "aBcd8b" || output_layout == "aBcd16b" || output_layout == "acdb");
             }
         }
         ASSERT_GT(nodes_found, 0);

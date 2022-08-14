@@ -17,6 +17,10 @@ template <>
 struct typed_program_node<quantize> : public typed_program_node_base<quantize> {
     using parent = typed_program_node_base<quantize>;
 
+    typed_program_node(std::shared_ptr<quantize> prim, program& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
+
 public:
     using parent::parent;
 
@@ -130,7 +134,7 @@ class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize
     using parent = typed_primitive_inst_base<quantize>;
 
 public:
-    static layout calc_output_layout(quantize_node const& node);
+    static layout calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(quantize_node const& node);
 
 public:

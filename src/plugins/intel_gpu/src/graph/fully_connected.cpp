@@ -39,11 +39,11 @@ bool is_batch_after_spatial(const std::string order) {
     return false;
 }
 
-format::type get_preferred_format(const fully_connected_node& node) {
-    auto input_layout = node.input().get_output_layout();
+format::type get_preferred_format(const fully_connected_node& node, const kernel_impl_params& impl_param) {
+    auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
-    if (node.get_primitive()->input_size == 3)
+    if (impl_param.typed_desc<fully_connected>()->input_size == 3)
         return format::bfyx;
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
@@ -64,7 +64,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
     if (input_layout.data_type == data_types::f32 &&
         input_layout.format == format::bfyx &&
         no_spatial_padding &&
-        input_layout.size.batch[0] != 8)
+        input_layout.batch() != 8)
         return format::bfyx;
 
     auto input_pitches = input_layout.get_pitches();
@@ -72,7 +72,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
         input_layout.format == format::bfyx &&
         no_spatial_padding &&
         input_pitches.batch[0] % 2 == 0 &&
-        input_layout.size.batch[0] != 16)
+        input_layout.batch() != 16)
         return format::bfyx;
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
@@ -80,7 +80,7 @@ format::type get_preferred_format(const fully_connected_node& node) {
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.size.batch[0] > 1)
+        input_layout.batch() > 1)
         return format::yxfb;
 
     return format::bfyx;
@@ -88,24 +88,24 @@ format::type get_preferred_format(const fully_connected_node& node) {
 
 }  // namespace
 
-layout fully_connected_inst::calc_output_layout(fully_connected_node const& node) {
-    auto desc = node.get_primitive();
+layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<fully_connected>();
 
-    auto input_layout = node.input().get_output_layout();
-    auto weights_layout = node.weights().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
+    auto weights_layout = *impl_param.weights_layout;
     auto output_type = input_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
         output_type = *desc->output_data_type;
 
-    if (node.has_fused_primitives()) {
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto output_size = tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1);
+    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
     if (desc->input_size == 3) {
-        output_size = tensor(input_layout.size.batch[0], input_layout.size.feature[0], 1, weights_layout.size.batch[0]);
+        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
     }
-    format output_format = get_preferred_format(node);
+    format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
 }
@@ -129,14 +129,5 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
-    : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
-    auto output_layout = node.get_output_layout();
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input size",
-                          input_layout.size.raw.size(),
-                          "output size",
-                          output_layout.size.raw.size(),
-                          "");
-}
+    : parent(network, node) { }
 }  // namespace cldnn

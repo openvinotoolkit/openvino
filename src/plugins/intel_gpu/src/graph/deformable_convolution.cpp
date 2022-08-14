@@ -15,15 +15,15 @@ primitive_type_id deformable_conv::type_id() {
     return &instance;
 }
 
-layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node) {
-    auto desc = node.get_primitive();
+layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<deformable_conv>();
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
 
     auto input_type = input_layout.data_type;
-    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
+    auto output_type = desc->output_data_type ? *desc->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
+    tensor output_size(input_layout.batch(),
                        desc->output_size.feature[0],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
@@ -61,7 +61,7 @@ primitive_type_id deformable_interp::type_id() {
     return &instance;
 }
 
-layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node) {
+layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -70,8 +70,8 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
-    tensor output_size(input_layout.size.batch[0],
-                       input_layout.size.feature[0]*kernel_size.spatial[0]*kernel_size.spatial[1],
+    tensor output_size(input_layout.batch(),
+                       input_layout.feature()*kernel_size.spatial[0]*kernel_size.spatial[1],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
                        desc->output_size.spatial[2]);

@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
+from pathlib import Path
 
 from openvino.runtime import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
@@ -13,8 +15,14 @@ import pytest
 
 mock_available = True
 try:
-    from pybind_mock_frontend import get_fe_stat, clear_fe_stat,\
-        get_mdl_stat, clear_mdl_stat, get_place_stat, clear_place_stat
+    from pybind_mock_frontend import (
+        get_fe_stat,
+        clear_fe_stat,
+        get_mdl_stat,
+        clear_mdl_stat,
+        get_place_stat,
+        clear_place_stat,
+    )
 except Exception:
     print("No mock frontend available")
     mock_available = False
@@ -23,8 +31,7 @@ except Exception:
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-mock_needed = pytest.mark.skipif(not mock_available,
-                                 reason="mock fe is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="mock fe is not available")
 
 
 def clear_all_stat():
@@ -39,8 +46,8 @@ def test_pickle():
 
 
 def test_load_by_unknown_framework():
-    frontEnds = fem.get_available_front_ends()
-    assert not ("UnknownFramework" in frontEnds)
+    frontends = fem.get_available_front_ends()
+    assert not ("UnknownFramework" in frontends)
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
@@ -58,6 +65,38 @@ def test_load():
     assert model is not None
     stat = get_fe_stat()
     assert "abc.bin" in stat.load_paths
+
+
+@mock_needed
+def test_load_str():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
+
+
+@mock_needed
+def test_load_pathlib():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
+
+
+@mock_needed
+def test_load_wrong_path():
+    clear_all_stat()
+
+    class TestClass:
+        def __str__(self):
+            return "test class"
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    with pytest.raises(RuntimeError) as e:
+        fe.load(TestClass())
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
 
 
 @mock_needed
@@ -494,7 +533,7 @@ def test_place_get_consuming_operations():
     assert stat.get_consuming_operations == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_consuming_operations(output_name="3", output_port_index=33) is not None
+    assert (place.get_consuming_operations(output_name="3", output_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_consuming_operations == 4
     assert stat.lastArgInt == 33
@@ -540,7 +579,7 @@ def test_place_get_producing_operation():
     assert stat.get_producing_operation == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_producing_operation(input_name="3", input_port_index=33) is not None
+    assert (place.get_producing_operation(input_name="3", input_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_producing_operation == 4
     assert stat.lastArgInt == 33

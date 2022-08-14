@@ -17,11 +17,11 @@ primitive_type_id broadcast::type_id() {
     return &instance;
 }
 
-layout broadcast_inst::calc_output_layout(broadcast_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for broadcast_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<broadcast>();
 
     return {input_layout.data_type, input_layout.format, desc->broadcast_sizes};
 }
@@ -55,26 +55,13 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
-    const auto& input_sizes = input_layout.size;
     const auto& output_sizes = argument.broadcast_sizes;
     const auto format = input_layout.format;
 
-    std::vector<tensor::value_type> input_dims;
-    size_t max_axes_num;
+    std::vector<tensor::value_type> input_dims = input_layout.get_dims();
+    size_t max_axes_num = input_layout.get_rank();
 
-    if (format == format::bfzyx) {
-        max_axes_num = 5;
-        input_dims = {input_sizes.batch[0],
-                      input_sizes.feature[0],
-                      input_sizes.spatial[2],
-                      input_sizes.spatial[1],
-                      input_sizes.spatial[0]};
-    } else {
-        max_axes_num = 4;
-        input_dims = {input_sizes.batch[0], input_sizes.feature[0], input_sizes.spatial[1], input_sizes.spatial[0]};
-    }
-
-    std::vector<tensor::value_type> reordered_input_dims(5, 0);
+    std::vector<tensor::value_type> reordered_input_dims(max_axes_num, 0);
     std::set<uint16_t> existing;
 
     const auto& broadcast_axes = node.get_primitive()->broadcast_axes;
@@ -122,18 +109,7 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
             ++input_index;
         }
     }
-    tensor input_sizes_to_compare;
-    if (format == format::bfzyx)
-        input_sizes_to_compare = {reordered_input_dims.at(0),
-                                  reordered_input_dims.at(1),
-                                  reordered_input_dims.at(4),
-                                  reordered_input_dims.at(3),
-                                  reordered_input_dims.at(2)};
-    else
-        input_sizes_to_compare = {reordered_input_dims.at(0),
-                                  reordered_input_dims.at(1),
-                                  reordered_input_dims.at(3),
-                                  reordered_input_dims.at(2)};
+    tensor input_sizes_to_compare = tensor(format::get_default_format(reordered_input_dims.size()), reordered_input_dims);
 
     CLDNN_ERROR_TENSOR_SIZES_NOT_DIVIDABLE(node.id(),
                                            "Broadcast sizes",

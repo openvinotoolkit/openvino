@@ -9,6 +9,7 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
+              PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR plugin.cpp
               ADD_CLANG_FORMAT)
@@ -17,7 +18,7 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
