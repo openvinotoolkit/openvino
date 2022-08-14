@@ -6,6 +6,10 @@ cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
+#
+# Packages & settings
+#
+
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
@@ -22,6 +26,57 @@ set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
     set(DISABLE_PYOPENVINO ON)
 endif()
+
+#
+# Options
+#
+
+set(ov_python_req "${CMAKE_SOURCE_DIR}/src/bindings/python/requirements.txt")
+set(ie_python_req "cython>=0.29.22")
+
+# Try to find python3
+find_package(PythonLibs 3 QUIET)
+# pyopenvino requirements
+ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
+                      RESULT_VAR ov_python_reqs_FOUND)
+# Check for Cython to build IE_API
+ov_check_pip_package(REQUIREMENT ${ie_python_req}
+                     RESULT_VAR ie_python_req_FOUND)
+
+ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ie_python_req_FOUND;ov_python_reqs_FOUND" OFF)
+
+if(NOT ENABLE_PYTHON)
+    if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
+        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
+    else()
+        return()
+    endif()
+endif()
+
+# Check for wheel package
+ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/wheel/requirements-dev.txt"
+                      RESULT_VAR wheel_req_FOUND
+                      FAIL_FAST)
+
+set(WHEEL_CONDITION "PYTHONINTERP_FOUND;ENABLE_PYTHON;wheel_req_FOUND;CMAKE_SOURCE_DIR STREQUAL OpenVINO_SOURCE_DIR")
+
+if(LINUX)
+    find_host_program(patchelf_program
+                      NAMES patchelf
+                      DOC "Path to patchelf tool")
+    if(NOT patchelf_program)
+        message(WARNING "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
+        list(APPEND WHEEL_CONDITION patchelf_program)
+    endif()
+endif()
+
+# this option should not be a part of InferenceEngineDeveloperPackage
+# since wheels can be built only together with main OV build
+ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ON "${WHEEL_CONDITION}" OFF)
+
+#
+# Build the code
+#
 
 if(DISABLE_PYOPENVINO)
     add_subdirectory(src/compatibility/openvino)

@@ -3,7 +3,7 @@
 #
 
 if(NOT COMMAND ov_check_pip_packages)
-    message(FATAL_ERROR "ncc_naming_style.cmake must be included after ov_check_pip_packages")
+    message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
@@ -63,7 +63,11 @@ endif()
 
 if(ENABLE_NCC_STYLE)
     ov_check_pip_packages(REQUIREMENTS_FILE "${ncc_style_dir}/requirements_dev.txt"
-                          RESULT_VAR STATUS)
+                          RESULT_VAR python_clang_FOUND)
+    if(NOT python_clang_FOUND)
+        # Note: warnings is already thrown by `ov_check_pip_packages`
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
 endif()
 
 # create high-level target
