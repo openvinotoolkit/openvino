@@ -32,7 +32,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29")
+set(ie_python_req "cython>=0.29.22")
 
 function(ov_check_python_build_conditions)
     # Try to find python3
@@ -44,10 +44,23 @@ function(ov_check_python_build_conditions)
                           MESSAGE_MODE WARNING)
     # Check for Cython to build IE_API
     ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                         RESULT_VAR ie_python_req_FOUND)
+                         RESULT_VAR ie_python_req_FOUND
+                         MESSAGE_MODE TRACE)
 
     # ov_python_req are not mandatory for build
     set(ov_python_reqs_FOUND ON)
+
+    # cython can be installed as a debian package, so pip requirements can be unsatisfied
+    # so, let's check to find cython anyway
+    if(NOT ie_python_req_FOUND)
+        find_package(Cython QUIET
+                     PATHS "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/cmake"
+                     NO_CMAKE_FIND_ROOT_PATH
+                     NO_DEFAULT_PATH)
+        if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
+            set(ie_python_req_FOUND ON)
+        endif()
+    endif()
 
     set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
     set(ov_python_reqs_FOUND ${ov_python_reqs_FOUND} PARENT_SCOPE)

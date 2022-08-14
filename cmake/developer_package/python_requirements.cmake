@@ -5,7 +5,7 @@
 #
 # ov_check_pip_package(REQUIREMENT <single requirement>
 #                      RESULT_VAR <result var name>
-#                      [MESSAGE_MODE <WARNING | FATAL_ERROR>])
+#                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_package)
     find_package(PythonInterp 3 REQUIRED)
@@ -55,7 +55,7 @@ endfunction()
 #
 # ov_check_pip_packages(REQUIREMENTS_FILE <requirements.txt file>
 #                       RESULT_VAR <result var name>
-#                      [MESSAGE_MODE <WARNING | FATAL_ERROR>])
+#                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_packages)
     find_package(PythonInterp 3 REQUIRED)
