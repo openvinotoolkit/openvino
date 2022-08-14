@@ -3,21 +3,9 @@
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_FILENAME clang-format-9 clang-format)
+    set(CLANG_FORMAT_FILENAME clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
-    if(CLANG_FORMAT)
-        execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
-        if(NOT CLANG_VERSION OR CLANG_VERSION STREQUAL "")
-            message(WARNING "Supported clang-format version is 9!")
-            set(ENABLE_CLANG_FORMAT OFF)
-        else()
-            string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
-            if(NOT ${CLANG_FORMAT_MAJOR_VERSION} EQUAL "9")
-                message(WARNING "Supported clang-format version is 9!")
-                set(ENABLE_CLANG_FORMAT OFF)
-            endif()
-        endif()
-    else()
+    if(NOT CLANG_FORMAT)
         message(WARNING "Supported clang-format version is not found!")
         set(ENABLE_CLANG_FORMAT OFF)
     endif()
@@ -88,6 +76,7 @@ function(add_clang_format_target TARGET_NAME)
             "[clang-format] ${source_file}"
             VERBATIM)
 
+        list(APPEND all_input_sources "${source_file}")
         list(APPEND all_output_files "${output_file}")
     endforeach()
 
@@ -108,7 +97,7 @@ function(add_clang_format_target TARGET_NAME)
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
         -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
-        "${CLANG_FORMAT_FOR_SOURCES}"
+        "${all_input_sources}"
         "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"

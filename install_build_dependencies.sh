@@ -40,7 +40,7 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            $x86_64_specific_packages \
+            "$x86_64_specific_packages" \
             libgtk2.0-dev \
             unzip \
             shellcheck \
