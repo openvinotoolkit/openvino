@@ -31,19 +31,20 @@ endif()
 # Options
 #
 
-function(ov_check_python_build_conditions)
-    set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-    set(ie_python_req "cython>=0.29.22")
+set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
+set(ie_python_req "cython>=0.29")
 
+function(ov_check_python_build_conditions)
     # Try to find python3
     find_package(PythonLibs 3 QUIET)
+
     # pyopenvino requirements
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
-                        RESULT_VAR ov_python_reqs_FOUND
-                        MESSAGE_MODE WARNING)
+                          RESULT_VAR ov_python_reqs_FOUND
+                          MESSAGE_MODE WARNING)
     # Check for Cython to build IE_API
     ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                        RESULT_VAR ie_python_req_FOUND)
+                         RESULT_VAR ie_python_req_FOUND)
 
     # ov_python_req are not mandatory for build
     set(ov_python_reqs_FOUND ON)
