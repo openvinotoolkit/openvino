@@ -74,6 +74,7 @@ endif()
 if(ENABLE_NCC_STYLE)
     ov_check_pip_packages(REQUIREMENTS_FILE "${ncc_style_dir}/requirements_dev.txt"
                           RESULT_VAR python_clang_FOUND
+                          WARNING_MESSAGE "NCC style check will be unavailable"
                           MESSAGE_MODE WARNING)
     if(NOT python_clang_FOUND)
         # Note: warnings is already thrown by `ov_check_pip_packages`

@@ -21,6 +21,7 @@ install(TARGETS ${TARGET_NAME}
 # Test model generating
 ov_check_pip_package(REQUIREMENT tensorflow
                      MESSAGE_MODE WARNING
+                     WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
                      RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)

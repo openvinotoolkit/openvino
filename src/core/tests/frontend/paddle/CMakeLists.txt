@@ -21,6 +21,7 @@ install(TARGETS ${TARGET_NAME}
 # Test model generating
 ov_check_pip_package(REQUIREMENT paddlepaddle
                      MESSAGE_MODE WARNING
+                     WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
                      RESULT_VAR paddlepaddle_FOUND)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)

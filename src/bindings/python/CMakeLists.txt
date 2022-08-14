@@ -45,7 +45,7 @@ function(ov_check_python_build_conditions)
     # pyopenvino requirements
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_reqs_FOUND
-                          MESSAGE_MODE WARNING)
+                          MESSAGE_MODE TRACE)
     # Check for Cython to build IE_API
     ov_check_pip_package(REQUIREMENT ${ie_python_req}
                          RESULT_VAR ie_python_req_FOUND
@@ -63,6 +63,8 @@ function(ov_check_python_build_conditions)
                      NO_DEFAULT_PATH)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
             set(ie_python_req_FOUND ON)
+        else()
+            message(WARNING "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built")
         endif()
     endif()
 

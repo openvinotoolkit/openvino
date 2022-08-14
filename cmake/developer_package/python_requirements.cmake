@@ -5,17 +5,19 @@
 #
 # ov_check_pip_package(REQUIREMENT <single requirement>
 #                      RESULT_VAR <result var name>
+#                      [WARNING_MESSAGE <message>]
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_package)
     find_package(PythonInterp 3 REQUIRED)
 
+    set(oneValueOptionalArgs
+        MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
+        WARNING_MESSAGE         # callback message
+        )
     set(oneValueRequiredArgs
         REQUIREMENT             # Requirement-specifier to check
         RESULT_VAR              # Result varibale to set return code {ON | OFF}
-        )
-    set(oneValueOptionalArgs
-        MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
         )
     set(multiValueArgs)
 
@@ -46,7 +48,7 @@ function(ov_check_pip_package)
 
     if(NOT EXIT_CODE EQUAL 0)
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
-        message(${ARG_MESSAGE_MODE} "Python requirement ${REQ} is missed, some functionality is disabled")
+        message(${ARG_MESSAGE_MODE} "Python module '${REQ}' is missed, ${ARG_WARNING_MESSAGE}")
     else()
         set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
@@ -55,6 +57,7 @@ endfunction()
 #
 # ov_check_pip_packages(REQUIREMENTS_FILE <requirements.txt file>
 #                       RESULT_VAR <result var name>
+#                      [WARNING_MESSAGE <message>]
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_packages)
@@ -62,10 +65,11 @@ function(ov_check_pip_packages)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
+        WARNING_MESSAGE         # callback message
         )
     set(oneValueRequiredArgs
         REQUIREMENTS_FILE       # File with requirement-specifiers to check
-        RESULT_VAR              # Result varibale to set return code {TRUE | FALSE}
+        RESULT_VAR              # Result varibale to set return code {ON | OFF}
         )
     set(multiValueArgs)
 
@@ -93,7 +97,7 @@ function(ov_check_pip_packages)
 
     if(NOT EXIT_CODE EQUAL 0)
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
-        message(${ARG_MESSAGE_MODE} "Python requirement file ${ARG_REQUIREMENTS_FILE} is not installed, some functionality is disabled")
+        message(${ARG_MESSAGE_MODE} "Python requirement file ${ARG_REQUIREMENTS_FILE} is not installed, ${ARG_WARNING_MESSAGE}")
     else()
         set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
