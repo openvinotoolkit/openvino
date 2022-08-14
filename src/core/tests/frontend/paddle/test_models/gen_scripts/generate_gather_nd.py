@@ -47,6 +47,30 @@ def main():
         y = np.array([[0, 1], [1, 1]]).astype("int32")
         gather_nd("gather_nd_" + test, x, y)
 
+    x = np.random.rand(*x_shape).astype("float32")
+    y = np.array([[], []]).astype("int32")
+    gather_nd("gather_nd_empty", x, y)
+
+    y = np.array([[1], [2]]).astype("int32")
+    gather_nd("gather_nd_low_index", x, y)
+
+    x_shape = (5, 2, 3, 1, 10)
+    x = np.random.rand(*x_shape).astype("float32")
+    y = np.array(
+        [
+            [0, 0, 1, 0, 4],
+            [4, 0, 0, 0, 1],
+            [0, 1, 2, 0, 2],
+            [0, 1, 2, 0, 6],
+            [1, 1, 2, 0, 3],
+        ]
+    ).astype("int32")
+    gather_nd("gather_nd_high_rank1", x, y)
+
+    index = np.vstack([np.random.randint(0, s, size=100) for s in x_shape]).T
+    y = index.reshape([10, 5, 2, 5])
+    gather_nd("gather_nd_high_rank2", x, y)
+
 
 if __name__ == "__main__":
     main()
