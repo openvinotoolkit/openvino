@@ -36,7 +36,11 @@ set(ie_python_req "cython>=0.29.22")
 
 function(ov_check_python_build_conditions)
     # Try to find python3
-    find_package(PythonLibs 3 QUIET)
+    find_package(PythonInterp 3 QUIET)
+    if(PythonInterp_FOUND)
+        # use libraries with the same version as python itself
+        find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT QUIET)
+    endif()
 
     # pyopenvino requirements
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
