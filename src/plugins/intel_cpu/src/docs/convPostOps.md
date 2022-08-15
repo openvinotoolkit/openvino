@@ -36,8 +36,8 @@ The stock onednn supports the per-tensor zero points. **Only on AMX platform, pe
 
 |post-ops                            |without zero point          |with per-channel zero point                     |with per-tensor zero point|
 --- | --- | ---| ---|
-|**without binary**   |attr[0] for all kernels      |attr[0] for legacy zp kernel   |attr[0] for legacy zp,   attr[1] for per-tensor zp                                                                                
-|**with binary post ops**       |attr[0] for legacy post-ops, attr[1] for brgconv-amx binary post-ops  |attr[0] for legacy zp and legacy post ops  |attr[0] for legacy post-ops + legacy per-channel zp, attr[1] for legacy post ops + per-tensor zp
+|**without binary**   |attr[0] for all kernels      |attr[0] for legacy zp kernel   |attr[0] for legacy zp,   attr[1] for per-tensor zp|
+|**with binary post ops**       |attr[0] for legacy post-ops, attr[1] for brgconv-amx binary post-ops  |attr[0] for legacy zp and legacy post ops  |attr[0] for legacy post-ops + legacy per-channel zp, attr[1] for legacy post ops + per-tensor zp|
 
 **WR attr[1] to use legacy post ops when having per-tensor zero point. Brgconv amx doens't support zero point by now.Switch back to binary postops+per tensor zp when binary perf issue fix in onednn.**
 
@@ -45,18 +45,18 @@ The stock onednn supports the per-tensor zero points. **Only on AMX platform, pe
 
 **non-AMX kernel will not support per-tensor zero point because of potential conflicts with per-channel zero-point in forked onednn kernel. Only per-channel zero point would be supported.**
 
-|post-ops |without zero point                       |with per-channel/per-tensor zero point|                     
+|post-ops |without zero point                       |with per-channel/per-tensor zero point|
 --- | --- | ---|
-|**without binary**     |attr[0] legacy                 |attr[0] for legacy zp kernel +legacy post ops
-|**with binary**        |attr[0] for legacy post-ops    |attr[0] for legacy zp + legacy post ops       
+|**without binary**     |attr[0] legacy                 |attr[0] for legacy zp kernel +legacy post ops|
+|**with binary**        |attr[0] for legacy post-ops    |attr[0] for legacy zp + legacy post ops|
 
 
 ## on AVX512 wth U8 precision:
 
 **non-AMX kernel can't support per-tensor zero point. Only per-channel zero point would be supported.**
 
-|post-ops |without zero point                  |with per-channel zero point                     
---- | --- | ---| 
+|post-ops |without zero point                  |with per-channel zero point
+--- | --- | ---|
 |**without binary post-ops**     |attr[0] for legacy post-ops       |attr[0] for legacy zp kernel+legacy post ops|
 |**with binary post-ops**        |attr[0] for legacy post-ops       |attr[0] for legacy zp + legacy post ops|
 
