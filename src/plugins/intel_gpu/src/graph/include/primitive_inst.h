@@ -14,6 +14,7 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "runtime/kernels_cache.hpp"
 
 #include <memory>
 #include <vector>
@@ -39,6 +40,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual void set_node_params(const program_node&) {}
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -47,8 +49,11 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels() = 0;
+    virtual void init_kernels(const kernels_cache&) = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
+    virtual std::vector<std::string> get_kernel_ids() {
+        return {};
+    }
 
 protected:
     std::string _kernel_name;
@@ -140,6 +145,10 @@ public:
 
     bool mem_allocated() const {
         return _mem_allocated;
+    }
+
+    bool is_dynamic() const {
+        return _node.is_dynamic();
     }
 
     void allocate_internal_buffers();
@@ -274,6 +283,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
+        if (typ_node.is_dynamic())
+            return false;
+
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;

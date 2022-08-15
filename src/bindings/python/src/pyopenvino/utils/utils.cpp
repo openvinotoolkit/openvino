@@ -130,9 +130,11 @@ std::string convert_path_to_string(const py::object& path) {
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
         return path.str();
     }
-    IE_THROW() << "Path: '" << path << "'"
-               << " does not exist. Please provide valid model's path either as a string or pathlib.Path. "
-                  "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    std::stringstream str;
+    str << "Path: '" << path << "'"
+        << " does not exist. Please provide valid model's path either as a string or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    throw ov::Exception(str.str());
 }
 };  // namespace utils
 };  // namespace Common

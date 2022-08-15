@@ -158,7 +158,7 @@ void program::compile() {
 void program::init_kernels() {
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels();
+            n->get_selected_impl()->init_kernels(*_kernels_cache);
     }
 }
 
@@ -631,7 +631,7 @@ void program::transfer_memory_to_device() {
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
 
-            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+            if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
@@ -1555,4 +1555,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
+}
+
+void program::remove_kernel(kernel_id id) {
+    _kernels_cache->remove_kernel(id);
 }
