@@ -18,158 +18,158 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
-    template<typename T>
-    struct Params {
-        tensor step_id_tensor;
-        std::vector<T> step_id;
-        tensor parent_id_tensor;
-        std::vector<T> parent_id;
-        tensor max_seq_len_tensor;
-        std::vector<T> max_seq_len;
-        tensor end_token_tensor;
-        std::vector<T> end_token;
-        tensor final_id_tensor;
-        std::vector<T> final_id;
-        std::string testcase_name;
+template<typename T>
+struct Params {
+    tensor step_id_tensor;
+    std::vector<T> step_id;
+    tensor parent_id_tensor;
+    std::vector<T> parent_id;
+    tensor max_seq_len_tensor;
+    std::vector<T> max_seq_len;
+    tensor end_token_tensor;
+    std::vector<T> end_token;
+    tensor final_id_tensor;
+    std::vector<T> final_id;
+    std::string testcase_name;
+};
+
+template<typename T>
+using ParamsWithLayout = std::tuple<
+    Params<T>,
+    format::type,   // source (plain) layout - bfyx
+    format::type    // target (blocked) layout
+>;
+
+const std::vector<format::type> layouts = {
+    format::yxfb,
+    format::bfyx,
+    format::byxf,
+
+    format::b_fs_yx_fsv16,
+
+    format::b_fs_yx_fsv32,
+
+    format::bs_fs_yx_bsv4_fsv4,
+    format::bs_fs_yx_bsv8_fsv4,
+    format::bs_fs_yx_bsv8_fsv2,
+    format::bs_fs_yx_bsv4_fsv2,
+
+    format::bs_fs_yx_bsv16_fsv16,
+    format::bs_fs_yx_bsv32_fsv16,
+    format::bs_fs_yx_bsv32_fsv32,
+};
+
+template<typename T>
+std::vector<T> getValues(const std::vector<float> &values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template<typename T>
+std::vector<Params<T>> generateParams() {
+    static const std::vector<Params<T>> result = {
+        {
+            tensor(1, 1, 1, 10),
+            std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
+            tensor(1, 1, 1, 10),
+            std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(1, 1, 1, 10),
+            std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
+            "gather_tree_1",
+        },
+        {
+            tensor(5, 1, 1, 10),
+            std::vector<T>{
+                1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
+                3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
+                8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
+                5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
+                8, 8, 7, 9, 8, 3, 1, 7, 5, 9},
+            tensor(5, 1, 1, 10),
+            std::vector<T>{
+                1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
+                3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
+                8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
+                5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
+                8, 8, 7, 9, 8, 3, 1, 7, 5, 9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(5, 1, 1, 10),
+            std::vector<T>{
+                4, 4, 9, 9, 4, 9, 2, 9, 9, 9,
+                1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
+                1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
+            "gather_tree_5",
+        },
+        {
+            tensor(20, 1, 1, 10),
+            std::vector<T>{
+                1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
+                8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
+                8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
+                7, 1, 6, 4, 7, 9, 4, 5, 2, 7, 3, 3, 2, 7, 8, 8, 4, 1, 1, 7,
+                6, 9, 6, 7, 3, 3, 5, 8, 2, 1, 1, 5, 5, 9, 1, 3, 9, 3, 2, 2,
+                5, 1, 1, 7, 9, 2, 9, 3, 3, 5, 6, 1, 6, 6, 6, 2, 9, 6, 3, 7,
+                3, 1, 5, 4, 9, 7, 5, 4, 5, 1, 7, 5, 1, 6, 2, 5, 8, 9, 1, 6,
+                8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
+                2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
+                1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9},
+            tensor(20, 1, 1, 10),
+            std::vector<T>{
+                1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
+                8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
+                8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
+                7, 1, 6, 4, 7, 9, 4, 5, 2, 7, 3, 3, 2, 7, 8, 8, 4, 1, 1, 7,
+                6, 9, 6, 7, 3, 3, 5, 8, 2, 1, 1, 5, 5, 9, 1, 3, 9, 3, 2, 2,
+                5, 1, 1, 7, 9, 2, 9, 3, 3, 5, 6, 1, 6, 6, 6, 2, 9, 6, 3, 7,
+                3, 1, 5, 4, 9, 7, 5, 4, 5, 1, 7, 5, 1, 6, 2, 5, 8, 9, 1, 6,
+                8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
+                2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
+                1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(1, 1, 1, 1),
+            std::vector<T>{9},
+            tensor(20, 1, 1, 10),
+            std::vector<T>{
+                9, 4, 9, 4, 4, 4, 9, 4, 9, 9, 9, 1, 9, 1, 1, 1, 9, 1, 9, 9,
+                9, 1, 9, 1, 1, 1, 9, 1, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
+            "gather_tree_10",
+        },
     };
+    return result;
+}
 
-    template<typename T>
-    using ParamsWithLayout = std::tuple<
-        Params<T>,
-        format::type,   // source (plain) layout - bfyx
-        format::type    // target (blocked) layout
-    >;
-
-    const std::vector<format::type> layouts = {
-        format::yxfb,
-        format::bfyx,
-        format::byxf,
-
-        format::b_fs_yx_fsv16,
-
-        format::b_fs_yx_fsv32,
-
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_yx_bsv4_fsv2,
-
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-    };
-
-    template<typename T>
-    std::vector<T> getValues(const std::vector<float> &values) {
-        std::vector<T> result(values.begin(), values.end());
-        return result;
+struct PrintToStringParamName {
+    template<class T>
+    std::string operator()(const testing::TestParamInfo<ParamsWithLayout<T> > &param) {
+        std::stringstream buf;
+        Params<T> p;
+        format::type plain_layout;
+        format::type target_layout;
+        std::tie(p, plain_layout, target_layout) = param.param;
+        buf << " test case " << p.testcase_name
+            << " plain layout " << plain_layout
+            << " target layout " << target_layout;
+        return buf.str();
     }
-
-    template<typename T>
-    std::vector<Params<T>> generateParams() {
-        static const std::vector<Params<T>> result = {
-            {
-                tensor(1, 1, 1, 10),
-                std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
-                tensor(1, 1, 1, 10),
-                std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(1, 1, 1, 10),
-                std::vector<T>{1, 4, 9, 7, 9, 1, 2, 3, 9, 9},
-                "gather_tree_1",
-            },
-            {
-                tensor(5, 1, 1, 10),
-                std::vector<T>{
-                    1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
-                    3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
-                    8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
-                    5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
-                    8, 8, 7, 9, 8, 3, 1, 7, 5, 9},
-                tensor(5, 1, 1, 10),
-                std::vector<T>{
-                    1, 4, 9, 7, 9, 1, 2, 3, 9, 2,
-                    3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
-                    8, 4, 3, 7, 5, 2, 4, 8, 3, 1,
-                    5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
-                    8, 8, 7, 9, 8, 3, 1, 7, 5, 9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(5, 1, 1, 10),
-                std::vector<T>{
-                    4, 4, 9, 9, 4, 9, 2, 9, 9, 9,
-                    1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
-                    1, 1, 9, 9, 1, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
-                "gather_tree_5",
-            },
-            {
-                tensor(20, 1, 1, 10),
-                std::vector<T>{
-                    1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
-                    8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
-                    8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
-                    7, 1, 6, 4, 7, 9, 4, 5, 2, 7, 3, 3, 2, 7, 8, 8, 4, 1, 1, 7,
-                    6, 9, 6, 7, 3, 3, 5, 8, 2, 1, 1, 5, 5, 9, 1, 3, 9, 3, 2, 2,
-                    5, 1, 1, 7, 9, 2, 9, 3, 3, 5, 6, 1, 6, 6, 6, 2, 9, 6, 3, 7,
-                    3, 1, 5, 4, 9, 7, 5, 4, 5, 1, 7, 5, 1, 6, 2, 5, 8, 9, 1, 6,
-                    8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
-                    2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
-                    1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9},
-                tensor(20, 1, 1, 10),
-                std::vector<T>{
-                    1, 4, 9, 7, 9, 1, 2, 3, 9, 2, 3, 1, 4, 2, 4, 4, 7, 4, 9, 5,
-                    8, 4, 3, 7, 5, 2, 4, 8, 3, 1, 5, 7, 9, 4, 5, 6, 4, 2, 9, 2,
-                    8, 8, 7, 9, 8, 3, 1, 7, 5, 8, 8, 9, 8, 1, 8, 1, 3, 2, 1, 8,
-                    7, 1, 6, 4, 7, 9, 4, 5, 2, 7, 3, 3, 2, 7, 8, 8, 4, 1, 1, 7,
-                    6, 9, 6, 7, 3, 3, 5, 8, 2, 1, 1, 5, 5, 9, 1, 3, 9, 3, 2, 2,
-                    5, 1, 1, 7, 9, 2, 9, 3, 3, 5, 6, 1, 6, 6, 6, 2, 9, 6, 3, 7,
-                    3, 1, 5, 4, 9, 7, 5, 4, 5, 1, 7, 5, 1, 6, 2, 5, 8, 9, 1, 6,
-                    8, 9, 5, 2, 5, 2, 9, 8, 4, 4, 5, 2, 6, 9, 4, 4, 6, 7, 6, 7,
-                    2, 8, 7, 6, 6, 7, 4, 4, 7, 3, 4, 9, 7, 4, 8, 9, 1, 6, 5, 6,
-                    1, 2, 8, 9, 1, 5, 4, 6, 9, 4, 4, 3, 7, 9, 7, 6, 3, 1, 7, 9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(1, 1, 1, 1),
-                std::vector<T>{9},
-                tensor(20, 1, 1, 10),
-                std::vector<T>{
-                    9, 4, 9, 4, 4, 4, 9, 4, 9, 9, 9, 1, 9, 1, 1, 1, 9, 1, 9, 9,
-                    9, 1, 9, 1, 1, 1, 9, 1, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                    9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
-                "gather_tree_10",
-            },
-        };
-        return result;
-    }
-
-    struct PrintToStringParamName {
-        template<class T>
-        std::string operator()(const testing::TestParamInfo<ParamsWithLayout<T> > &param) {
-            std::stringstream buf;
-            Params<T> p;
-            format::type plain_layout;
-            format::type target_layout;
-            std::tie(p, plain_layout, target_layout) = param.param;
-            buf << " test case " << p.testcase_name
-                << " plain layout " << plain_layout
-                << " target layout " << target_layout;
-            return buf.str();
-        }
-    };
+};
 };
 
 template<typename T>
