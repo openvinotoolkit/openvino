@@ -67,7 +67,7 @@ public:
     //
     // D = < 1, 3, 17, 15, 32> < 0, 1, 2, 3, 4>
     // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
-    using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
+    using BlockedShape = std::tuple<ngraph::PartialShape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
     Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);

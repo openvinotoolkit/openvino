@@ -186,31 +186,30 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                             return std::get<0>(lhs).size() < std::get<0>(rhs).size();
                          });
     };
-    Shape baseShape;
+    PartialShape baseShape;
     AxisVector baseOrder;
     std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
     const auto baseRank = baseShape.size();
     const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
     for (size_t i = 0; i < inputShapes.size(); i++) {
         const auto &blockedShape = inputShapes[i];
-        Shape inShape;
+        PartialShape inShape;
         AxisVector inOrder;
         element::Type inType;
         std::tie(inShape, inOrder, inType) = blockedShape;
         const auto inRank = inShape.size();
         NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
         if (inRank < baseRank) {
-            Shape newShape(baseRank, 1);
+            PartialShape newShape =  PartialShape::dynamic(baseRank);
             // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
-            // could be done by PartialShape::broadcast_merge_into, but this way is faster
-            size_t startOffset = baseRank - inRank;
             if (baseIsBlocked) {
                 const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
                 NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
-                startOffset--;
+                inShape.insert(inShape.end(), ov::Dimension(1));
             }
-            std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
-            inShape = move(newShape);
+            NODE_VALIDATION_CHECK(this, PartialShape::broadcast_merge_into(newShape, inShape, ov::op::AutoBroadcastType::NUMPY),
+                                  "Failed to broadcast_merge inputs in snippets canonicalization");
+            inShape = std::move(newShape);
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
             NODE_VALIDATION_CHECK(this,
@@ -226,9 +225,8 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin())  || paramType != inType)
                 m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
     }
-
     m_body->validate_nodes_and_infer_types();
-        auto skipStartEndOnes = [](const PartialShape& shape) {
+    auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
         while (begin != end && *begin == 1)
@@ -268,7 +266,6 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
-//    master_shape = outPShape.get_shape();
     master_shape = outPShape;
     return master_shape;
 }
@@ -409,7 +406,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
-    ov::pass::Serialize("body.xml", "body.bin").run_on_model(m_body);
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 

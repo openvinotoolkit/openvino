@@ -371,7 +371,11 @@ void Snippet::optimizeExecDomain(std::vector<PartialShape>& inputShapes, std::ve
 void Snippet::normalizeShapes() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        ngraph::Shape shape(blockedDesc->getBlockDims());
+        std::vector<Dimension> dims;
+        // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
+        for (const auto& d : blockedDesc->getBlockDims())
+            dims.emplace_back(d == Shape::UNDEFINED_DIM ? 0 : d, d);
+        ngraph::PartialShape shape(dims);
         ngraph::AxisVector blocking(blockedDesc->getOrder());
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
         return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
