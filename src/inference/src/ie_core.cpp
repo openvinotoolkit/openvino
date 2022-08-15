@@ -243,7 +243,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        static bool flag_allow_auto_batching;
+        bool flag_allow_auto_batching = true;
 
         void setAndUpdate(std::map<std::string, std::string>& config) {
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
@@ -1527,7 +1527,6 @@ private:
         }
     }
 };
-bool CoreImpl::CoreConfig::flag_allow_auto_batching = true;
 
 }  // namespace ov
 
