@@ -15,10 +15,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<int64_t>> repeats = {
+        {2, 3},
         {1, 2, 3},
         {2, 1, 1},
         {2, 3, 1},
         {2, 2, 2},
+        {2, 3, 4, 5},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Tile, TileLayerTest,

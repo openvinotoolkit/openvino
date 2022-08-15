@@ -11,6 +11,8 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -87,7 +89,8 @@ inline ov::Core createCoreWithTemplate() {
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
     pluginName += IE_BUILD_POSTFIX;
-    core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
+        CommonTestUtils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return core;
 }

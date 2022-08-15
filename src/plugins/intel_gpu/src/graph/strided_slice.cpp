@@ -16,9 +16,9 @@ primitive_type_id strided_slice::type_id() {
     return &instance;
 }
 
-layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
-    auto desc = node.get_primitive();
-    auto input_layout = node.input(0).get_output_layout();
+layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<strided_slice>();
+    auto input_layout = impl_param.get_input_layout();
     auto output_format = format::get_default_format(desc->out_size.size());
     auto out_shape = desc->out_size;
     std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());
@@ -46,9 +46,7 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     strided_slice_info.add("end mask", node.get_primitive()->end_mask);
     strided_slice_info.add("new axis mask", node.get_primitive()->new_axis_mask);
     strided_slice_info.add("shrink axis mask", node.get_primitive()->shrink_axis_mask);
-    strided_slice_info.add("begin_param shape", node.get_dependency(1).get_output_layout().size.to_string());
-    strided_slice_info.add("end_param shape", node.get_dependency(2).get_output_layout().size.to_string());
-    strided_slice_info.add("stride_param shape", node.get_dependency(3).get_output_layout().size.to_string());
+    strided_slice_info.add("ellipsis mask", node.get_primitive()->ellipsis_mask);
 
     node_info->add("strided_slice info", strided_slice_info);
     node_info->dump(primitive_description);

@@ -109,6 +109,7 @@ private:
 
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
+    void initTryBrgconvFlag();
 
     bool withBiases;
     bool withSum;
@@ -118,6 +119,7 @@ private:
     bool withSumBroadcast = false;
     bool preferLegacyPostOps = false;
     bool preferLegacyZeroPoint = false;
+    bool havingZeroPoint = false;
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -144,8 +146,8 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
-    // if we have amx support and shape is static or user specified we will try brgconv
     bool shouldTryBrgconv = false;
+    std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;
