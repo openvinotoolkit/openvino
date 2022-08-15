@@ -16,10 +16,6 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-std::string OVInferRequestIOTensorTest::getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
-    return OVInferRequestTests::getTestCaseName(obj);
-}
-
 void OVInferRequestIOTensorTest::SetUp() {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -187,7 +183,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    auto execNet = ie->compile_model(function, target_device, configuration);
     // Create InferRequest
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -208,7 +204,7 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    auto execNet = ie->compile_model(function, target_device, configuration);
     // Create InferRequest
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -223,12 +219,13 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
 
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     ov::AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
@@ -241,8 +238,9 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
 }
 
 void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     function = ngraph::builder::subgraph::makeConvPoolRelu();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
@@ -251,6 +249,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
 void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     execNet = {};
     req = {};
+    APIBaseTest::TearDown();
 }
 
 TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
@@ -277,12 +276,12 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
 
 std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
@@ -295,8 +294,9 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
 }
 
 void OVInferRequestCheckTensorPrecision::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     {
         auto parameter1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
         auto parameter2 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
@@ -311,6 +311,7 @@ void OVInferRequestCheckTensorPrecision::SetUp() {
 void OVInferRequestCheckTensorPrecision::TearDown() {
     compModel = {};
     req = {};
+    APIBaseTest::TearDown();
 }
 
 void OVInferRequestCheckTensorPrecision::Run() {

@@ -17,7 +17,7 @@ namespace {
 
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
+        smoke_OVClassImportExportTestP, OVClassExecutableNetworkImportExportTestP,
         ::testing::Values("HETERO:CPU"));
 
 //

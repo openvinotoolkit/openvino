@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_executable_network, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,

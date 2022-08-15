@@ -16,11 +16,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVPropertiesBase : public CommonTestUtils::TestsCommon {
+class OVPropertiesBase : public OVPluginTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
-    std::string device_name;
     AnyMap properties;
 };
 

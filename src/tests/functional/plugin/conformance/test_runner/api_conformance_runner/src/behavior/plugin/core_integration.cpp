@@ -16,7 +16,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassBasicTestP,
-        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassNetworkTestP,

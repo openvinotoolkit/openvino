@@ -17,14 +17,14 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassBasicTestP,
-        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVClassNetworkTestP,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 INSTANTIATE_TEST_SUITE_P(
-        ov_plugin, OVClassImportExportTestP,
+        smoke_OVClassImportExportTestP, OVClassImportExportTestP,
         ::testing::ValuesIn(return_all_possible_device_combination()));
 
 //

@@ -13,6 +13,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
+#include "base/behavior_test_utils.hpp"
 
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -30,6 +31,7 @@ using loadNetworkCacheParams = std::tuple<
 namespace LayerTestsDefinitions {
 
 class LoadNetworkCacheTestBase : public testing::WithParamInterface<loadNetworkCacheParams>,
+                                 virtual public BehaviorTestsUtils::IEPluginTestBase,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
     std::string           m_cacheFolderName;
     std::string           m_functionName;
@@ -52,18 +54,21 @@ using compileKernelsCacheParams = std::tuple<
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
 >;
 class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
-                                 public testing::WithParamInterface<compileKernelsCacheParams> {
+                                            virtual public BehaviorTestsUtils::IEPluginTestBase,
+                                            public testing::WithParamInterface<compileKernelsCacheParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
 protected:
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::shared_ptr<ngraph::Function> function;
     std::string cache_path;
     std::vector<std::string> m_extList;
+
     void SetUp() override {
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
         std::pair<std::map<std::string, std::string>, std::string> userConfig;
         std::tie(targetDevice, userConfig) = GetParam();
+        target_device  = targetDevice;
+        APIBaseTest::SetUp();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
         configuration = userConfig.first;
         std::string ext = userConfig.second;
         std::string::size_type pos = 0;

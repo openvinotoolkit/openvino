@@ -3,6 +3,7 @@
 //
 
 #include "behavior/executable_network/locale.hpp"
+#include "functional_test_utils/summary/api_summary.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -24,15 +25,19 @@ inline std::shared_ptr<ngraph::Function> makeTestModel(std::vector<size_t> input
 
 std::string CustomLocaleTest::getTestCaseName(const testing::TestParamInfo<LocaleParams> &obj) {
     std::ostringstream results;
-    std::string deviceName, localeName;
-    std::tie(localeName, deviceName) = obj.param;
+    std::string targetDevice, localeName;
+    std::tie(localeName, targetDevice) = obj.param;
+    std::replace(localeName.begin(), localeName.end(), '-', '.');
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     results << "locale=" << localeName << "_"
-            << "targetDevice=" << deviceName;
+            << "targetDevice=" << targetDevice;
     return results.str();
 }
 
 void CustomLocaleTest::SetUp() {
-    std::tie(localeName, deviceName) = GetParam();
+    std::tie(localeName, target_device) = GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     function = makeTestModel();
 }
@@ -45,9 +50,9 @@ TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
         GTEST_SKIP();
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(deviceName);
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(target_device);
     InferenceEngine::CNNNetwork cnnNet(function);
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, deviceName));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device));
 
     std::locale::global(prev);
 }

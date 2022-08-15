@@ -18,7 +18,7 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
 InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
 auto ie = PluginCache::get().ie();
-auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+auto execNet = ie->LoadNetwork(cnnNet, target_device);
 
 InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 

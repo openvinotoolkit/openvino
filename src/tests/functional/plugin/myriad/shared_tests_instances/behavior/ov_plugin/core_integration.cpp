@@ -22,7 +22,7 @@ std::pair<std::string, std::string> plugins[] = {
 };
 
 //
-// IE Class Common tests with <pluginName, deviceName params>
+// IE Class Common tests with <pluginName, target_device params>
 //
 
 INSTANTIATE_TEST_SUITE_P(OVClassBasicTestP_smoke, OVClassBasicTestP, ::testing::ValuesIn(plugins));
@@ -39,7 +39,7 @@ TEST_P(OVClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ov::Core ie;
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities)
     std::vector<std::string> device_capabilities;
-    ASSERT_NO_THROW(device_capabilities = ie.get_property(deviceName, ov::device::capabilities));
+    ASSERT_NO_THROW(device_capabilities = ie.get_property(target_device, ov::device::capabilities));
     ASSERT_EQ(device_capabilities.size(), 2);
     ASSERT_NE(std::find(device_capabilities.begin(), device_capabilities.end(), ov::device::capability::EXPORT_IMPORT),
               device_capabilities.end());

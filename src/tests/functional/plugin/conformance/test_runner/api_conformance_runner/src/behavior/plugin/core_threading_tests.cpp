@@ -16,7 +16,10 @@ const Params coreThreadingParams[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_BATCH, generate_configs(CommonTestUtils::DEVICE_BATCH).front() },
 };
 
-INSTANTIATE_TEST_SUITE_P(ie_plugin_, CoreThreadingTests, testing::ValuesIn(coreThreadingParams), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(ie_plugin_, CoreThreadingTests,
+                         testing::ValuesIn(coreThreadingParams),
+                         CoreThreadingTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(ie_plugin, CoreThreadingTests,
         ::testing::Combine(
                 ::testing::ValuesIn(return_all_possible_device_combination()),

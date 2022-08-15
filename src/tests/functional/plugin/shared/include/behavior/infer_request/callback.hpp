@@ -118,7 +118,7 @@ TEST_P(InferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTooS
     function = SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
     cnnNet = InferenceEngine::CNNNetwork(function);
     // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -145,7 +145,7 @@ TEST_P(InferRequestCallbackTests, ImplDoseNotCopyCallback) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork cnnNet(function);
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     auto req = execNet.CreateInferRequest();
     {
         auto somePtr = std::make_shared<int>(42);

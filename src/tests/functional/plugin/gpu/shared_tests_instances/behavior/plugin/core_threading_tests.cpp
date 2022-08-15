@@ -31,7 +31,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
 
     auto ocl_instance = std::make_shared<OpenCL>();
-    ie.SetConfig(config, deviceName);
+    ie.SetConfig(config, target_device);
     runParallel([&] () {
         auto value = counter++;
         auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());

@@ -15,34 +15,35 @@
 
 namespace BehaviorTestsDefinitions {
 class VersionTest : public testing::WithParamInterface<std::string>,
-                    public CommonTestUtils::TestsCommon {
+                    public BehaviorTestsUtils::IEPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string targetDevice;
         std::map<std::string, std::string> config;
         targetDevice = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice;
         return result.str();
     }
 
     void SetUp()  override {
+        target_device = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        targetDevice = this->GetParam();
+        APIBaseTest::SetUp();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::string targetDevice;
 };
 
 // Load unsupported network type to the Plugin
 TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
-    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(targetDevice);
+    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+        std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(target_device);
         ASSERT_EQ(versions.size(), 1);
-        ASSERT_EQ(versions.begin()->first, targetDevice);
+        ASSERT_EQ(versions.begin()->first, target_device);
         auto version = versions.begin()->second;
         IE_SUPPRESS_DEPRECATED_START
         ASSERT_EQ(version.apiVersion.major, 2);
