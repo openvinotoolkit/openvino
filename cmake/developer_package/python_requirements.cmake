@@ -9,7 +9,7 @@
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_package)
-    find_package(PythonInterp 3 REQUIRED)
+    find_package(PythonInterp 3 QUIET)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
@@ -42,11 +42,13 @@ function(ov_check_pip_package)
     # quote '3.x' with \'3.x\'
     string(REPLACE "'" "\\'" REQ "${ARG_REQUIREMENT}")
 
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
-        RESULT_VARIABLE EXIT_CODE
-        OUTPUT_VARIABLE OUTPUT_TEXT
-        ERROR_VARIABLE ERROR_TEXT)
+    if(PYTHONINTERP_FOUND)
+        execute_process(
+            COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
+            RESULT_VARIABLE EXIT_CODE
+            OUTPUT_VARIABLE OUTPUT_TEXT
+            ERROR_VARIABLE ERROR_TEXT)
+    endif()
 
     if(NOT EXIT_CODE EQUAL 0)
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
@@ -63,7 +65,7 @@ endfunction()
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_packages)
-    find_package(PythonInterp 3 REQUIRED)
+    find_package(PythonInterp 3 QUIET)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
@@ -93,11 +95,13 @@ function(ov_check_pip_packages)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require(open('${ARG_REQUIREMENTS_FILE}', mode='r'))"
-        RESULT_VARIABLE EXIT_CODE
-        OUTPUT_VARIABLE OUTPUT_TEXT
-        ERROR_VARIABLE ERROR_TEXT)
+    if(PYTHONINTERP_FOUND)
+        execute_process(
+            COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require(open('${ARG_REQUIREMENTS_FILE}', mode='r'))"
+            RESULT_VARIABLE EXIT_CODE
+            OUTPUT_VARIABLE OUTPUT_TEXT
+            ERROR_VARIABLE ERROR_TEXT)
+    endif()
 
     if(NOT EXIT_CODE EQUAL 0)
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
