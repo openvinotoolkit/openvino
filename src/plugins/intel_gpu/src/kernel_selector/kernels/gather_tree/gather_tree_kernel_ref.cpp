@@ -41,6 +41,7 @@ ParamsKey GatherTreeKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
 
+    k.EnableTensorPitches();
     k.EnableBatching();
 
     return k;
