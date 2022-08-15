@@ -40,24 +40,7 @@ inline std::string get_extr_type(const std::string& str) {
 }
 
 inline std::string dt_to_str(data_types dt) {
-    switch (dt) {
-        case data_types::bin:
-            return "bin";
-        case data_types::i8:
-            return "i8";
-        case data_types::u8:
-            return "u8";
-        case data_types::i32:
-            return "i32";
-        case data_types::i64:
-            return "i64";
-        case data_types::f16:
-            return "f16";
-        case data_types::f32:
-            return "f32";
-        default:
-            return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(dt)) + ")";
-    }
+    return data_type_traits::name(dt);
 }
 
 inline std::string fmt_to_str(format fmt) {

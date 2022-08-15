@@ -36,6 +36,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels
                                              openvino_intel_gpu_runtime
+                                             ov_shape_inference
                                              openvino::itt
                                              openvino::runtime::dev
                                              openvino::runtime)

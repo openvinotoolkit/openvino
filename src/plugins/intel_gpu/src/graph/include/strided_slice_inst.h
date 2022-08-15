@@ -78,10 +78,11 @@ class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<str
     using parent = typed_primitive_inst_base<strided_slice>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(strided_slice_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(strided_slice_node const& node);
 
-public:
     typed_primitive_inst(network& network, strided_slice_node const& desc);
 };
 

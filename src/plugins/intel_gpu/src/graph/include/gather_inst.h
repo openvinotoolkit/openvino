@@ -27,10 +27,11 @@ class typed_primitive_inst<gather> : public typed_primitive_inst_base<gather> {
     using parent = typed_primitive_inst_base<gather>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(gather_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_node const& node);
 
-public:
     typed_primitive_inst(network& network, gather_node const& desc);
 };
 

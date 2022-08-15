@@ -38,6 +38,7 @@ public:
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
     const int64_t& get_batch_dims() const;
+    void set_batch_dims(int64_t batch_dims);
 
 protected:
     int64_t m_batch_dims = 0;

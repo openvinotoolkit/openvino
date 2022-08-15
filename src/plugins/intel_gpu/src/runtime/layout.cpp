@@ -295,6 +295,16 @@ tensor layout::get_tensor() const {
     return t;
 }
 
+template<typename T>
+T layout::get() const {
+    static_assert(meta::always_false<T>::value, "Unexpected layout::get() template speciaization");
+}
+
+template<>
+ov::PartialShape layout::get<ov::PartialShape>() const {
+    return size;
+}
+
 void layout::set_tensor(const tensor& size) {
     auto sizes = format == format::any ? size.sizes() : size.sizes(format::get_default_format(format.dimension(),
                                                                                               format::is_weights_format(format),

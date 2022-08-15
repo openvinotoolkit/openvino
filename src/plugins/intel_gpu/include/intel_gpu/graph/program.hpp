@@ -135,6 +135,7 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             build_options const& options,
             bool is_internal);
+    explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
     const build_options& get_options() const { return options; }
