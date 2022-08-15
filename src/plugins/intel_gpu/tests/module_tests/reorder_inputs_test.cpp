@@ -147,6 +147,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     auto prog = network.get_program();
     auto& node = prog->get_node("actv");
     auto actv_layout = node.get_output_layout();
+    ASSERT_NE(node.get_selected_impl(), nullptr);
     auto kernel_name = node.get_selected_impl()->get_kernel_name();
 
     EXPECT_EQ(actv_layout.format.value, format::yxfb);

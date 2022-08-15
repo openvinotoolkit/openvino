@@ -4,32 +4,29 @@
 
 #include <pugixml.hpp>
 
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-using namespace LayerTestsUtils;
+using namespace ov::test::utils;
 
 #ifdef _WIN32
 # define getpid _getpid
 #endif
 
-Summary *Summary::p_instance = nullptr;
-bool Summary::extendReport = false;
-bool Summary::extractBody = false;
-bool Summary::saveReportWithUniqueName = false;
-size_t Summary::saveReportTimeout = 0;
-const char* Summary::outputFolder = ".";
-SummaryDestroyer Summary::destroyer;
+OpSummary *OpSummary::p_instance = nullptr;
+bool OpSummary::extractBody = false;
+OpSummaryDestroyer OpSummary::destroyer;
 
-SummaryDestroyer::~SummaryDestroyer() {
+OpSummaryDestroyer::~OpSummaryDestroyer() {
     delete p_instance;
 }
 
-void SummaryDestroyer::initialize(Summary *p) {
+void OpSummaryDestroyer::initialize(OpSummary *p) {
     p_instance = p;
 }
 
-Summary::Summary() {
+OpSummary::OpSummary() {
+    reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
     opsets.push_back(ngraph::get_opset3());
@@ -41,75 +38,67 @@ Summary::Summary() {
     opsets.push_back(ngraph::get_opset9());
 }
 
-Summary &Summary::getInstance() {
+OpSummary &OpSummary::getInstance() {
     if (!p_instance) {
-        p_instance = new Summary();
+        p_instance = new OpSummary();
         destroyer.initialize(p_instance);
     }
     return *p_instance;
 }
 
-void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
     auto it = opsStats.find(op);
-    if (it != opsStats.end()) {
-        auto &passrate = it->second;
-        switch (status) {
-            case PassRate::PASSED:
-                if (!passrate.isImplemented) {
-                    passrate.isImplemented = true;
-                }
-                passrate.passed++;
-                passrate.crashed--;
-                break;
-            case PassRate::FAILED:
-                passrate.failed++;
-                passrate.crashed--;
-                break;
-            case PassRate::SKIPPED:
-                passrate.skipped++;
-                break;
-            case PassRate::CRASHED:
-                passrate.crashed++;
-                break;
-            case PassRate::HANGED:
-                passrate.hanged++;
-                passrate.crashed--;
-                break;
+    if (opsStats.find(op) == opsStats.end()) {
+        opsStats.insert({op, PassRate()});
+    }
+    auto &passrate = opsStats[op];
+    if (isCrashReported) {
+        isCrashReported = false;
+        passrate.crashed--;
+    }
+    if (isHangReported) {
+        isHangReported = false;
+        return;
+    }
+    switch (status) {
+        case PassRate::PASSED:
+            if (!passrate.isImplemented) {
+                passrate.isImplemented = true;
+            }
+            passrate.passed++;
+            break;
+        case PassRate::FAILED:
+            passrate.failed++;
+            break;
+        case PassRate::SKIPPED:
+            passrate.skipped++;
+            break;
+        case PassRate::CRASHED: {
+            passrate.crashed++;
+            isCrashReported = true;
+            return;
         }
-    } else {
-        switch (status) {
-            case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0, 0, 0);
-                break;
-            case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0, 0, 0);
-                break;
-            case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1, 0, 0);
-                break;
-            case PassRate::CRASHED:
-                opsStats[op] = PassRate(0, 0, 0, 1, 0);
-                break;
-            case PassRate::HANGED:
-                opsStats[op] = PassRate(0, 0, 0, 0, 1);
-                break;
+        case PassRate::HANGED: {
+            passrate.hanged++;
+            isHangReported = true;
+            break;
         }
     }
 }
 
-void Summary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool implStatus) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         if (!it->second.isImplemented && implStatus) {
             it->second.isImplemented = true;
         }
     } else {
-        opsStats[op] = PassRate(0, 0, 0, 0, 0);
+        opsStats[op] = PassRate();
         opsStats[op].isImplemented = implStatus;
     }
 }
 
-std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
+std::string OpSummary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
     for (size_t i = 0; i < opsets.size(); i++) {
         if (opsets[i].contains_type(type_info)) {
             return std::to_string(i+1);
@@ -118,14 +107,14 @@ std::string Summary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
     return "undefined";
 }
 
-std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
+std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(CommonTestUtils::REPORT_FILENAME);
+    file.open(reportFilename);
 
     pugi::xml_node root;
-    doc.load_file(CommonTestUtils::REPORT_FILENAME);
+    doc.load_file(reportFilename);
     root = doc.child("report");
 
     pugi::xml_node resultsNode = root.child("results");
@@ -144,7 +133,7 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
     return oldOpsStat;
 }
 
-void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
     if (function->get_parameters().empty()) {
         return;
     }
@@ -160,8 +149,8 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
 
     for (const auto &op : function->get_ordered_ops()) {
         if ((ngraph::is_type<ngraph::op::Parameter>(op) ||
-            ngraph::is_type<ngraph::op::Constant>(op) ||
-            ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
+             ngraph::is_type<ngraph::op::Constant>(op) ||
+             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
@@ -189,7 +178,7 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
     }
 }
 
-void Summary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
+void OpSummary::updateOPsImplStatus(const std::shared_ptr<ngraph::Function> &function, const bool implStatus) {
     if (function->get_parameters().empty()) {
         return;
     }
@@ -235,15 +224,19 @@ void Summary::saveDebugReport(const char* className, const char* opName, unsigne
 }
 #endif  //IE_TEST_DEBUG
 
-void Summary::saveReport() {
+void OpSummary::saveReport() {
     if (isReported) {
         return;
     }
 
-    std::string filename = CommonTestUtils::REPORT_FILENAME;
+    if (opsStats.empty()) {
+        return;
+    }
+
+    std::string filename = reportFilename;
     if (saveReportWithUniqueName) {
         auto processId = std::to_string(getpid());
-        filename += "_" + processId + "_" + std::string(CommonTestUtils::GetTimestamp());
+        filename += "_" + processId + "_" + ts;
     }
     filename += CommonTestUtils::REPORT_EXTENSION;
 
@@ -259,7 +252,7 @@ void Summary::saveReport() {
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
 
-    auto &summary = Summary::getInstance();
+    auto &summary = OpSummary::getInstance();
     auto stats = summary.getOPsStats();
 
     pugi::xml_document doc;
@@ -316,7 +309,7 @@ void Summary::saveReport() {
     }
 
     if (extendReport && fileExists) {
-        auto opStataFromReport = summary.getOpStatisticFromReport();
+        auto opStataFromReport = summary.getStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
             if (opList.find(item.first) == opList.end()) {
@@ -339,8 +332,8 @@ void Summary::saveReport() {
                 PassRate obj(p, f, s, c, h);
 
                 (implStatus || obj.isImplemented)
-                    ? entry.attribute("implemented").set_value(true)
-                    : entry.attribute("implemented").set_value(false);
+                ? entry.attribute("implemented").set_value(true)
+                : entry.attribute("implemented").set_value(false);
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
