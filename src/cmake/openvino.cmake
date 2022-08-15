@@ -31,7 +31,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
                                              ngraph_builders
                                              ov_shape_inference
-                                             pugixml::static
+                                             openvino::pugixml
                                              ${CMAKE_DL_LIBS}
                                              Threads::Threads)
 
@@ -87,7 +87,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} pugixml::static openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
