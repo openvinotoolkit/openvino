@@ -92,13 +92,13 @@ ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_p
     return ov_status_e::OK;
 }
 
-void ov_property_value_clean(ov_property_value_t* value) {
+void ov_property_value_free(ov_property_value_t* value) {
     if (value) {
         if (value->ptr) {
             char* temp = static_cast<char*>(value->ptr);
             delete temp;
         }
         value->ptr = nullptr;
-        value->cnt = 0;
+        value->size = 0;
     }
 }

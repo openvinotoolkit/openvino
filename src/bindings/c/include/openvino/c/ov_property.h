@@ -100,7 +100,7 @@ typedef enum {
  */
 typedef struct {
     void* ptr;
-    size_t cnt;
+    size_t size;
     ov_property_value_type_e type;
 } ov_property_value_t;
 
@@ -127,18 +127,11 @@ OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
 OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
 
 /**
- * @brief Create a property value object.
- * @ingroup property
- * @param ov_status_e a status code, return OK if successful
- */
-OPENVINO_C_API(ov_status_e) ov_property_value_create(ov_property_value_t** value);
-
-/**
  * @brief Clean property data.
  * @ingroup property
  * @param property data will be clean.
  */
-OPENVINO_C_API(void) ov_property_value_clean(ov_property_value_t* value);
+OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t* value);
 
 /**
  * @brief Put <key, value> into property object.

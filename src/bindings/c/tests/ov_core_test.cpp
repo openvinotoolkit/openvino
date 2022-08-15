@@ -101,7 +101,7 @@ TEST_P(ov_core, ov_core_compile_model) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     ov_property_t* property = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), &compiled_model, property));
+    OV_ASSERT_OK(ov_core_compile_model(core, model, device_name.c_str(), property, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -117,7 +117,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     ov_property_t* property = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, property));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), property, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -137,7 +137,7 @@ TEST_P(ov_core, ov_core_set_property) {
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
     ov_property_value_t value;
     value.ptr = (void*)&mode;
-    value.cnt = 1;
+    value.size = 1;
     value.type = ov_property_value_type_e::ENUM;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
 
@@ -155,7 +155,7 @@ TEST_P(ov_core, ov_core_get_property) {
     ov_property_value_t property_value;
     OV_ASSERT_OK(
         ov_core_get_property(core, device_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
-    ov_property_value_clean(&property_value);
+    ov_property_value_free(&property_value);
     ov_core_free(core);
 }
 
@@ -172,7 +172,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     const char cache_dir[] = "./cache_dir";
     ov_property_value_t value;
     value.ptr = (void*)cache_dir;
-    value.cnt = sizeof(cache_dir);
+    value.size = sizeof(cache_dir);
     value.type = ov_property_value_type_e::CHAR;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
@@ -182,7 +182,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     EXPECT_STREQ(cache_dir, (char*)property_value.ptr);
 
     ov_property_free(property);
-    ov_property_value_clean(&property_value);
+    ov_property_value_free(&property_value);
     ov_core_free(core);
 }
 
@@ -199,7 +199,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     int32_t num = 8;
     ov_property_value_t value;
     value.ptr = (void*)&num;
-    value.cnt = 1;
+    value.size = 1;
     value.type = ov_property_value_type_e::INT32;
     OV_ASSERT_OK(ov_property_put(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
@@ -208,7 +208,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     int32_t res = *(int32_t*)property_value.ptr;
     EXPECT_EQ(num, res);
-    ov_property_value_clean(&property_value);
+    ov_property_value_free(&property_value);
 
     ov_property_free(property);
     ov_core_free(core);
@@ -233,7 +233,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), nullptr, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
@@ -251,7 +251,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ASSERT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), &compiled_model, nullptr));
+    OV_ASSERT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), nullptr, &compiled_model));
     ASSERT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");

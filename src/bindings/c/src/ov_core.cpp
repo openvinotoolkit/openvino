@@ -137,8 +137,8 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
-                                  ov_compiled_model_t** compiled_model,
-                                  const ov_property_t* property) {
+                                  const ov_property_t* property,
+                                  ov_compiled_model_t** compiled_model) {
     if (!core || !model || !compiled_model) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -163,8 +163,8 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             const char* model_path,
                                             const char* device_name,
-                                            ov_compiled_model_t** compiled_model,
-                                            const ov_property_t* property) {
+                                            const ov_property_t* property,
+                                            ov_compiled_model_t** compiled_model) {
     if (!core || !model_path || !compiled_model) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -220,7 +220,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
+            value->size = tmp_s.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -233,7 +233,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
+            value->size = tmp_s.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -243,7 +243,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             uint32_t* temp = new uint32_t;
             *temp = optimal_number_of_infer_requests;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
@@ -254,7 +254,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             temp[1] = std::get<1>(range);
             temp[2] = std::get<2>(range);
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 3;
+            value->size = 3;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
@@ -264,7 +264,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             temp[0] = std::get<0>(range);
             temp[1] = std::get<1>(range);
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 2;
+            value->size = 2;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
@@ -273,7 +273,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[name.length() + 1];
             std::copy_n(name.begin(), name.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = name.length() + 1;
+            value->size = name.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -286,7 +286,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[tmp_s.length() + 1];
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
+            value->size = tmp_s.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -295,7 +295,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[dir.length() + 1];
             std::copy_n(dir.begin(), dir.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = dir.length() + 1;
+            value->size = dir.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -304,7 +304,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             int32_t* temp = new int32_t;
             *temp = num.num;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::INT32;
             break;
         }
@@ -313,7 +313,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             ov_affinity_e* temp = new ov_affinity_e;
             *temp = static_cast<ov_affinity_e>(affinity);
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::ENUM;
             break;
         }
@@ -322,7 +322,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             int32_t* temp = new int32_t;
             *temp = num;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::INT32;
             break;
         }
@@ -331,7 +331,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             ov_performance_mode_e* temp = new ov_performance_mode_e;
             *temp = static_cast<ov_performance_mode_e>(perf_mode);
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::ENUM;
             break;
         }
@@ -340,7 +340,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             char* tmp = new char[name.length() + 1];
             std::copy_n(name.begin(), name.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
-            value->cnt = name.length() + 1;
+            value->size = name.length() + 1;
             value->type = ov_property_value_type_e::CHAR;
             break;
         }
@@ -349,7 +349,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             ov_element_type_e* temp = new ov_element_type_e;
             *temp = static_cast<ov_element_type_e>(ov::element::Type_t(infer_precision));
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::ENUM;
             break;
         }
@@ -358,7 +358,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             uint32_t* temp = new uint32_t;
             *temp = batch_size;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
@@ -367,7 +367,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             uint32_t* temp = new uint32_t;
             *temp = batch_size;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
@@ -376,7 +376,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             uint32_t* temp = new uint32_t;
             *temp = num_requests;
             value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
+            value->size = 1;
             value->type = ov_property_value_type_e::UINT32;
             break;
         }
