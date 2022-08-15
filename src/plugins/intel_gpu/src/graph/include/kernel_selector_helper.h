@@ -118,35 +118,34 @@ struct kernel_impl_params {
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
-    optional_layout weights_layout;
+    optional_layout weights_layout = optional_layout();
 
-    optional_layout bias_layout;
-    optional_layout weights_zero_points_layout;
-    optional_layout activations_zero_points_layout;
-    optional_layout compensation_layout;
+    optional_layout bias_layout = optional_layout();
+    optional_layout weights_zero_points_layout = optional_layout();
+    optional_layout activations_zero_points_layout = optional_layout();
+    optional_layout compensation_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
 
     memory::ptr reordered_weights = nullptr;
 
-    kernel_impl_params(program& _prog, std::shared_ptr<const primitive> _desc, size_t _uid,
-                       const std::vector<layout>& _int_layouts, layout _out_layout,
+    kernel_impl_params(program& _prog,
+                       std::shared_ptr<const primitive> _desc,
+                       size_t _uid,
+                       const std::vector<layout>& _int_layouts,
+                       layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
-                       const std::vector<activation_func>& _fused_act_funcs, const std::vector<activation_additional_params>& _act_params,
-                       optional_layout _weights_layout = optional_layout(),
-                       optional_layout _bias_layout = optional_layout(),
-                       optional_layout _weights_zero_points_layout = optional_layout(),
-                       optional_layout _activations_zero_points_layout = optional_layout(),
-                       optional_layout _compensation_layout = optional_layout())
-                       : has_runtime_layouts(true),
-                         prog(_prog), desc(_desc), unique_id(_uid),
-                         input_layouts(_int_layouts), output_layout(_out_layout),
-                         fused_desc(_fused_descs),
-                         fused_act_funcs(_fused_act_funcs), activation_params(_act_params),
-                         weights_layout(_weights_layout), bias_layout(_bias_layout),
-                         weights_zero_points_layout(_weights_zero_points_layout),
-                         activations_zero_points_layout(_activations_zero_points_layout),
-                         compensation_layout(_compensation_layout) {}
+                       const std::vector<activation_func>& _fused_act_funcs,
+                       const std::vector<activation_additional_params>& _act_params)
+                       : has_runtime_layouts(true)
+                       , prog(_prog)
+                       , desc(_desc)
+                       , unique_id(_uid)
+                       , input_layouts(_int_layouts)
+                       , output_layout(_out_layout)
+                       , fused_desc(_fused_descs)
+                       , fused_act_funcs(_fused_act_funcs)
+                       , activation_params(_act_params) {}
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
