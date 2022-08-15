@@ -73,6 +73,7 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/non_zero.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -166,6 +167,8 @@ REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
 REGISTER_OCL(convert_color);
+REGISTER_OCL(count_nonzero);
+REGISTER_OCL(gather_nonzero);
 
 #undef REGISTER_OCL
 
