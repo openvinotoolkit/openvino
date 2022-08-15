@@ -71,7 +71,7 @@ inline const std::vector<std::map<std::string, std::string>> generate_configs(co
     return resultConfig;
 }
 
-inline const std::string generate_complex_device_name(const std::string& deviceName) {
+inline const std::string generate_complex_device_name(const std::string deviceName) {
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
@@ -85,9 +85,27 @@ inline const std::vector<std::string> return_all_possible_device_combination() {
     return res;
 }
 
-const std::vector<std::map<std::string, std::string>> empty_config = {
-        {},
-};
+inline std::vector<std::pair<std::string, std::string>> generate_pairs_plugin_name_by_device() {
+    std::vector<std::pair<std::string, std::string>> res;
+    for (const auto& device : return_all_possible_device_combination()) {
+        std::string real_device = device.substr(0, device.find(':'));
+        res.push_back(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice),
+                                     real_device));
+    }
+    return res;
+}
+
+inline std::map<std::string, std::string> AnyMap2StringMap(const AnyMap& config) {
+    if (config.empty())
+        return {};
+    std::map<std::string, std::string> result;
+    for (const auto& configItem : config) {
+        result.insert({configItem.first, configItem.second.as<std::string>()});
+    }
+    return result;
+}
+
+const std::map<std::string, std::string> ie_config = AnyMap2StringMap(ov::test::conformance::pluginConfig);
 
 }  // namespace conformance
 }  // namespace test
