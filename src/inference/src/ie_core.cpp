@@ -243,6 +243,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
+        static bool flag_allow_auto_batching;
+
         void setAndUpdate(std::map<std::string, std::string>& config) {
             auto it = config.find(CONFIG_KEY(CACHE_DIR));
             if (it != config.end()) {
@@ -258,6 +260,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             if (it != config.end()) {
                 auto flag = it->second == CONFIG_VALUE(YES) ? true : false;
                 executorManager()->setTbbFlag(flag);
+                config.erase(it);
+            }
+
+            it = config.find(ov::hint::allow_auto_batching.name());
+            if (it != config.end()) {
+                auto flag = it->second == CONFIG_VALUE(YES);
+                flag_allow_auto_batching = flag;
                 config.erase(it);
             }
         }
@@ -737,6 +746,11 @@ public:
                 // otherwise, no need for this config key in the rest of loading
                 if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
                     config.erase(batch_mode);
+                if (disabled)
+                    return;
+            }
+            if (!coreConfig.flag_allow_auto_batching) {
+                const auto disabled = !coreConfig.flag_allow_auto_batching;
                 if (disabled)
                     return;
             }
@@ -1513,6 +1527,7 @@ private:
         }
     }
 };
+bool CoreImpl::CoreConfig::flag_allow_auto_batching = true;
 
 }  // namespace ov
 

@@ -263,12 +263,8 @@ int main(int argc, char* argv[]) {
         }
 
         // If set batch size, disable the auto batching
-        if (FLAGS_b == 1) {
-            for (auto& device : devices) {
-                if (device == "AUTO") {
-                    core.set_property(device, ov::hint::allow_auto_batching(false));
-                }
-            }
+        if (FLAGS_b > 0) {
+            core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool perf_counts = false;
