@@ -124,6 +124,18 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual bool generates_dynamic_output() const { return false; }
+
+    virtual std::vector<size_t> get_shape_infer_dependencies() const {
+        // Default impl will request all deps for shape infer
+        // It means that update_shape impl will wait for all memory deps
+        // TODO: Return empty vector once all impls have proper overloaded function
+        std::vector<size_t> res(get_dependencies().size());
+        std::iota(std::begin(res), std::end(res), 0);
+        return res;
+    }
+
+    std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
         return get_kernel_impl_params(get_input_layouts(), output_layout);
@@ -232,6 +244,7 @@ public:
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
 
     bool is_dynamic() const;
+    bool is_dynamic();
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }

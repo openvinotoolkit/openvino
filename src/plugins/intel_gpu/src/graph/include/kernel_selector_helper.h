@@ -125,6 +125,10 @@ struct kernel_impl_params {
     optional_layout activations_zero_points_layout;
     optional_layout compensation_layout;
 
+    std::map<size_t, memory::ptr> memory_deps = {};
+
+    memory::ptr reordered_weights = nullptr;
+
     kernel_impl_params(program& _prog, std::shared_ptr<const primitive> _desc, size_t _uid,
                        const std::vector<layout>& _int_layouts, layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
