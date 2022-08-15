@@ -566,8 +566,9 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             // AMD->iGPU : CUDA,AMD,iGPU // use substring to find the right place
             // What else?
             // CUDA->iGPU : CUDA,iGPU
-            // AMD->CPU ???
+            // AMD->CPU ???  CUDA,iGPU,AMD,CPU
             // CPU->iGPU
+            // CUDA->iGPU,AMD->CPU,CUP->iGPU
             it = config.find("FALLBACK");
             if (it != config.end()) {
                 if (defaultConfig.find("FALLBACK") == defaultConfig.end()) {
