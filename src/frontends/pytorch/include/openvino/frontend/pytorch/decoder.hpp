@@ -10,7 +10,7 @@ namespace frontend {
 namespace pytorch {
 
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
-class Decoder : public std::enable_shared_from_this<Decoder> {      // TODO: Is it required to be enable_shared_from_this?
+class Decoder {      // TODO: Is it required to be enable_shared_from_this?
 public:
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value

@@ -117,28 +117,39 @@ def get_moc_frontends(argv: argparse.Namespace):
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
 
+    print('6666666666666')
+
     if not fem or use_legacy_frontend:
         return None, []
+
+    print('77777777777777')
 
     available_moc_front_ends = get_available_front_ends(fem)
 
     if not argv.framework and argv.input_model:
+        print('55555555555555')
         moc_front_end = fem.load_by_model(argv.input_model)
+        print('333333333333')
         if not moc_front_end:
+            print('444444')
             return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()
     elif argv.framework in available_moc_front_ends:
+        print('888888888888888')
         moc_front_end = fem.load_by_framework(argv.framework)
+        print(moc_front_end)
     else:
         return None, []
 
     default_frontends = get_default_frontends()
     # Disable MOC frontend if default is set to legacy and no user override
     if default_frontends.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
+        print('EEEEEEE')
         return None, available_moc_front_ends
 
     # This check as a workaround to skip IR frontend
     if not moc_front_end.get_name() in available_moc_front_ends:
+        print('AAAAAAAA')
         return None, available_moc_front_ends
 
     return moc_front_end, available_moc_front_ends
@@ -376,7 +387,10 @@ def prepare_ir(argv : argparse.Namespace):
     graph = None
     ngraph_function = None
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
+    print(available_moc_front_ends)
+    print('111111111111111111')
     if moc_front_end:
+        print('222222222222222222')
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
             t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
@@ -569,6 +583,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 
 if __name__ == "__main__":
+    print('++++++++++++++++++++++++++++++')
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
     fe_manager = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

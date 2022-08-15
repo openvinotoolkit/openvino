@@ -26,6 +26,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
+    print('/////////////////////////////')
     input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
@@ -142,6 +143,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 joined_name, old_shape_array, new_shape))
             input_model.set_partial_shape(place, new_partial_shape)
 
+    print('[  ---------- DEBUG --------  ] Calling convert')
     ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
 

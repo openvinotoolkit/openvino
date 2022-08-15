@@ -60,10 +60,16 @@ if(TARGET openvino::frontend::paddle)
     add_subdirectory(frontend/paddle)
 endif()
 
+if(TARGET openvino::frontend::pytorch)
+    add_subdirectory(frontend/pytorch)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
+
+# TODO: What is that for?
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
@@ -76,7 +82,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::pytorch)
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 

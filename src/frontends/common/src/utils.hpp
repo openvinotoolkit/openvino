@@ -37,7 +37,7 @@
     RETHROW_FRONTEND_EXCEPTION(ov::frontend::NotImplementedFailure) \
     RETHROW_FRONTEND_EXCEPTION(ov::AssertFailure)                   \
     RETHROW_FRONTEND_EXCEPTION(ov::Exception)                       \
-    catch (...) {                                                   \
+    catch (int) {                                                   \
         OPENVINO_ASSERT(false, (MESSAGE));                          \
     }
 

@@ -21,6 +21,10 @@ public:
 
     std::shared_ptr<Model> convert(const ov::frontend::InputModel::Ptr& model) const override;
 
+    std::string get_name() const override {
+        return "pytorch";
+    }
+
 protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 

@@ -277,6 +277,7 @@ Output<Node> reshape_kernel_for_group(
 }
 
 OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMap& tensor_map) {
+    std::cout << "[  ----  DEBUG  ---- ] convert_node\n";
     using ints = std::vector<int64_t>;
     using namespace ngraph;
     using std::make_shared;
@@ -744,8 +745,8 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
     //    std::cout << "Making unsupported " << node->kind().toQualString() << std::endl;
     //    node->dump();
     //}
+    std::cerr << "KKKKKKKKKKKKKK\n";
     return context.mark_node(make_shared<PtFrameworkNode>(decoder, context.inputs()))->outputs();
-
 }
 
 
@@ -756,9 +757,13 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
     ParameterVector parameters;
 
+    std::cerr << "+++++before++++\n";
     // Go over all pytorch_model inputs and register them in the tensor map:
     auto inputs = pytorch_model->inputs();
+    std::cerr << "+++++after++++++\n";
+    std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
     for (int i = 0; i < inputs.size(); ++i) {
+        std::cout << "Input: " << i << ": " << inputs[i] << "\n";
         PartialShape ps = pytorch_model->get_input_shape(i);
         auto parameter = std::make_shared<opset7::Parameter>(pytorch_model->get_input_type(i), ps);
         parameters.push_back(parameter);
@@ -783,10 +788,10 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
     
     auto node_visitor = [&](std::shared_ptr<Decoder> node)
     {
-        //std::cout << "Node convert start" << std::endl;
+        std::cerr << "Node convert start" << std::endl;
 
         auto converted_outputs = convert_node(node, tensor_map);
-        //std::cout << "Node convert before outputs" << std::endl;
+        std::cerr << "Node convert before outputs" << std::endl;
 
         auto fw_outputs = node->outputs();
 
@@ -802,12 +807,12 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
             // Output shape of converted node should match the original output shape
             //std::cerr << "[ DEBUG ] PT output shape = " << get_ov_shape(fw_outputs[i]) << '\n';
-            //std::cerr << "[ DEBUG ] OV output shape = " << converted_outputs[i].get_partial_shape() << '\n';
+            std::cerr << "[ DEBUG ] OV output shape = " << converted_outputs[i].get_partial_shape() << '\n';
             //OV_FRONTEND_REQUIRE(get_ov_shape(fw_outputs[i]) == converted_outputs[i].get_partial_shape());
 
             tensor_map[fw_tensor_id] = converted_outputs[i];
         }
-        //std::cout << "Node convert end" << std::endl;
+        std::cout << "Node convert end" << std::endl;
     };
 
     OV_FRONTEND_REQUIRE(pytorch_model->get_subgraph_size() == 1);
@@ -840,16 +845,31 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 }
 
 std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
-    auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
-    return convert_pytorch_model(pytorch_model->m_model);
+    try {
+        std::cerr << "[   HERE   ]\n";
+        auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
+        return convert_pytorch_model(pytorch_model->m_model);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "[ ERROR ] Error while converting pytorch model: " << e.what() << "\n";
+        std::cerr << "Rethrowing. Misleading error message from pybind11 may come later. TODO.";
+        throw;
+    }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    std::cout << "[  ----- DEBUG ------ ] supported_impl with " << variants.size() << " arguments\n";
     return false;
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    return std::make_shared<pytorch::InputModel>(nullptr);
+    std::cout << "[  ----- DEBUG -----  ] load_impl with " << variants.size() << " parameters\n";
+    if(variants.size() != 1) {
+        throw std::runtime_error("Pytorch frontend supports exactly one parameter in model representation, got " +
+        std::to_string(variants.size()) + "instead.");
+    }
+    auto decoder = variants[0].as<std::shared_ptr<Decoder>>();
+    std::cout << "Recognized decoder: " << decoder << "\n";
+    return std::make_shared<pytorch::InputModel>(decoder);
 }
 
 }
