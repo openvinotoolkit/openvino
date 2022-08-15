@@ -161,7 +161,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
-        static const precisions_array convert_precision_list {
+        precisions_array convert_precision_list {
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -170,6 +170,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ngraph::element::i4, ngraph::element::i8},
                 {ngraph::element::u4, ngraph::element::u8},
         };
+
+        if (config.inference_precision != ov::element::undefined) {
+            std::vector<ov::element::Type> supported_fp_element_types = {ngraph::element::f32, ngraph::element::f16};
+            for (auto& et : supported_fp_element_types) {
+                if (et != config.inference_precision) {
+                    convert_precision_list.push_back({et, config.inference_precision});
+                }
+            }
+        }
 
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);

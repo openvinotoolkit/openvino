@@ -337,6 +337,21 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::enable_profiling);
 }
 
+TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
+    ov::Core ie;
+    auto value = ov::element::undefined;
+    const auto expected_default_precision = ov::element::undefined;
+
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::inference_precision));
+    ASSERT_EQ(expected_default_precision, value);
+
+    const auto forced_precision = ov::element::f16;
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::inference_precision(forced_precision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(deviceName, ov::hint::inference_precision));
+    ASSERT_EQ(value, forced_precision);
+}
+
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
     ov::Core ie;
 
