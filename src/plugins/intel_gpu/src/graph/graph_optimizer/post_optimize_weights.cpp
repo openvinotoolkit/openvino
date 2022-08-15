@@ -30,6 +30,11 @@ template<typename T>
 void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto offsets = get_weights_bias_offset(node);
     auto impl = node.get_selected_impl();
+
+    // Skip load-time weights reordering if impl is not selected
+    if (!impl)
+        return;
+
     auto output_layout = node.get_output_layout();
     auto& weights_reorder_params = impl->_weights_reorder_params;
 
