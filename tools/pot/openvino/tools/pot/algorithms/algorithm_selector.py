@@ -25,12 +25,3 @@ def get_algorithm(name):
 
     reg = get_registry(reg_name)
     return reg.get(algo_name)
-
-# Step 1: Create the data loader object.
-data_loader = UserDataLoader(params) # user-defined DataLoader
-
-# Step 2: Use a helper for post-training quantization - quantize_post_training
-optimized_model = quantize_post_training(model, params, data_loader)
-
-# Step 3: Export optimized model.
-export(optimized_model, path, options) # Serialization to IR / export to ONNX or TF Frozen graph
