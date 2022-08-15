@@ -187,6 +187,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
+    if (prev.is_dynamic() || next.is_dynamic())
+        return false;
+
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
             return true;
@@ -379,6 +382,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next) {
+    if (prev.is_dynamic() || (next && next->is_dynamic()))
+        return false;
+
     // Ref kernels are the main for depth_to_space and region_yolo. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>())
         return true;

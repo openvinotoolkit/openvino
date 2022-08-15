@@ -6,6 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "primitive_inst.h"
+#include "data_inst.h"
 
 #include <string>
 #include <memory>
@@ -43,10 +44,11 @@ public:
     static layout calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(fully_connected_node const& node);
 
-public:
     typed_primitive_inst(network& network, fully_connected_node const& node);
 
-    memory::ptr weights_memory() const { return dep_memory_ptr(1); }
+    memory::ptr weights_memory() const {
+        return _node.is_dynamic() && _impl_params->reordered_weights != nullptr ? _impl_params->reordered_weights : dep_memory_ptr(1);
+    }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
     bool bias_term() const { return !argument.bias.empty(); }
