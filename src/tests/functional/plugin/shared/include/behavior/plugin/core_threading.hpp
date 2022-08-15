@@ -69,6 +69,17 @@ public:
         }
     }
 
+    InferenceEngine::Core createCore() {
+        InferenceEngine::Core core;
+#ifndef OPENVINO_STATIC_LIBRARY
+        std::string pluginName = "openvino_template_plugin";
+        pluginName += IE_BUILD_POSTFIX;
+        core.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
+                             CommonTestUtils::DEVICE_TEMPLATE);
+#endif  // !OPENVINO_STATIC_LIBRARY
+        return core;
+    }
+
     Device deviceName;
     Config config;
 };
@@ -102,7 +113,7 @@ public:
 
 // tested function: GetVersions, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetVersions) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     runParallel([&] () {
         auto versions = ie.GetVersions(deviceName);
         ASSERT_LE(1u, versions.size());
@@ -112,7 +123,7 @@ TEST_P(CoreThreadingTests, smoke_GetVersions) {
 
 // tested function: SetConfig for already created plugins
 TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
 
     ie.SetConfig(config);
     auto versions = ie.GetVersions(deviceName);
@@ -124,7 +135,7 @@ TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
 
 // tested function: GetConfig, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetConfig) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     std::string configKey = config.begin()->first;
 
     ie.SetConfig(config);
@@ -136,7 +147,7 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
 
 // tested function: GetMetric, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetMetric) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     runParallel([&] () {
         ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         safePluginUnregister(ie);
@@ -145,7 +156,7 @@ TEST_P(CoreThreadingTests, smoke_GetMetric) {
 
 // tested function: QueryNetwork
 TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
 
     ie.SetConfig(config, deviceName);
@@ -231,7 +242,7 @@ public:
 
 // tested function: LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     std::atomic<unsigned int> counter{0u};
 
     SetupNetworks();
@@ -245,7 +256,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
 
 // tested function: single IECore LoadNetwork accuracy
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     std::atomic<unsigned int> counter{0u};
 
     SetupNetworks();
@@ -288,7 +299,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore)
 
 // tested function: LoadNetwork accuracy
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
     std::atomic<unsigned int> counter{0u};
 
     SetupNetworks();
@@ -336,7 +347,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
 // tested function: single IECore ReadNetwork, SetConfig, LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_SingleIECore) {
     std::atomic<unsigned int> counter{0u};
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCore();
 
     SetupNetworks();
 
@@ -355,7 +366,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
 
     runParallel([&] () {
         auto value = counter++;
-        InferenceEngine::Core ie;
+        InferenceEngine::Core ie = createCore();
         ie.SetConfig(config, deviceName);
         (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
     }, numIterations, numThreads);
