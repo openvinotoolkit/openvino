@@ -94,8 +94,8 @@ function(register_extra_modules)
     generate_fake_dev_package("openvino")
     generate_fake_dev_package("IE")
 
-    # automatically import plugins from the 'runtime/plugins' folder
-    file(GLOB local_extra_modules "runtime/plugins/*")
+    # automatically import plugins from the 'src/plugins' folder
+    file(GLOB local_extra_modules "src/plugins/*")
     # add template plugin
     if(ENABLE_TEMPLATE)
         list(APPEND local_extra_modules "${OpenVINO_SOURCE_DIR}/docs/template_plugin")
