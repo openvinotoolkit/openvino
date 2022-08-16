@@ -4,7 +4,7 @@
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
-from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.GRUCell import GRUCell
 from openvino.tools.mo.ops.split import AttributedSplit
@@ -22,7 +22,7 @@ class GRUBlockCellToGRUCell(FrontReplacementPattern):
         for tf_gru_block_cell in graph.get_op_nodes(op='GRUBlockCell'):
             original_name = tf_gru_block_cell.soft_get('name', tf_gru_block_cell.id)
             new_gru_cell = GRUCell(graph, {}).create_node()
-            rename_nodes([(tf_gru_block_cell, original_name + '/to_be_removed'), (new_gru_cell , original_name)])
+            rename_nodes([(tf_gru_block_cell, original_name + '/to_be_removed'), (new_gru_cell, original_name)])
 
             # Connect X data port
             tf_gru_block_cell.in_port(0).get_connection().set_destination(new_gru_cell.in_port(0))
