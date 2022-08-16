@@ -42,7 +42,7 @@ def get_model_name_from_args(argv: argparse.Namespace):
     return model_name
 
 
-def main(cli_parser: argparse.ArgumentParser):
+def main(cli_parser: argparse.ArgumentParser, framework=None):
     argv = cli_parser.parse_args()
     argv.model_name = get_model_name_from_args(argv)
     argv = vars(argv)
@@ -50,6 +50,9 @@ def main(cli_parser: argparse.ArgumentParser):
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+
+    if framework is not None:
+        argv['framework'] = framework
 
     ngraph_function = None
     try:
@@ -96,4 +99,4 @@ def main(cli_parser: argparse.ArgumentParser):
 
 if __name__ == "__main__":
     from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(FrontEndManager())))
+    sys.exit(main(get_all_cli_parser(FrontEndManager()), None))
