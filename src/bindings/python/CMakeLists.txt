@@ -14,10 +14,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
-    message(FATAL_ERROR "Building python bindings in debug configuration is not supported on your platform.")
-endif()
-
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 set(PYTHON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(PYTHON_BINDINGS_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -68,6 +64,13 @@ function(ov_check_python_build_conditions)
         endif()
     endif()
 
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+        set(python_module_with_suffix ON)
+    else()
+        set(python_module_with_suffix OFF)
+    endif()
+
+    set(python_module_with_suffix ${python_module_with_suffix} PARENT_SCOPE)
     set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
     set(ov_python_reqs_FOUND ${ov_python_reqs_FOUND} PARENT_SCOPE)
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
@@ -75,7 +78,7 @@ endfunction()
 
 ov_check_python_build_conditions()
 
-ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND" OFF)
+ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND;NOT python_module_with_suffix" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
