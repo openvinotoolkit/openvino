@@ -18,6 +18,7 @@ if [[ -n "$2" ]]; then
 else
     # Windows default
     if [[ -f "${TEST_DIR}/${APP_NAME}" ]]; then
+        # shellcheck disable=SC2269
         TEST_DIR=${TEST_DIR}
     # Search for Release or Debug config
     elif [[ -f "${TEST_DIR}/Release/${APP_NAME}" ]]; then
