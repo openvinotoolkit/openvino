@@ -40,21 +40,20 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg) {
-        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(arg);
+    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
+        const auto primitive = arg.get_primitive();
+        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(impl_param);
         auto fc_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
                 arg.get_program());
         fc_optional_params.allowInputReordering = true;
 
-        const auto primitive = arg.get_primitive();
-
         if (primitive->input_size != 3)
             fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
-        for (auto& input : arg.get_dependencies())
-            is_quantized &= data_type_traits::is_quantized(input->get_output_layout().data_type);
+        for (auto& input : impl_param.input_layouts)
+            is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
             fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;

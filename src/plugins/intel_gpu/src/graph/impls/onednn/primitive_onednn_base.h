@@ -51,6 +51,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             build_primitive();
         }
 
+    typed_primitive_onednn_impl(const typed_program_node<PType>& arg)
+        : typed_primitive_impl<PType>({}, "undef"),
+          _outer(arg),
+          _pd(),
+          _prim() {
+        assert(arg.can_be_optimized());
+    }
+
     bool is_cpu() const override { return false; }
 
 private:
@@ -227,7 +235,7 @@ protected:
         return args;
     }
 
-    void init_kernels() override { }
+    void init_kernels(const kernels_cache&) override { }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
@@ -240,6 +248,8 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+        if (instance.can_be_optimized())
+            return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }

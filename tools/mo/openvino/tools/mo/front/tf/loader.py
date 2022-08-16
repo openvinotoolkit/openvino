@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import logging as log
 import os
 import re
@@ -15,6 +16,7 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
+
     # disable eager execution of TensorFlow 2 environment immediately
     tf_v1.disable_eager_execution()
     import tensorflow as tf
@@ -22,7 +24,7 @@ try:
 except ImportError:
     import tensorflow as tf_v1
 
-#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+# in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
 tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
@@ -283,7 +285,31 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     raise Error("Unknown configuration of input model parameters")
 
 
-def protobuf_attrs(pb:tf_v1.NodeDef):
+def convert_to_pb(argv: argparse.Namespace):
+    from openvino.tools.mo.utils.cli_parser import get_model_name
+    graph_def, _, _, _ = load_tf_graph_def(
+        graph_file_name=argv.input_model,
+        is_binary=not argv.input_model_is_text,
+        checkpoint=argv.input_checkpoint,
+        user_output_node_names_list=argv.output,
+        model_dir=argv.saved_model_dir,
+        meta_graph_file=argv.input_meta_graph,
+        saved_model_tags=argv.saved_model_tags)
+    if argv.model_name:
+        model_name = argv.model_name
+    elif argv.input_model:
+        model_name = get_model_name(argv.input_model)
+    elif argv.saved_model_dir:
+        model_name = "saved_model"
+    elif argv.input_meta_graph:
+        model_name = get_model_name(argv.input_meta_graph)
+    argv.model_name = model_name
+    tf_v1.io.write_graph(graph_def, argv.output_dir if argv.output_dir != '.' else os.getcwd(),
+                         model_name + "_tmp.pb", as_text=False)
+    argv.input_model = model_name + "_tmp.pb"
+
+
+def protobuf_attrs(pb: tf_v1.NodeDef):
     return {'pb': pb}
 
 

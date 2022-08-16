@@ -158,7 +158,9 @@ protected:
         cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
         kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(arg, r_params);
+        const auto& param_info = arg.get_kernel_impl_params();
+
+        set_params(*param_info, r_params);
         r_params.layerID = arg.id() + "_reorder_";
         r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
         r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), arg.get_groups(), false);
@@ -234,7 +236,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convolution_node& arg) {
+    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_convolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);

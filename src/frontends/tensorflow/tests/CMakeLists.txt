@@ -4,12 +4,12 @@
 
 set(TARGET_NAME "tensorflow_tests")
 
-file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(FILTER SRC EXCLUDE REGEX standalone_build)
+file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes openvino_tensorflow_frontend openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE
+        gtest_main_manifest frontend_shared_test_classes openvino_tensorflow_frontend openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -19,7 +19,10 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(tensorflow WARNING)
+ov_check_pip_package(REQUIREMENT tensorflow
+                     MESSAGE_MODE WARNING
+                     WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
+                     RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")

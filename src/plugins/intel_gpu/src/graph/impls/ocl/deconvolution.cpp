@@ -22,14 +22,29 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         return make_unique<deconvolution_impl>(*this);
     }
 
+    explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
+        _split(other._split),
+        _groups(other._groups) {}
+
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<deconvolution>());
+        const auto& node = arg.as<deconvolution>();
+        _split = node.get_split();
+        _groups = node.get_groups();
+    }
+
 protected:
     // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>&) const override {
+    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
         bool res = true;
 
-        CLDNN_ERROR_NOT_EQUAL(_outer.id(),
+        CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
-                              _outer.get_output_layout().data_padding.filling_value(),
+                              instance.node.get_output_layout().data_padding.filling_value(),
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");
@@ -46,29 +61,23 @@ protected:
         return args;
     }
 
-    int32_t get_split() const override { return _outer.get_split(); }
+    int32_t get_split() const override { return _split; }
 
-    uint32_t get_groups() const override { return _outer.get_groups(); }
+    uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg) {
+    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
-        const auto& weights_layout = arg.weights(0).get_output_layout().convert_to_weights_layout(primitive->grouped_weights_shape);
-
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-#if 0  // TODO: support dilation
-        const auto& dilation = primitive->dilation;
-#else
-        const ov::Strides dilation(arg.get_output_layout().get_spatial_rank(), 1);
-#endif
+        const ov::Strides dilation(impl_param.output_layout.get_spatial_rank(), 1);
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
-            arg,
+            impl_param,
             (groups > 1) ? 1 : actual_split,
             1,
             primitive->grouped_weights_shape);
@@ -78,6 +87,8 @@ public:
         deconv_params.split = split;
         deconv_params.groups = groups;
 
+        const auto weights_idx = 1 + 0;
+        const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);
@@ -110,6 +121,10 @@ public:
 
         return deconv;
     }
+
+private:
+    int32_t _split;
+    uint32_t _groups;
 };
 
 namespace detail {

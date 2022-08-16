@@ -34,21 +34,19 @@ using namespace cldnn;
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.node->is_type<activation>() || fo.node->is_type<eltwise>()) {
+        if (fo.is_type<activation>() || fo.is_type<eltwise>()) {
             onednn_post_ops_count++;
-        } else if (fo.node->is_type<quantize>()) {
-            auto& q = fo.node->as<quantize>();
-
+        } else if (fo.is_type<quantize>()) {
             // pre-scale, pre-shift
-            if (q.get_per_tensor_input_scale() && q.get_per_tensor_input_shift()) {
+            const auto& q_param = fo.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
+            if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
                 onednn_post_ops_count++;
             } else {
                 onednn_post_ops_count += 2;
             }
 
             // post-scale, post-shift
-            if (q.get_need_post_scale() && q.get_need_post_shift() &&
-                q.get_per_tensor_output_scale() && q.get_per_tensor_output_shift()) {
+            if (q_param->has_post_scale && q_param->has_post_shift && q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
                 onednn_post_ops_count++;
             } else {
                 onednn_post_ops_count += 2;
@@ -56,7 +54,7 @@ static size_t get_post_ops_count(const program_node& node) {
 
             auto out_dt = fo.output_layout.data_type;
             auto output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
-            auto out_range_usage = q.get_per_tensor_output_range() && q.get_output_lo_val() < q.get_output_hi_val();
+            auto out_range_usage = q_param->per_tensor_output_range && (q_param->out_lo < q_param->out_hi);
 
             if (out_range_usage) {
                 // round
@@ -65,12 +63,12 @@ static size_t get_post_ops_count(const program_node& node) {
                 }
 
                 // clamp
-                if (q.get_need_clamp()) {
+                if (q_param->has_clamp) {
                     onednn_post_ops_count++;
                 }
             } else {
                 // clamp
-                if (q.get_need_clamp()) {
+                if (q_param->has_clamp) {
                     onednn_post_ops_count += 2;
                 }
                 // round
@@ -189,6 +187,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
+    if (prev.is_dynamic() || next.is_dynamic())
+        return false;
+
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
             return true;
@@ -200,7 +201,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
         for (auto& fused_op : next.get_fused_primitives()) {
-            if (fused_op.node->is_type<eltwise>()) {
+            if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(next, fused_op);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
@@ -347,9 +348,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             std::set<size_t> dep_idx_set;
             for (auto& p : next.get_fused_primitives()) {
                 // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
-                if (p.node->is_type<eltwise>() && p.node->as<eltwise>().get_primitive()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++)
+                if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+                    for (size_t i = p.dep_start_idx; i < p.dep_start_idx + p.total_num_deps; i++) {
                         dep_idx_set.insert(i);
+                    }
                 }
             }
             // The current reorder can be fused if it is a dependency of eltwise sum primitive fused.
@@ -380,6 +382,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next) {
+    if (prev.is_dynamic() || (next && next->is_dynamic()))
+        return false;
+
     // Ref kernels are the main for depth_to_space and region_yolo. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>())
         return true;
@@ -762,6 +767,7 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
 }
 
 static bool is_node_for_onednn(reduce_node const& node) {
+    auto& input = node.input();
     auto reduce_prim = node.get_primitive();
     // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
     switch (reduce_prim->mode) {
@@ -770,28 +776,25 @@ static bool is_node_for_onednn(reduce_node const& node) {
         case reduce_mode::min:
         case reduce_mode::sum:
         case reduce_mode::prod:
+            break;
         case reduce_mode::sum_square:
         case reduce_mode::l1:
         case reduce_mode::l2:
-            break;
+            // modes have a limitation of data type
+            if (input.get_output_layout().data_type == data_types::f16 ||
+                input.get_output_layout().data_type == data_types::f32)
+                break;
         default:
             return false;
     }
 
-    auto& input = node.input();
     auto input_layout = input.get_output_layout();
-    auto reduce_axes = reduce_prim->axes;
-    // redundant reduce is not acceptable on oneDNN reduction
-    if (node.get_output_layout() == input_layout) {
+    if (input_layout.get_dims().size() > 4) {
         return false;
     }
-    // tensor size mismatch of unreduced axis is not supported
-    for (size_t idx = 0 ; idx < input_layout.get_dims().size() ; idx++) {
-        bool reduced_axis = std::find(reduce_axes.begin(), reduce_axes.end(), idx) != reduce_axes.end();
-        if (!reduced_axis && (input_layout.get_dim(idx) != node.get_output_layout().get_dim(idx)))
-            return false;
-    }
-    if (input_layout.get_dims().size() > 4) {
+
+    // redundant reduce is not acceptable on oneDNN reduction
+    if (node.get_output_layout() == input_layout) {
         return false;
     }
 
@@ -823,7 +826,7 @@ static bool is_node_for_onednn(program_node& node, fully_connected_node const& f
     bool is_suitable_for_onednn = true;
     auto out_layout = node.get_output_layout();
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.node->is_type<eltwise>()) {
+        if (fo.is_type<eltwise>()) {
             // FC checkings
             auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
             auto in_dt = in_layout.data_type;
@@ -909,12 +912,11 @@ static bool is_scale_shift(const eltwise_node& node) {
         return false;
 
     auto fused_op0 = node.get_fused_primitives().front();
-    auto fused_op0_node = fused_op0.node;
 
-    if (!fused_op0_node->is_type<eltwise>())
+    if (!fused_op0.is_type<eltwise>())
         return false;
 
-    if (fused_op0_node->as<eltwise>().get_primitive()->mode != eltwise_mode::sum)
+    if (fused_op0.typed_desc<eltwise>()->mode != eltwise_mode::sum)
         return false;
 
     return true;
@@ -1581,9 +1583,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         }
 
         for (auto& fo : node.get_fused_primitives()) {
-            if (fo.node->is_type<activation>()) {
+            if (fo.is_type<activation>()) {
                 // Some activations aren't implemented in oneDNN
-                auto activation_prim = fo.node->as<activation>().get_primitive();
+                auto activation_prim = fo.typed_desc<activation>();
                 if (activation_prim->activation_function == activation_func::negative ||
                     activation_prim->activation_function == activation_func::negation ||
                     activation_prim->activation_function == activation_func::sign)
@@ -1628,13 +1630,12 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 impl_candidate = impl_types::ocl;
         } else {
             for (auto& fo : node.get_fused_primitives()) {
-                if (fo.node->is_type<eltwise>()) {
+                if (fo.is_type<eltwise>()) {
                     // Gemm checkings
                     // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
                     // which don't correlate with fc checkings in the code above
                     // Temprorary WA: disable onednn gemm with sum post-op inside
-                    auto& e_node = fo.node->as<eltwise>();
-                    if (e_node.get_primitive()->mode == eltwise_mode::sum) {
+                    if (fo.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                         impl_candidate = impl_types::ocl;
                         break;
                     }
@@ -1835,6 +1836,24 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
                 expected = format::b_fs_yx_fsv32;
             }
+        }
+    } else if (node.is_type<reduce>()) {
+        auto& reduce_node = node.as<reduce>();
+        auto prim = reduce_node.get_primitive();
+        auto reduce_axes = prim->axes;
+        auto input_layout = reduce_node.input().get_output_layout();
+        // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
+        // But oneDNN does not allow this. So planar format is used for this case.
+        if (prim->keep_dims == false &&
+            (find(reduce_axes.begin(), reduce_axes.end(), 1) != reduce_axes.end() ||
+            (find(reduce_axes.begin(), reduce_axes.end(), 0) != reduce_axes.end() && input_layout.batch() > 1)) &&
+            use_onednn_impls) {
+            if (input_layout.format.dimension() == 6)
+                expected = format::bfwzyx;
+            else if (input_layout.format.dimension() == 5)
+                expected = format::bfzyx;
+            else if (input_layout.format.dimension() == 4)
+                expected = format::bfyx;
         }
     }
 
