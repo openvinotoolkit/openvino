@@ -24,9 +24,9 @@ if [ -f /etc/lsb-release ]; then
     # Ubuntu
     host_cpu=$(uname -m)
     if [ "$host_cpu" = "x86_64" ]; then
-        x86_64_specific_packages="gcc-multilib g++-multilib"
+        x86_64_specific_packages=(gcc-multilib g++-multilib)
     else
-        x86_64_specific_packages=""
+        x86_64_specific_packages=()
     fi
 
     sudo -E apt update
@@ -40,11 +40,12 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            $x86_64_specific_packages \
+            "${x86_64_specific_packages[@]}" \
             libgtk2.0-dev \
             unzip \
             shellcheck \
             patchelf \
+            lintian \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \

@@ -37,6 +37,7 @@ struct Config {
                                           graph_dumps_dir(""),
                                           sources_dumps_dir(""),
                                           kernels_cache_dir(""),
+                                          inference_precision(ov::element::undefined),
                                           task_exec_config({"GPU plugin internal task executor",                        // name
                                                     std::max(1, static_cast<int>(std::thread::hardware_concurrency())), // # of streams
                                                     1,                                                                  // # of threads per streams
@@ -80,6 +81,7 @@ struct Config {
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
     std::string kernels_cache_dir;
+    ov::element::Type inference_precision;
     InferenceEngine::IStreamsExecutor::Config task_exec_config;
 
     bool enable_loop_unrolling;
