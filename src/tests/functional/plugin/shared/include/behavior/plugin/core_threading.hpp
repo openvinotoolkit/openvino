@@ -15,6 +15,7 @@
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "base/behavior_test_utils.hpp"
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -23,6 +24,7 @@
 #include <chrono>
 #include <fstream>
 #include <functional_test_utils/skip_tests_config.hpp>
+#include "base/ov_behavior_test_utils.hpp"
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -49,7 +51,7 @@ public:
         }
     }
 
-    void safePluginUnregister(InferenceEngine::Core & ie) {
+    void safePluginUnregister(InferenceEngine::Core & ie, const std::string& deviceName) {
         try {
             ie.UnregisterPlugin(deviceName);
         } catch (const InferenceEngine::Exception & ex) {
@@ -80,7 +82,6 @@ public:
         return core;
     }
 
-    Device deviceName;
     Config config;
 };
 
@@ -88,24 +89,27 @@ public:
 //  Common threading plugin tests
 //
 
-class CoreThreadingTests : public CoreThreadingTestsBase,
-                           public ::testing::TestWithParam<Params> {
+class CoreThreadingTests : public testing::WithParamInterface<Params>,
+                           public BehaviorTestsUtils::IEPluginTestBase,
+                           public CoreThreadingTestsBase {
 public:
     void SetUp() override {
+        std::tie(target_device, config) = GetParam();
+        APIBaseTest::SetUp();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(deviceName, config) = GetParam();
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<Params> obj) {
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = obj.param;
+        std::replace(deviceName.begin(), deviceName.end(), ':', '.');
         char separator('_');
         std::ostringstream result;
         result << "targetDevice=" << deviceName << separator;
         result << "config=";
         for (auto& confItem : config) {
-            result << confItem.first << ":" << confItem.second << separator;
+            result << confItem.first << "=" << confItem.second << separator;
         }
         return result.str();
     }
@@ -115,9 +119,9 @@ public:
 TEST_P(CoreThreadingTests, smoke_GetVersions) {
     InferenceEngine::Core ie = createCore();
     runParallel([&] () {
-        auto versions = ie.GetVersions(deviceName);
+        auto versions = ie.GetVersions(target_device);
         ASSERT_LE(1u, versions.size());
-        safePluginUnregister(ie);
+        safePluginUnregister(ie, target_device);
     });
 }
 
@@ -126,7 +130,7 @@ TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
     InferenceEngine::Core ie = createCore();
 
     ie.SetConfig(config);
-    auto versions = ie.GetVersions(deviceName);
+    auto versions = ie.GetVersions(target_device);
 
     runParallel([&] () {
         ie.SetConfig(config);
@@ -140,8 +144,8 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
 
     ie.SetConfig(config);
     runParallel([&] () {
-        ie.GetConfig(deviceName, configKey);
-        safePluginUnregister(ie);
+        ie.GetConfig(target_device, configKey);
+        safePluginUnregister(ie, target_device);
     });
 }
 
@@ -149,8 +153,8 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
 TEST_P(CoreThreadingTests, smoke_GetMetric) {
     InferenceEngine::Core ie = createCore();
     runParallel([&] () {
-        ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        safePluginUnregister(ie);
+        ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        safePluginUnregister(ie, target_device);
     });
 }
 
@@ -159,12 +163,12 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
     InferenceEngine::Core ie = createCore();
     InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
 
-    ie.SetConfig(config, deviceName);
-    InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, deviceName);
+    ie.SetConfig(config, target_device);
+    InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, target_device);
 
     runParallel([&] () {
-        const auto result = ie.QueryNetwork(network, deviceName);
-        safePluginUnregister(ie);
+        const auto result = ie.QueryNetwork(network, target_device);
+        safePluginUnregister(ie, target_device);
 
         // compare QueryNetworkResult with reference
         for (auto && r : refResult.supportedLayersMap) {
@@ -190,12 +194,13 @@ enum struct ModelClass : unsigned {
 
 using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
 
-class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
-    public CoreThreadingTestsBase {
+class CoreThreadingTestsWithIterations : public testing::WithParamInterface<CoreThreadingParams>,
+                                         public BehaviorTestsUtils::IEPluginTestBase,
+                                         public CoreThreadingTestsBase {
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        std::tie(deviceName, config) = std::get<0>(GetParam());
+        std::tie(target_device, config) = std::get<0>(GetParam());
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
         modelClass = std::get<3>(GetParam());
@@ -206,6 +211,7 @@ public:
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = std::get<0>(obj.param);
+        std::replace(deviceName.begin(), deviceName.end(), ':', '.');
         numThreads = std::get<1>(obj.param);
         numIterations = std::get<2>(obj.param);
         char separator('_');
@@ -213,13 +219,15 @@ public:
         result << "targetDevice=" << deviceName << separator;
         result << "config=";
         for (auto& confItem : config) {
-            result << confItem.first << ":" << confItem.second << separator;
+            result << confItem.first << "=" << confItem.second << separator;
         }
         result << "numThreads=" << numThreads << separator;
         result << "numIter=" << numIterations;
         return result.str();
     }
 
+
+protected:
     ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;
@@ -247,10 +255,10 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
 
     SetupNetworks();
 
-    ie.SetConfig(config, deviceName);
+    ie.SetConfig(config, target_device);
     runParallel([&] () {
         auto value = counter++;
-        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
+        (void)ie.LoadNetwork(networks[value % networks.size()], target_device);
     }, numIterations, numThreads);
 }
 
@@ -261,7 +269,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore)
 
     SetupNetworks();
 
-    ie.SetConfig(config, deviceName);
+    ie.SetConfig(config, target_device);
 
     runParallel([&] () {
         auto value = counter++;
@@ -275,7 +283,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore)
         }
 
         auto getOutputBlob = [&](InferenceEngine::Core & core) {
-            auto exec = core.LoadNetwork(network, deviceName);
+            auto exec = core.LoadNetwork(network, target_device);
             auto req = exec.CreateInferRequest();
             req.SetInput(blobs);
 
@@ -304,7 +312,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
 
     SetupNetworks();
 
-    ie.SetConfig(config, deviceName);
+    ie.SetConfig(config, target_device);
     runParallel([&] () {
         auto value = counter++;
         auto network = networks[value % networks.size()];
@@ -317,7 +325,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
         }
 
         auto getOutputBlob = [&](InferenceEngine::Core & core) {
-            auto exec = core.LoadNetwork(network, deviceName);
+            auto exec = core.LoadNetwork(network, target_device);
             auto req = exec.CreateInferRequest();
             req.SetInput(blobs);
 
@@ -336,7 +344,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
         // compare actual value using the second Core
         {
             InferenceEngine::Core ie2;
-            ie2.SetConfig(config, deviceName);
+            ie2.SetConfig(config, target_device);
             auto outputRef = getOutputBlob(ie2);
 
             FuncTestUtils::compareBlobs(outputActual, outputRef);
@@ -353,8 +361,8 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_SingleIECore) {
 
     runParallel([&] () {
         auto value = counter++;
-        ie.SetConfig(config, deviceName);
-        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
+        ie.SetConfig(config, target_device);
+        (void)ie.LoadNetwork(networks[value % networks.size()], target_device);
     }, numIterations, numThreads);
 }
 
@@ -367,7 +375,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
     runParallel([&] () {
         auto value = counter++;
         InferenceEngine::Core ie = createCore();
-        ie.SetConfig(config, deviceName);
-        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
+        ie.SetConfig(config, target_device);
+        (void)ie.LoadNetwork(networks[value % networks.size()], target_device);
     }, numIterations, numThreads);
 }
