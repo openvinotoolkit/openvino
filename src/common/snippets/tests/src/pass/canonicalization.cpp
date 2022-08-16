@@ -23,12 +23,12 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
         // input shape
         result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
-        result << "IBS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(blockedshape)) << "_";
+        result << "IBS[" << i << "]=" << CommonTestUtils::partialShape2str({std::get<0>(blockedshape)}) << "_";
         // input blocked order
         result << "IBO[" << i << "]=" << CommonTestUtils::vec2str(std::get<1>(blockedshape)) << "_";
     }
     // output blocked shape
-    result << "OBS[0]=" << CommonTestUtils::vec2str(std::get<0>(output)) << "_";
+    result << "OBS[0]=" << CommonTestUtils::partialShape2str({std::get<0>(output)}) << "_";
     // output blocked order
     result << "OBO[0]=" << CommonTestUtils::vec2str(std::get<1>(output)) << "_";
     result << "ExpOS[0]=" << CommonTestUtils::vec2str(expectedOutput) << "_";

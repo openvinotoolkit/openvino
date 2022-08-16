@@ -390,9 +390,13 @@ void Snippet::normalizeShapes() {
         input_blocked_shapes.push_back(blockedShape);
     }
 
+    outputShapeIsBlocked.resize(outputShapes.size(), false);
     ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
-    for (size_t i = 0; i < outputShapes.size(); i++)
-        output_blocked_shapes.push_back(edgeToBlockedShape(getChildEdgesAtPort(i)[0]));
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        auto blockedShape = edgeToBlockedShape(getChildEdgesAtPort(i)[0]);
+        outputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
+        output_blocked_shapes.push_back(blockedShape);
+    }
 
     const auto supported_exec_type = snippet->get_generator()->get_supported_exec_precision();
     masterShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes, supported_exec_type);
@@ -459,14 +463,12 @@ void Snippet::prepareParams() {
             normInputShapes[i] = inShape;
         }
         // this is a simple way to update output shapes without doing honest (and expensive) m_body->reshape()
-        normOutputShapes = originalNormOutputShapes;
-        for (auto& s : normOutputShapes) {
-            if (s.is_static())
-                continue;
-            for (size_t i = 0; i < s.size(); i++) {
-                if (s[i].is_dynamic())
-                    s[i] = masterShape[i];
-            }
+        normOutputShapes.resize(getChildEdges().size());
+        for (size_t i = 0; i < getChildEdges().size(); i++) {
+            auto outShape = getChildEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape();
+            if (masterShapeIsBlocked && !outputShapeIsBlocked[i])
+                outShape.insert(outShape.end(), 1);
+            normOutputShapes[i] = prependWithOnes(outShape, tensorRank);
         }
     } else {
         normOutputShapes = originalNormOutputShapes;
@@ -503,7 +505,7 @@ void Snippet::prepareParams() {
     // initialize start offsets to src and dst memory
     // Needs to be done for every set of input shapes sce memory ptrs could've updated
     initStartMemoryOffsets();
-    scheduler_work_amounts.resize(maxTileRank, 1);
+    scheduler_work_amounts = std::vector<size_t>(maxTileRank, 1);
     // rename schedulerWorkAmount to harnessWorkAmount?
     harnessWorkAmount = fullWorkAmount;
     auto scheduler_it = scheduler_work_amounts.rbegin();

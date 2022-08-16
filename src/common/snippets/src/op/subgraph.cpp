@@ -200,7 +200,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
         const auto inRank = inShape.size();
         NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
         if (inRank < baseRank) {
-            PartialShape newShape =  PartialShape::dynamic(baseRank);
+            PartialShape newShape(ov::Shape{baseRank, 1});
             // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
             if (baseIsBlocked) {
                 const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();

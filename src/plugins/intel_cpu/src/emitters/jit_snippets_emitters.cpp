@@ -577,7 +577,15 @@ void TileEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& gpr_pool,
                             const ov::intel_cpu::emitter_context *emit_context) const {
     Reg64 work_amount = Reg64(static_cast<int>(in[0]));
-    Reg64 reg_const_params = Reg64(static_cast<int>(in[1]));
+    Reg64 reg_const_params;
+    // todo: unify interface for static & dynamic calls for TileEmitter?
+    // There is 1 arg for the static case, so we can assign any reg to reg_const_params, since it won't be really used.
+    // Anyway, try to assign a reg from the pool to prevent possible work_amount corruption
+    if (dynamic_dims_idx.empty()) {
+        reg_const_params = gpr_pool.empty() ? work_amount : Reg64(gpr_pool.back());
+    } else {
+        reg_const_params = Reg64(static_cast<int>(in[1]));
+    }
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(out, data_ptr_regs);
     switch (host_isa_) {
