@@ -290,7 +290,6 @@ class SSliceComplexMiddleStageTest(unittest.TestCase):
 
     def test_replacement_with_update_roll_axes(self):
         graph = build_graph(nodes_attrs=graph_node_attrs_3, edges=graph_edges_2)
-        graph.dump_graph_for_graphviz(save_to_svg=True)
         SSliceComplex().find_and_replace_pattern(graph)
         graph.clean_up()
         ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs_3, edges=ref_graph_edges_3)
