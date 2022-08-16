@@ -152,14 +152,13 @@ Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
         std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool_conv, max_pool_fq_conv, max_pool_bias, max_pool_fq_bias,
             fq_conv, fq_bias, act_conv, act_bias, act_max_pool_conv, act_max_pool_bias,
             fq_act_fq_fq_conv, fq_act_fq_fq_bias, fq_act_fq_max_pool_fq_conv, fq_act_fq_max_pool_fq_bias});
-    const auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({root_reshape, ngraph::pattern::any_input()}, is_required_reshape);
+    const auto reshape_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    const auto reshape = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({root_reshape, reshape_const}, is_required_reshape);
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+        const auto reshape_const_node = pattern_map.at(reshape_const).get_node_shared_ptr();
         auto consumers = reshape_node->output(0).get_target_inputs();
-
-        auto N = reshape_node->get_input_shape(0)[0];
-        auto W = reshape_node->get_input_shape(0)[1]*reshape_node->get_input_shape(0)[2]*reshape_node->get_input_shape(0)[3];
 
         // Create transpose NxCxHxW => NxHxWxC
         auto data = reshape_node->input_value(0);
@@ -168,8 +167,7 @@ Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
         transpose->set_friendly_name(reshape_node->get_friendly_name()  + "/Transpose");
 
         // Create reshape NxHxWxC => NxW (C or HxW is equal to 1)
-        auto reshape_nw_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{N, W});
-        auto reshape_nw = register_new_node<ngraph::opset8::Reshape>(transpose, reshape_nw_const, false);
+        auto reshape_nw = register_new_node<ngraph::opset8::Reshape>(transpose, reshape_const_node, false);
         reshape_nw->set_friendly_name(reshape_node->get_friendly_name());
 
         ngraph::copy_runtime_info(reshape_node, {transpose, reshape_nw});
