@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_GNA)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
