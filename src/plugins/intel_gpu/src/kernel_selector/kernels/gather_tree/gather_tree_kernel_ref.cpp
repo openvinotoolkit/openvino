@@ -32,6 +32,18 @@ ParamsKey GatherTreeKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
 
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv4);
+
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv4);
+
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv8_fsv2);
+
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv4_fsv2);
+
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
 

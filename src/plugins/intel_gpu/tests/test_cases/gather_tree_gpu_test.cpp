@@ -56,12 +56,6 @@ const std::vector<format::type> layouts = {
 };
 
 template<typename T>
-std::vector<T> getValues(const std::vector<float> &values) {
-    std::vector<T> result(values.begin(), values.end());
-    return result;
-}
-
-template<typename T>
 std::vector<Params<T>> generateParams() {
     static const std::vector<Params<T>> result = {
         {
@@ -183,60 +177,50 @@ public:
         auto &engine = get_test_engine();
         topology topology;
 
-        const std::string step_data_id = "step_id";
         auto step_input = engine.allocate_memory({data_type, plain_layout, params.step_id_tensor});
         set_values(step_input, params.step_id);
-        std::string step_id = step_data_id;
+        const std::string step_id = "step_id";
         topology.add(input_layout(step_id, step_input->get_layout()));
         const std::string reorder_step_id = step_id + "_reordered";
         topology.add(reorder(reorder_step_id, step_id, target_layout, data_type));
-        step_id = reorder_step_id;
 
-        const std::string parent_data_id = "parent_id";
         auto parent_input = engine.allocate_memory({data_type, plain_layout, params.parent_id_tensor});
         set_values(parent_input, params.parent_id);
-        std::string parent_id = parent_data_id;
+        const std::string parent_id = "parent_id";
         topology.add(input_layout(parent_id, parent_input->get_layout()));
         const std::string reorder_parent_id = parent_id + "_reordered";
         topology.add(reorder(reorder_parent_id, parent_id, target_layout, data_type));
-        parent_id = reorder_parent_id;
 
-        const std::string max_seq_len_data_id = "max_seq_len_id";
         auto max_seq_len_input = engine.allocate_memory({data_type, plain_layout, params.max_seq_len_tensor});
         set_values(max_seq_len_input, params.max_seq_len);
-        std::string max_seq_len_id = max_seq_len_data_id;
+        const std::string max_seq_len_id = "max_seq_len_id";
         topology.add(input_layout(max_seq_len_id, max_seq_len_input->get_layout()));
         const std::string reorder_max_seq_len_id = max_seq_len_id + "_reordered";
         topology.add(reorder(reorder_max_seq_len_id, max_seq_len_id, target_layout, data_type));
-        max_seq_len_id = reorder_max_seq_len_id;
 
-        const std::string end_token_data_id = "end_token_id";
         auto end_token_input = engine.allocate_memory({data_type, plain_layout, params.end_token_tensor});
         set_values(end_token_input, params.end_token);
-        std::string end_token_id = end_token_data_id;
+        const std::string end_token_id = "end_token_id";
         topology.add(input_layout(end_token_id, end_token_input->get_layout()));
         const std::string reorder_end_token_id = end_token_id + "_reordered";
         topology.add(reorder(reorder_end_token_id, end_token_id, target_layout, data_type));
-        end_token_id = reorder_end_token_id;
 
-        const std::string result_data_id = "result_id";
-        topology.add(gather_tree(result_data_id, step_id, parent_id, max_seq_len_id, end_token_id));
+        const std::string result_id = "result_id";
+        topology.add(gather_tree(result_id, reorder_step_id, reorder_parent_id, reorder_max_seq_len_id, reorder_end_token_id));
 
-        std::string result_id = result_data_id;
-        const primitive_id reorder_result_id = result_data_id + "_reordered";
-        topology.add(reorder(reorder_result_id, result_data_id, plain_layout, data_type));
-        result_id = reorder_result_id;
+        const primitive_id reorder_result_id = result_id + "_reordered";
+        topology.add(reorder(reorder_result_id, result_id, plain_layout, data_type));
 
         network network(engine, topology);
 
-        network.set_input_data(step_data_id, step_input);
-        network.set_input_data(parent_data_id, parent_input);
-        network.set_input_data(max_seq_len_data_id, max_seq_len_input);
-        network.set_input_data(end_token_data_id, end_token_input);
+        network.set_input_data(step_id, step_input);
+        network.set_input_data(parent_id, parent_input);
+        network.set_input_data(max_seq_len_id, max_seq_len_input);
+        network.set_input_data(end_token_id, end_token_input);
 
         auto result = network.execute();
 
-        auto out_mem = result.at(result_id).get_memory();
+        auto out_mem = result.at(reorder_result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.final_id_tensor.count(), out_ptr.size());
