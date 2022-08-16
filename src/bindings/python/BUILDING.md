@@ -106,6 +106,7 @@ make -j 4 install
 
 ### Build an OpenVINO™ Python Wheel on Linux and macOS
 
+#### First method - using CMake command
 You can build the Python wheel by adding `ENABLE_WHEEL` flag to `cmake` command:
 
 ```bash
@@ -116,7 +117,22 @@ cmake .. \
 -DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
 ```
 
-You can also build the Python wheel running the following command:
+Once completed, the wheel package should be located under the following path:
+
+```bash
+$ ls ${OV_WORKSPACE}/openvino/src/bindings/python/dist
+openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
+
+You can now install the wheel in your Python environment:
+
+```bash
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/dist
+pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
+
+#### Second method - using setup.py file
+You can build the Python wheel running the following command:
 
 ```bash
 cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel
