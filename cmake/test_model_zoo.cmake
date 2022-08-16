@@ -4,14 +4,22 @@
 
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
-function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py)
+ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt"
+                      RESULT_VAR onnx_FOUND
+                      WARNING_MESSAGE "ONNX frontend unit tests will be skipped"
+                      MESSAGE_MODE WARNING)
 
-    file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
+function(ov_model_convert SRC DST OUT)
+    set(onnx_gen_script "${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py")
+
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
     file(GLOB_RECURSE bin_models RELATIVE "${SRC}" "${SRC}/*.bin")
     file(GLOB_RECURSE onnx_models RELATIVE "${SRC}" "${SRC}/*.onnx")
     file(GLOB_RECURSE data_models RELATIVE "${SRC}" "${SRC}/*.data")
+
+    if(onnx_FOUND)
+        file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
+    endif()
 
     foreach(in_file IN LISTS prototxt_models xml_models bin_models onnx_models data_models)
         get_filename_component(ext "${in_file}" EXT)
