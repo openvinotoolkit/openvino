@@ -15,11 +15,6 @@
 namespace ov {
 namespace intel_gpu {
 
-struct buf_info {
-    size_t buf_offset;
-    size_t buf_size;
-};
-
 class CompiledModel;
 
 class InferRequest : public InferenceEngine::IInferRequestInternal {
@@ -46,7 +41,6 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
 
-    void SetBatch(int batch = -1) override;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     void SetGraph(std::shared_ptr<Graph> graph);
     void EnableProfiling() { m_useProfiling = true; }
@@ -60,10 +54,6 @@ public:
     void preprocess();
     void enqueue();
     void wait();
-
-    void preprocess_dynamic();
-    void enqueue_dynamic();
-    void wait_dynamic();
 
     bool use_external_queue() const { return m_useExternalQueue; }
     void enable_external_queue() { m_useExternalQueue = true; }
@@ -80,9 +70,6 @@ private:
     bool m_useExternalQueue = false;
     std::shared_ptr<Graph> m_graph;
 
-    // dynamic batch stuff
-    std::map<std::string, std::vector<buf_info>> batchInputs;
-    std::map<std::string, std::vector<buf_info>> batchOutputs;
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
     void prepare_input(const cldnn::primitive_id &inputName, InferenceEngine::Blob::Ptr &inputBlob,
@@ -93,21 +80,17 @@ private:
                                                 std::shared_ptr<InferenceEngine::IAllocator> alloc = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc);
 
-    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
+    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr);
     void copy_input_data(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id &inputName,
-                         const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
-                         buf_info* bi = nullptr);
+                         const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob);
 
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);
     void allocate_inputs();
     void allocate_outputs();
-    void allocate_inputs_dynamic();
-    void allocate_outputs_dynamic();
 
     InferenceEngine::Blob::Ptr reinterpret_device_blob(InferenceEngine::Blob::Ptr data, const InferenceEngine::TensorDesc& new_desc);
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
-    std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
     Graph::variable_states_map variables_states_;
 };
 
