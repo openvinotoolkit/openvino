@@ -55,10 +55,14 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb" ]; then
+        export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/tbb
     elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib64/cmake/TBB
     elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
+    else
+        echo "TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
     fi
 fi
 

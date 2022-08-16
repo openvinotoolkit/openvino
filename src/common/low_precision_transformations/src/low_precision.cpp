@@ -13,6 +13,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include "ngraph/op/util/multi_subgraph_base.hpp"
+
 #include <transformations/utils/utils.hpp>
 #include <low_precision/lpt_itt.hpp>
 
@@ -127,7 +129,6 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
-        MATCHER_SCOPE_ENABLE(TypeRelaxedReplacer);
         return true;
     };
 
@@ -261,31 +262,39 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
     std::set<std::shared_ptr<ngraph::Node>> handledNodes;
     std::deque<std::shared_ptr<ngraph::Node>> nodes;
-    for (auto result : function->get_results()) {
+    for (const auto result : function->get_results()) {
         nodes.push_front(result);
     }
 
     while (!nodes.empty()) {
-        auto node = nodes.front();
+        const auto node = nodes.front();
         nodes.pop_front();
 
         for (size_t i = 0; i < node->inputs().size(); ++i) {
-            auto parent = node->get_input_node_shared_ptr(i);
+            const auto parent = node->get_input_node_shared_ptr(i);
             if (handledNodes.find(parent) != handledNodes.end()) {
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
-            if ((fakeQuantize != nullptr) &&
-                QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
-                QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
-                return true;
+            if (const auto fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent)) {
+                if (QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
+                    QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
+                    return true;
+                }
+            } else if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(parent)) {
+                // Look inside subraph operations, such as TensorIterator, Loop, If, etc
+                for (int i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
+                    if (isFunctionQuantized(multiSubGraph->get_function(i))) {
+                        return true;
+                    }
+                }
             }
 
             nodes.push_front(parent);
             handledNodes.insert(parent);
         }
     }
+
     return false;
 }
 

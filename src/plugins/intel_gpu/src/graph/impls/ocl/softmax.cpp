@@ -13,7 +13,7 @@
 namespace cldnn {
 namespace ocl {
 
-static inline kernel_selector::softmax_dim GetSoftmaxDim(int64_t axis, size_t rank) {
+static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -43,15 +43,14 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         return make_unique<softmax_impl>(*this);
     }
 
-    static primitive_impl* create(const softmax_node& arg) {
-        auto sm_params = get_default_params<kernel_selector::softmax_params>(arg);
+    static primitive_impl* create(const softmax_node& arg, const kernel_impl_params& impl_param) {
+        const auto primitive = arg.get_primitive();
+        auto sm_params = get_default_params<kernel_selector::softmax_params>(impl_param);
         auto sm_optional_params =
             get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
 
-        const auto primitive = arg.get_primitive();
-
         size_t rank = arg.get_output_layout().get_rank();
-        sm_params.dim = GetSoftmaxDim(primitive->dimension, rank);
+        sm_params.dim = get_softmax_dim(primitive->dimension, rank);
 
         auto& kernel_selector = kernel_selector::softmax_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);

@@ -34,9 +34,9 @@ if machine == "x86_64" or machine == "AMD64":
     ARCH = "intel64"
 elif machine == "X86":
     ARCH = "ia32"
-elif machine == "arm":
+elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
-elif machine == "aarch64":
+elif machine == "aarch64" or machine == "arm64":
     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file
@@ -44,6 +44,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[0]
 CMAKE_BUILD_DIR = os.getenv("CMAKE_BUILD_DIR", ".")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
+PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", f"python/{PYTHON_VERSION}")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
@@ -82,18 +83,23 @@ LIB_INSTALL_CFG = {
         "name": "batch",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+    },
+    "pugixml_libs": {
+        "name": "pugixml",
+        "prefix": "libs.pugixml",
+        "install_dir": PUGIXML_LIBS_DIR,
     },
 }
 
 PY_INSTALL_CFG = {
     "ie_py": {
-        "name": PYTHON_VERSION,
+        "name": f"pyie_{PYTHON_VERSION}",
         "prefix": "site-packages",
         "install_dir": PY_PACKAGES_DIR,
     },
@@ -448,7 +454,7 @@ description_md = SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pypi-openv
 md_files = [description_md, SCRIPT_DIR.parents[3] / "docs" / "install_guides" / "pre-release-note.md"]
 docs_url = "https://docs.openvino.ai/latest/index.html"
 
-if(os.getenv("CI_BUILD_DEV_TAG")):
+if (os.getenv("CI_BUILD_DEV_TAG")):
     output = Path.cwd() / "build" / "pypi-openvino-rt.md"
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)

@@ -735,7 +735,7 @@ enum class BlobType {
     Memory,
     Batched,
     Compound,
-//    Remote,
+    Remote,
     I420,
     NV12,
 };
@@ -748,8 +748,8 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
         return os << "Batched";
     case BlobType::Compound:
         return os << "Compound";
-//    case BlobType::Remote:
-//        return os << "Remote";
+    case BlobType::Remote:
+        return os << "Remote";
     case BlobType::I420:
         return os << "I40";
     case BlobType::NV12:
