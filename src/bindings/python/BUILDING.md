@@ -22,8 +22,6 @@ On macOS, you can use [Homebrew](https://brew.sh) to install required packages:
 
 ```bash
 brew install cmake
-brew install automake
-brew install libtool
 brew install python3
 ```
 
