@@ -27,7 +27,7 @@ class typed_primitive_inst<read_value> : public typed_primitive_inst_base<read_v
     using parent = typed_primitive_inst_base<read_value>;
 
 public:
-    static layout calc_output_layout(const read_value_node& node);
+    static layout calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(const read_value_node& node);
 

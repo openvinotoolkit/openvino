@@ -32,7 +32,7 @@ class typed_primitive_inst<shape_of> : public typed_primitive_inst_base<shape_of
     using parent = typed_primitive_inst_base<shape_of>;
 
 public:
-    static layout calc_output_layout(shape_of_node const& node);
+    static layout calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(shape_of_node const& node);
 
 public:

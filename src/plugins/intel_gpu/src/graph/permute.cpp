@@ -19,11 +19,12 @@ primitive_type_id permute::type_id() {
     return &instance;
 }
 
-layout permute_inst::calc_output_layout(permute_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for permute_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto permute_order = node.get_primitive()->permute_order;
+    auto desc = impl_param.typed_desc<permute>();
+    auto input_layout = impl_param.get_input_layout();
+    auto permute_order = desc->permute_order;
     std::vector<tensor::value_type> output_shape;
 
     auto input_shape = input_layout.get_dims();
@@ -37,10 +38,10 @@ layout permute_inst::calc_output_layout(permute_node const& node) {
     }
 
     auto output_size = tensor(format::get_default_format(input_layout.get_rank()), output_shape);
-    auto op = node.get_primitive()->output_padding;
+    auto op = desc->output_padding;
 
-    if (node.has_fused_primitives()) {
-        input_layout.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        input_layout.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout(input_layout.data_type, input_layout.format, output_size, op);

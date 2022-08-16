@@ -18,10 +18,10 @@ primitive_type_id roi_align::type_id() {
 roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node)
     : parent(network, node) {}
 
-layout roi_align_inst::calc_output_layout(roi_align_node const& node) {
-    auto primitive = node.get_primitive();
-    auto input_layout = node.input(0).get_output_layout();
-    auto rois_layout = node.input(1).get_output_layout();
+layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param) {
+    auto primitive = impl_param.typed_desc<roi_align>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto rois_layout = impl_param.get_input_layout(1);
     auto num_rois = rois_layout.batch();
     auto num_channels = input_layout.feature();
     return layout(input_layout.data_type,

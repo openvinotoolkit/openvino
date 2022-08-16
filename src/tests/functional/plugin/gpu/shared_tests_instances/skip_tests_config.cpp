@@ -93,5 +93,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
             // Issue: CVS-86976
             R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
+            // Issue: CVS-88667 - Need to verify hetero interoperability
+            R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
     };
 }

@@ -25,7 +25,7 @@ class typed_primitive_inst<gather_nd> : public typed_primitive_inst_base<gather_
     using parent = typed_primitive_inst_base<gather_nd>;
 
 public:
-    static layout calc_output_layout(gather_nd_node const& node);
+    static layout calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nd_node const& node);
 
 public:
