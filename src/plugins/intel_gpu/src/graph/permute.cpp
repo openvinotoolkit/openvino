@@ -23,7 +23,7 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for permute_node!");
     auto desc = impl_param.typed_desc<permute>();
-    auto input_layout = impl_param.input_layouts[0];
+    auto input_layout = impl_param.get_input_layout();
     auto permute_order = desc->permute_order;
     std::vector<tensor::value_type> output_shape;
 
