@@ -345,6 +345,7 @@ def test_direct_infer(device):
     assert np.array_equal(ref[comp_model.outputs[0]], res[comp_model.outputs[0]])
 
 
+@pytest.mark.template_plugin()
 def test_compiled_model_after_core_destroyed(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
