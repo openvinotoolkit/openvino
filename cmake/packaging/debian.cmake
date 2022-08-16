@@ -51,6 +51,8 @@ macro(ov_cpack_settings)
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
+           # the same for pugixml
+           NOT item STREQUAL "pugixml" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # not appropriate components
@@ -261,7 +263,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
-    # ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
+    ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package
         "empty-binary-package")
@@ -270,6 +272,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
+    ov_debian_generate_conflicts(openvino ${conflicting_versions})
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
         "empty-binary-package")

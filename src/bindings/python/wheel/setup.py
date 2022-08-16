@@ -36,7 +36,7 @@ elif machine == "X86":
     ARCH = "ia32"
 elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
-elif machine == "aarch64":
+elif machine == "aarch64" or machine == "arm64":
     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file
@@ -44,6 +44,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[0]
 CMAKE_BUILD_DIR = os.getenv("CMAKE_BUILD_DIR", ".")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
+PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", f"python/{PYTHON_VERSION}")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
@@ -82,12 +83,17 @@ LIB_INSTALL_CFG = {
         "name": "batch",
         "prefix": "libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": "libs.tbb",
         "install_dir": TBB_LIBS_DIR,
-        "rpath": LIBS_RPATH,
+    },
+    "pugixml_libs": {
+        "name": "pugixml",
+        "prefix": "libs.pugixml",
+        "install_dir": PUGIXML_LIBS_DIR,
     },
 }
 
