@@ -58,16 +58,15 @@ def main():
     x = np.random.rand(*x_shape).astype("float32")
     y = np.array(
         [
-            [0, 0, 1, 0, 4],
-            [4, 0, 0, 0, 1],
-            [0, 1, 2, 0, 2],
-            [0, 1, 2, 0, 6],
-            [1, 1, 2, 0, 3],
+            [np.random.randint(0, s) for s in x_shape],
+            [np.random.randint(0, s) for s in x_shape],
         ]
     ).astype("int32")
     gather_nd("gather_nd_high_rank1", x, y)
 
-    index = np.vstack([np.random.randint(0, s, size=100) for s in x_shape]).T
+    index = (
+        np.array([np.random.randint(0, s, size=100) for s in x_shape]).astype("int32").T
+    )
     y = index.reshape([10, 5, 2, 5])
     gather_nd("gather_nd_high_rank2", x, y)
 
