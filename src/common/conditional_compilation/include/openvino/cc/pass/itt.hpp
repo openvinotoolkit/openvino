@@ -11,7 +11,7 @@
 OV_CC_DOMAINS(ov_pass);
 
 /*
- * RUN_ON_MODEL_SCOPE macro allows to disable the run_on_function pass
+ * RUN_ON_MODEL_SCOPE macro allows to disable the run_on_model pass
  * RUN_ON_FUNCTION_SCOPE macro allows to disable the run_on_function pass
  * MATCHER_SCOPE macro allows to disable the MatcherPass if matcher isn't applied
  */

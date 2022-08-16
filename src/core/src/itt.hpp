@@ -12,6 +12,7 @@
 #include <openvino/cc/factory.h>
 #include <openvino/cc/selective_build.h>
 
+#include <openvino/cc/pass/itt.hpp>
 #include <openvino/itt.hpp>
 
 namespace ov {
@@ -24,7 +25,6 @@ OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
 }  // namespace itt
 }  // namespace ov
 OV_CC_DOMAINS(ngraph_op);
-OV_ITT_DOMAIN(SIMPLE_ov_pass);
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define NGRAPH_OP_SCOPE(region) OV_SCOPE(ngraph_op, region)

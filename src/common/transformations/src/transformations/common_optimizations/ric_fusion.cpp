@@ -799,6 +799,7 @@ public:
 }  // namespace back_prop
 
 bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
     Manager m;
     m.set_per_pass_validation(false);
 
