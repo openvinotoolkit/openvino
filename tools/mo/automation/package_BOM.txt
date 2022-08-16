@@ -232,6 +232,7 @@ openvino/tools/mo/front/kaldi/extractors/normalize_component_ext.py
 openvino/tools/mo/front/kaldi/extractors/pnorm_component_ext.py
 openvino/tools/mo/front/kaldi/extractors/rectified_linear_component_ext.py
 openvino/tools/mo/front/kaldi/extractors/rescale_ext.py
+openvino/tools/mo/front/kaldi/extractors/restrictedattentioncomponent_ext.py
 openvino/tools/mo/front/kaldi/extractors/scale_component_ext.py
 openvino/tools/mo/front/kaldi/extractors/softmax_ext.py
 openvino/tools/mo/front/kaldi/extractors/specaugment_component_ext.py
@@ -971,6 +972,7 @@ openvino/tools/mo/ops/reorgyolo.py
 openvino/tools/mo/ops/reshape.py
 openvino/tools/mo/ops/resize.py
 openvino/tools/mo/ops/resize_factor_utils.py
+openvino/tools/mo/ops/restrictedattentioncomponent.py
 openvino/tools/mo/ops/result.py
 openvino/tools/mo/ops/Reverse.py
 openvino/tools/mo/ops/reverse_sequence.py
