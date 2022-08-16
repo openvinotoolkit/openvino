@@ -17,7 +17,6 @@ struct resample_params : public base_params {
 
     std::vector<int32_t> pads_begin = {};
     std::vector<int32_t> pads_end = {};
-    uint32_t align_corners = 0;
     ResampleType resampleType = ResampleType::NEAREST_NEIGHBOR;
     CoordinateTransformationMode coordTransMode = CoordinateTransformationMode::HALF_PIXEL;
     NearestMode nearestMode = NearestMode::ROUND_PREFER_FLOOR;
