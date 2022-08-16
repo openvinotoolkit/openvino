@@ -16,7 +16,7 @@
 namespace cldnn {
 namespace onednn {
 
-static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<uint16_t> axes) {
+static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<int64_t> axes) {
     auto in_dims = input_layout.get_tensor().sizes();
 
     for (size_t idx = 0; idx < axes.size(); idx++) {
