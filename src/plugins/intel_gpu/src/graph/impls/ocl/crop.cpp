@@ -21,9 +21,22 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
         return make_unique<crop_impl>(*this);
     }
 
+    explicit crop_impl(const crop_impl& other) : parent(other),
+        _can_be_optimized(other._can_be_optimized) {}
+
+    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<crop>());
+        const auto& node = arg.as<crop>();
+        _can_be_optimized = node.can_be_optimized();
+    }
+
 protected:
     bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || _outer.can_be_optimized();
+        return parent::optimized_out(instance) || _can_be_optimized;
     }
 
 public:
@@ -51,6 +64,9 @@ public:
 
         return crop;
     }
+
+private:
+    bool _can_be_optimized;
 };
 
 namespace detail {

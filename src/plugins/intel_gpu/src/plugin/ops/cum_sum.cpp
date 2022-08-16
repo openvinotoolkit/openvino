@@ -21,7 +21,6 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
     auto exclusive = op->is_exclusive();
     auto reverse = op->is_reverse();
 
-    size_t rank = op->get_input_shape(0).size();
     int64_t axis = 0;
     if (op->get_input_size() == 2) {
         auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
@@ -30,10 +29,7 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
         }
         axis = axes_constant->cast_vector<int64_t>()[0];
     }
-    if (axis < 0)
-        axis += rank;
-    if (axis < 0 || axis >= static_cast<int64_t>(rank))
-        IE_THROW() << "CumSum axis is not correspond to number of dimensions";
+    axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
 
     auto primitive = cldnn::cum_sum(layerName,
                                     inputPrimitives[0],
