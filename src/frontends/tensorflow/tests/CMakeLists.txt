@@ -19,7 +19,10 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(tensorflow WARNING)
+ov_check_pip_package(REQUIREMENT tensorflow
+                     MESSAGE_MODE WARNING
+                     WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
+                     RESULT_VAR tensorflow_FOUND)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
