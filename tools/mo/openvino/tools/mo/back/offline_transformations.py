@@ -71,6 +71,9 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
 
     func = read_model(input_model + "_tmp.xml")
 
+    if argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update:
+        return func
+
     # TODO: use ngraph preprocessing (Mean/Scale/ReverseInputChannels) for legacy frontends
     reverse_input_channels = False
     if 'reverse_input_channels' in argv:

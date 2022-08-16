@@ -425,40 +425,40 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     # This graph cleanup is required to avoid double memory consumption
     graph.clear()
 
-    if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
-        output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+    output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+    orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-        return_code = "not executed"
-        try:
-            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
-            func = apply_offline_transformations(orig_model_name, argv)
-            if "compress_fp16" in argv and argv.compress_fp16:
-                # restore data_type cmd parameter
-                argv.data_type = 'FP16'
-            return_code = 0
-        except Exception as e:
-            return_code = "failed"
-            log.error(e)
+    return_code = "not executed"
+    func = None
+    try:
+        from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+        func = apply_offline_transformations(orig_model_name, argv)
+        if "compress_fp16" in argv and argv.compress_fp16:
+            # restore data_type cmd parameter
+            argv.data_type = 'FP16'
+        return_code = 0
+    except Exception as e:
+        return_code = "failed"
+        log.error(e)
 
-        message = str(dict({
-            "platform": platform.system(),
-            "mo_version": get_simplified_mo_version(),
-            "ie_version": get_simplified_ie_version(env=os.environ),
-            "python_version": sys.version,
-            "return_code": return_code
-        }))
-        t = tm.Telemetry()
-        t.send_event('mo', 'offline_transformations_status', message)
+    message = str(dict({
+        "platform": platform.system(),
+        "mo_version": get_simplified_mo_version(),
+        "ie_version": get_simplified_ie_version(env=os.environ),
+        "python_version": sys.version,
+        "return_code": return_code
+    }))
+    t = tm.Telemetry()
+    t.send_event('mo', 'offline_transformations_status', message)
 
-        if return_code != 0:
-            raise Error("offline transformations step has failed.")
+    if return_code != 0:
+        raise Error("offline transformations step has failed.")
 
-        for suf in [".xml", ".bin", ".mapping"]:
-            # remove existing files
-            path_to_file = orig_model_name + "_tmp" + suf
-            if os.path.exists(path_to_file):
-                os.remove(path_to_file)
+    for suf in [".xml", ".bin", ".mapping"]:
+        # remove existing files
+        path_to_file = orig_model_name + "_tmp" + suf
+        if os.path.exists(path_to_file):
+            os.remove(path_to_file)
     return func
 
 

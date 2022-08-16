@@ -949,7 +949,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
 
     common_group.add_argument('--silent',
                               help=mo_convert_params['silent'].description,
-                              action='store_true',
+                              type=check_bool,
                               default=True)
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
@@ -2095,6 +2095,17 @@ def check_positive(value):
         raise argparse.ArgumentTypeError("expected a positive integer value")
 
     return int_value
+
+
+def check_bool(value):
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, str):
+        if value.lower() not in ['true', 'false']:
+            raise argparse.ArgumentTypeError("expected a True/False value")
+        return value.lower() == 'true'
+    else:
+        raise argparse.ArgumentTypeError("expected a bool or str type")
 
 
 def depersonalize(value: str, key: str):
