@@ -87,49 +87,11 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
-    if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
-        find_package(PythonInterp 3 REQUIRED)
-
-        get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version
-            WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
-            RESULT_VARIABLE pip3_exit_code
-            OUTPUT_VARIABLE pip3_version)
-
-        if(NOT pip3_exit_code EQUAL 0)
-            message(FATAL_ERROR "Failed to extract pip module version")
-        endif()
-
-        if(pip3_version MATCHES ".* ([0-9]+)+\.([0-9]+)([\.0-9 ]).*")
-            set(pip3_version ${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
-        else()
-            message(FATAL_ERROR "Failed to parse ${pip3_version}")
-        endif()
-
-        message(STATUS "pip version is ${pip3_version}")
-        set(args --quiet)
-        if(pip3_version VERSION_GREATER 20.2.2 AND pip3_version VERSION_LESS 20.3.0)
-            list(APPEND args --use-feature=2020-resolver)
-        endif()
-
-        set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
-        add_custom_target(test_pip_prerequisites ALL
-                          "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
-                          COMMENT "Install requirements_test_onnx.txt"
-                          VERBATIM
-                          SOURCES ${reqs})
-    endif()
-
     add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
                                              ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files}
-                                             ${docs_onnx_out_files})
-
-    if(TARGET test_pip_prerequisites)
-        add_dependencies(test_model_zoo test_pip_prerequisites)
-    endif()
+                                             ${ie_onnx_import_out_files})
 
     if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
         add_dependencies(test_model_zoo paddle_test_models)

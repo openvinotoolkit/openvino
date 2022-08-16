@@ -129,7 +129,6 @@ jobs:
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
-        -DENABLE_PYTHON=ON
         -DPYTHON_MODULE_EXTENSION=".so"
         -DENABLE_TESTS=ON
         -DENABLE_FUNCTIONAL_TESTS=ON
@@ -137,7 +136,7 @@ jobs:
         -DENABLE_GAPI_PREPROCESSING=OFF
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
-        -DTHREADING=SEQ -DENABLE_LTO=ON
+        -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_SAMPLES=ON
@@ -173,7 +172,6 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DInferenceEngineDeveloperPackage_DIR=$(BUILD_OPENVINO)
-        -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
@@ -212,7 +210,6 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3.8
         -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib

@@ -572,6 +572,11 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
 
 if (ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(ov_core_unit_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
+
+    ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements_test_onnx.txt"
+                          RESULT_VAR onnx_FOUND
+                          WARNING_MESSAGE "ONNX frontend unit tests will be skipped"
+                          MESSAGE_MODE WARNING)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
