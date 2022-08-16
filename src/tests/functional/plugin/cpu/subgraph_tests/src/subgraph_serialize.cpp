@@ -42,4 +42,33 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
 
     ASSERT_TRUE(results.valid) << results.message;
 }
+
+TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto model = ([] () -> std::shared_ptr<ov::Model> {
+        auto shape = ov::Shape({1});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto internal_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, shape, 2);
+        auto internal_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, shape, 2);
+        auto add = std::make_shared<ov::op::v1::Add>(input, constant);
+        auto internal_add = std::make_shared<ov::op::v1::Add>(internal_input, internal_constant);
+        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
+        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, ov::clone_model(*subgraph_body.get()));
+        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
+    })();
+    ov::Core core;
+    ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
+    std::stringstream stream;
+    compiled_model.export_model(stream);
+    ov::CompiledModel imported_compiled_model = core.import_model(stream, "CPU");
+    auto compiled_model_runtime = ov::clone_model(*compiled_model.get_runtime_model());
+    auto imported_compiled_model_runtime = ov::clone_model(*imported_compiled_model.get_runtime_model());
+    const auto fc = FunctionsComparator::with_default()
+                                .enable(FunctionsComparator::CONST_VALUES)
+                                .enable(FunctionsComparator::ATTRIBUTES);
+    const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
+
+    ASSERT_TRUE(results.valid) << results.message;
+}
 } // namespace SubgraphTestsDefinitions
