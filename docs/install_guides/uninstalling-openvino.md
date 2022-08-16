@@ -9,7 +9,9 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
 @sphinxdirective
 .. tab:: Windows
 
-  You can choose either of the following methods:
+  If you have created the symbolic link, remove the link first.
+
+  Use either of the following methods to delete the files:
 
   * Use Windows Explorer to remove the files.
   * Open a Command Prompt and run:
@@ -22,10 +24,16 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
     
 .. tab:: Linux & macOS
   
+  If you have created the symbolic link, remove the link first:
+
+  .. code-block:: sh
+  
+   `rm /home/<USER>/intel/openvino_2022`
+
+  To delete the files:
+
   .. code-block:: sh
   
     rm -r <extracted_folder> && rm <path_to_archive>
 
 @endsphinxdirective
-
-
