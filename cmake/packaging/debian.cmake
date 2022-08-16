@@ -91,6 +91,8 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
     # we need triggers to run ldconfig for openvino
     set(CPACK_DEBIAN_CORE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+    # use lintian to check packages in post-build step
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian_post_build.cmake")
 
     # We currently don't have versioning for openvino core library
     ov_debian_add_lintian_suppression(core
@@ -280,14 +282,6 @@ macro(ov_cpack_settings)
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
 
     #
-    # install debian common files
-    #
-
-    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
-        ov_debian_add_changelog_and_copyright("${comp}")
-    endforeach()
-
-    #
     # Install latest symlink packages
     #
 
@@ -302,4 +296,12 @@ macro(ov_cpack_settings)
     # users can manually install specific version of package
     # e.g. sudo apt-get install openvino=2022.1.0
     # even if we have latest package version 2022.2.0
+
+    #
+    # install debian common files
+    #
+
+    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
+        ov_debian_add_changelog_and_copyright("${comp}")
+    endforeach()
 endmacro()
