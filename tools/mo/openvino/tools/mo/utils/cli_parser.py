@@ -485,6 +485,10 @@ mo_convert_params = {
         'ModelOptimizer to change layout, for example: '
         '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
         ' to fuse dimensions, for example [n,c,...]->[n*c,...].', '', '', layout_param_to_str),
+    'data_type': ParamDescription(
+        'Data type for all intermediate tensors and weights. ' +
+        'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
+        'and biases are compressed to FP16.', '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
@@ -513,6 +517,9 @@ mo_convert_params = {
         'Prevent any output messages except those that correspond to log level equals '
         'ERROR, that can be set with the following option: --log_level. '
         'By default, log level is already ERROR. ', '', '', None),
+    'version': ParamDescription(
+        "Version of Model Optimizer", '', '', None
+    ),
     'static_shape': ParamDescription(
         'Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
         'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
@@ -909,9 +916,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help='Data type for all intermediate tensors and weights. ' +
-                                   'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-                                   'and biases are compressed to FP16.',
+                              help=mo_convert_params['data_type'].description,
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',
@@ -945,7 +950,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument("--version",
                               action='version',
                               version='Version of Model Optimizer is: {}'.format(get_version()),
-                              help="Version of Model Optimizer")
+                              help=mo_convert_params['version'].description)
 
     common_group.add_argument('--silent',
                               help=mo_convert_params['silent'].description,
