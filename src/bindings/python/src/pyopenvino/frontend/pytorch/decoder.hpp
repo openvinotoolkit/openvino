@@ -75,6 +75,9 @@ namespace py = pybind11;
 
     void visit_subgraph(int idx, std::function<void(std::shared_ptr<Decoder>)> node_visitor) const override
     { PYBIND11_OVERRIDE_PURE(void, Decoder, visit_subgraph, idx, node_visitor); }
+
+    std::shared_ptr<Decoder> get_subgraph_decoder (size_t index) const override
+    { PYBIND11_OVERRIDE_PURE(std::shared_ptr<Decoder>, Decoder, get_subgraph_decoder, index); }
 };
 
 void regclass_frontend_pytorch_decoder(py::module m);

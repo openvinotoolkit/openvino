@@ -99,6 +99,9 @@ public:
     // TODO: Why int for idx? Why not unsigned? Just reused the same type for get_input
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
     virtual void visit_subgraph(int idx, std::function<void(std::shared_ptr<Decoder>)> node_visitor) const = 0;
+
+    /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
+    virtual std::shared_ptr<Decoder> get_subgraph_decoder (size_t index) const = 0;
 };
 
 }
