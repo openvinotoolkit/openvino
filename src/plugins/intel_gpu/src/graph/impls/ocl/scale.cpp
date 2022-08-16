@@ -23,13 +23,26 @@ struct scale_impl : typed_primitive_impl_ocl<scale> {
         return make_unique<scale_impl>(*this);
     }
 
+    explicit scale_impl(const scale_impl& other) : parent(other),
+        _has_bias_term(other._has_bias_term) {}
+
+    scale_impl(const scale_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        set_node_params(arg);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<scale>());
+        const auto& node = arg.as<scale>();
+        _has_bias_term = node.bias_term();
+    }
+
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<scale>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         args.inputs = {instance.input_memory_ptr(), instance.scale_memory()};
         args.outputs = {instance.output_memory_ptr()};
 
-        if (_outer.bias_term()) {
+        if (_has_bias_term) {
             args.inputs.push_back(instance.bias_memory());
         }
         return args;
@@ -68,6 +81,9 @@ public:
 
         return scale;
     }
+
+private:
+    bool _has_bias_term = false;
 };
 
 namespace detail {
