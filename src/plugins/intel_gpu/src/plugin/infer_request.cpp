@@ -524,11 +524,11 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
         IE_THROW(NetworkNotLoaded);
     }
 
-    // TODO: Conditional statement to check whether it is dynamic from network will be added.
-    // e.g. if (!m_graph->GetNetwork()->is_dynamic()) {}
-    allocate_inputs();
-    allocate_outputs();
-    variables_states_ = m_graph->AllocateVariablesMemories();
+    if (!m_graph->GetNetwork()->is_dynamic()) {
+        allocate_inputs();
+        allocate_outputs();
+        variables_states_ = m_graph->AllocateVariablesMemories();
+    }
 }
 
 InferRequest::InferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
