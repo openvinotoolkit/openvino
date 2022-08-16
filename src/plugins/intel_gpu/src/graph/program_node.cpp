@@ -229,6 +229,10 @@ layout program_node::calc_output_layout() const {
     return type()->calc_output_layout(*this, *get_kernel_impl_params());
 }
 
+std::vector<layout> program_node::calc_output_layouts() const {
+    return type()->calc_output_layouts(*this, *get_kernel_impl_params());
+}
+
 layout program_node::get_output_layout(bool invalidate_users_if_changed) {
     if (valid_output_layout)
         return output_layout;
@@ -269,12 +273,21 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
-    for (auto& input : get_dependencies()) {
+    for (const auto* input : get_dependencies()) {
         if (input->get_output_layout().is_dynamic())
             return true;
     }
 
     return get_output_layout().is_dynamic();
+}
+
+bool program_node::is_dynamic() {
+    for (auto& input : get_dependencies()) {
+        if (input->get_output_layout(true).is_dynamic())
+            return true;
+    }
+
+    return get_output_layout(true).is_dynamic();
 }
 
 bool program_node::has_padded_dependency() {
@@ -287,6 +300,21 @@ bool program_node::has_padded_dependency() const {
     return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
         return node->is_padded();
     });
+}
+
+std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
+    std::map<size_t, memory::ptr> mem_deps;
+    for (auto& i : get_shape_infer_dependencies()) {
+        // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
+        if (i >= get_dependencies().size())
+            continue;
+
+        auto& dep = get_dependency(i);
+        if (dep.is_type<data>()) {
+            mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
+        }
+    }
+    return mem_deps;
 }
 
 void program_node::invalidate_users() const {
@@ -337,7 +365,8 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        return n->get_selected_impl()->is_cpu();
+        auto impl = n->get_selected_impl();
+        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
     });
 
     return need_lockable_mem;

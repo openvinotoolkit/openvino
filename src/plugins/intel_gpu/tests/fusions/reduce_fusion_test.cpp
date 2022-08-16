@@ -27,7 +27,7 @@ struct reduce_test_params {
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
     cldnn::reduce_mode reduce_mode;
-    std::vector<uint16_t> reduce_axes;
+    std::vector<int64_t> reduce_axes;
     bool keep_dims;
     std::string kernel_name;
 };
@@ -47,7 +47,11 @@ public:
     }
 
     void update_out_shape(reduce_test_params& p) {
-       for (auto& axis : p.reduce_axes) {
+        size_t rank = p.input_format.dimension();
+        for (auto& axis : p.reduce_axes) {
+            if (axis >= static_cast<int64_t>(rank))
+                throw std::runtime_error("Unsupported reduce test case");
+
             switch (axis) {
                 case 0:  // batch
                     p.out_shape.batch[0] = 1;
@@ -55,17 +59,17 @@ public:
                 case 1:  // feature
                     p.out_shape.feature[0] = 1;
                     break;
-                case 2:  // x
-                    p.out_shape.spatial[0] = 1;
+                case 2:
+                    p.out_shape.spatial[rank - 3] = 1;
                     break;
-                case 3:  // y
-                    p.out_shape.spatial[1] = 1;
+                case 3:
+                    p.out_shape.spatial[rank - 4] = 1;
                     break;
-                case 4:  // z
-                    p.out_shape.spatial[2] = 1;
+                case 4:
+                    p.out_shape.spatial[rank - 5] = 1;
                     break;
-                case 5:  // w
-                    p.out_shape.spatial[3] = 1;
+                case 5:
+                    p.out_shape.spatial[rank - 6] = 1;
                     break;
             }
         }
@@ -158,73 +162,73 @@ TEST_P(reduce_eltwise_activation_quantize, per_channel) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise_activation_quantize, ::testing::ValuesIn(std::vector<reduce_test_params>{
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::mean, { reduce::along_x, reduce::along_f, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::min, { reduce::along_x, reduce::along_y, reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::sum, { reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::mean, { reduce::along_f, reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::min, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::mean, { reduce::along_x }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::mean, { 3, 1, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { 3, 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::max, { 2, 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { 3, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::min, { 3, 2, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::mean, { 1, 4 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::max, { 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::sum, { 4, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_4, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::min, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_2, 2, 5, reduce_mode::max, { 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_1, 2, 5, reduce_mode::mean, { 3 }, true, "reduce_ref" },
 
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::mean, { reduce::along_x, reduce::along_f, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::min, { reduce::along_x, reduce::along_y, reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::sum, { reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::mean, { reduce::along_f, reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::sum, { reduce::along_y }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::min, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::mean, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::mean, { 3, 1, 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::sum, { 4, 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::max, { 2, 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::sum, { 4, 3, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::min, { 3, 2, 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::mean, { 1, 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::max, { 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::sum, { 3, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::max, { 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_2, 2, 5, reduce_mode::min, { 4 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::mean, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
 
-    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::mean, { reduce::along_x, reduce::along_f, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::min, { reduce::along_x, reduce::along_y, reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::sum, { reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::mean, { reduce::along_f, reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::min, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::mean, { reduce::along_x }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::mean, { 3, 1, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { 3, 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::max, { 2, 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { 3, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::min, { 3, 2, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::mean, { 1, 3 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::max, { 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::sum, { 3, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::min, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_2, 2, 5, reduce_mode::max, { 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_1, 2, 5, reduce_mode::mean, { 3 }, true, "reduce_ref" },
 
-    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::mean, { reduce::along_x, reduce::along_f, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_f, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::min, { reduce::along_x, reduce::along_y, reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::sum, { reduce::along_f, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { reduce::along_f, reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { reduce::along_x, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::sum, { reduce::along_y }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::min, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { reduce::along_f }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" }
+    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::mean, { 3, 1, 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::sum, { 4, 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::max, { 2, 1, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::sum, { 4, 3, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::min, { 3, 2, 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { 1, 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { 3, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::max, { 1 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_1, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_2, 2, 5, reduce_mode::min, { 4 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::mean, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" }
 }));
 
 class reduce_scale_activation : public ReduceFusingTest {};
@@ -259,29 +263,29 @@ TEST_P(reduce_scale_activation, per_channel) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_scale_activation, ::testing::ValuesIn(std::vector<reduce_test_params>{
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::max, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_1, 2, 4, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::min, { reduce::along_x, reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_2, 2, 4, reduce_mode::mean, { reduce::along_x, reduce::along_y }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::l1, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::l1, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::min, { reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::sum, { reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::max, { 3, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_1, 2, 4, reduce_mode::sum, { 3, 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::min, { 3, 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_2, 2, 4, reduce_mode::mean, { 4, 3 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::l1, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::l1, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::min, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 4, reduce_mode::sum, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
 
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::max, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_1, 2, 4, reduce_mode::sum, { reduce::along_x, reduce::along_y, reduce::along_b }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::min, { reduce::along_x, reduce::along_y }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_2, 2, 4, reduce_mode::mean, { reduce::along_x, reduce::along_y }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::min, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::sum, { reduce::along_x }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::max, { 3, 2, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_1, 2, 4, reduce_mode::sum, { 3, 2, 0 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::min, { 3, 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_2, 2, 4, reduce_mode::mean, { 4, 3 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::min, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 4, reduce_mode::sum, { 3 }, true, "reduce_gpu_b_fs_yx_fsv16" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, reduce_eltwise_activation_quantize, ::testing::ValuesIn(std::vector<reduce_test_params>{
     // No layout format available for quantize/scale
-    reduce_test_params{ CASE_REDUCE_F32_3, 2, 4, reduce_mode::l1, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_F16_3, 2, 4, reduce_mode::min, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I32_2, 2, 4, reduce_mode::max, { reduce::along_x, reduce::along_y }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I32_3, 2, 4, reduce_mode::sum, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_I8_3, 2, 4, reduce_mode::mean, { reduce::along_x }, true, "reduce_ref" },
-    reduce_test_params{ CASE_REDUCE_U8_3, 2, 4, reduce_mode::l2, { reduce::along_x }, true, "reduce_ref" }
+    reduce_test_params{ CASE_REDUCE_F32_3, 2, 4, reduce_mode::l1, { 5 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_F16_3, 2, 4, reduce_mode::min, { 5 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I32_2, 2, 4, reduce_mode::max, { 4, 3 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I32_3, 2, 4, reduce_mode::sum, { 5 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_I8_3, 2, 4, reduce_mode::mean, { 5 }, true, "reduce_ref" },
+    reduce_test_params{ CASE_REDUCE_U8_3, 2, 4, reduce_mode::l2, { 5 }, true, "reduce_ref" }
 }));
