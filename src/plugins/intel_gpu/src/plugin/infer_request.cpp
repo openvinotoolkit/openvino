@@ -22,15 +22,11 @@ using namespace InferenceEngine;
 
 namespace {
 
-const char fp32_suffix[] = "_fp32";
 const char cannot_set_compound[] = "cannot set compound blob: supported only for input pre-processing";
 const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
 const char unsupported_batched_blob[] = "Batched input blob is expected to contain NV12 blobs";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
-const char str_host_mem_not_allocated[] = "Failed to allocate host memory.";
-const char str_device_mem_not_allocated[] = "Failed to allocate device memory.";
-const char str_shared_mem_not_allocated[] = "Failed to allocate shared memory.";
 
 template <typename src_t, typename dst_t>
 void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
@@ -251,139 +247,66 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
-    // TODO: Clean up preprocessing API stuff from InferRequest
-    bool preProcResize = false;
     auto node = is_input ? findInputByNodeName(name) : findOutputByNodeName(name);
     bool isDynamic = (node && node->get_output_partial_shape(0).is_dynamic());
-    if (is_input) {
-        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
-        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
-        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
-    }
 
-    if (!isDynamic &&
-        dataBinSize != netReqBinSize && !preProcResize) {
+    if (!isDynamic && dataBinSize != netReqBinSize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
     }
 
+    if (is_input) {
+        set_input(name, data);
+    } else {
+        set_output(name, data);
+    }
+}
+
+void InferRequest::set_input(const std::string& name, const Blob::Ptr& data) {
     auto remote_ptr = data->as<gpu::ClBlob>();
     bool is_remote = remote_ptr != nullptr;
+
+    auto node = findInputByNodeName(name);
+    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
+
     if (is_remote) {
-        auto impl = getBlobImpl(remote_ptr);
-        if (!impl->is_allocated()) {
-            impl->allocate();
-        }
-    }
-    if (is_input) {
-        if (is_remote) {
-            _deviceInputs[name] = data;
-            _inputs[name] = data;
-        } else {
-            // TODO: Clean up preprocessing API stuff from InferRequest
-            auto nv12_ptr = data->as<NV12Blob>();
-            auto batched_ptr = data->as<BatchedBlob>();
-            bool is_batched = batched_ptr != nullptr;
-            bool is_nv12 = nv12_ptr != nullptr;
-            int expected_batch = is_batched ? desc.getDims()[0] : 1;
-            if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-                m_graph->getConfig().nv12_two_inputs) {
-                // try extracting Y and UV remote blobs from it
-                // and put them into appropriate network inputs
-                // that should then go into biplanar NV12 reorder
-
-                if (is_nv12 || is_batched) {
-                    int num_blobs = is_batched ? batched_ptr->size() : 1;
-                    for (auto i = 0; i < expected_batch; i++) {
-                        std::string y_name = name + "_Y" + std::to_string(i);
-                        std::string uv_name = name + "_UV" + std::to_string(i);
-                        if (is_batched) {
-                            int idx = i < num_blobs ? i : num_blobs-1;
-                            nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
-                        }
-
-                        auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
-                        if (y_ptr) {
-                            auto y_impl = getBlobImpl(y_ptr);
-                            if (!y_impl->is_allocated()) {
-                                y_impl->allocate();
-                            }
-                            _deviceInputs[y_name] = nv12_ptr->y();
-                            is_remote = true;
-                        }
-
-                        auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
-                        if (uv_ptr) {
-                            auto uv_impl = getBlobImpl(uv_ptr);
-                            if (!uv_impl->is_allocated()) {
-                                uv_impl->allocate();
-                            }
-                            _deviceInputs[uv_name] = nv12_ptr->uv();
-                            is_remote = true;
-                        }
-                    }
-                }
-            }
-            if (is_remote)
-                _inputs[name] = data;
-        }
-        // TODO: Clean up preprocessing API stuff from InferRequest
-        if (!is_remote) {
-            if (preProcessingRequired(foundInput, data)) {
-                // Stores the given blob as ROI blob. It will be used to fill in network input
-                // during pre-processing
-                if (_inputs[name]->is<gpu::ClBlob>()) {
-                    Blob::Ptr inputHostBlob = create_host_blob(desc);
-                    _inputs[name] = inputHostBlob;
-                }
-                _preProcData[name] = CreatePreprocDataHelper();
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
-            } else {
-                if (isDynamic) {
-                    // We must create new input data if it has never been allocated or previously allocated
-                    // device blob is smaller than currently assigned user blob
-                    bool needs_realloc = _deviceInputs.find(name) == _deviceInputs.end() || _deviceInputs.at(name)->byteSize() < data->byteSize();
-                    if (needs_realloc) {
-                        _deviceInputs[name] = create_device_blob(data->getTensorDesc());
-                    } else {
-                        if (_deviceInputs.at(name)->getTensorDesc() != data->getTensorDesc())
-                            _deviceInputs[name] = reinterpret_device_blob(_deviceInputs[name], data->getTensorDesc());
-                    }
-                } else {
-                    size_t blobSize = desc.getLayout() != SCALAR
-                        ? details::product(desc.getDims())
-                        : 1;
-                    if (dataSize != blobSize) {
-                        IE_THROW() << "Input blob size is not equal to network input size ("
-                            << dataSize << "!=" << blobSize << ").";
-                    }
-                }
-
-                if (data->buffer() == nullptr)
-                    IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
-                _inputs[name] = data;
-            }
-        }
+        _deviceInputs[name] = data;
+        _inputs[name] = data;
     } else {
-        if (is_remote) {
-            _deviceOutputs[name] = data;
-        } else {
-            if (!isDynamic) {
-                size_t outputSize = desc.getLayout() != SCALAR
-                    ? details::product(desc.getDims())
-                    : 1;
-                if (dataSize != outputSize) {
-                    IE_THROW() << "Output blob size is not equal to network output size (" << dataSize
-                        << "!=" << outputSize << ").";
-                }
-                if (data->buffer() == nullptr)
-                    IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
+        if (data->buffer() == nullptr)
+            IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
+        _inputs[name] = data;
+        if (isDynamic) {
+            // We must create new input data if it has never been allocated or previously allocated
+            // device blob is smaller than currently assigned user blob
+            bool needs_realloc = _deviceInputs.find(name) == _deviceInputs.end() || _deviceInputs.at(name)->byteSize() < data->byteSize();
+            if (needs_realloc) {
+                _deviceInputs[name] = create_device_blob(data->getTensorDesc());
+            } else {
+                if (_deviceInputs.at(name)->getTensorDesc() != data->getTensorDesc())
+                    _deviceInputs[name] = reinterpret_device_blob(_deviceInputs[name], data->getTensorDesc());
             }
         }
-        _outputs[name] = data;
     }
+}
+
+void InferRequest::set_output(const std::string& name, const Blob::Ptr& data) {
+        auto remote_ptr = data->as<gpu::ClBlob>();
+    bool is_remote = remote_ptr != nullptr;
+
+    auto node = findOutputByNodeName(name);
+    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
+
+    if (is_remote) {
+        _deviceOutputs[name] = data;
+    } else {
+        if (!isDynamic) {
+            if (data->buffer() == nullptr)
+                IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
+        }
+    }
+    _outputs[name] = data;
 }
 
 void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
@@ -443,14 +366,7 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
-    // TODO: Clean up preprocessing API stuff from InferRequest
-    bool preProcResize = false;
-    if (is_input) {
-        preProcResize = foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE;
-        const auto inputColorFormat = foundInput->getPreProcess().getColorFormat();
-        preProcResize |= (inputColorFormat != ColorFormat::RAW) && (inputColorFormat != ColorFormat::BGR);
-    }
-    if (dataBinSize != netReqBinSize && !preProcResize) {
+    if (dataBinSize != netReqBinSize) {
         IE_THROW() << "Incorrect binary data size for input blobs with name: \'" << name <<  "\' " <<
                       "Current: " << dataBinSize << " Required: " << netReqBinSize;
     }
@@ -469,14 +385,6 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
         }
     }
 
-    if (is_remote) {
-        for (auto& blob : blobs) {
-            auto impl = getBlobImpl(blob->as<gpu::ClBlob>());
-            if (!impl->is_allocated()) {
-                impl->allocate();
-            }
-        }
-    }
     inputTensorsMap[name] = blobs;
 }
 
@@ -551,15 +459,10 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
 // ----------------------------------------------------------------------------------------- //
 void InferRequest::preprocess_notify() {
     m_graph->wait(Graph::Stage::PREPROC);
-    // TODO: Clean up preprocessing API stuff from InferRequest
-    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
     m_graph->notify(Graph::Stage::PREPROC);
 }
 
-void InferRequest::preprocess() {
-    // TODO: Clean up preprocessing API stuff from InferRequest
-    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
-}
+void InferRequest::preprocess() {}
 
 void InferRequest::enqueue_notify() {
     m_graph->wait(Graph::Stage::EXECUTE);
@@ -767,7 +670,6 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, std::shared_ptr
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
     auto blob = make_blob_with_precision(desc, alloc ? alloc : CreateDefaultAllocator());
     blob->allocate();
-    checkAlloc(blob, str_host_mem_not_allocated);
     return blob;
 }
 
@@ -783,7 +685,6 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
     if (!blob)
         IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
     blob->allocate();
-    checkAlloc(blob, str_shared_mem_not_allocated);
     return blob;
 }
 
@@ -864,9 +765,8 @@ void InferRequest::allocate_inputs() {
     for (auto& ni : _networkInputs) {
         std::string name = ni.first;
         const TensorDesc& desc = ni.second->getTensorDesc();
-        // TODO: Clean up preprocessing API stuff from InferRequest
-        bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-                             m_graph->getConfig().nv12_two_inputs;
+
+        bool is_nv12_input = false;
 
         auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
             return node->get_friendly_name() == name;
@@ -1100,7 +1000,6 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                          0,
                                                          RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
         getBlobImpl(blobPtr.get())->allocate();
-        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     } else {
         auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
@@ -1108,7 +1007,6 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
                                                         desc,
                                                         l);
         getBlobImpl(blobPtr.get())->allocate();
-        checkAlloc(blobPtr, str_device_mem_not_allocated);
         return blobPtr;
     }
 }
