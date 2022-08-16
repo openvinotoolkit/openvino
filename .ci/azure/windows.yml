@@ -136,9 +136,23 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" -DENABLE_WHEEL=ON -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10\x64\python.exe" -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10\x64\include" -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10\x64\libs\python310.lib" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_TF_FRONTEND=OFF $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'CMake'
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
+        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
+        -DENABLE_REQUIREMENTS_INSTALL=OFF ^
+        -DENABLE_FASTER_BUILD=ON ^
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
+        -DENABLE_TESTS=ON ^
+        -DENABLE_STRICT_DEPENDENCIES=OFF ^
+        -DENABLE_PYTHON=ON ^
+        -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10\x64\python.exe" ^
+        -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10\x64\include" ^
+        -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10\x64\libs\python310.lib" ^
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -S $(REPO_DIR) -B $(BUILD_DIR)
+    displayName: 'CMake Samples Tests'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
@@ -160,8 +174,12 @@ jobs:
   - script: python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
-  - script: call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)"  $(REPO_DIR)\tests\samples_tests
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+  - script: |
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -S $(REPO_DIR)\tests\samples_tests ^
+        -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake'
 
   - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
@@ -188,9 +206,7 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
 
-  - script: |
-      $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)\cmake_install.cmake && \
-      xcopy $(REPO_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)\cmake_install.cmake
     displayName: 'Install tests'
 
   - script: dir $(INSTALL_DIR) /s
@@ -205,7 +221,7 @@ jobs:
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnx_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ONNXImportUT.xml
-    displayName: 'ONNX Frontend UT'
+    displayName: 'ONNX Import UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Paddle.xml
@@ -279,7 +295,7 @@ jobs:
   - script: |
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\OpenVinoCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OpenVinoCAPITests.xml
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
     continueOnError: false
 
