@@ -750,9 +750,7 @@ public:
                     return;
             }
             if (!coreConfig.flag_allow_auto_batching) {
-                const auto disabled = !coreConfig.flag_allow_auto_batching;
-                if (disabled)
-                    return;
+                return;
             }
             // check whether if the Auto-Batching is applicable to the device
             auto device = ov::parseDeviceNameIntoConfig(deviceName);
