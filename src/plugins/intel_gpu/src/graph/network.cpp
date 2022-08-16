@@ -280,7 +280,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
             for (const auto& p_inst : _primitives) {
                 if (p_inst.second->type() == cldnn::data::type_id()) {
                     num_data_nodes += 1;
-                    ob << *(p_inst.second);
+                    // ob << *(p_inst.second);
                 }
             }
             ob << num_data_nodes;

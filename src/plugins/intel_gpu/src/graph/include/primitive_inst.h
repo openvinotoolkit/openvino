@@ -170,21 +170,25 @@ public:
 
     template <typename BufferType>
     void save(BufferType& buffer) const {
-        // primitive_impl
-        buffer << _impl;
+        if (_impl == nullptr) {
+            buffer << _output->copy_from()
+        } else {
+            // primitive_impl
+            buffer << _impl;
 
-        // output memory
-        const auto output_layout = _output->get_layout();
-        buffer << make_data(&output_layout, sizeof(output_layout));
+            // output memory
+            const auto output_layout = _output->get_layout();
+            buffer << make_data(&output_layout, sizeof(output_layout));
 
-        const auto _allocation_type = _output->get_allocation_type();
-        buffer << make_data(&_allocation_type, sizeof(_allocation_type));
+            const auto _allocation_type = _output->get_allocation_type();
+            buffer << make_data(&_allocation_type, sizeof(_allocation_type));
 
-        buffer << _node.id();
-        buffer << _node.get_memory_dependencies();
-        buffer << _output->get_reused();
+            buffer << _node.id();
+            buffer << _node.get_memory_dependencies();
+            buffer << _output->get_reused();
 
-        buffer << _mem_allocated;
+            buffer << _mem_allocated;
+        }
     }
 
     template <typename BufferType>
