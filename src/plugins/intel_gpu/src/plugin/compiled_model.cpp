@@ -83,8 +83,9 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(InputsDataMap n
 IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequestImpl");
-    if (m_config.enableDynamicBatch) {
-        auto ptr = std::make_shared<InferRequestLegacy>(inputs, outputs, std::static_pointer_cast<CompiledModel>(shared_from_this()));
+    if (m_graphs.front()->getConfig().max_dynamic_batch > 1) {
+        auto ptr = std::make_shared<InferRequestLegacy>(inputs, outputs,
+                                                        std::static_pointer_cast<CompiledModel>(shared_from_this()));
         if (m_config.throughput_streams > 1)
             ptr->EnableStreams();
         if (m_config.useProfiling)
@@ -95,7 +96,8 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(const std::vect
 
         return ptr;
     } else {
-        auto ptr = std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<CompiledModel>(shared_from_this()));
+        auto ptr = std::make_shared<InferRequest>(inputs, outputs,
+                                                  std::static_pointer_cast<CompiledModel>(shared_from_this()));
         if (m_config.throughput_streams > 1)
             ptr->EnableStreams();
         if (m_config.useProfiling)
@@ -128,7 +130,8 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
     bool is_legacy = false;
     if (this->_plugin && _plugin->IsNewAPI()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
-        if (m_config.enableDynamicBatch) is_legacy = true;
+        if (m_graphs.front()->getConfig().max_dynamic_batch > 1)
+            is_legacy = true;
     }
     if (!internalRequest) {
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
