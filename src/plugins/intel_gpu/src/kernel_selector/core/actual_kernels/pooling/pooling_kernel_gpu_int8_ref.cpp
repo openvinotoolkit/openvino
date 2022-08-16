@@ -24,6 +24,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv32);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
@@ -35,6 +36,7 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();

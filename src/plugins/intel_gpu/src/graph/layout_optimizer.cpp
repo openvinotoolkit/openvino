@@ -1459,7 +1459,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<pooling>()) {
             auto pool_layout = node.get_output_layout();
             if (pool_layout.data_type == data_types::i8) {
-                if (pool_layout.format == format::b_fs_zyx_fsv32 || pool_layout.format == format::bs_fs_zyx_bsv32_fsv32)
+                if (pool_layout.format == format::b_fs_zyx_fsv32 || pool_layout.format == format::bs_fs_zyx_bsv16_fsv32 || pool_layout.format == format::bs_fs_zyx_bsv32_fsv32)
                     impl_candidate = impl_types::ocl;
             }
         }
