@@ -12,7 +12,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
     try {
         auto shape = node->object->get_shape();
-        ov_shape_init(tensor_shape, shape.size());
+        ov_shape_init_dimension(tensor_shape, shape.size());
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -27,7 +27,7 @@ ov_status_e ov_node_list_get_shape_by_index(const ov_output_node_list_t* nodes, 
 
     try {
         auto shape = nodes->output_nodes[idx].object->get_shape();
-        ov_shape_init(tensor_shape, shape.size());
+        ov_shape_init_dimension(tensor_shape, shape.size());
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -50,20 +50,30 @@ ov_status_e ov_node_list_get_any_name_by_index(const ov_output_node_list_t* node
 
 ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t* nodes,
                                                     size_t idx,
-                                                    ov_partial_shape_t** partial_shape) {
+                                                    ov_partial_shape_t* partial_shape) {
     if (!nodes || idx >= nodes->size || !partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        std::unique_ptr<ov_partial_shape_t> _partial_shape(new ov_partial_shape_t);
-        auto shape = nodes->output_nodes[idx].object->get_partial_shape();
+        auto pshape = nodes->output_nodes[idx].object->get_partial_shape();
+        auto rank = pshape.rank();
 
-        _partial_shape->rank = shape.rank();
-        auto iter = shape.begin();
-        for (; iter != shape.end(); iter++)
-            _partial_shape->dims.emplace_back(*iter);
-        *partial_shape = _partial_shape.release();
+        ov_rank_init_dynamic(&partial_shape->rank, rank.get_max_length(), rank.get_min_length());
+        if (rank.is_dynamic()) {
+            partial_shape->dims = nullptr;
+        } else {
+            auto size = rank.get_length();
+            if (size != pshape.size()) {
+                return ov_status_e::PARAMETER_MISMATCH;
+            }
+            std::unique_ptr<ov_dimension_t> _dimensions(new ov_dimension_t[size]);
+            partial_shape->dims = _dimensions.release();
+            auto iter = pshape.begin();
+            for (auto i = 0; iter != pshape.end(), i < size; iter++, i++) {
+                ov_dimension_init_dynamic(&partial_shape->dims[i], iter->get_min_length(), iter->get_max_length());
+            }
+        }
     }
     CATCH_OV_EXCEPTIONS
 

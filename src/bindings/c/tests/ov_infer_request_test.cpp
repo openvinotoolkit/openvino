@@ -28,9 +28,9 @@ void get_tensor_info(ov_model_t* model,
     OV_EXPECT_OK(ov_node_list_get_shape_by_index(&output_nodes, idx, shape));
     OV_EXPECT_OK(ov_node_list_get_element_type_by_index(&output_nodes, idx, type));
 
-    ov_partial_shape_t* p_shape = nullptr;
+    ov_partial_shape_t p_shape;
     OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
-    ov_partial_shape_free(p_shape);
+    ov_partial_shape_free(&p_shape);
 
     ov_output_node_list_free(&output_nodes);
 }
@@ -121,11 +121,9 @@ protected:
         EXPECT_NE(nullptr, input_tensor_info);
 
         ov_shape_t shape = {0, nullptr};
-        OV_ASSERT_OK(ov_shape_init(&shape, 4));
-        shape.dims[0] = 1;
-        shape.dims[1] = 224;
-        shape.dims[2] = 224;
-        shape.dims[3] = 3;
+        int64_t dims[4] = {1, 224, 224, 3};
+        OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
+
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
         OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));

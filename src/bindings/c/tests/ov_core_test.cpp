@@ -71,9 +71,8 @@ TEST(ov_core, ov_core_read_model_from_memory) {
 
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
-    ov_shape_init(&shape, 2);
-    shape.dims[0] = 1;
-    shape.dims[1] = (int64_t)weights_content.size();
+    int64_t dims[2] = {1, (int64_t)weights_content.size()};
+    ov_shape_init(&shape, 2, dims);
     OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     ASSERT_NE(nullptr, tensor);
 

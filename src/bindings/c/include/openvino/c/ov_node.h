@@ -76,7 +76,7 @@ ov_node_list_get_shape_by_index(const ov_output_node_list_t* nodes, size_t idx, 
 OPENVINO_C_API(ov_status_e)
 ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t* nodes,
                                         size_t idx,
-                                        ov_partial_shape_t** partial_shape);
+                                        ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Get the tensor type of ov_output_node.

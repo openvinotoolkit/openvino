@@ -4,11 +4,8 @@
 #include "ov_test.hpp"
 
 void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
-    ov_shape_init(shape, 4);
-    shape->dims[0] = d0;
-    shape->dims[1] = d1;
-    shape->dims[2] = d2;
-    shape->dims[3] = d3;
+    int64_t dims[4] = {d0, d1, d2, d3};
+    ov_shape_init(shape, 4, dims);
 }
 
 TEST(ov_tensor, ov_tensor_create) {

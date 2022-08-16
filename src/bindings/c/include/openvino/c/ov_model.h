@@ -72,7 +72,7 @@ OPENVINO_C_API(ov_status_e)
 ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
 
 /**
- * @brief Returns true if any of the op's defined in the model are dynamic shape.
+ * @brief Returns true if any of the ops defined in the model is dynamic shape.
  * @param model A pointer to the ov_model_t.
  */
 OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);

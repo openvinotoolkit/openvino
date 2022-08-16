@@ -229,11 +229,8 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_from) {
 
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_shape_init(&shape, 4));
-    shape.dims[0] = 1;
-    shape.dims[1] = 416;
-    shape.dims[2] = 416;
-    shape.dims[3] = 3;
+    int64_t dims[4] = {1, 416, 416, 4};
+    OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
 
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
@@ -650,11 +647,9 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ASSERT_NE(nullptr, input_tensor_info);
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_shape_init(&shape, 4));
-    shape.dims[0] = 1;
-    shape.dims[1] = 416;
-    shape.dims[2] = 416;
-    shape.dims[3] = 3;
+    int64_t dims[4] = {1, 416, 416, 3};
+    OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
+
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
 

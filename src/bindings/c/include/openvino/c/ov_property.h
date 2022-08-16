@@ -127,7 +127,7 @@ OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
 OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
 
 /**
- * @brief Clean property data.
+ * @brief Free property data.
  * @ingroup property
  * @param property data will be clean.
  */

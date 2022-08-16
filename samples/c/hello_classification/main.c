@@ -170,11 +170,8 @@ int main(int argc, char** argv) {
     c_mat_t img;
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
-    ov_shape_init(&input_shape, 4);
-    input_shape.dims[0] = 1;
-    input_shape.dims[1] = (size_t)img.mat_height;
-    input_shape.dims[2] = (size_t)img.mat_width;
-    input_shape.dims[3] = 3;
+    int64_t dims[4] = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
+    ov_shape_init(&input_shape, 4, dims);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
