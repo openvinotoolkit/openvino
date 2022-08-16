@@ -34,13 +34,19 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
 
 ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
                                                              const std::string& tf_padding) {
+    std::vector<std::string> supported_ops = {"Conv2D",
+                                              "Conv2DBackpropInput",
+                                              "Conv3D",
+                                              "Conv3DBackpropInputV2",
+                                              "MaxPool",
+                                              "MaxPoolV2",
+                                              "MaxPool3D",
+                                              "ExtractImagePatches"};
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
-                             op_type == "Conv2D" || op_type == "Conv2DBackpropInput" || op_type == "Conv3D" ||
-                                 op_type == "Conv3DBackpropInputV2" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-                                 op_type == "MaxPool3D",
-                             "The convert_conv_tf_padding routine supports only convolutional operations.");
+                             std::find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                             "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,
         tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
@@ -57,7 +63,7 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
             return ov::op::PadType::SAME_LOWER;
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-               op_type == "MaxPool3D") {
+               op_type == "MaxPool3D" || op_type == "ExtractImagePatches") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
