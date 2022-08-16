@@ -32,6 +32,8 @@ enum class KernelType {
     SCALE,
     REORDER,
     RESHAPE,
+    COUNT_NONZERO,
+    GATHER_NONZERO,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,

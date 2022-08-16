@@ -91,8 +91,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_C_SAMPLES "c_samples")
     set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
     # python
-    # TODO: rename to pyie and fix product-config as well
-    set(OV_CPACK_COMP_PYTHON_IE_API "")
+    set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
