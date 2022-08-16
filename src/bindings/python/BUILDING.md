@@ -3,7 +3,7 @@
 This document provides the instructions for building the OpenVINO™ Python API from source on Linux, macOS and Windows 10 platforms.
 
 For each platform, you can build and install the API as a part of OpenVINO™ Toolkit or as a Python wheel.
-A Python wheel is a portable package that allows you to install OpenVINO™ in your Python distribution, or dedicated virtual environment.
+A Python wheel is a portable package that allows you to install OpenVINO™ in either your Python distribution or a dedicated virtual environment.
 
 ## Linux* and macOS*
 
@@ -40,8 +40,7 @@ The workspace directory is specified by the `${OV_WORKSPACE}` variable. Set this
 export OV_WORKSPACE=/path/to/my/workspace
 ```
 
-Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`. Please note that we're disabling
-the building of a few modules and plugins by setting the `ENABLE_*` flag to `OFF`.
+Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`.
 
 In order to build the OpenVINO™ Python APIs set the `ENABLE_PYTHON` flag to `ON`.
 
@@ -60,18 +59,7 @@ mkdir build && cd build
 
 cmake .. \
 -DCMAKE_BUILD_TYPE=Release \
--DENABLE_INTEL_CPU=ON \
--DENABLE_INTEL_GNA=OFF \
--DENABLE_INTEL_GPU=OFF \
--DENABLE_INTEL_MYRIAD_COMMON=OFF \
--DENABLE_INTEL_MYRIAD=OFF \
--DENABLE_HETERO=OFF \
--DENABLE_MULTI=OFF \
--DENABLE_AUTO=ON \
--DENABLE_TEMPLATE=ON \
 -DENABLE_PYTHON=ON \
--DENABLE_OV_IR_FRONTEND=ON \
--DENABLE_OV_ONNX_FRONTEND=ON \
 -DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
 
 make -j 4 install
@@ -118,7 +106,17 @@ make -j 4 install
 
 ### Build an OpenVINO™ Python Wheel on Linux and macOS
 
-You can build the Python wheel running the following command:
+You can build the Python wheel by adding `ENABLE_WHEEL` flag to `cmake` command:
+
+```bash
+cmake .. \
+-DCMAKE_BUILD_TYPE=Release \
+-DENABLE_PYTHON=ON \
+-DENABLE_WHEEL=ON \
+-DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
+```
+
+You can also build the Python wheel running the following command:
 
 ```bash
 cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel
