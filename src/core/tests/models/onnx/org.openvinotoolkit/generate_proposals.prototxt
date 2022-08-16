@@ -7,8 +7,9 @@ graph {
     input: "deltas"
     input: "im_info"
     input: "anchors"
-    output: "num_rois"
+    output: "rpnrois"
     output: "rpnscores"
+    output: "rpnroisnum"
     op_type: "GenerateProposals"
     domain: "org.openvinotoolkit"
     attribute {
@@ -114,7 +115,7 @@ graph {
     }
   }
   output {
-    name: "num_rois"
+    name: "rpnrois"
     type {
       tensor_type {
         elem_type: 1
@@ -137,6 +138,19 @@ graph {
         shape {
           dim {
             dim_param: "num_rois"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "rpnroisnum"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_param: "1"
           }
         }
       }
