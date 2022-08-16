@@ -206,7 +206,20 @@ bool Interaction::isExecutable() const {
 
 bool Interaction::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
         std::string& errorMessage) noexcept {
-    //TODO
+    try {
+        const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
+        if (!interaction) {
+            errorMessage = "Only Interaction operation is supported";
+            return false;
+        }
+        auto elementType = interaction->get_output_type();
+        if (!one_of(elementType, ngraph::element::f32, ngraph::element::bf16)) {
+            errorMessage = "Only support precision fp32 & bf16";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
     return true;
 }
 

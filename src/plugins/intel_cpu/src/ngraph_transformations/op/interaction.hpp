@@ -26,6 +26,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
 
+    ngraph::element::Type get_output_type() const { return m_output_type; }
+
 private:
     ngraph::element::Type m_output_type;
 };
