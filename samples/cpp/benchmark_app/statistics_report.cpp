@@ -94,9 +94,6 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
         dumper.endLine();
     }
 
-    slog::info << "Total " << total.count() / 1000.0 << slog::endl;
-    slog::info << "size count "  << perfCounts.size() << slog::endl;
-
     dumper << "Total"
            << ""
            << ""
@@ -143,9 +140,6 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
             layersize += 1;
         }
     }
-    
-    slog::info << "Total " << total.count() / 1000.0 << slog::endl;
-    slog::info << "size count "  << layersize << slog::endl;
 
     dumper << "Total"
            << ""

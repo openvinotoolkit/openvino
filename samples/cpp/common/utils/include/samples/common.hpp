@@ -22,6 +22,8 @@
 #include <utility>
 #include <vector>
 
+using std::setprecision;
+
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
@@ -1083,9 +1085,16 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
             break;
         }
         stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count() / 1000.0) + " ms ";
-        stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count() / 1000.0) + " ms ";
-        stream << std::setw(20) << std::left << "proportion: " + std::to_string(it.real_time.count() * 100.0 / totalTime.count()) + " %";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
+        stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+        float opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
+        std::stringstream opt_proportion_ss;
+        opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
+        std::string opt_proportion_str = opt_proportion_ss.str();
+        if (opt_proportion_str == "0.00") {
+            opt_proportion_str = "-nan";
+        }
+        stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
         stream << " execType: " << it.exec_type << std::endl;
     }
     stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) << " microseconds"
@@ -1143,9 +1152,16 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
             break;
         }
         stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count() / 1000.0) + " ms ";
-        stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count() / 1000.0) + " ms ";
-        stream << std::setw(20) << std::left << "proportion: " + std::to_string(it.real_time.count() * 100.0 / totalTime.count()) + " %";
+        stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
+        stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+        float opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
+        std::stringstream opt_proportion_ss;
+        opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
+        std::string opt_proportion_str = opt_proportion_ss.str();
+        if (opt_proportion_str == "0.00"){
+            opt_proportion_str = "-nan";
+        }
+        stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
         stream << " execType: " << it.exec_type << std::endl;
     }
     stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) << " microseconds"
@@ -1190,9 +1206,16 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
             stream << std::setw(maxLayerName) << std::left << toPrint;
             stream << std::setw(15) << std::left << "EXECUTED";
             stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
-            stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count() / 1000.0) + " ms ";
-            stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count() / 1000.0) + " ms ";
-            stream << std::setw(20) << std::left << "proportion: " + std::to_string(it.real_time.count() * 100.0 / totalTime.count()) + " %";
+            stream << std::setw(20) << std::left << "realTime: " + std::to_string(it.real_time.count());
+            stream << std::setw(15) << std::left << "cpu: " + std::to_string(it.cpu_time.count());
+            float opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
+            std::stringstream opt_proportion_ss;
+            opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
+            std::string opt_proportion_str = opt_proportion_ss.str();
+            if (opt_proportion_str == "0.00"){
+                opt_proportion_str = "-nan";
+            }
+            stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
             stream << " execType: " << it.exec_type << std::endl;
         }
     }

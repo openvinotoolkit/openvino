@@ -320,17 +320,18 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
         for pi in perf_counts:
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        total_time = round(total_time.total_seconds()*1000,3)
-        total_time_cpu = round(total_time_cpu.total_seconds()*1000,3)
-        
+        # total_time = round(total_time.total_seconds()*1000,3)
+        # total_time_cpu = round(total_time_cpu.total_seconds()*1000,3)
+        total_time = total_time.microseconds
+        total_time_cpu = total_time_cpu.microseconds
         total_real_time_proportion = 0
         total_detail_data=[]
         for pi in perf_counts:
             node_name = pi.node_name
             layerStatu = pi.status
             layerType = pi.node_type
-            real_time = round(pi.real_time.total_seconds()*1000,4)
-            cpu_time = round(pi.cpu_time.total_seconds()*1000,4)
+            real_time = pi.real_time.microseconds
+            cpu_time = pi.cpu_time.microseconds
             real_proportion = round(real_time/total_time,4)
             execType = pi.exec_type
             tmp_data=[node_name,layerStatu,layerType,real_time,cpu_time,real_proportion,execType]
@@ -361,13 +362,15 @@ def print_detail_result(result_list):
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
         real_proportion = "%.2f"%(tmp_result[5]*100)
+        if real_proportion == "0.00":
+            real_proportion = "-nan"
         execType = tmp_result[6]
         print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
             f"{str(layerStatu):<20}"
             f"{'layerType: ' + layerType:<30}"
-            f"{'realTime: ' + str(real_time)+' ms':<20}"
-            f"{'cpu: ' +  str(cpu_time)+' ms':<15}"
-            f"{'proportion: '+ str(real_proportion)+' %':<20}"
+            f"{'realTime: ' + str(real_time):<20}"
+            f"{'cpu: ' +  str(cpu_time):<15}"
+            f"{'proportion: '+ str(real_proportion)+'%':<20}"
             f"{'execType: ' + execType:<20}")
 
 def print_perf_counters(perf_counts_list):

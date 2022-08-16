@@ -1129,13 +1129,13 @@ int main(int argc, char* argv[]) {
             std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
-                if (FLAGS_pc) {
+                if (FLAGS_pcsort == pcSort || FLAGS_pcsort == pcNoSort || FLAGS_pcsort == pcSimpleSort) {
+                    slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), FLAGS_pcsort, false);
+                } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
-                } else if (FLAGS_pcsort == pcSort || FLAGS_pcsort == pcNoSort || FLAGS_pcsort == pcSimpleSort) {
-                    slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
-                    printPerformanceCountsSort(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), FLAGS_pcsort, false);
-                }
+                } 
                 perfCounts.push_back(reqPerfCounts);
             }
             if (statistics) {

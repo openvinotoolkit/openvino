@@ -478,14 +478,15 @@ def run(args):
             perfs_count_list = []
             for request in requests:
                 perfs_count_list.append(request.profiling_info)
-            if args.perf_counts:
-                print_perf_counters(perfs_count_list)
 
             if args.perf_counts_sort:
                 total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
                 if statistics:
                     statistics.dump_performance_counters_sorted(total_sorted_list)
             
+            elif args.perf_counts:
+                print_perf_counters(perfs_count_list)
+
             if statistics:
                 # if not args.perf_counts_sort:
                 statistics.dump_performance_counters(perfs_count_list)
