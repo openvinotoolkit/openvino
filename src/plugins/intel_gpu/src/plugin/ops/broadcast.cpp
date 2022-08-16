@@ -84,7 +84,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
     if (auto broadcast_v3 = std::dynamic_pointer_cast<ngraph::op::v3::Broadcast>(op)) {
         mode = broadcast_v3->get_broadcast_spec();
     } else if (auto broadcast_v1 = std::dynamic_pointer_cast<ngraph::op::v1::Broadcast>(op)) {
-        switch(broadcast_v1->get_broadcast_spec().m_type) {
+        switch (broadcast_v1->get_broadcast_spec().m_type) {
             case ov::op::AutoBroadcastType::NONE: mode = ov::op::BroadcastType::NONE; break;
             case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
             case ov::op::AutoBroadcastType::PDPD: mode = ov::op::BroadcastType::PDPD; break;
@@ -97,7 +97,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     auto broadcastPrim = cldnn::broadcast(layerName,
                                           inputPrimitive,
-                                          op->get_output_shape(0),
+                                          outputShape,
                                           axis_mapping,
                                           mode,
                                           op->get_friendly_name());

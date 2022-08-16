@@ -83,7 +83,7 @@ struct broadcast : public primitive_base<broadcast> {
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 
-    /// @brief Constructs broadcast primitive / layer.
+    /// @brief Constructs broadcast primitive / layer with static target_shape.
     ///
     /// @param id             An identifier of new primitive.
     /// @param input          An identifier of primitive which is an input for newly created
@@ -111,6 +111,21 @@ struct broadcast : public primitive_base<broadcast> {
           broadcast_mode(broadcast_spec),
           broadcast_sizes({}),
           broadcast_axes({}) {}
+
+    /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
+    broadcast(const primitive_id& id,
+          const primitive_id& input,
+          const primitive_id& target_shape_id,
+          const ngraph::AxisSet& axes_mapping,
+          const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
+          const primitive_id& ext_prim_id = "",
+          const padding& output_padding = padding())
+    : primitive_base(id, {input, target_shape_id}, ext_prim_id, output_padding),
+      target_shape({}),
+      axes_mapping(axes_mapping),
+      broadcast_mode(broadcast_spec),
+      broadcast_sizes({}),
+      broadcast_axes({}) {}
 
     /// @brief The shape of the output tensor.
     ov::Shape target_shape;
