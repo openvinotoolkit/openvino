@@ -137,7 +137,6 @@ std::string toString(ReorderMode mode);
 std::string toString(MeanSubtractMode mode);
 std::string toString(ArgMaxMinOut mode);
 std::string toString(ArgMaxMinAxis mode);
-std::string toString(LookUpTableAxis mode);
 std::string toString(PoolType mode);
 std::string toString(LRNMode mode);
 std::string toString(KernelDividerMode mode);

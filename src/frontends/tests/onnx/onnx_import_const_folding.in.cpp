@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -51,32 +52,37 @@ void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
 }  // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
-    const auto fn =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/scatter_elements_opset11.onnx"));
+    const auto fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/scatter_elements_opset11.onnx"));
 
     test_constant_folding<float>(fn, {1.0, 1.1, 3.0, 2.1, 5.0}, Shape{1, 5});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/non_zero_scalar.onnx"));
+    const auto fn = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_scalar.onnx"));
 
     test_constant_folding<int64_t>(fn, {0}, Shape{1, 1});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/non_zero_1d.onnx"));
+    const auto fn = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d.onnx"));
 
     test_constant_folding<int64_t>(fn, {1, 2, 4}, Shape{1, 3});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d_float) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/non_zero_1d_float.onnx"));
+    const auto fn = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d_float.onnx"));
 
     test_constant_folding<int64_t>(fn, {0, 1, 3, 4, 5, 6, 7, 8, 9});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/non_zero_3d.onnx"));
+    const auto fn = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_3d.onnx"));
 
     // Vertical slices are 3D indices of non-zero elements in the input tensor
     // {0, 0, 0, 1, 1, 2, 2}
@@ -86,7 +92,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_2d_bool) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/non_zero_2d_bool.onnx"));
+    const auto fn = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_2d_bool.onnx"));
 
     test_constant_folding<int64_t>(fn, {0, 1, 1, 0});
 }

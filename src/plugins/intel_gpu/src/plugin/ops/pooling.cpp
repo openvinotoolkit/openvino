@@ -86,7 +86,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
     cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                DefaultFormatForDims(output_shape.size()),
+                                                cldnn::format::get_default_format(output_shape.size()),
                                                 tensor_from_dims(output_shape));
     const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
     const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
