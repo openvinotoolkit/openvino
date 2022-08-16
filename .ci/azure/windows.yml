@@ -108,20 +108,20 @@ jobs:
     path: testdata
 
   - script: |
-      python -m pip install --upgrade pip
+      python -m pip install --no-warn-script-location --upgrade pip
       rem For running Python API tests
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
-      python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
-      # For running TensorFlow frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements_dev.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
+      rem For running TensorFlow frontend unit tests
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\frontends\tensorflow\tests\requirements_dev.txt
       rem For running ONNX frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\src\core\tests\requirements_test_onnx.txt
       rem For MO unit tests
-      python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
-      python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\tools\mo\requirements.txt
+      python -m pip install --no-warn-script-location -r $(REPO_DIR)\tools\mo\requirements_dev.txt
       rem Speed up build
       powershell -command "Invoke-WebRequest https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip -OutFile cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
