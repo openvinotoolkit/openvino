@@ -5,7 +5,7 @@
 if(ENABLE_PROFILING_ITT)
     if(DEFINED INTEL_VTUNE_DIR OR DEFINED ENV{INTEL_VTUNE_DIR})
         find_package(ITT
-                     PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+                     PATHS "${OpenVINO_SOURCE_DIR}/src/common/itt/cmake"
                      NO_DEFAULT_PATH)
         if(NOT ITT_FOUND)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
