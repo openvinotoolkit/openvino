@@ -34,8 +34,12 @@ function(ov_check_python_build_conditions)
     # Try to find python3
     find_package(PythonInterp 3 QUIET)
     if(PythonInterp_FOUND)
+        set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
         # use libraries with the same version as python itself
-        find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT QUIET)
+        find_package(PythonLibsNew ${PYTHON_VERSION_STRING} EXACT QUIET
+                     PATHS "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools"
+                     NO_CMAKE_FIND_ROOT_PATH
+                     NO_DEFAULT_PATH)
     endif()
 
     # pyopenvino requirements
@@ -64,13 +68,7 @@ function(ov_check_python_build_conditions)
         endif()
     endif()
 
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
-        set(python_module_with_suffix ON)
-    else()
-        set(python_module_with_suffix OFF)
-    endif()
-
-    set(python_module_with_suffix ${python_module_with_suffix} PARENT_SCOPE)
+    set(PYBIND11_PYTHON_VERSION ${PYBIND11_PYTHON_VERSION} PARENT_SCOPE)
     set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
     set(ov_python_reqs_FOUND ${ov_python_reqs_FOUND} PARENT_SCOPE)
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
@@ -78,7 +76,7 @@ endfunction()
 
 ov_check_python_build_conditions()
 
-ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND;NOT python_module_with_suffix" OFF)
+ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND;NOT CMAKE_DEBUG_POSTFIX" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
