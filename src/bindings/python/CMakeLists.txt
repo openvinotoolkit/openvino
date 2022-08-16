@@ -32,10 +32,22 @@ function(ov_check_python_build_conditions)
     # Try to find python3
     find_package(PythonInterp 3 QUIET)
     if(PYTHONINTERP_FOUND)
-        set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-        list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
-        # use libraries with the same version as python itself
-        find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT QUIET)
+        function(_ov_find_python_libs_new)
+            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
+            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            # use libraries with the same version as python itself
+            find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT QUIET)
+            set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
+        endfunction()
+        function(_ov_find_python_libs)
+            find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT QUIET)
+            set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
+        endfunction()
+        # try to find python libraries
+        _ov_find_python_libs_new()
+        if(PYTHONLIBSNEW_FOUND)
+            _ov_find_python_libs()
+        endif()
     endif()
 
     # pyopenvino requirements
