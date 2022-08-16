@@ -101,7 +101,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
-    pkgs_python=(python3 python3-venv python3-pip)
+    pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
@@ -141,7 +141,12 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
     )
 
     if [ "$os" == "ubuntu20.04" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.8)
         pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
+    elif [ "$os" == "ubuntu21.10" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.9)
+    elif [ "$os" == "ubuntu22.04" ] ; then
+        pkgs_python=(${pkgs_python[@]} libpython3.10)
     fi
 
 elif [ "$os" == "rhel8" ] ; then

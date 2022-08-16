@@ -6,6 +6,7 @@
 
 #include <file_utils.h>
 #include "openvino/util/shared_object.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include <cpp/ie_plugin.hpp>
 
 using namespace std;
@@ -15,7 +16,7 @@ using namespace InferenceEngine::details;
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makePluginLibraryName<char>({},
+        return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
             std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 

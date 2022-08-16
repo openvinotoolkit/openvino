@@ -19,8 +19,8 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDims = op->get_output_shape(0);
-    auto outDimsN = outDims.size();
+    auto output_pshape = op->get_output_partial_shape(0);
+    auto output_rank = output_pshape.size();
 
     auto broadcast_type = op->get_auto_broadcast();
 
@@ -32,13 +32,15 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
         // Preprocess inputs
         for (size_t i = 0; i < inputPrimitives.size(); ++i) {
-            auto inputDims = op->get_input_shape(i);
-            auto inputDimsN = inputDims.size();
+            auto input_pshape = op->get_input_partial_shape(i);
+            OPENVINO_ASSERT(input_pshape.is_static(), "Dynamic shapes are not supported for v1::Select with NUMPY mode yet");
+            auto input_shape = input_pshape.to_shape();
+            auto input_rank = input_shape.size();
 
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outDimsN);
+            auto targetFormat = cldnn::format::get_default_format(output_rank);
 
-            if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
+            if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
@@ -56,13 +58,13 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
             }
 
             // Reshape input if they differ or select specific shape matches default one
-            if (inputDimsN != outDimsN || inputDimsN < 4) {
+            if (input_rank != output_rank || input_rank < 4) {
                 auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
                 // Extend input dimensions to the same size as output dimensions by prepending ones
-                inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
+                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
 
-                auto targetShape = tensor_from_dims(inputDims);
+                auto targetShape = tensor_from_dims(input_shape);
 
                 auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
 
