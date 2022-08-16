@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-find_package(PythonInterp 3 REQUIRED)
+#
+# Common vars used by setup.py
+#
+
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
@@ -14,16 +17,9 @@ if(WIN32)
 endif()
 set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 
-if(LINUX)
-    find_host_program(patchelf_program
-                      NAMES patchelf
-                      DOC "Path to patchelf tool")
-    if(NOT patchelf_program)
-        message(FATAL_ERROR "patchelf is not found, which is needed to build ie_wheel")
-    endif()
-endif()
-
-# create target for openvino.wheel
+#
+# Dependencies
+#
 
 set(openvino_wheel_deps ie_api)
 foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins py_ov_frontends)
@@ -32,16 +28,20 @@ foreach(_target ie_api constants _pyngraph pyopenvino ov_plugins py_ov_frontends
     endif()
 endforeach()
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')" OUTPUT_VARIABLE PYTHON_ABI)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')" OUTPUT_VARIABLE INTERPRETER)
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')" OUTPUT_VARIABLE WHEEL_PLATFORM)
-string(STRIP ${PYTHON_ABI} PYTHON_ABI)
-string(STRIP ${INTERPRETER} INTERPRETER)
-string(STRIP ${WHEEL_PLATFORM} WHEEL_PLATFORM)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
+                OUTPUT_VARIABLE PYTHON_ABI OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
+                OUTPUT_VARIABLE INTERPRETER OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
+                OUTPUT_VARIABLE WHEEL_PLATFORM OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${INTERPRETER}-${PYTHON_ABI}-${WHEEL_PLATFORM}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
+
+#
+# create target for openvino.wheel
+#
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
