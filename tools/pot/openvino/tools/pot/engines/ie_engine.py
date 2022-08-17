@@ -94,7 +94,7 @@ class IEEngine(Engine):
 
         stat_names_aliases = None
         if stats_layout:
-            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, node_to_result_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
@@ -109,7 +109,7 @@ class IEEngine(Engine):
 
             align_stat_names_with_results(model_output_names,
                                           nodes_name,
-                                          output_to_node_names,
+                                          node_to_result_names,
                                           stats_layout,
                                           stat_aliases)
 
@@ -127,8 +127,8 @@ class IEEngine(Engine):
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
 
-        if stats_layout:
-            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
+        if stats_layout and stat_aliases:
+            restore_original_node_names(node_to_result_names, accumulated_stats, stats_layout, stat_aliases)
 
         # Calculate metrics of required type. Reset collected statistics
         metrics = None
@@ -259,7 +259,7 @@ class IEEngine(Engine):
             )
             input_data_batched = input_data_batched.squeeze()
             if is_sampler_batchfied:
-                if input_data_batched.shape[batch_dim] != len(input_data):
+                if len(input_data_batched.shape) > batch_dim and input_data_batched.shape[batch_dim] != len(input_data):
                     input_data_batched = np.expand_dims(input_data_batched, batch_dim)
 
             if is_dynamic_input(input_blob):

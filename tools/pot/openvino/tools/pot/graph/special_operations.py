@@ -63,6 +63,10 @@ DETECTION_OUTPUT_FINAL_TYPES = [
     {'type': 'TopK'}
 ]
 
+RECURRENT_TYPES = [
+    'LSTMCell', 'GRUCell', 'RNNCell', 'LSTMSequence', 'GRUSequence', 'RNNSequence'
+]
+
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']
 

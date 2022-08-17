@@ -224,8 +224,40 @@
         },
         {
             "type": "Concat",
-                    "attributes": {
-                "scales": "unified"
+            "quantization": {
+                "unified_scales": "all"
+            }
+        },
+        {
+            "type": "LSTMCell",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym",
+                "unified_scales": [[0, 1], [3, 4]]
+            }
+        },
+        {
+            "type": "GRUCell",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym",
+                "unified_scales": [[0, 1], [2, 3]]
+            }
+        },
+        {
+            "type": "LSTMSequence",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym",
+                "unified_scales": [[0, 1], [4, 5]]
+            }
+        },
+        {
+            "type": "GRUSequence",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym",
+                "unified_scales": [[0, 1], [3, 4]]
             }
         },
         {"type": "Reshape"},

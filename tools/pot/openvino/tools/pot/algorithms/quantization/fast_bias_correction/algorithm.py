@@ -148,12 +148,14 @@ class FastBiasCorrection(Algorithm):
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
+                                                                graph_depth=op_output_name.count('|'),
                                                                 channel=self._channel_axis)}
 
                 input_name = get_quantized_input_key(quantized_node)
                 inputs_outputs_layout[input_name] = {
                     "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                             granularity='perchannel', type='mean',
+                                                            graph_depth=op_output_name.count('|'),
                                                             channel=self._channel_axis)}
                 inputs_outputs_layout[input_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                              shape_for_inference=True)
