@@ -86,27 +86,28 @@ void regclass_graph_Type(py::module m) {
                 :return: `True` if element types are compatible, otherwise `False`.
                 :rtype: bool
              )");
-    type.def("merge", 
-             [](ov::element::Type& self, ov::element::Type& other) {
-                ov::element::Type dst;
+    type.def(
+        "merge",
+        [](ov::element::Type& self, ov::element::Type& other) {
+            ov::element::Type dst;
 
-                if (ov::element::Type::merge(dst, self, other)) {
-                    return py::cast(dst);
-                }
+            if (ov::element::Type::merge(dst, self, other)) {
+                return py::cast(dst);
+            }
 
-                return py::none().cast<py::object>();
-             },
-             py::arg("other"),
-             R"(
-                Merges two element types and return result if successful,
-                otherwise return None.
+            return py::none().cast<py::object>();
+        },
+        py::arg("other"),
+        R"(
+            Merges two element types and return result if successful,
+            otherwise return None.
 
-                :param other: The element type to compare this element type to.
-                :type other: openvino.runtime.Type
-                :return: If element types are compatible return the least
-                         restrictive Type, otherwise `None`.
-                :rtype: Union[openvino.runtime.Type|None]
-             )");
+            :param other: The element type to compare this element type to.
+            :type other: openvino.runtime.Type
+            :return: If element types are compatible return the least
+                        restrictive Type, otherwise `None`.
+            :rtype: Union[openvino.runtime.Type|None]
+        )");
 
     type.def(
         "to_dtype",
