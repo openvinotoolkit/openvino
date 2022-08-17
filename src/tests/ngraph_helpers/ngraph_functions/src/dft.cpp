@@ -11,17 +11,17 @@ namespace ngraph {
 namespace builder {
 
 namespace {
-template <typename ...Args>
-std::shared_ptr<ngraph::Node> CallDftCtorWithArgs(const ngraph::helpers::DFTOpType opType, Args&&... args) {
-    switch (opType) {
-    case ngraph::helpers::DFTOpType::FORWARD:
-        return std::make_shared<ngraph::op::v7::DFT>(std::forward<Args>(args)...);
-    case ngraph::helpers::DFTOpType::INVERSE:
-        return std::make_shared<ngraph::op::v7::IDFT>(std::forward<Args>(args)...);
-    default:
-        throw std::logic_error("Unsupported operation type");
+    template <typename ...Args>
+    std::shared_ptr<ngraph::Node> CallDftCtorWithArgs(const ngraph::helpers::DFTOpType opType, Args&&... args) {
+        switch (opType) {
+            case ngraph::helpers::DFTOpType::FORWARD:
+                return std::make_shared<ngraph::op::v7::DFT>(std::forward<Args>(args)...);
+            case ngraph::helpers::DFTOpType::INVERSE:
+                return std::make_shared<ngraph::op::v7::IDFT>(std::forward<Args>(args)...);
+            default:
+                throw std::logic_error("Unsupported operation type");
+        }
     }
-}
 } // namespace
 
 std::shared_ptr<ngraph::Node> makeDFT(const ngraph::Output<Node> &dataNode,

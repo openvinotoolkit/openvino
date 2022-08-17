@@ -13,12 +13,12 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    InferenceEngine::SizeVector, // Input shapes
-    InferenceEngine::Precision,  // Input precision
-    std::vector<int64_t>,  // Axes
-    std::vector<int64_t>,  // Signal size
-    ngraph::helpers::DFTOpType,
-    std::string> DFTParams;   // Device name
+        InferenceEngine::SizeVector, // Input shapes
+        InferenceEngine::Precision,  // Input precision
+        std::vector<int64_t>,  // Axes
+        std::vector<int64_t>,  // Signal size
+        ngraph::helpers::DFTOpType,
+        std::string> DFTParams;   // Device name
 
 class DFTLayerTest : public testing::WithParamInterface<DFTParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:

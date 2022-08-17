@@ -113,7 +113,8 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reorder_input", "input", blocked_format, data_type));
         topology.add(dft("dft", "reorder_input", p.axes, p.signal_size, p.output_shape, type.kind, type.mode));
-        topology.add(reorder("out", "dft", plain_format, data_type));
+        // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
+        topology.add(reorder("out", "dft", format::bfwzyx, data_type));
 
         network network(engine, topology);
         network.set_input_data("input", input);
