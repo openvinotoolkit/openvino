@@ -21,11 +21,15 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[op::v1::Add::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Subtract::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
-    jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
+    jitters[op::v1::Divide::get_type_info_static()] = dummy_functor;
+    jitters[op::v0::Floor::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = dummy_functor;
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = dummy_functor;
+
+    jitters[ngraph::snippets::op::ConvertTruncation::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = dummy_functor;
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
@@ -53,8 +57,12 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f) {
+    BlockedShapeVector output_shapes, input_shapes;
+    defineBlockedShapes(f, output_shapes, input_shapes);
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
+    const auto supported_exec_type = subgraph->get_generator()->get_supported_exec_precision();
+    subgraph->canonicalize(output_shapes, input_shapes, supported_exec_type);
     subgraph->generate();
     return subgraph;
 }
@@ -67,6 +75,21 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getTokenizedSubgr
     m.run_passes(f);
     // Perform lowering
     return getSubgraph(f);
+}
+
+void LoweringTests::defineBlockedShapes(const std::shared_ptr<Model> &f, BlockedShapeVector& output_shapes, BlockedShapeVector& input_shapes) {
+    auto createBlockedShape = [](const std::shared_ptr<ov::Node>& node) {
+        std::vector<size_t> order(node->get_shape().size(), 0);
+        std::iota(order.begin(), order.end(), 0);
+        ngraph::AxisVector blocking(order);
+        return ngraph::snippets::op::Subgraph::BlockedShape{node->get_shape(), blocking, node->get_element_type()};
+    };
+    output_shapes.clear();
+    input_shapes.clear();
+    for (const auto& p : f->get_parameters())
+        input_shapes.push_back(createBlockedShape(p));
+    for (const auto& r : f->get_results())
+        output_shapes.push_back(createBlockedShape(r));
 }
 
 }  // namespace snippets

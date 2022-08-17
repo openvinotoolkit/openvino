@@ -280,6 +280,13 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
     return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
 }
 
+std::shared_ptr<ov::Model> DivFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto div = std::make_shared<op::v1::Divide>(data0, data1);
+    return std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{data0, data1});
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

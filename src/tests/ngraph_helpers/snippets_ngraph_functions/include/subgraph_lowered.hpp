@@ -49,6 +49,15 @@ private:
     std::vector<Shape> broadcast_shapes;
 };
 
+class DivFunctionLoweredFunction : public DivFunction {
+public:
+    explicit DivFunctionLoweredFunction(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32) :
+        DivFunction(inputShapes, precision) {}
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

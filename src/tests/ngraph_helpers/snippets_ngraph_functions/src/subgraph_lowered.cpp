@@ -74,6 +74,36 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     auto store = std::make_shared<ngraph::snippets::op::Store>(mul);
     return std::make_shared<ov::Model>(NodeVector{store}, input_params);
 }
+std::shared_ptr<ov::Model> DivFunctionLoweredFunction::initLowered() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto load0 = std::make_shared<ngraph::snippets::op::Load>(data0);
+    std::shared_ptr<Node> add_input0 = load0;
+    if (precision != element::f32) {
+        auto convert0 = std::make_shared<ngraph::snippets::op::ConvertSaturation>(load0, element::f32);
+        add_input0 = convert0;
+    }
+
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto load1 = std::make_shared<ngraph::snippets::op::Load>(data1);
+    std::shared_ptr<Node> add_input1 = load1;
+    if (precision != element::f32) {
+        auto convert1 = std::make_shared<ngraph::snippets::op::ConvertSaturation>(load1, element::f32);
+        add_input1 = convert1;
+    }
+
+    auto div = std::make_shared<op::v1::Divide>(add_input0, add_input1);
+    std::shared_ptr<Node> output = div;
+    if (ov::element::Type(precision).is_integral_number()) {
+        auto floor = std::make_shared<op::v0::Floor>(div);
+        output = floor;
+    }
+    if (precision != element::f32) {
+        auto convert2 = std::make_shared<ngraph::snippets::op::ConvertSaturation>(output, precision);
+        output = convert2;
+    }
+    auto store = std::make_shared<ngraph::snippets::op::Store>(output);
+    return std::make_shared<ov::Model>(NodeVector{store}, ParameterVector{data0, data1});
+}
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

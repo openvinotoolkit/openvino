@@ -17,6 +17,7 @@
 #include "snippets/pass/transform_convert_to_truncation.hpp"
 #include "snippets/pass/insert_convert_on_inputs.hpp"
 #include "snippets/pass/reset_type_relaxed_node_precision.hpp"
+#include "snippets/pass/insert_floor_after_int_div.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
@@ -255,6 +256,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     const auto execution_element_type = ov::element::f32;
 
     ngraph::pass::Manager p_manager;
+    p_manager.register_pass<snippets::pass::InsertFloorAfterIntDiv>();
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
     p_manager.run_passes(m_body);
 
