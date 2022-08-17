@@ -63,7 +63,8 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& con
                                                         ActivationFactoryPtr activation_factory,
                                                         bool with_fq,
                                                         bool single_reshape_before,
-                                                        bool single_reshape_after) {
+                                                        bool single_reshape_after,
+                                                        bool single_batch) {
     size_t total_in = std::accumulate(std::begin(conv_input_shape), std::end(conv_input_shape), 1, std::multiplies<int>());
     auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, total_in});
     std::shared_ptr<ngraph::Node> last_node, last_const;
@@ -129,7 +130,8 @@ static std::shared_ptr<ngraph::Function> createFunction(const ngraph::Shape& con
             last_node = act_fq_out;
         }
     }
-    auto reshape_out_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, total_out});
+    auto out_shape = single_batch ? ngraph::Shape{1, total_out} : ngraph::Shape{total_out, 1};
+    auto reshape_out_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, out_shape);
     if (!single_reshape_after) {
         auto transpose_out_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 2, 3, 1});
         auto transpose_out = std::make_shared<ngraph::opset8::Transpose>(last_node, transpose_out_const);
@@ -148,7 +150,8 @@ typedef std::tuple<
         bool,                               // with bias
         bool,                               // with pooling
         ActivationFactoryPtr,               // with activation
-        bool                                // with fq
+        bool,                               // with fq
+        bool                                // out batch is 1 or not
 > UnfuseReshapeAndTransposeParams;
 
 class UnfuseReshapeAndTransposeTestSuiteFixture: public CommonTestUtils::TestsCommon,
@@ -164,15 +167,16 @@ void UnfuseReshapeAndTransposeTestSuiteFixture::SetUp() {
     bool with_bias;
     bool with_pool;
     bool with_fq;
+    bool single_batch;
     ActivationFactoryPtr af;
-    std::tie(conv_data, with_bias, with_pool, af, with_fq) = this->GetParam();
+    std::tie(conv_data, with_bias, with_pool, af, with_fq, single_batch) = this->GetParam();
     ngraph::Shape conv_input_shape;
     ngraph::Shape conv_filter_shape;
     bool replace_before;
     bool replace_after;
     std::tie(conv_input_shape, conv_filter_shape, replace_before, replace_after) = conv_data;
-    function = createFunction(conv_input_shape, conv_filter_shape, with_bias, with_pool, af, with_fq, true, true);
-    reference_function = createFunction(conv_input_shape, conv_filter_shape, with_bias, with_pool, af, with_fq, !replace_before, !replace_after);
+    function = createFunction(conv_input_shape, conv_filter_shape, with_bias, with_pool, af, with_fq, true, true, single_batch);
+    reference_function = createFunction(conv_input_shape, conv_filter_shape, with_bias, with_pool, af, with_fq, !replace_before, !replace_after, single_batch);
 }
 
 void execute_test(std::shared_ptr<ngraph::Function> function,
@@ -219,7 +223,8 @@ INSTANTIATE_TEST_SUITE_P(UnfuseReshapeAndTransposeTestSuite, UnfuseReshapeAndTra
                             ::testing::ValuesIn(std::vector<bool>{true, false}),   // with bias
                             ::testing::ValuesIn(std::vector<bool>{true, false}),   // with max pool
                             ::testing::ValuesIn(activationFactories),              // with activation
-                            ::testing::ValuesIn(std::vector<bool>{true, false}))); // with fq
+                            ::testing::ValuesIn(std::vector<bool>{true, false}),   // with fq
+                            ::testing::ValuesIn(std::vector<bool>{true, false}))); // out batch is 1
 
 } // namespace
 } // namespace testing

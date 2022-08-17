@@ -17,6 +17,23 @@ primitive_type_id reduce::type_id() {
     return &instance;
 }
 
+static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+    std::vector<uint16_t> converted_axes;
+    for (auto axis : axes) {
+        if (axis == 0 || axis == 1) {
+            converted_axes.push_back(axis);
+            continue;
+        }
+
+        if (axis < 0)
+            axis = axis + rank;
+
+        converted_axes.push_back(rank + 1 - axis);
+    }
+
+    return converted_axes;
+}
+
 layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<reduce>();
 
@@ -25,7 +42,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
     auto format_dim = input_format.dimension();
     auto output_type = input_layout.data_type;
     auto mode = desc->mode;
-    auto reduce_axes = desc->axes;
+    auto reduce_axes = convert_axes(desc->axes, input_layout.get_rank());
     auto in_dims = input_layout.get_tensor().sizes();
 
     for (size_t a = 0; a < reduce_axes.size(); a++) {

@@ -11,8 +11,8 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
-using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 using namespace CommonTestUtils;
+using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestIOBBlobTest, CanCreateInferRequest) {
     // Create InferRequest
@@ -331,16 +331,25 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
-class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasic {
-public:
-    void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(targetDevice);
-        cnnNet = InferenceEngine::CNNNetwork(function);
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    }
+class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasicBase,
+                                            public BehaviorTestsUtils::IEInferRequestTestBase {
 protected:
+    void SetUp() override {
+        std::tie(netPrecision, target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        cnnNet = InferenceEngine::CNNNetwork(function);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
+
     InferenceEngine::ExecutableNetwork execNet;
     InferenceEngine::CNNNetwork cnnNet;
 };
@@ -386,16 +395,16 @@ typedef std::tuple<
 > InferRequestIOBBlobSetLayoutParams;
 
 class InferRequestIOBBlobSetLayoutTest : public testing::WithParamInterface<InferRequestIOBBlobSetLayoutParams>,
-                                         public CommonTestUtils::TestsCommon {
+                                         public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestIOBBlobSetLayoutParams> obj) {
         InferenceEngine::Layout  layout;
-        std::string targetDevice;
+        std::string target_device;
         std::map<std::string, std::string> configuration;
-        std::tie(layout, targetDevice, configuration) = obj.param;
+        std::tie(layout, target_device, configuration) = obj.param;
         std::ostringstream result;
         result << "layout=" << layout << "_";
-        result << "targetDevice=" << targetDevice << "_";
+        result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
             result << "config=" << configuration;
         }
@@ -403,17 +412,18 @@ public:
     }
 
     void SetUp()  override {
+        std::tie(layout, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(layout, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        APIBaseTest::SetUp();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -421,7 +431,6 @@ public:
     InferenceEngine::Layout layout;
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::string targetDevice;
     std::map<std::string, std::string> configuration;
 };
 

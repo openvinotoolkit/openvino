@@ -187,6 +187,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
+    if (prev.is_dynamic() || next.is_dynamic())
+        return false;
+
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
             return true;
@@ -379,6 +382,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next) {
+    if (prev.is_dynamic() || (next && next->is_dynamic()))
+        return false;
+
     // Ref kernels are the main for depth_to_space and region_yolo. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>())
         return true;
@@ -1839,8 +1845,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
         // But oneDNN does not allow this. So planar format is used for this case.
         if (prim->keep_dims == false &&
-            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_f) != reduce_axes.end() ||
-            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_b) != reduce_axes.end() && input_layout.batch() > 1)) &&
+            (find(reduce_axes.begin(), reduce_axes.end(), 1) != reduce_axes.end() ||
+            (find(reduce_axes.begin(), reduce_axes.end(), 0) != reduce_axes.end() && input_layout.batch() > 1)) &&
             use_onednn_impls) {
             if (input_layout.format.dimension() == 6)
                 expected = format::bfwzyx;

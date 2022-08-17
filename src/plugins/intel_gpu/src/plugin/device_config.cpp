@@ -69,6 +69,12 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         const auto hints = perfHintsConfig.SupportedKeys();
         if (hints.end() != std::find(hints.begin(), hints.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == ov::hint::inference_precision) {
+            std::stringstream ss(val);
+            ss >> inference_precision;
+            OPENVINO_ASSERT(inference_precision == ov::element::f16 ||
+                            inference_precision == ov::element::f32,
+                            "Unexpected inference precision set: ", inference_precision);
         } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0 || key == ov::enable_profiling) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 useProfiling = true;
@@ -379,6 +385,8 @@ void Config::adjustKeyMapValues() {
     else
         key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
 
+    key_config_map[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
+
     {
         if (queuePriority == cldnn::priority_mode_types::high &&
             (task_exec_config._threadPreferredCoreType == IStreamsExecutor::Config::BIG ||
@@ -519,6 +527,7 @@ bool Config::isNewApiProperty(std::string property) {
     static const std::set<std::string> new_api_keys{
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
+        ov::hint::inference_precision.name(),
         ov::compilation_num_threads.name(),
         ov::num_streams.name(),
     };

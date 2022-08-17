@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_GPU)
+    return()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
