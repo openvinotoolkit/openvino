@@ -20,6 +20,7 @@ std::ostream& operator <<(
     ss << "post_nms_count=" << attributes.post_nms_count << "_";
     ss << "pre_nms_count=" << attributes.pre_nms_count;
     ss << "normalized=" << attributes.normalized;
+    ss << "nms_eta=" << attributes.nms_eta;
     return ss;
 }
 } // namespace
