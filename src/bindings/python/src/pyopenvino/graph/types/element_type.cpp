@@ -74,16 +74,39 @@ void regclass_graph_Type(py::module m) {
     type.def("is_signed", &ov::element::Type::is_signed);
     type.def("is_quantized", &ov::element::Type::is_quantized);
     type.def("get_type_name", &ov::element::Type::get_type_name);
-    type.def("compatible", &ov::element::Type::compatible);
-    type.def("merge", [](ov::element::Type& self, ov::element::Type& other) {
-        ov::element::Type dst;
+    type.def("compatible",
+             &ov::element::Type::compatible,
+             py::arg("other"),
+             R"(
+                Checks whether this element type is merge-compatible with
+                `other`.
 
-        if (ov::element::Type::merge(dst, self, other)) {
-            return py::cast(dst);
-        }
+                :param other: The element type to compare this element type to.
+                :type other: openvino.runtime.Type
+                :return: `True` if element types are compatible, otherwise `False`.
+                :rtype: bool
+             )");
+    type.def("merge", 
+             [](ov::element::Type& self, ov::element::Type& other) {
+                ov::element::Type dst;
 
-        return py::none().cast<py::object>();
-    });
+                if (ov::element::Type::merge(dst, self, other)) {
+                    return py::cast(dst);
+                }
+
+                return py::none().cast<py::object>();
+             },
+             py::arg("other"),
+             R"(
+                Merges two element types and return result if successful,
+                otherwise return None.
+
+                :param other: The element type to compare this element type to.
+                :type other: openvino.runtime.Type
+                :return: If element types are compatible return the least
+                         restrictive Type, otherwise `None`.
+                :rtype: Union[openvino.runtime.Type|None]
+             )");
 
     type.def(
         "to_dtype",
@@ -91,7 +114,7 @@ void regclass_graph_Type(py::module m) {
             return Common::ov_type_to_dtype().at(self);
         },
         R"(
-            Convert Type to numpy dtype
+            Convert Type to numpy dtype.
 
             :return: dtype object
             :rtype: numpy.dtype
