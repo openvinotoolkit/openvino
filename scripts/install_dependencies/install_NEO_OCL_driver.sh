@@ -76,7 +76,7 @@ _install_prerequisites_redhat()
     echo
     CMDS=("dnf install -y 'dnf-command(config-manager)'"
           "dnf config-manager --add-repo \
-           https://repositories.intel.com/graphics/rhel/${RHEL_VERSION}/intel-graphics.repo")
+           https://repositories.intel.com/graphics/rhel/8.4/intel-graphics.repo")
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -140,16 +140,19 @@ _deploy_deb()
 }
 
 _install_user_mode_redhat()
-{   
-    CMDS=("dnf install --refresh -y intel-igc-opencl-1.0.9441-i643.el8.x86_64 \
+{  
+
+    CMDS=("rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm" \
+          "dnf install --refresh -y \
+	   intel-igc-opencl-1.0.9441-i643.el8.x86_64 \
            intel-media-21.4.1-i643.el8.x86_64 \
            level-zero-1.6.2-i643.el8.x86_64 \
            intel-level-zero-gpu-1.2.21786-i643.el8.x86_64 \
            intel-opencl-21.49.21786-i643.el8.x86_64 \
            intel-igc-core-1.0.9441-i643.el8.x86_64 \
            intel-ocloc-21.49.21786-i643.el8.x86_64 \
-           ocl-icd-2.2.12-1.el8.x86_64 \
-           intel-gmmlib-21.3.3-i643.el8.x86_64")
+           intel-gmmlib-21.3.3-i643.el8.x86_64"
+          "rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm" )	
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -371,10 +374,10 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
-        RHEL_MINOR_VERSION_SUPPORTED="[3-4]"
+        RHEL_MINOR_VERSION_SUPPORTED="[3-5]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
-            echo "Warning: This runtime can be installed only on RHEL 8.3 or RHEL 8.4"
+            echo "Warning: This runtime can be installed only on RHEL 8.3, RHEL8.4 or RHEL 8.5"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
@@ -470,3 +473,4 @@ main()
 }
 
 [[ "$0" == "${BASH_SOURCE[0]}" ]] && main "$@"
+
