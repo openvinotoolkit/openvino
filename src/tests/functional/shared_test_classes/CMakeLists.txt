@@ -18,7 +18,6 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                pugixml::static
                 funcTestUtils
                 ngraphFunctions
                 inference_engine_legacy
