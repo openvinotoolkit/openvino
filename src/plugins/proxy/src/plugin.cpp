@@ -49,7 +49,7 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
 
     // Parse alias config
     auto it = config.find("ALIAS_FOR");
-    bool fill_order = config.find("DEVICES_ORDER") == config.end() && device_order.empty();
+    bool fill_order = config.find("DEVICES_PRIORITY") == config.end() && device_order.empty();
     if (it != config.end()) {
         for (auto&& dev : split(it->second)) {
             alias_for.emplace(dev);
@@ -59,7 +59,7 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
     }
 
     // Restore device order
-    it = config.find("DEVICES_ORDER");
+    it = config.find("DEVICES_PRIORITY");
     if (it != config.end()) {
         std::vector<std::pair<std::string, size_t>> priority_order;
         // Biggest number means minimum priority
@@ -100,7 +100,7 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
     }
     for (const auto& it : config) {
         // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == "FALLBACK_PRIORITY" || it.first == "DEVICES_ORDER" ||
+        if (ov::device::id.name() == it.first || it.first == "FALLBACK_PRIORITY" || it.first == "DEVICES_PRIORITY" ||
             it.first == "ALIAS_FOR")
             continue;
         property[it.first] = it.second;

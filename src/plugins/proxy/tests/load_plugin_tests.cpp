@@ -94,7 +94,7 @@ TEST_F(ProxyTests, load_on_unsupported_plugin) {
 
 TEST_F(ProxyTests, load_on_supported_plugin_with_changed_priority) {
     ov::AnyMap config;
-    config["DEVICES_ORDER"] = "BDE:0,ABC:1";
+    config["DEVICES_PRIORITY"] = "BDE:0,ABC:1";
     // Change device priority
     core.set_property("MOCK", config);
     auto model = create_model_with_subtract();

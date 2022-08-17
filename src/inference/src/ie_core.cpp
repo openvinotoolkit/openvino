@@ -562,10 +562,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             // Configure device order for proxy_plugin
             it = config.find("DEVICE_PRIORITY");
             if (it != config.end()) {
-                if (defaultConfig.find("DEVICES_ORDER") == defaultConfig.end()) {
-                    defaultConfig["DEVICES_ORDER"] = dev_name + ":" + it->second;
+                if (defaultConfig.find("DEVICES_PRIORITY") == defaultConfig.end()) {
+                    defaultConfig["DEVICES_PRIORITY"] = dev_name + ":" + it->second;
                 } else {
-                    defaultConfig["DEVICES_ORDER"] += "," + dev_name + ":" + it->second;
+                    defaultConfig["DEVICES_PRIORITY"] += "," + dev_name + ":" + it->second;
                 }
             }
 
@@ -614,7 +614,18 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             pluginRegistry[deviceName] = desc;
             add_mutex(deviceName);
         }
-        // TODO: Remove proxy specific unnecessary properties from device default config
+        auto it = desc.defaultConfig.find("ALIAS");
+        if (it != desc.defaultConfig.end()) {
+            desc.defaultConfig.erase(it);
+        }
+        it = desc.defaultConfig.find("FALLBACK");
+        if (it != desc.defaultConfig.end()) {
+            desc.defaultConfig.erase(it);
+        }
+        it = desc.defaultConfig.find("DEVICE_PRIORITY");
+        if (it != desc.defaultConfig.end()) {
+            desc.defaultConfig.erase(it);
+        }
         pluginRegistry[dev_name] = desc;
         add_mutex(dev_name);
     }
@@ -1243,14 +1254,14 @@ public:
             // configuring
             {
                 if (desc.defaultConfig.find("ALIAS_FOR") != desc.defaultConfig.end() ||
-                    desc.defaultConfig.find("DEVICES_ORDER") != desc.defaultConfig.end() ||
+                    desc.defaultConfig.find("DEVICES_PRIORITY") != desc.defaultConfig.end() ||
                     desc.defaultConfig.find("FALLBACK_PRIORITY") != desc.defaultConfig.end()) {
                     std::map<std::string, std::string> initial_config;
                     auto it = desc.defaultConfig.find("ALIAS_FOR");
                     if (it != desc.defaultConfig.end()) {
                         initial_config[it->first] = it->second;
                     }
-                    it = desc.defaultConfig.find("DEVICES_ORDER");
+                    it = desc.defaultConfig.find("DEVICES_PRIORITY");
                     if (it != desc.defaultConfig.end()) {
                         initial_config[it->first] = it->second;
                     }

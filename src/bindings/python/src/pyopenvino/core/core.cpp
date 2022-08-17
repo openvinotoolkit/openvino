@@ -463,10 +463,6 @@ void regclass_Core(py::module m) {
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
-                :param proxy_name: A proxy name to hide hardware plugin.
-                :type proxy_name: str
-                :param priority: Priority of hardware plugin
-                :type priority: int
             )");
 
     cls.def("register_plugins",
