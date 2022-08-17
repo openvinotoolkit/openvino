@@ -573,6 +573,10 @@ public:
         rtParamsCache = cache;
     }
 
+    dnnl::reorder getReorder(const dnnl::memory::desc& src,
+                             const dnnl::memory::desc& dest,
+                             impl_desc_type* p_impl_type = nullptr);
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -746,6 +750,8 @@ protected:
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
+
+    MemoryPtr reorderWeightForSharing(const Memory& src, int src_index, MemoryDescPtr desc);
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;

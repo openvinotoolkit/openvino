@@ -725,6 +725,27 @@ void Node::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(rightConfig);
 }
 
+MemoryPtr Node::reorderWeightForSharing(const Memory& src, int src_index, MemoryDescPtr desc) {
+    auto create = [&]() {
+        MemoryPtr _ptr = MemoryPtr(new Memory(engine));
+        _ptr->Create(desc);
+        _ptr->SetData(src);
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    if (weightCache != nullptr) {
+        const uint64_t data_hash =
+            weightCache->GetHashFunc().hash(reinterpret_cast<const unsigned char*>(src.GetData()), src.GetSize());
+        const std::string string_hash = name + "_" + std::to_string(src_index) + "_" + std::to_string(src.GetSize()) +
+                                        "_" + std::to_string(data_hash);
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        ptr = create();
+    }
+    return ptr;
+}
+
 void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
@@ -745,35 +766,10 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
-        const auto &internalBlob = internalBlobs[i];
-
-        auto create = [&] () {
-            // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-            auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
-
-            Memory memory{ engine };
-            memory.Create(newDesc, internalBlob->buffer());
-
-            MemoryPtr _ptr = MemoryPtr(new Memory(engine));
-            _ptr->Create(*intDescs[i]);
-            _ptr->SetData(memory);
-
-            return _ptr;
-        };
-
-        MemoryPtr ptr;
-        if (weightCache != nullptr) {
-            const uint64_t data_hash = weightCache->GetHashFunc().hash(
-                    internalBlob->buffer(), internalBlob->byteSize());
-
-            const std::string string_hash = name + "_" + std::to_string(i)
-                                            + "_" + std::to_string(internalBlob->byteSize())
-                                            + "_" + std::to_string(data_hash);
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
+        Memory memory{engine};
+        memory.Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlobs[i]->getTensorDesc()),
+                      internalBlobs[i]->buffer());
+        auto ptr = reorderWeightForSharing(memory, i, intDescs[i]);
 
         internalBlobMemory.push_back(ptr);
     }
@@ -1583,6 +1579,55 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
 void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
 }
+
+struct ReorderKey {
+    dnnl::memory::desc src;
+    dnnl::memory::desc dest;
+    size_t hash() const;
+    bool operator==(const ReorderKey& rhs) const;
+};
+
+size_t ReorderKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, get_md_hash(src.data));
+    seed = hash_combine(seed, get_md_hash(dest.data));
+
+    return seed;
+}
+
+bool ReorderKey::operator==(const ReorderKey& rhs) const {
+    bool retVal = true;
+    retVal = src == rhs.src && dest == rhs.dest;
+    return retVal;
+}
+
+dnnl::reorder Node::getReorder(const dnnl::memory::desc& src,
+                               const dnnl::memory::desc& dest,
+                               impl_desc_type* p_impl_type) {
+    auto builder = [this, &p_impl_type](const ReorderKey& key) -> dnnl::reorder {
+        dnnl::primitive_attr attr;
+        dnnl::reorder::primitive_desc pd =
+            dnnl::reorder::primitive_desc(this->getEngine(), key.src, this->getEngine(), key.dest, attr, true);
+        if (!pd)
+            return dnnl::reorder();
+        auto info = pd.impl_info_str();
+        if (p_impl_type)
+            *p_impl_type = parse_impl_name(info);
+        return dnnl::reorder(pd);
+    };
+
+    ReorderKey key = {src, dest};
+    auto result = getRuntimeCache()->getOrCreate(key, builder);
+
+    if (!result.first) {
+        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
+    }
+    return result.first;
+}
+
 
 }   // namespace intel_cpu
 }   // namespace ov

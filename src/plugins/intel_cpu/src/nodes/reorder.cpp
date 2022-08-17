@@ -22,33 +22,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-struct ReorderKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc dest;
-    size_t hash() const;
-    bool operator==(const ReorderKey& rhs) const;
-};
-
-size_t ReorderKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, get_md_hash(src.data));
-    seed = hash_combine(seed, get_md_hash(dest.data));
-
-    return seed;
-}
-
-bool ReorderKey::operator==(const ReorderKey& rhs) const {
-    bool retVal = true;
-    retVal = src == rhs.src && dest == rhs.dest;
-    return retVal;
-}
-
-}  // namespace
 
 bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
@@ -219,6 +192,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
     auto src_desc = src_blocked->GetPrimitive().get_desc();
+    auto dst_desc = dst_blocked->GetPrimitive().get_desc();
     if (!src_permutation.empty()) {
         // reorder requires exact matching of logical dimensions between src & dst
         // sometime we have to permute source's logical dimensions to satisfy
@@ -229,24 +203,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     }
 
     impl_desc_type impl_type = selectedPD->getImplementationType();
-    ReorderKey key = {src_desc, dst_blocked->GetPrimitive().get_desc()};
 
-    auto builder = [&engine, &impl_type](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
-        dnnl::primitive_attr attr;
-        DEBUG_LOG(key.src, "->", key.dest);
-        reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
-        if (!pd)
-            return nullptr;
-        auto info = pd.impl_info_str();
-        impl_type = parse_impl_name(info);
-        return std::make_shared<dnnl::reorder>(pd);
-    };
-
-    auto cache = getRuntimeCache();
-    std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
-        nullptr,
-        CacheEntryBase::LookUpStatus::Miss};
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
     //
@@ -268,16 +225,16 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
                                             newFormat);
         src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
-        key.src = src_blocked->GetPrimitive().get_desc();
-        result = cache->getOrCreate(key, builder);
-    } else {
-        result = cache->getOrCreate(key, builder);
+        src_desc = src_blocked->GetPrimitive().get_desc();
     }
 
-    if (!result.first) {
+    auto reorder_prim = getReorder(src_desc, dst_desc, &impl_type);
+
+    if (!reorder_prim) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
-    prim = result.first;
+    prim = std::make_shared<dnnl::reorder>(reorder_prim);
+
     supportedPrimitiveDescriptors[0].setImplementationType(impl_type);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

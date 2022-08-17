@@ -72,19 +72,36 @@ protected:
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
 private:
+    struct InternalReorder {
+        // empty internal reorder, does nothing
+        InternalReorder() = default;
+
+        InternalReorder(Node * node, const dnnl::memory & src, const dnnl::memory & dst) : src(src), dst(dst) {
+            reorder = node->getReorder(src.get_desc(), dst.get_desc());
+        }
+        void operator()(dnnl::stream strm) {
+            if (reorder)
+                reorder.execute(strm, src, dst);
+        }
+        operator bool() {
+            return static_cast<bool>(reorder);
+        }
+        dnnl::memory src;
+        dnnl::memory dst;
+        dnnl::reorder reorder;
+    };
+
+    InternalReorder reorderInput;
+    InternalReorder reorderWeight;
+    InternalReorder reorderOutput;
+
+    dnnl::convolution_forward conv_fwd;
+
+    bool needReordering() {
+        return reorderInput || reorderWeight || reorderOutput;
+    }
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
-
-    class ConvolutionExecutor : public DnnlExecutor {
-        public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
-                                const dnnl::memory::desc& inMemDesc,
-                                const dnnl::memory::desc& weightMemDesc,
-                                const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
-    };
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
@@ -148,6 +165,7 @@ private:
     MemoryPtr inputZeroPointsMemPtr;
     MemoryPtr weightsZeroPointsMemPtr;
     MemoryPtr outputCompensationMemPtr;
+    MemoryPtr reorderedWeightMemPtr;
 
     dnnl::memory::data_type outputDataType;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
