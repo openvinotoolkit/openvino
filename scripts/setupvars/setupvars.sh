@@ -51,7 +51,14 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         export DYLD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
     fi
-    export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+
+    if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/intel64/gcc4.7" ]; then
+        export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib/intel64/gcc4.7:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+    elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib" ]; then
+        export LD_LIBRARY_PATH=$INSTALLDIR/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH}
+    else
+        echo "[setupvars.sh] WARNING: Directory with TBB libraries is not detected. Please, add TBB libraries to LD_LIBRARY_PATH manually"
+    fi
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
@@ -62,7 +69,7 @@ if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then
     elif [ -e "$INSTALLDIR/runtime/3rdparty/tbb/cmake" ]; then
         export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/cmake
     else
-        echo "TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
+        echo "[setupvars.sh] WARNING: TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
     fi
 fi
 
