@@ -112,7 +112,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             auto input_lay = input_node.get_output_layout();
             auto output_lay = node.get_output_layout();
             auto user_node = *node.get_users().begin();
-            if (output_lay.compatible(input_lay)) {
+            if (input_lay.identical(output_lay)) {
                 if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
                     return;
                 }
