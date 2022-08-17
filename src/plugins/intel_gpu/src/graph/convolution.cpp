@@ -19,7 +19,7 @@ primitive_type_id convolution::type_id() {
     return &instance;
 }
 
-static format get_recommended_format(layout input_layout, data_types output_type, int output_feature, uint groups) {
+static format get_recommended_format(layout input_layout, data_types output_type, int output_feature, uint32_t groups) {
     bool is_dw = input_layout.feature() == static_cast<int>(groups) && output_feature == static_cast<int>(groups);
     int ofm_per_group = output_feature / groups;
     if (groups > 1 &&
