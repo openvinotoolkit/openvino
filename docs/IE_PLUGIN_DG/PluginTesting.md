@@ -44,7 +44,7 @@ To build test binaries together with other build artifacts, use the `make all` c
 ### How to Extend Inference Engine Plugin Tests
 
 Inference Engine Plugin tests are open for contribution.
-Add common test case definitions applicable for all plugins to the `IE::funcSharedTests` target within the DLDT repository. Then, any other plugin supporting corresponding functionality can instantiate the new test.
+Add common test case definitions applicable for all plugins to the `IE::funcSharedTests` target within the OpenVINO repository. Then, any other plugin supporting corresponding functionality can instantiate the new test.
 
 All Inference Engine per-layer tests check test layers functionality. They are developed using ov::Model.
 as input graphs used by tests. In this case, to test a new layer with layer tests, extend

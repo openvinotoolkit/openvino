@@ -5,15 +5,15 @@ Inference Engine build infrastructure provides the Inference Engine Developer Pa
 Inference Engine Developer Package
 ------------------------
 
-To automatically generate the Inference Engine Developer Package, run the `cmake` tool during a DLDT build:
+To automatically generate the Inference Engine Developer Package, run the `cmake` tool during a OpenVINO build:
 
 ```bash
-$ mkdir dldt-release-build
-$ cd dldt-release-build
-$ cmake -DCMAKE_BUILD_TYPE=Release ../dldt 
+$ mkdir openvino-release-build
+$ cd openvino-release-build
+$ cmake -DCMAKE_BUILD_TYPE=Release ../openvino 
 ```
 
-Once the commands above are executed, the Inference Engine Developer Package is generated in the `dldt-release-build` folder. It consists of several files:
+Once the commands above are executed, the Inference Engine Developer Package is generated in the `openvino-release-build` folder. It consists of several files:
  - `InferenceEngineDeveloperPackageConfig.cmake` - the main CMake script which imports targets and provides compilation flags and CMake options.
  - `InferenceEngineDeveloperPackageConfig-version.cmake` - a file with a package version.
  - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by `InferenceEngineDeveloperPackageConfig.cmake` to import the following targets:
@@ -46,7 +46,7 @@ To build a plugin source tree using the Inference Engine Developer Package, run 
 ```cmake
 $ mkdir template-plugin-release-build
 $ cd template-plugin-release-build
-$ cmake -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
+$ cmake -DInferenceEngineDeveloperPackage_DIR=../openvino-release-build ../template-plugin
 ```
 
 A common plugin consists of the following components:
@@ -83,10 +83,10 @@ if(ENABLE_TESTS)
 endif()
 ```
 
-> **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the Inference Engine Developer Package and they are the same as for the main DLDT build tree. You can override them during plugin build using the command below:
+> **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the Inference Engine Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
 
     ```bash
-    $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../dldt-release-build ../template-plugin
+    $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DInferenceEngineDeveloperPackage_DIR=../openvino-release-build ../template-plugin
     ``` 
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:

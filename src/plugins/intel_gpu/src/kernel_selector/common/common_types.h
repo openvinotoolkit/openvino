@@ -594,7 +594,7 @@ enum class BoxEncodingType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class color_format : uint32_t {
     RGB,       ///< RGB color format
-    BGR,       ///< BGR color format, default in DLDT
+    BGR,       ///< BGR color format, default in OpenVINO
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
     NV12,      ///< NV12 color format represented as compound Y+UV blob
