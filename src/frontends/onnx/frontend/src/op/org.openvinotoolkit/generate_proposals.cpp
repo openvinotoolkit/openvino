@@ -20,7 +20,7 @@ void validate_generate_proposals_inputs(const OutputVector& inputs) {
 
     const auto& anchors_shape = inputs[3].get_partial_shape();
     const auto anchors_rank = anchors_shape.rank();
-    OPENVINO_ASSERT(anchors_rank.compatible(2), "GenerateProposals input anchors rank should be 2, is ", anchors_rank);
+    OPENVINO_ASSERT(anchors_rank == Rank(2), "GenerateProposals input anchors rank should be 2, is ", anchors_rank);
     OPENVINO_ASSERT(anchors_shape[1].compatible(4),
                     "GenerateProposals input anchors shape should be {A, 4}, is ",
                     anchors_shape);
@@ -55,7 +55,7 @@ OutputVector generate_proposals(const Node& node) {
 
     const auto proposals = std::make_shared<ov::op::v9::GenerateProposals>(im_info, new_anchors, deltas, scores, attrs);
 
-    return {proposals->output(0), proposals->output(1), proposals->output(2)};
+    return proposals->outputs();
 }
 }  // namespace set_1
 }  // namespace op
