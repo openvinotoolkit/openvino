@@ -31,8 +31,10 @@ def main():
 def run(args):
     statistics = None
     try:
+        logger.info("Parsing input parameters")
+
         if args.number_streams is None:
-                logger.warning(" -nstreams default value is determined automatically for a device. "
+                logger.warning("-nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
                                "but it still may be non-optimal for some cases, for more information look at README. ")
 
@@ -59,7 +61,7 @@ def run(args):
 
         if ext == BLOB_EXTENSION:
             is_network_compiled = True
-            print("Model is compiled")
+            logger.info("Network is compiled")
 
         # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
         next_step(step_id=2)
@@ -535,27 +537,27 @@ def run(args):
             statistics.dump()
 
 
-        print(f'Count:          {iteration} iterations')
-        print(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        logger.info(f'Count:          {iteration} iterations')
+        logger.info(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            print('Latency:')
+            logger.info('Latency:')
             if args.latency_percentile == 50 and static_mode:
-                print(f'    Median:     {median_latency_ms:.2f} ms')
+                logger.info(f'\tMedian:     {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
-                print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'    AVG:        {avg_latency_ms:.2f} ms')
-            print(f'    MIN:        {min_latency_ms:.2f} ms')
-            print(f'    MAX:        {max_latency_ms:.2f} ms')
+                logger.info(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
+            logger.info(f'\tAverage:    {avg_latency_ms:.2f} ms')
+            logger.info(f'\tMin:        {min_latency_ms:.2f} ms')
+            logger.info(f'\tMax:        {max_latency_ms:.2f} ms')
 
             if pcseq:
-                print("Latency for each data shape group: ")
+                logger.info("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
-                    print(f"  {str(group)}")
-                    print(f'    AVG:        {group.avg:.2f} ms')
-                    print(f'    MIN:        {group.min:.2f} ms')
-                    print(f'    MAX:        {group.max:.2f} ms')
+                    logger.info(f"\t{str(group)}")
+                    logger.info(f'\tAverage:    {group.avg:.2f} ms')
+                    logger.info(f'\tMin:        {group.min:.2f} ms')
+                    logger.info(f'\tMax:        {group.max:.2f} ms')
 
-        print(f'Throughput: {fps:.2f} FPS')
+        logger.info(f'Throughput:  {fps:.2f} FPS')
 
         del compiled_model
 

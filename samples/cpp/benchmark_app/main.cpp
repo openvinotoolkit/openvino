@@ -49,7 +49,6 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
-        show_usage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
@@ -878,11 +877,9 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         if (inferenceOnly) {
-            slog::info << "BENCHMARK IS IN INFERENCE ONLY MODE." << slog::endl;
-            slog::info << "Input blobs will be filled once before performance measurements." << slog::endl;
+            slog::info << "Benchmarking in inference only mode (inputs filling are not included in measurement loop)." << slog::endl;
         } else {
-            slog::info << "BENCHMARK IS IN FULL MODE." << slog::endl;
-            slog::info << "Inputs setup stage will be included in performance measurements." << slog::endl;
+            slog::info << "Benchmarking in full mode (inputs filling are included in measurement loop)." << slog::endl;
         }
 
         // copy prepared data straight into inferRequest->getTensor()
@@ -1138,8 +1135,8 @@ int main(int argc, char* argv[]) {
             statistics->dump();
 
         // Performance metrics report
-        slog::info << "Count:      " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
+        slog::info << "Count:       " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:    " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency: " << slog::endl;
             generalLatency.write_to_slog();
@@ -1161,7 +1158,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        slog::info << "Throughput: " << double_to_string(fps) << " FPS" << slog::endl;
+        slog::info << "Throughput:  " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
