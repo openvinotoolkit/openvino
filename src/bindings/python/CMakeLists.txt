@@ -34,6 +34,11 @@ function(ov_check_python_build_conditions)
     if(PYTHONINTERP_FOUND)
         # use libraries with the same version as python itself
         find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT QUIET)
+        if(NOT PYTHONLIBS_FOUND)
+            message(WARNING "Python development libraries are not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
+        endif()
+    else()
+        message(WARNING "Python 3.x interpreter is not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
     # pyopenvino requirements
@@ -58,10 +63,18 @@ function(ov_check_python_build_conditions)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
             set(ie_python_req_FOUND ON)
         else()
-            message(WARNING "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built")
+            message(WARNING "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
         endif()
     endif()
 
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+        set(python_debug ON)
+        message(WARNING "Building python bindings in debug configuration is not supported on your platform (ENABLE_PYTHON is OFF)")
+    else()
+        set(python_debug OFF)
+    endif()
+
+    set(python_debug ${python_debug} PARENT_SCOPE)
     set(PYTHONLIBS_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
     set(ov_python_reqs_FOUND ${ov_python_reqs_FOUND} PARENT_SCOPE)
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
@@ -69,7 +82,7 @@ endfunction()
 
 ov_check_python_build_conditions()
 
-ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND;NOT CMAKE_DEBUG_POSTFIX" OFF)
+ie_dependent_option(ENABLE_PYTHON "enables ie python bridge build" ON "PYTHONLIBS_FOUND;ov_python_reqs_FOUND;NOT python_debug" OFF)
 
 if(NOT ENABLE_PYTHON)
     if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
