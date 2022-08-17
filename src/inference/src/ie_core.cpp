@@ -529,11 +529,20 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     bool IsHiddenDevice(const std::string& deviceName) const {
         std::lock_guard<std::mutex> lock(get_mutex());
+        if (deviceName.find("_ov_internal") != std::string::npos)
+            return true;
 
         // Alias hides the device
-        const auto& plugin = pluginRegistry.at(deviceName);
-        return plugin.defaultConfig.find("ALIAS") != plugin.defaultConfig.end() ||
-               deviceName.find("_ov_internal") != std::string::npos;
+        for (auto&& it : pluginRegistry) {
+            auto it_priority = it.second.defaultConfig.find("ALIAS_FOR");
+            if (it.first == deviceName || it_priority == it.second.defaultConfig.end())
+                continue;
+            std::string devices = it_priority->second;
+            std::regex reg("^.*\\b" + deviceName + "\\b.*$");
+            if (std::regex_match(devices, reg))
+                return true;
+        }
+        return false;
     }
 
     void RegisterPluginInRegistryUnsafe(const std::string& deviceName, PluginDescriptor& desc) {
@@ -1343,9 +1352,8 @@ public:
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        PluginDescriptor desc{getPluginPath(pluginName, true)};
-        pluginRegistry[deviceName] = desc;
-        add_mutex(deviceName);
+        PluginDescriptor desc{getPluginPath(pluginName, true), config};
+        RegisterPluginInRegistryUnsafe(deviceName, desc);
     }
 
     /**

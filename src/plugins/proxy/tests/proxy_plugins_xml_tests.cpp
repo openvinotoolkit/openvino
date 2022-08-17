@@ -328,7 +328,6 @@ TEST_F(PluginsXmlProxyTests, MatchingAliasWithoutFallback) {
     std::set<std::string> mock_reference_dev =
         {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4", "MOCK.5", "MOCK.6", "MOCK.7"};
     for (const auto& dev : available_devices) {
-        std::cout << dev << std::endl;
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
         }

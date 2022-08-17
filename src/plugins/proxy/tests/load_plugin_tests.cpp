@@ -22,15 +22,14 @@ TEST_F(ProxyTests, get_available_devices) {
 
 TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
     ov::AnyMap config;
-    config["PRIMARY_DEVICE"] = "YES";
+    config["ALIAS_FOR"] = "BDE";
     // Change device priority
-    core.set_property("ABC", config);
+    core.set_property("MOCK", config);
     auto available_devices = core.get_available_devices();
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev =
-        {"ABC.abc_a", "ABC.abc_b", "ABC.abc_c", "MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    std::set<std::string> mock_reference_dev = {"ABC.abc_a", "ABC.abc_b", "ABC.abc_c", "MOCK.0", "MOCK.1", "MOCK.2"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
@@ -46,7 +45,7 @@ TEST_F(ProxyTests, get_available_devices_with_disabled_plugin) {
     // Change device priority
     core.set_property("MOCK", config);
     auto available_devices = core.get_available_devices();
-    std::set<std::string> mock_reference_dev = {"ABC.abc_a", "ABC.abc_b", "ABC.abc_c", "MOCK.0", "MOCK.1", "MOCK.2"};
+    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
             mock_reference_dev.erase(dev);
@@ -95,7 +94,7 @@ TEST_F(ProxyTests, load_on_unsupported_plugin) {
 
 TEST_F(ProxyTests, load_on_supported_plugin_with_changed_priority) {
     ov::AnyMap config;
-    config["DEVICE_ORDER"] = "BDE,ABC";
+    config["DEVICES_ORDER"] = "BDE:0,ABC:1";
     // Change device priority
     core.set_property("MOCK", config);
     auto model = create_model_with_subtract();

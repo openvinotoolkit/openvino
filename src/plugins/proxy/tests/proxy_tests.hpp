@@ -35,9 +35,10 @@ public:
     ov::Core core;
     void SetUp() override {
         try {
-            core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX, "ABC");
-            core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE");
-            core.register_plugin("", "MOCK", {{"FALLBACK_PRIORITY", "ABC,BDE"}});
+            core.register_plugin(std::string("mock_abc_plugin") + IE_BUILD_POSTFIX,
+                                 "ABC",
+                                 {{"ALIAS", "MOCK"}, {"FALLBACK", "BDE"}});
+            core.register_plugin(std::string("mock_bde_plugin") + IE_BUILD_POSTFIX, "BDE", {{"ALIAS", "MOCK"}});
         } catch (const ov::Exception& ex) {
             // Plugin is already registered
         }
