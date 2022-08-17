@@ -99,13 +99,13 @@ void regclass_graph_Type(py::module m) {
         },
         py::arg("other"),
         R"(
-            Merges two element types and return result if successful,
+            Merge two element types and return result if successful,
             otherwise return None.
 
-            :param other: The element type to compare this element type to.
+            :param other: The element type to merge with this element type.
             :type other: openvino.runtime.Type
             :return: If element types are compatible return the least
-                        restrictive Type, otherwise `None`.
+                     restrictive Type, otherwise `None`.
             :rtype: Union[openvino.runtime.Type|None]
         )");
 
