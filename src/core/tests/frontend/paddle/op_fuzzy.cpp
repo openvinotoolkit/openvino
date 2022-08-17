@@ -411,6 +411,8 @@ static const std::vector<std::string> models{
     std::string("where_index_2"),
     std::string("where_index_3"),
     std::string("where_index_4"),
+    std::string("where_index_5"),
+    std::string("where_index_6"),
     // Temporily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box"),
