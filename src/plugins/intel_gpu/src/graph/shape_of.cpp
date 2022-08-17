@@ -6,6 +6,7 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "to_string_utils.h"
 #include <string>
 #include <vector>
 
