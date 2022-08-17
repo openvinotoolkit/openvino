@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_CPU)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
