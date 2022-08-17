@@ -124,7 +124,7 @@ graph {
             dim_param: "num_rois"
           }
           dim {
-            dim_param: "4"
+            dim_value: 4
           }
         }
       }
@@ -150,7 +150,7 @@ graph {
         elem_type: 7
         shape {
           dim {
-            dim_param: "2"
+            dim_value: 2
           }
         }
       }
