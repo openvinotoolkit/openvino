@@ -133,7 +133,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
 
     ov_shape_deinit(&shape);
-    ov_partial_shape_free(&partial_shape);
+    ov_partial_shape_deinit(&partial_shape);
     ov_free(tensor_name);
     ov_output_node_list_free(&input_node_list1);
     ov_output_node_list_free(&input_node_list2);

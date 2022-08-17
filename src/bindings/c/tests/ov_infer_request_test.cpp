@@ -30,7 +30,7 @@ void get_tensor_info(ov_model_t* model,
 
     ov_partial_shape_t p_shape;
     OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
-    ov_partial_shape_free(&p_shape);
+    ov_partial_shape_deinit(&p_shape);
 
     ov_output_node_list_free(&output_nodes);
 }

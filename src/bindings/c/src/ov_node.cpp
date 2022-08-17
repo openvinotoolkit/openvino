@@ -59,7 +59,7 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
         auto pshape = nodes->output_nodes[idx].object->get_partial_shape();
         auto rank = pshape.rank();
 
-        ov_rank_init_dynamic(&partial_shape->rank, rank.get_max_length(), rank.get_min_length());
+        ov_rank_init_dynamic(&partial_shape->rank, rank.get_min_length(), rank.get_max_length());
         if (rank.is_dynamic()) {
             partial_shape->dims = nullptr;
         } else {
@@ -70,7 +70,7 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
             std::unique_ptr<ov_dimension_t> _dimensions(new ov_dimension_t[size]);
             partial_shape->dims = _dimensions.release();
             auto iter = pshape.begin();
-            for (auto i = 0; iter != pshape.end(), i < size; iter++, i++) {
+            for (auto i = 0; iter != pshape.end(); iter++, i++) {
                 ov_dimension_init_dynamic(&partial_shape->dims[i], iter->get_min_length(), iter->get_max_length());
             }
         }

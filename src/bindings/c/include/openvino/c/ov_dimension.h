@@ -14,7 +14,7 @@
 
 /**
  * @struct ov_dimension
- * @brief This is an structure interface equal to ov::Dimension
+ * @brief This is a structure interface equal to ov::Dimension
  */
 typedef struct ov_dimension {
     int64_t min;  //!< The lower inclusive limit for the dimension.
@@ -51,7 +51,7 @@ ov_dimension_init_dynamic(ov_dimension_t* dimension, int64_t min_dimension, int6
 
 /**
  * @brief Check this dimension whether is dynamic
- * @ingroup rank
+ * @ingroup dimension
  * @param ov_status_e a status code.
  */
 OPENVINO_C_API(bool) ov_dimension_is_dynamic(const ov_dimension_t* dim);

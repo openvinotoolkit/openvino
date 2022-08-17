@@ -56,14 +56,13 @@ ov_status_e ov_partial_shape_init_dynamic_rank(ov_partial_shape_t* partial_shape
     return ov_status_e::OK;
 }
 
-ov_status_e ov_partial_shape_init_static_dimension(ov_partial_shape_t* partial_shape_obj, int64_t rank, int64_t* dims) {
+ov_status_e ov_partial_shape_init_static(ov_partial_shape_t* partial_shape_obj, int64_t rank, int64_t* dims) {
     if (!partial_shape_obj || rank < 0 || !dims) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        auto size = rank;
-        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[size]);
+        std::unique_ptr<ov_dimension_t> _dims(new ov_dimension_t[rank]);
         partial_shape_obj->dims = _dims.release();
         ov_rank_init(&partial_shape_obj->rank, rank);
         for (auto i = 0; i < rank; i++) {
@@ -77,7 +76,7 @@ ov_status_e ov_partial_shape_init_static_dimension(ov_partial_shape_t* partial_s
     return ov_status_e::OK;
 }
 
-void ov_partial_shape_free(ov_partial_shape_t* partial_shape) {
+void ov_partial_shape_deinit(ov_partial_shape_t* partial_shape) {
     if (partial_shape && partial_shape->dims)
         delete[] partial_shape->dims;
 }

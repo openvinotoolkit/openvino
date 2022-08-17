@@ -26,17 +26,16 @@ typedef ov_dimension_t ov_rank_t;
 /**
  * @brief Initialize a static rank object
  * @ingroup rank
- * @param rank_value The rank value for this object, it should be not less than 0(>=0)
+ * @param rank_value The rank value for this object, it should be not less than 0(>=0).
  * @param ov_status_e a status code.
  */
 OPENVINO_C_API(ov_status_e) ov_rank_init(ov_rank_t* rank, int64_t rank_value);
 
 /**
- * @brief Initialize a dynamic rank object
+ * @brief Initialize a dynamic rank object.
  * @ingroup rank
- * @param min_rank The lower inclusive limit for the rank
- * @param max_rank The upper inclusive limit for the rank
- * with min_dimension
+ * @param min_rank The lower inclusive limit for the rank.
+ * @param max_rank The upper inclusive limit for the rank.
  * @param ov_status_e a status code.
  */
 OPENVINO_C_API(ov_status_e) ov_rank_init_dynamic(ov_rank_t* rank, int64_t min_rank, int64_t max_rank);
