@@ -318,15 +318,30 @@ private:
 };
 
 TEST(JitKernel, variable_load_and_store) {
-    jit_variable_load_store_test_kernel<uint8_t, float> kernel;
-    if (mayiuse(cpu_isa_t::avx512_core)) {
-        kernel.test<16>();
+    {
+        jit_variable_load_store_test_kernel<uint8_t, float> kernel;
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            kernel.test<16>();
+        }
+        if (mayiuse(cpu_isa_t::avx2)) {
+            kernel.test<8>();
+        }
+        if (mayiuse(cpu_isa_t::sse41)) {
+            kernel.test<4>();
+        }
     }
-    if (mayiuse(cpu_isa_t::avx2)) {
-        kernel.test<8>();
-    }
-    if (mayiuse(cpu_isa_t::sse41)) {
-        kernel.test<4>();
+
+    {
+        jit_variable_load_store_test_kernel<int8_t, int8_t> kernel;
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            kernel.test<16>();
+        }
+        if (mayiuse(cpu_isa_t::avx2)) {
+            kernel.test<8>();
+        }
+        if (mayiuse(cpu_isa_t::sse41)) {
+            kernel.test<4>();
+        }
     }
 }
 

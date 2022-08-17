@@ -44,8 +44,9 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
+        load_vector_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, vector_step));
+        load_scalar_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, scalar_step));
+
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         this->preamble();
@@ -137,8 +138,8 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        load_vector_emitter->emit_data();
+        load_scalar_emitter->emit_data();
 
         prepare_table();
         exp_injector->prepare_table();
@@ -147,6 +148,8 @@ struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator 
 private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    const int vector_step = vlen / sizeof(float);
+    const int scalar_step = 1;
 
     Xbyak::Reg64 reg_boxes_coord0 = r8;
     Xbyak::Reg64 reg_boxes_coord1 = r9;
@@ -172,8 +175,8 @@ private:
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_scalar_emitter = nullptr;
 
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
@@ -205,25 +208,24 @@ private:
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
     inline void hard_nms() {
-        int step = vlen / sizeof(float);
         Xbyak::Label main_loop_label_hard;
         Xbyak::Label main_loop_end_label_hard;
         Xbyak::Label tail_loop_label_hard;
         Xbyak::Label terminate_label_hard;
         L(main_loop_label_hard);
         {
-            cmp(reg_boxes_num, step);
+            cmp(reg_boxes_num, vector_step);
             jl(main_loop_end_label_hard, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, vector_step * sizeof(float));
+            sub(reg_boxes_coord1, vector_step * sizeof(float));
+            sub(reg_boxes_coord2, vector_step * sizeof(float));
+            sub(reg_boxes_coord3, vector_step * sizeof(float));
 
             // iou result is in vmm_temp3
-            iou(step);
+            iou(vector_step);
 
-            sub(reg_boxes_num, step);
+            sub(reg_boxes_num, vector_step);
 
             suppressed_by_iou(false);
 
@@ -236,21 +238,20 @@ private:
         }
         L(main_loop_end_label_hard);
 
-        step = 1;
         L(tail_loop_label_hard);
         {
             cmp(reg_boxes_num, 1);
             jl(terminate_label_hard, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, scalar_step * sizeof(float));
+            sub(reg_boxes_coord1, scalar_step * sizeof(float));
+            sub(reg_boxes_coord2, scalar_step * sizeof(float));
+            sub(reg_boxes_coord3, scalar_step * sizeof(float));
 
             // iou result is in vmm_temp3
-            iou(step);
+            iou(scalar_step);
 
-            sub(reg_boxes_num, step);
+            sub(reg_boxes_num, scalar_step);
 
             suppressed_by_iou(true);
 
@@ -267,7 +268,6 @@ private:
     inline void soft_nms() {
         uni_vbroadcastss(vmm_scale, ptr[reg_scale]);
 
-        int step = vlen / sizeof(float);
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
         Xbyak::Label tail_loop_label;
@@ -277,17 +277,17 @@ private:
         Xbyak::Label tail_loop_label_soft;
         L(main_loop_label);
         {
-            cmp(reg_boxes_num, step);
+            cmp(reg_boxes_num, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, vector_step * sizeof(float));
+            sub(reg_boxes_coord1, vector_step * sizeof(float));
+            sub(reg_boxes_coord2, vector_step * sizeof(float));
+            sub(reg_boxes_coord3, vector_step * sizeof(float));
 
             // result(iou and weight) is in vmm_temp3
-            iou(step);
-            sub(reg_boxes_num, step);
+            iou(vector_step);
+            sub(reg_boxes_num, vector_step);
 
             // soft suppressed by iou_threshold
             if (jcp.is_soft_suppressed_by_iou) {
@@ -327,19 +327,18 @@ private:
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_boxes_num, 1);
             jl(terminate_label, T_NEAR);
 
-            sub(reg_boxes_coord0, step * sizeof(float));
-            sub(reg_boxes_coord1, step * sizeof(float));
-            sub(reg_boxes_coord2, step * sizeof(float));
-            sub(reg_boxes_coord3, step * sizeof(float));
+            sub(reg_boxes_coord0, scalar_step * sizeof(float));
+            sub(reg_boxes_coord1, scalar_step * sizeof(float));
+            sub(reg_boxes_coord2, scalar_step * sizeof(float));
+            sub(reg_boxes_coord3, scalar_step * sizeof(float));
 
-            iou(step);
-            sub(reg_boxes_num, step);
+            iou(scalar_step);
+            sub(reg_boxes_num, scalar_step);
 
             // soft suppressed by iou_threshold
             if (jcp.is_soft_suppressed_by_iou) {
@@ -427,8 +426,11 @@ private:
 
     inline void iou(int ele_num) {
         auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
+            if (ele_num != scalar_step && ele_num != vector_step)
+                IE_THROW() << "NMS JIT implementation supports load emitter with only element count scalar_step or vector_step! Get: " << ele_num;
+
+            const auto& load_emitter = ele_num == 1 ? load_scalar_emitter : load_vector_emitter;
             load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
-                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
                 {}, {load_pool_gpr_idxs});
         };
         load(reg_boxes_coord0, vmm_boxes_coord0);

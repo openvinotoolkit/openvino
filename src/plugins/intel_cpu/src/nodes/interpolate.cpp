@@ -58,9 +58,6 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
-
         // dummy second reg_tmp_64 as no fill needed
         load_pool_gpr_idxs = {static_cast<size_t>(reg_tmp_64.getIdx()), static_cast<size_t>(reg_tmp_64.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_tmp_64.getIdx())};
@@ -162,8 +159,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        emit_emitters_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
@@ -176,6 +172,9 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vector_step = vlen / sizeof(float);
+    const int tail_step = jcp_.C % vector_step;
+    const int scalar_step = 1;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_src_aux = r15;
@@ -246,8 +245,8 @@ private:
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
@@ -256,20 +255,44 @@ private:
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
-    inline void load(const Xbyak::Reg64& reg_src, Vmm& vmm, const int& elt_num, const int& offset = 0) {
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
-            std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num, offset),
-            {}, {load_pool_gpr_idxs});
+    void emit_emitters_data() {
+        for (const auto& emitter : emitters) {
+            if (emitter.second)
+                emitter.second->emit_data();
+        }
     }
-    inline void store(const Vmm& vmm, const Xbyak::Reg64& reg_dst, const int& elt_num, const int& offset = 0) {
-        store_emitter->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num, offset),
-            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+
+    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, jcp_.src_prc, Precision::FP32, elt_num, offset);
     }
-    inline void load_weights(const Xbyak::Reg64& reg_weights, Vmm& vmm, const int& elt_num, const int& offset = 0) {
-        load_emitter->emit_code({static_cast<size_t>(reg_weights.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
-            std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, elt_num, offset),
-            {}, {load_pool_gpr_idxs});
+
+    inline void load_weights(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+        emit_load(reg_src, vmm_src, Precision::FP32, Precision::FP32, elt_num, offset);
+    }
+
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+        }
+
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+    }
+
+    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+        const auto seed = store_emitter_params(Precision::FP32, jcp_.dst_prc, elt_num).hash();
+        if (!emitters[seed]) {
+            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, elt_num));
+        }
+
+        // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
+        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
     void nn_planar() {
@@ -303,7 +326,6 @@ private:
 
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
-            int step = vlen / sizeof(float);
 
             Xbyak::Label nn_loop_label;
             Xbyak::Label nn_loop_end_label;
@@ -312,7 +334,7 @@ private:
 
             L(nn_loop_label);   // inner loop
             {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(nn_loop_end_label, T_NEAR);
 
                 uni_vmovdqu(vmm_index, ptr[reg_index]);
@@ -320,17 +342,16 @@ private:
                 vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
                 if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_prc, 1);
-                store(vmm_val, reg_dst, step);
+                store(vmm_val, reg_dst, vector_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_index, step * jcp_.indices_size);
-                sub(reg_work_amount, step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
+                add(reg_index, vector_step * jcp_.indices_size);
+                sub(reg_work_amount, vector_step);
 
                 jmp(nn_loop_label, T_NEAR);
             }
             L(nn_loop_end_label);
 
-            step = 1;
             L(nn_tail_loop_label);
             {
                 cmp(reg_work_amount, 1);
@@ -340,14 +361,14 @@ private:
                 mov(reg_index_offset, dword[reg_index]);
                 add(reg_src_aux, reg_index_offset);
 
-                load(reg_src_aux, vmm_val, step);
+                load(reg_src_aux, vmm_val, scalar_step);
                 if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_prc, 1);
-                store(vmm_val, reg_dst, step);
+                store(vmm_val, reg_dst, scalar_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_index, step * jcp_.indices_size);
-                sub(reg_work_amount, step);
+                add(reg_dst, scalar_step * jcp_.dst_data_size);
+                add(reg_index, scalar_step * jcp_.indices_size);
+                sub(reg_work_amount, scalar_step);
 
                 jmp(nn_tail_loop_label, T_NEAR);
             }
@@ -363,8 +384,6 @@ private:
     }
 
     void nn_blk() {
-        int step = vlen / sizeof(float);
-
         Xbyak::Label nn_loop_label;
         Xbyak::Label nn_loop_end_label;
         L(nn_loop_label);
@@ -376,22 +395,22 @@ private:
             mov(reg_index_offset, dword[reg_index]);
             add(reg_src_aux, reg_index_offset);
 
-            load(reg_src_aux, vmm_val, step);
+            load(reg_src_aux, vmm_val, vector_step);
             if (attr_.post_ops_.len() != 0)
                 apply_post_ops(jcp_.dst_prc, 0);
-            store(vmm_val, reg_dst, step);
-            add(reg_dst, step * jcp_.dst_data_size);
+            store(vmm_val, reg_dst, vector_step);
+            add(reg_dst, vector_step * jcp_.dst_data_size);
 
             if (isa == cpu::x64::sse41) {
-                add(reg_src_aux, step * jcp_.src_data_size);
-                load(reg_src_aux, vmm_val, step);
+                add(reg_src_aux, vector_step * jcp_.src_data_size);
+                load(reg_src_aux, vmm_val, vector_step);
                 if (attr_.post_ops_.len() != 0) {
-                    add(reg_oc_off, step * sizeof(float));
+                    add(reg_oc_off, vector_step * sizeof(float));
                     apply_post_ops(jcp_.dst_prc, 0);
-                    sub(reg_oc_off, step * sizeof(float));
+                    sub(reg_oc_off, vector_step * sizeof(float));
                 }
-                store(vmm_val, reg_dst, step);
-                add(reg_dst, step * jcp_.dst_data_size);
+                store(vmm_val, reg_dst, vector_step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
             }
 
             add(reg_index, jcp_.indices_size);
@@ -421,8 +440,6 @@ private:
             cmp(reg_work_amount_out, 1);
             jl(out_loop_end, T_NEAR);
 
-            int step = vlen / sizeof(float);
-
             //inner loop for C
             Xbyak::Label nn_loop_label;
             Xbyak::Label nn_loop_end_label;
@@ -444,35 +461,34 @@ private:
 
             L(nn_loop_label);
             {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(nn_loop_end_label, T_NEAR);
 
-                load(reg_src_aux, vmm_val, step);
+                load(reg_src_aux, vmm_val, vector_step);
                 if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_prc, 0);
-                store(vmm_val, reg_dst, step);
+                store(vmm_val, reg_dst, vector_step);
 
-                add(reg_dst, step * jcp_.dst_data_size);
-                add(reg_src_aux, step * jcp_.src_data_size);
-                add(reg_oc_off, step * sizeof(float));
-                sub(reg_work_amount, step);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
+                add(reg_src_aux, vector_step * jcp_.src_data_size);
+                add(reg_oc_off, vector_step * sizeof(float));
+                sub(reg_work_amount, vector_step);
 
                 jmp(nn_loop_label, T_NEAR);
             }
             L(nn_loop_end_label);
 
-            int tail_num = jcp_.C % step;
-            if (tail_num != 0) {
-                load(reg_src_aux, vmm_val, tail_num);
+            if (tail_step != 0) {
+                load(reg_src_aux, vmm_val, tail_step);
                 if (attr_.post_ops_.len() != 0)
                     apply_post_ops(jcp_.dst_prc, 0);
-                store(vmm_val, reg_dst, tail_num);
+                store(vmm_val, reg_dst, tail_step);
 
                 // check to remove below
-                add(reg_dst, tail_num * jcp_.dst_data_size);
-                add(reg_src_aux, tail_num * jcp_.src_data_size);
-                add(reg_oc_off, tail_num * sizeof(float));
-                sub(reg_work_amount, tail_num);
+                add(reg_dst, tail_step * jcp_.dst_data_size);
+                add(reg_src_aux, tail_step * jcp_.src_data_size);
+                add(reg_oc_off, tail_step * sizeof(float));
+                sub(reg_work_amount, tail_step);
             }
             add(reg_index, jcp_.indices_size);
             sub(reg_work_amount_out, 1);
@@ -519,11 +535,10 @@ private:
         }
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
-        int blk = (isa == cpu::x64::sse41) ? (2 * step) : step;
-        int dst_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (step * jcp_.dst_data_size) :
+        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
+        int dst_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (vector_step * jcp_.dst_data_size) :
                                             (blk * jcp_.OW * jcp_.OH * jcp_.OD * jcp_.dst_data_size);
-        int src_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (step * jcp_.src_data_size) :
+        int src_stride = (jcp_.layout == InterpolateLayoutType::by_channel) ? (vector_step * jcp_.src_data_size) :
                                             (blk * jcp_.IW * jcp_.IH * jcp_.ID * jcp_.src_data_size);
 
         Xbyak::Label main_loop_label;
@@ -535,29 +550,29 @@ private:
         L(main_loop_label);
         {
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(main_loop_end_label, T_NEAR);
             } else {
                 cmp(reg_work_amount, 1);
                 jl(main_loop_end_label, T_NEAR);
             }
             // progressive manner
-            load(reg_src, vmm_valTL, step);
-            load(reg_src_aux, vmm_valTR, step);
+            load(reg_src, vmm_valTL, vector_step);
+            load(reg_src_aux, vmm_valTR, vector_step);
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
             }
             if (jcp_.spatial_dim_size > 1) {
-                load(reg_src_aux1, vmm_valBL, step);
-                load(reg_src_aux2, vmm_valBR, step);
+                load(reg_src_aux1, vmm_valBL, vector_step);
+                load(reg_src_aux2, vmm_valBR, vector_step);
                 linear_onnx_worker_2d();
             }
             if (jcp_.spatial_dim_size > 2) {
                 uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-                load(reg_src_aux4, vmm_valTL, step);
-                load(reg_src_aux5, vmm_valTR, step);
-                load(reg_src_aux6, vmm_valBL, step);
-                load(reg_src_aux7, vmm_valBR, step);
+                load(reg_src_aux4, vmm_valTL, vector_step);
+                load(reg_src_aux5, vmm_valTR, vector_step);
+                load(reg_src_aux6, vmm_valBL, vector_step);
+                load(reg_src_aux7, vmm_valBR, vector_step);
 
                 // 2d for end depth
                 linear_onnx_worker_2d();
@@ -568,28 +583,28 @@ private:
 
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, false);  // vmm_val is vmm_valTR
-                add(reg_oc_off, step * sizeof(float));
+                add(reg_oc_off, vector_step * sizeof(float));
             }
-            store(vmm_valTR, reg_dst, step);
+            store(vmm_valTR, reg_dst, vector_step);
 
             if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
-                int offset_src = step * jcp_.src_data_size;
-                load(reg_src, vmm_valTL, step, offset_src);
-                load(reg_src_aux, vmm_valTR, step, offset_src);
+                int offset_src = vector_step * jcp_.src_data_size;
+                load(reg_src, vmm_valTL, vector_step, offset_src);
+                load(reg_src_aux, vmm_valTR, vector_step, offset_src);
                 if (jcp_.spatial_dim_size == 1) {
                     linear_onnx_worker_1d();
                 }
                 if (jcp_.spatial_dim_size > 1) {
-                    load(reg_src_aux1, vmm_valBL, step, offset_src);
-                    load(reg_src_aux2, vmm_valBR, step, offset_src);
+                    load(reg_src_aux1, vmm_valBL, vector_step, offset_src);
+                    load(reg_src_aux2, vmm_valBR, vector_step, offset_src);
                     linear_onnx_worker_2d();
                 }
                 if (jcp_.spatial_dim_size > 2) {
                     uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-                    load(reg_src_aux4, vmm_valTL, step, offset_src);
-                    load(reg_src_aux5, vmm_valTR, step, offset_src);
-                    load(reg_src_aux6, vmm_valBL, step, offset_src);
-                    load(reg_src_aux7, vmm_valBR, step, offset_src);
+                    load(reg_src_aux4, vmm_valTL, vector_step, offset_src);
+                    load(reg_src_aux5, vmm_valTR, vector_step, offset_src);
+                    load(reg_src_aux6, vmm_valBL, vector_step, offset_src);
+                    load(reg_src_aux7, vmm_valBR, vector_step, offset_src);
                     // 2d for end depth
                     linear_onnx_worker_2d();
                     // 3th dimension
@@ -599,10 +614,10 @@ private:
 
                 if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, false);
-                    add(reg_oc_off, step * sizeof(float));
+                    add(reg_oc_off, vector_step * sizeof(float));
                 }
-                int offset_dst = step * jcp_.dst_data_size;
-                store(vmm_valTR, reg_dst, step, offset_dst);
+                int offset_dst = vector_step * jcp_.dst_data_size;
+                store(vmm_valTR, reg_dst, vector_step, offset_dst);
             }
             add(reg_dst, dst_stride);
             add(reg_src, src_stride);
@@ -618,7 +633,7 @@ private:
                 add(reg_src_aux7, src_stride);
             }
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                sub(reg_work_amount, step);    // work_amount is c
+                sub(reg_work_amount, vector_step);    // work_amount is c
             } else {
                 sub(reg_work_amount, 1);       // work_amount = div_up(c, blk), no tails
             }
@@ -627,25 +642,24 @@ private:
         }
         L(main_loop_end_label);
 
-        int tail_num = jcp_.C % step;
-        if ((jcp_.layout == InterpolateLayoutType::by_channel) && (tail_num != 0)) {
-            load(reg_src, vmm_valTL, tail_num);
-            load(reg_src_aux, vmm_valTR, tail_num);
+        if ((jcp_.layout == InterpolateLayoutType::by_channel) && (tail_step != 0)) {
+            load(reg_src, vmm_valTL, tail_step);
+            load(reg_src_aux, vmm_valTR, tail_step);
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
             }
             if (jcp_.spatial_dim_size > 1) {
-                load(reg_src_aux1, vmm_valBL, tail_num);
-                load(reg_src_aux2, vmm_valBR, tail_num);
+                load(reg_src_aux1, vmm_valBL, tail_step);
+                load(reg_src_aux2, vmm_valBR, tail_step);
                 linear_onnx_worker_2d();
             }
             if (jcp_.spatial_dim_size > 2) {
                 uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
 
-                load(reg_src_aux4, vmm_valTL, tail_num);
-                load(reg_src_aux5, vmm_valTR, tail_num);
-                load(reg_src_aux6, vmm_valBL, tail_num);
-                load(reg_src_aux7, vmm_valBR, tail_num);
+                load(reg_src_aux4, vmm_valTL, tail_step);
+                load(reg_src_aux5, vmm_valTR, tail_step);
+                load(reg_src_aux6, vmm_valBL, tail_step);
+                load(reg_src_aux7, vmm_valBR, tail_step);
                 // 2d for end depth
                 linear_onnx_worker_2d();
                 // 3th dimension
@@ -655,10 +669,10 @@ private:
 
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, false);  // vmm_val is vmm_valTR
-                add(reg_oc_off, tail_num * sizeof(float));
+                add(reg_oc_off, tail_step * sizeof(float));
             }
 
-            store(vmm_valTR, reg_dst, tail_num);
+            store(vmm_valTR, reg_dst, tail_step);
         }
     }
 
@@ -669,7 +683,6 @@ private:
         mov(reg_src_aux, ptr[reg_params + GET_OFF(weight_ptr[0])]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
         int index_stride = jcp_.OW * jcp_.OH * jcp_.OD * jcp_.indices_size;
         int weight_stride = jcp_.OW * jcp_.OH * jcp_.OD * sizeof(float);
 
@@ -679,7 +692,7 @@ private:
         Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
             uni_vmovdqu(vmm_index, ptr[reg_index]);
@@ -690,8 +703,8 @@ private:
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_valTR, ptr[reg_src + vmm_index], vmm_mask);
 
-            load_weights(reg_src_aux, vmm_weightL, step);
-            load_weights(reg_src_aux, vmm_weightR, step, weight_stride);
+            load_weights(reg_src_aux, vmm_weightL, vector_step);
+            load_weights(reg_src_aux, vmm_weightR, vector_step, weight_stride);
 
             // progressive manner
             if (jcp_.spatial_dim_size == 1) {
@@ -706,8 +719,8 @@ private:
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_valBR, ptr[reg_src + vmm_index], vmm_mask);
 
-                load_weights(reg_src_aux, vmm_weightT, step, 2 * weight_stride);
-                load_weights(reg_src_aux, vmm_weightB, step, 3 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightT, vector_step, 2 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightB, vector_step, 3 * weight_stride);
 
                 linear_onnx_worker_2d();
             }
@@ -733,8 +746,8 @@ private:
 
                 linear_onnx_worker_2d();
 
-                load_weights(reg_src_aux, vmm_weightE, step, 5 * weight_stride);
-                load_weights(reg_src_aux, vmm_weightF, step, 4 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightE, vector_step, 5 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightF, vector_step, 4 * weight_stride);
 
                 uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
                 uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
@@ -743,18 +756,17 @@ private:
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, true);  // vmm_val is vmm_valTR, broadcase is true
             }
-            store(vmm_valTR, reg_dst, step);
+            store(vmm_valTR, reg_dst, vector_step);
 
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src_aux, step * sizeof(float));
-            add(reg_index, step * jcp_.indices_size);
-            sub(reg_work_amount, step);
+            add(reg_dst, vector_step * jcp_.dst_data_size);
+            add(reg_src_aux, vector_step * sizeof(float));
+            add(reg_index, vector_step * jcp_.indices_size);
+            sub(reg_work_amount, vector_step);
 
             jmp(main_loop_label, T_NEAR);
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
@@ -763,15 +775,15 @@ private:
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index]);
             add(reg_src_aux1, reg_index_offset);
-            load(reg_src_aux1, vmm_valTL, step);
+            load(reg_src_aux1, vmm_valTL, scalar_step);
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index + index_stride]);
             add(reg_src_aux1, reg_index_offset);
-            load(reg_src_aux1, vmm_valTR, step);
+            load(reg_src_aux1, vmm_valTR, scalar_step);
 
-            load_weights(reg_src_aux, vmm_weightL, step, 0);
-            load_weights(reg_src_aux, vmm_weightR, step, weight_stride);
+            load_weights(reg_src_aux, vmm_weightL, scalar_step, 0);
+            load_weights(reg_src_aux, vmm_weightR, scalar_step, weight_stride);
 
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
@@ -780,15 +792,15 @@ private:
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 2 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valBL, step);
+                load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 3 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valBR, step);
+                load(reg_src_aux1, vmm_valBR, scalar_step);
 
-                load_weights(reg_src_aux, vmm_weightT, step, 2 * weight_stride);
-                load_weights(reg_src_aux, vmm_weightB, step, 3 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightT, scalar_step, 2 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightB, scalar_step, 3 * weight_stride);
 
                 linear_onnx_worker_2d();
             }
@@ -799,27 +811,27 @@ private:
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 4 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valTL, step);
+                load(reg_src_aux1, vmm_valTL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 5 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valTR, step);
+                load(reg_src_aux1, vmm_valTR, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 6 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valBL, step);
+                load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 7 * index_stride]);
                 add(reg_src_aux1, reg_index_offset);
-                load(reg_src_aux1, vmm_valBR, step);
+                load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 linear_onnx_worker_2d();
 
-                load_weights(reg_src_aux, vmm_weightE, step, 5 * weight_stride);
-                load_weights(reg_src_aux, vmm_weightF, step, 4 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightE, scalar_step, 5 * weight_stride);
+                load_weights(reg_src_aux, vmm_weightF, scalar_step, 4 * weight_stride);
 
                 uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
                 uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
@@ -828,12 +840,12 @@ private:
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, true);  // process on vmm_val, vmm_val is vmm_valTR, and bc
             }
-            store(vmm_valTR, reg_dst, step);
+            store(vmm_valTR, reg_dst, scalar_step);
 
-            add(reg_dst, step * jcp_.dst_data_size);
-            add(reg_src_aux, step * sizeof(float));
-            add(reg_index, step * jcp_.indices_size);
-            sub(reg_work_amount, step);
+            add(reg_dst, scalar_step * jcp_.dst_data_size);
+            add(reg_src_aux, scalar_step * sizeof(float));
+            add(reg_index, scalar_step * jcp_.indices_size);
+            sub(reg_work_amount, scalar_step);
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -876,8 +888,7 @@ private:
         uni_vbroadcastss(vmm_weightY2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightY3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
 
-        int step = vlen / sizeof(float);
-        int blk = (isa == cpu::x64::sse41) ? (2 * step) : step;
+        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -886,7 +897,7 @@ private:
         L(main_loop_label);
         {
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                cmp(reg_work_amount, step);
+                cmp(reg_work_amount, vector_step);
                 jl(main_loop_end_label, T_NEAR);
             } else {
                 cmp(reg_work_amount, 1);
@@ -899,14 +910,14 @@ private:
 
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, false);     // vmm_val is default dst value to post_ops and store
-                add(reg_oc_off, step * sizeof(float));
+                add(reg_oc_off, vector_step * sizeof(float));
             }
-            store(vmm_val, reg_dst, step);
+            store(vmm_val, reg_dst, vector_step);
 
             if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
                 // vmm is xmm here
-                add(reg_src, step * jcp_.src_data_size);
-                add(reg_dst, step * jcp_.dst_data_size);
+                add(reg_src, vector_step * jcp_.src_data_size);
+                add(reg_dst, vector_step * jcp_.dst_data_size);
 
                 uni_vpxor(vmm_val, vmm_val, vmm_val);
 
@@ -914,19 +925,19 @@ private:
 
                 if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, false);
-                    add(reg_oc_off, step * sizeof(float));  // second step for one blk
+                    add(reg_oc_off, vector_step * sizeof(float));  // second vector_step for one blk
                 }
-                store(vmm_val, reg_dst, step);
+                store(vmm_val, reg_dst, vector_step);
 
-                sub(reg_src, step * jcp_.src_data_size);
-                sub(reg_dst, step * jcp_.dst_data_size);
+                sub(reg_src, vector_step * jcp_.src_data_size);
+                sub(reg_dst, vector_step * jcp_.dst_data_size);
             }
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
-                int dst_stride = step * jcp_.dst_data_size;
-                int src_stride = step * jcp_.src_data_size;
+                int dst_stride = vector_step * jcp_.dst_data_size;
+                int src_stride = vector_step * jcp_.src_data_size;
                 add(reg_dst, dst_stride);
                 add(reg_src, src_stride);
-                sub(reg_work_amount, step);    // work_amount is c
+                sub(reg_work_amount, vector_step);    // work_amount is c
             } else {
                 int dst_stride = blk * jcp_.OW * jcp_.OH * jcp_.dst_data_size;
                 int src_stride = blk * jcp_.IW * jcp_.IH * jcp_.src_data_size;
@@ -940,7 +951,6 @@ private:
         L(main_loop_end_label);
 
         // only for by_channel layout for tails.
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
@@ -953,15 +963,15 @@ private:
 
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, false);     // vmm_val is default dst value
-                add(reg_oc_off, step * sizeof(float));
+                add(reg_oc_off, scalar_step * sizeof(float));
             }
-            store(vmm_val, reg_dst, step);
+            store(vmm_val, reg_dst, scalar_step);
 
-            int dst_stride = step * jcp_.dst_data_size;
-            int src_stride = step * jcp_.src_data_size;
+            int dst_stride = scalar_step * jcp_.dst_data_size;
+            int src_stride = scalar_step * jcp_.src_data_size;
             add(reg_dst, dst_stride);
             add(reg_src, src_stride);
-            sub(reg_work_amount, step);    // work_amount is c
+            sub(reg_work_amount, scalar_step);    // work_amount is c
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -1020,7 +1030,6 @@ private:
         mov(reg_weight_y, ptr[reg_params + GET_OFF(weight_ptr[0]) + sizeof(size_t)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int step = vlen / sizeof(float);
         int grid_len = 4;
 
         // 0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19
@@ -1035,7 +1044,7 @@ private:
         Xbyak::Label tail_loop_end_label;
         L(main_loop_label);
         {
-            cmp(reg_work_amount, step);
+            cmp(reg_work_amount, vector_step);
             jl(main_loop_end_label, T_NEAR);
 
             // vmm_tbl_y: (0 0 0 0 1 1 1 1 * index_size) --> (0 0 0 0 4 4 4 4)
@@ -1111,19 +1120,18 @@ private:
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, true);  // oc_off is broadcast and always the same value for this channel
             }
-            store(vmm_val, reg_dst, step);
+            store(vmm_val, reg_dst, vector_step);
 
-            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence by dd()
-            add(reg_tbl_x, step * sizeof(int));
-            add(reg_dst, step * jcp_.dst_data_size);
+            add(reg_tbl_y, vector_step * sizeof(int));  // sizeof(int): sequence by dd()
+            add(reg_tbl_x, vector_step * sizeof(int));
+            add(reg_dst, vector_step * jcp_.dst_data_size);
 
-            sub(reg_work_amount, step);
+            sub(reg_work_amount, vector_step);
 
             jmp(main_loop_label, T_NEAR);
         }
         L(main_loop_end_label);
 
-        step = 1;
         L(tail_loop_label);
         {
             cmp(reg_work_amount, 1);
@@ -1182,13 +1190,13 @@ private:
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, true);  // oc_off is broadcast and always the same value for this channel
             }
-            store(vmm_val, reg_dst, step);
+            store(vmm_val, reg_dst, scalar_step);
 
-            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence with dd()
-            add(reg_tbl_x, step * sizeof(int));
-            add(reg_dst, step * jcp_.dst_data_size);
+            add(reg_tbl_y, scalar_step * sizeof(int));  // sizeof(int): sequence with dd()
+            add(reg_tbl_x, scalar_step * sizeof(int));
+            add(reg_dst, scalar_step * jcp_.dst_data_size);
 
-            sub(reg_work_amount, step);
+            sub(reg_work_amount, scalar_step);
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -1264,7 +1272,7 @@ private:
         return ptr[reg_table + index * vlen];
     }
 
-    // always gather to Vmm, compute with Vmm, store with Xmm if scalar
+    // always gather to Vmm, compute with Vmm, store with Xmm if scalar_step
     inline void gather_i32_indices(Vmm vmm_src, const Xbyak::Reg64 &base, int offset, Vmm vmm_indices, int scale,
                                 Precision src_prc, bool is_scalar) {
         Xbyak::Address table_idx = ptr[base + offset + vmm_indices * scale];

@@ -110,7 +110,13 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa));
+        tail_step = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / vector_step) * vector_step :
+                   jcp_.C - (jcp_.C / vector_step) * vector_step;
+
+        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
+        load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
+        load_tail_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, tail_step));
+        load_tail_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, tail_step, Precision::FP32, true));
 
         this->preamble();
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -134,14 +140,11 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             }
         }
 
-        tail_num = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / step) * step :
-                                        jcp_.C - (jcp_.C / step) * step;
-
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
 
         if (jcp_.planar_layout) {
             worker_unroll();
-            if (tail_num != 0) {
+            if (tail_step != 0) {
                 worker_tail_planar();
             }
 
@@ -198,7 +201,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
                 }
 
                 Xbyak::Label label_empty_2half_sse42;
-                if (tail_num == 0) {
+                if (tail_step == 0) {
                     cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
                     jae(label_empty_2half_sse42, T_NEAR);
 
@@ -210,7 +213,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
                     Xbyak::Label label_full_size;
                     Xbyak::Label label_size_end;
-                    cmp(reg_oc_off, static_cast<int>((jcp_.C - step) * sizeof(float)));
+                    cmp(reg_oc_off, static_cast<int>((jcp_.C - vector_step) * sizeof(float)));
                     jle(label_full_size, T_NEAR);
 
                     // no need care and fill rest
@@ -251,7 +254,9 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
         this->postamble();
 
-        load_emitter->emit_data();
+        load_vector_emitter->emit_data();
+        load_tail_emitter->emit_data();
+        load_tail_with_fill_emitter->emit_data();
     }
 
 private:
@@ -259,8 +264,8 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
-    const int step = vlen / sizeof(float);
-    int tail_num = 0;
+    const int vector_step = vlen / sizeof(float);
+    int tail_step = 0;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_mean = r9;
@@ -286,15 +291,15 @@ private:
 
     Xbyak::Opmask k_mask = Xbyak::Opmask(7);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail_with_fill_emitter = nullptr;
 
     std::vector<size_t> load_pool_gpr_idxs;
 
     inline void worker_full_size() {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step),
-                            {}, {load_pool_gpr_idxs});
+        load_vector_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                       {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             // all with float
@@ -313,9 +318,7 @@ private:
     }
 
     inline void worker_tail_blk() {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num),
+        load_tail_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
@@ -357,10 +360,8 @@ private:
     }
 
     inline void worker_tail_planar() {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, 0, true),
-                                {}, {load_pool_gpr_idxs});
+        load_tail_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                                               {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             if (!isFloatCompatible(jcp_.src_prc))
@@ -371,15 +372,15 @@ private:
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
             if (isa == cpu::x64::sse41) {
                 uint8 imm = 1;
-                imm = ~((imm << tail_num) - imm);
+                imm = ~((imm << tail_step) - imm);
                 blendps(vmm_val, vmm_zero, imm);
             } else if (isa == cpu::x64::avx2) {
                 uint8 imm = 1;
-                imm = ~((imm << tail_num) - imm);
+                imm = ~((imm << tail_step) - imm);
                 vblendps(vmm_val, vmm_val, vmm_zero, imm);
             } else if (isa == cpu::x64::avx512_core) {
                 uint64_t tail_mask = 1;
-                tail_mask = ~((tail_mask << tail_num) - tail_mask);
+                tail_mask = ~((tail_mask << tail_step) - tail_mask);
                 mov(reg_aux, tail_mask);
                 kmovq(k_mask, reg_aux);
                 vblendmps(vmm_val | k_mask, vmm_val, vmm_zero);
@@ -435,8 +436,13 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             }
         }
 
-        load_emitter.reset(new jit_load_emitter(this, isa));
-        store_emitter.reset(new jit_store_emitter(this, isa));
+        tail_step = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / vector_step) * vector_step :
+                                jcp_.C - (jcp_.C / vector_step) * vector_step;
+
+        load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
+        load_tail_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, tail_step));
+        store_vector_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
+        store_tail_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, tail_step));
 
         this->preamble();
 
@@ -463,16 +469,13 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        tail_num = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / step) * step :
-                                        jcp_.C - (jcp_.C / step) * step;
-
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
-        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
+        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx()), static_cast<size_t>(vmm_val.getIdx())};
 
         if (jcp_.planar_layout) {
             worker_mvn_unroll();
-            if (tail_num != 0) {
+            if (tail_step != 0) {
                 worker_mvn(true);
             }
         } else {
@@ -501,7 +504,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                 }
 
                 Xbyak::Label label_empty_2half_sse42;
-                if (tail_num == 0) {
+                if (tail_step == 0) {
                     cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
                     jae(label_empty_2half_sse42, T_NEAR);
                     worker_mvn_unroll();
@@ -512,7 +515,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                     Xbyak::Label label_full_size_block;
                     Xbyak::Label label_size_end;
 
-                    cmp(reg_oc_off, static_cast<int>((jcp_.C - step) * sizeof(float)));
+                    cmp(reg_oc_off, static_cast<int>((jcp_.C - vector_step) * sizeof(float)));
                     jle(label_full_size_block, T_NEAR);
 
                     worker_mvn_unroll(true);
@@ -530,8 +533,10 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         this->postamble();
 
-        load_emitter->emit_data();
-        store_emitter->emit_data();
+        load_vector_emitter->emit_data();
+        load_tail_emitter->emit_data();
+        store_vector_emitter->emit_data();
+        store_tail_emitter->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -542,8 +547,8 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
-    const int step = vlen / sizeof(float);
-    int tail_num = 0;
+    const int vector_step = vlen / sizeof(float);
+    int tail_step = 0;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_mean = r9;
@@ -570,8 +575,10 @@ private:
     Vmm vmm_d_weights = Vmm(5);
     Vmm vmm_d_bias = Vmm(6);
 
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
+    std::unique_ptr<jit_load_emitter> load_tail_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_vector_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_tail_emitter = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -582,9 +589,10 @@ private:
     std::vector<size_t> load_pool_gpr_idxs;
 
     inline void worker_mvn(bool is_tail) {
-        int elt_num = is_tail ? tail_num : step;
+        const auto& load_emitter = is_tail ? load_tail_emitter : load_vector_emitter;
+        const auto& store_emitter = is_tail ? store_tail_emitter : store_vector_emitter;
+
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-            std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
             {}, {load_pool_gpr_idxs});
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
@@ -594,7 +602,6 @@ private:
         apply_post_ops(jcp_.dst_prc, jcp_.planar_layout);
 
         store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num),
             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
