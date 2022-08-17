@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
+#include "fused_primitive_desc.h"
 #include "meta_utils.h"
 
 #include <set>
@@ -87,18 +88,6 @@ struct fused_primitive_desc_onednn {
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 
-struct fused_primitive_desc {
-    std::shared_ptr<program_node> node;
-    size_t dep_start_idx;
-    std::vector<std::pair<primitive_id, size_t>> deps;
-    std::map<primitive_id, size_t> fused_deps;
-    size_t total_num_deps = 0;
-    activation_func activation;
-    activation_additional_params activation_params = { 0.f, 0.f };
-    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
-    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
-};
-
 /*
     Base class for all primitives which wraps API class and extends it to be used
     in graph context.
@@ -135,6 +124,30 @@ public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual bool generates_dynamic_output() const { return false; }
+
+    virtual std::vector<size_t> get_shape_infer_dependencies() const {
+        // Default impl will request all deps for shape infer
+        // It means that update_shape impl will wait for all memory deps
+        // TODO: Return empty vector once all impls have proper overloaded function
+        std::vector<size_t> res(get_dependencies().size());
+        std::iota(std::begin(res), std::end(res), 0);
+        return res;
+    }
+
+    std::map<size_t, memory::ptr> get_const_memory_deps() const;
+
+    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
+        return get_kernel_impl_params(get_input_layouts(), output_layout);
+    }
+
+    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const {
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
+                                                                                 get_fused_primitives(),
+                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+
+        return params;
+    }
 
     const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
 
@@ -157,6 +170,14 @@ public:
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
+
+    std::vector<layout> const get_input_layouts() const {
+        std::vector<layout> layouts;
+        for (const auto& i : dependencies) {
+            layouts.push_back(i->get_output_layout());
+        }
+        return layouts;
+    }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
@@ -206,6 +227,7 @@ public:
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
     layout calc_output_layout() const;
+    std::vector<layout> calc_output_layouts() const;
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
@@ -222,6 +244,9 @@ public:
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
+
+    bool is_dynamic() const;
+    bool is_dynamic();
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }

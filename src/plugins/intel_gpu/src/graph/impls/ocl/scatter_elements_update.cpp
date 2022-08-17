@@ -14,22 +14,27 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
-kernel_selector::scatter_update_axis convert_axis(scatter_elements_update::scatter_elements_update_axis axis, const scatter_elements_update_node& arg) {
-    switch (axis) {
-        case scatter_elements_update::along_x:
-            return kernel_selector::scatter_update_axis::X;
-        case scatter_elements_update::along_y:
-            return kernel_selector::scatter_update_axis::Y;
-        case scatter_elements_update::along_z:
-            return kernel_selector::scatter_update_axis::Z;
-        case scatter_elements_update::along_w:
-            return kernel_selector::scatter_update_axis::W;
-        case scatter_elements_update::along_f:
-            return kernel_selector::scatter_update_axis::FEATURE;
-        case scatter_elements_update::along_b:
-            return kernel_selector::scatter_update_axis::BATCH;
-        default:
-            CLDNN_ERROR_MESSAGE(arg.id(), "Unsupported Axis");
+kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_elements_update_node& arg) {
+    auto rank = arg.input(0).get_output_layout().get_rank();
+    if (axis < 0) {
+        axis += rank;
+    }
+    auto cldnn_axis = axis;
+    if (axis >= 2) {
+        auto spatial_axis = axis - 2;
+        const size_t default_dims = 4; // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max(rank, default_dims) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    switch (cldnn_axis) {
+        case 0: return kernel_selector::scatter_update_axis::BATCH;
+        case 1: return kernel_selector::scatter_update_axis::FEATURE;
+        case 2: return kernel_selector::scatter_update_axis::X;
+        case 3: return kernel_selector::scatter_update_axis::Y;
+        case 4: return kernel_selector::scatter_update_axis::Z;
+        case 5: return kernel_selector::scatter_update_axis::W;
+        default: CLDNN_ERROR_MESSAGE(arg.id(), "Unsupported Axis");
     }
     return kernel_selector::scatter_update_axis::X;
 }
@@ -43,15 +48,16 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     }
 
 public:
-    static primitive_impl* create(const scatter_elements_update_node& arg) {
-        auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(arg);
+    static primitive_impl* create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
         auto scatter_elements_update_optional_params =
             get_default_optional_params<kernel_selector::scatter_elements_update_optional_params>(arg.get_program());
 
-        scatter_elements_update_params.axis = convert_axis(arg.get_primitive()->axis, arg);
+        scatter_elements_update_params.axis = convert_axis(prim->axis, arg);
 
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        scatter_elements_update_params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
+        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        scatter_elements_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
 
         auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(scatter_elements_update_params, scatter_elements_update_optional_params);

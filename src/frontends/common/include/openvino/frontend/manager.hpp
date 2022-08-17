@@ -13,6 +13,8 @@
 #include "openvino/frontend/visibility.hpp"
 
 namespace ov {
+// Forward declaration
+FRONTEND_API void shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -22,8 +24,6 @@ using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 /// frontends This is a main frontend entry point for client applications
 class FRONTEND_API FrontEndManager final {
 public:
-    using Ptr = std::shared_ptr<FrontEndManager>;
-
     /// \brief Default constructor. Searches and loads of available frontends
     FrontEndManager();
 
@@ -77,11 +77,14 @@ private:
     FrontEnd::Ptr load_by_model_impl(const std::vector<ov::Any>& variants);
 
     std::unique_ptr<Impl> m_impl;
+
+    friend FRONTEND_API void ov::shutdown();
+    /// \brief Shutdown the manager by try releasing frontend libraries
+    static void shutdown();
 };
 
 template <>
 FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<ov::Any>& variants);
-FRONTEND_API FrontEndManager::Ptr get_frontend_manager();
 
 // --------- Plugin exporting information --------------
 

@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_GPU)
+    return()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-all -Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-strict-aliasing -Wno-missing-declarations)
     ie_add_compiler_flags(-msse4.1 -msse4.2)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)
@@ -36,8 +40,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
-                                             pugixml::static)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)

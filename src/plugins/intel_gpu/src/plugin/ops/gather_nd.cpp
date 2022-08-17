@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/gather_nd.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
@@ -19,8 +18,8 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    int32_t input_rank = static_cast<int32_t>(op->get_input_shape(0).size());
-    int32_t indices_rank = static_cast<int32_t>(op->get_input_shape(1).size());
+    auto input_rank = op->get_input_partial_shape(0).size();
+    auto indices_rank = op->get_input_partial_shape(1).size();
 
     auto batch_dims = op->get_batch_dims();
 
@@ -44,8 +43,8 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    int32_t input_rank = static_cast<int32_t>(op->get_input_shape(0).size());
-    int32_t indices_rank = static_cast<int32_t>(op->get_input_shape(1).size());
+    auto input_rank = op->get_input_partial_shape(0).size();
+    auto indices_rank = op->get_input_partial_shape(1).size();
 
     auto batch_dims = op->get_batch_dims();
 
@@ -65,5 +64,4 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
 REGISTER_FACTORY_IMPL(v8, GatherND);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

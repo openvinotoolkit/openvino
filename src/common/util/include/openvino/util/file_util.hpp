@@ -119,7 +119,7 @@ bool directory_exists(const std::string& path);
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const char* path) {
+inline int64_t file_size(const char* path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
@@ -143,7 +143,7 @@ inline uint64_t file_size(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::wstring& path) {
+inline int64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
@@ -154,7 +154,7 @@ inline uint64_t file_size(const std::wstring& path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline uint64_t file_size(const std::string& path) {
+inline int64_t file_size(const std::string& path) {
     return file_size(path.c_str());
 }
 
@@ -238,6 +238,19 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
     return path + separator + FileTraits<C>::library_prefix() + input + FileTraits<C>::dot_symbol +
            FileTraits<C>::library_ext();
 }
+
+/**
+ * @brief load binary data from file
+ * @param path - binary file path to load
+ * @return binary vector
+ */
+std::vector<uint8_t> load_binary(const std::string& path);
+
+/**
+ * @brief save binary data to file
+ * @param path - binary file path to store
+ */
+void save_binary(const std::string& path, std::vector<uint8_t> binary);
 
 }  // namespace util
 }  // namespace ov

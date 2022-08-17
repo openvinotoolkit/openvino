@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
@@ -34,7 +33,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     const auto mutable_precision = op->get_output_element_type(1);
     const auto output_shape = op->get_output_shape(1);
     const cldnn::layout mutable_layout{DataTypeFromPrecision(mutable_precision),
-                                       DefaultFormatForDims(output_shape.size()),
+                                       cldnn::format::get_default_format(output_shape.size()),
                                        tensor_from_dims(output_shape)};
     cldnn::memory::ptr shared_memory{p.GetEngine().allocate_memory(mutable_layout)};
 
@@ -62,5 +61,4 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronGenerateProposalsSingleImage);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
