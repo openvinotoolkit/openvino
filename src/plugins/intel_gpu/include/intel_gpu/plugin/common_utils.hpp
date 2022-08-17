@@ -170,25 +170,6 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     }
 }
 
-inline cldnn::format DefaultFormatForDims(size_t dimensions) {
-    switch (dimensions) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-        return cldnn::format::bfyx;
-    case 5:
-        return cldnn::format::bfzyx;
-    case 6:
-        return cldnn::format::bfwzyx;
-    default:
-        IE_THROW() << "Unsupported number of dimensions: " << dimensions;
-    }
-
-    return cldnn::format::bfyx;  // Should not get here
-}
-
 inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
     if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;

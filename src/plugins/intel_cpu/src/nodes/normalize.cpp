@@ -1069,8 +1069,7 @@ private:
                     return modulo_kernel + modulo_tail;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(jcp.c, [&](size_t ic) {
@@ -1161,8 +1160,8 @@ private:
                     }
                     return modulo_kernel + modulo_tail;
                 });
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
@@ -1197,8 +1196,7 @@ private:
                         modulo += src_data_bhw[c] * src_data_bhw[c];
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1246,8 +1244,7 @@ private:
                     return modulo_w_blk;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
@@ -1284,8 +1281,7 @@ private:
                         }
                     }
 
-                    modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                    float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1360,8 +1356,7 @@ private:
                     return modulo_c;
                 });
 
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
+                float modulo_inv = 1.0f / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
                 parallel_for(C, [&](size_t ic) {

@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 #include "build_options.hpp"
 
 #include <list>
@@ -134,6 +135,7 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             build_options const& options,
             bool is_internal);
+    explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
     const build_options& get_options() const { return options; }
@@ -149,6 +151,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
@@ -240,12 +243,16 @@ public:
     void init_kernels();
     kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
     kernel::ptr get_kernel(kernel_id id);
+    kernels_cache& get_kernels_cache() const;
 
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
+
+    void remove_kernel(kernel_id id);
 
 private:
     uint32_t prog_id = 0;
@@ -253,6 +260,7 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
+    std::unique_ptr<ImplementationsCache> _impls_cache;
     build_options options;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
