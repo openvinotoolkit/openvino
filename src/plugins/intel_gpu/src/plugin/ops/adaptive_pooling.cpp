@@ -42,7 +42,7 @@ static void CreateAdaptiveMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op
     const auto indices_precision = op->get_output_element_type(1);
     const auto indices_shape = op->get_output_shape(1);
     const cldnn::layout indices_layout{DataTypeFromPrecision(indices_precision),
-                                       DefaultFormatForDims(indices_shape.size()),
+                                       cldnn::format::get_default_format(indices_shape.size()),
                                        tensor_from_dims(indices_shape)};
     const auto indices_memory = p.GetEngine().allocate_memory(indices_layout);
 
