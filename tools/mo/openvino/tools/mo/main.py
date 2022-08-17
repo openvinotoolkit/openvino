@@ -366,8 +366,6 @@ def check_fallback(argv: argparse.Namespace):
 
     fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
-    if argv.framework != "onnx":
-        fallback_reasons['input_freezing'] = input_freezig_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
