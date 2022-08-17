@@ -64,12 +64,8 @@ namespace detail {
 
 attach_convert_color_impl::attach_convert_color_impl() {
     implementation_map<convert_color>::add(impl_types::ocl, convert_color_impl::create, {
-        std::make_tuple(data_types::f32, format::nv12),
-        std::make_tuple(data_types::f16, format::nv12),
-        std::make_tuple(data_types::u8,  format::nv12),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::u8,  format::byxf),
+        MAKE_TUPLE3(byxf, f32, f16, u8),
+        MAKE_TUPLE3(nv12, f32, f16, u8),
     });
 }
 

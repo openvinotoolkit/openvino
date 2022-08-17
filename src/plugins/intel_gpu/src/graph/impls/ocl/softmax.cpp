@@ -88,14 +88,10 @@ namespace detail {
 
 attach_softmax_impl::attach_softmax_impl() {
     implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
+        MAKE_TUPLE2(bfyx,   f32, f16),
+        MAKE_TUPLE2(bfzyx,  f32, f16),
+        MAKE_TUPLE2(byxf,   f32, f16),
+        MAKE_TUPLE2(yxfb,   f32, f16),
     });
 }
 

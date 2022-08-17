@@ -56,13 +56,9 @@ struct experimental_detectron_prior_grid_generator_impl
 namespace detail {
 
 attach_experimental_detectron_prior_grid_generator_impl::attach_experimental_detectron_prior_grid_generator_impl() {
-    implementation_map<experimental_detectron_prior_grid_generator>::add(
-        impl_types::ocl,
-        experimental_detectron_prior_grid_generator_impl::create,
-        {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-        });
+    implementation_map<experimental_detectron_prior_grid_generator>::add(impl_types::ocl, experimental_detectron_prior_grid_generator_impl::create, {
+        MAKE_TUPLE2(bfyx, f32, f16),
+    });
 }
 
 }  // namespace detail

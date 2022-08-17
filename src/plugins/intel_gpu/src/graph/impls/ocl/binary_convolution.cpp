@@ -135,7 +135,7 @@ namespace detail {
 
 attach_binary_convolution_impl::attach_binary_convolution_impl() {
     implementation_map<binary_convolution>::add(impl_types::ocl, binary_convolution_impl::create, {
-        std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
+        MAKE_TUPLE1(b_fs_yx_32fp, bin),
     });
 }
 

@@ -64,18 +64,9 @@ namespace detail {
 
 attach_gemm_impl::attach_gemm_impl() {
     implementation_map<gemm>::add(impl_types::ocl, gemm_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
+        MAKE_TUPLE4(bfwzyx, f32, f16, u8, i8),
+        MAKE_TUPLE4(bfyx,   f32, f16, u8, i8),
+        MAKE_TUPLE4(bfzyx,  f32, f16, u8, i8),
     });
 }
 

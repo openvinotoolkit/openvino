@@ -178,9 +178,9 @@ namespace detail {
 attach_pooling_impl::attach_pooling_impl() {
     implementation_map<pooling>::add(impl_types::ocl, pooling_impl::create, {
         MAKE_TUPLE4(bfyx,                   f32, f16, u8, i8),
+        MAKE_TUPLE4(bfzyx,                  f32, f16, u8, i8),
         MAKE_TUPLE4(byxf,                   f32, f16, u8, i8),
         MAKE_TUPLE4(yxfb,                   f32, f16, u8, i8),
-        MAKE_TUPLE4(bfzyx,                  f32, f16, u8, i8),
         MAKE_TUPLE4(b_fs_yx_fsv4,           f32, f16, u8, i8),
         MAKE_TUPLE4(b_fs_yx_fsv16,          f32, f16, u8, i8),
         MAKE_TUPLE4(b_fs_yx_fsv32,          f32, f16, u8, i8),

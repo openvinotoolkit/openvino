@@ -91,10 +91,8 @@ namespace detail {
 
 attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
     implementation_map<lstm_gemm>::add(impl_types::ocl, lstm_gemm_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
+        MAKE_TUPLE2(bfyx, f32, f16),
+        MAKE_TUPLE2(fyxb, f32, f16),
     });
 }
 

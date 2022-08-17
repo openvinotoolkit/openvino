@@ -51,15 +51,9 @@ namespace detail {
 
 attach_gather_nd_impl::attach_gather_nd_impl() {
     implementation_map<gather_nd>::add(impl_types::ocl, gather_nd_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
+        MAKE_TUPLE3(bfwzyx, f32, f16, i32),
+        MAKE_TUPLE3(bfyx,   f32, f16, i32),
+        MAKE_TUPLE3(bfzyx,  f32, f16, i32),
     });
 }
 

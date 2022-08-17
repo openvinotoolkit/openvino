@@ -51,11 +51,7 @@ namespace detail {
 
 attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
     implementation_map<reverse_sequence>::add(impl_types::ocl, reverse_sequence_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
+        MAKE_TUPLE5(bfyx, f32, f16, u8, i8, i32),
     });
 }
 

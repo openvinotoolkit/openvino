@@ -45,12 +45,9 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
 namespace detail {
 attach_gather_tree_impl::attach_gather_tree_impl() {
     implementation_map<gather_tree>::add(impl_types::ocl, gather_tree_impl::create, {
-        std::make_tuple(data_types::i32, format::yxfb),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i32, format::byxf),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
+        MAKE_TUPLE2(bfyx, f32, i32),
+        MAKE_TUPLE2(byxf, f32, i32),
+        MAKE_TUPLE2(yxfb, f32, i32),
     });
 }
 

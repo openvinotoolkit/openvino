@@ -76,11 +76,9 @@ public:
 
 namespace detail {
 attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_detectron_roi_feature_extractor_impl() {
-    implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl,
-                                                                            experimental_detectron_roi_feature_extractor_impl::create, {
-                                                                                std::make_tuple(data_types::f16, format::bfyx),
-                                                                                std::make_tuple(data_types::f32, format::bfyx)
-                                                                                });
+    implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl, experimental_detectron_roi_feature_extractor_impl::create, {
+        MAKE_TUPLE2(bfyx, f32, f16),
+    });
 }
 
 }  // namespace detail

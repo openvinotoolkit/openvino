@@ -94,8 +94,7 @@ namespace detail {
 
 attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
     implementation_map<lstm_dynamic_timeloop>::add(impl_types::ocl, lstm_dynamic_timeloop_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
+        MAKE_TUPLE2(bfyx, f32, f16),
     });
 }
 

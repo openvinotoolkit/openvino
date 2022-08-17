@@ -117,18 +117,8 @@ namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
     implementation_map<slice>::add(impl_types::ocl, slice_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
+        MAKE_TUPLE6(bfyx,   f32, f16, u8, i8, i32, i64),
+        MAKE_TUPLE4(bfzyx,  f32, f16,         i32, i64),
     });
 }
 

@@ -49,18 +49,9 @@ namespace detail {
 
 attach_select_impl::attach_select_impl() {
     implementation_map<select>::add(impl_types::ocl, select_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::u8, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
+        MAKE_TUPLE4(bfyx, f32, f16, u8, i8),
+        MAKE_TUPLE4(byxf, f32, f16, u8, i8),
+        MAKE_TUPLE4(yxfb, f32, f16, u8, i8),
     });
 }
 

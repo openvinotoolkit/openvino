@@ -46,16 +46,11 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
 namespace detail {
 
 attach_dft_impl::attach_dft_impl() {
-    implementation_map<dft>::add(impl_types::ocl,
-                                 dft_impl::create,
-                                 {
-                                     std::make_tuple(data_types::f16, format::bfyx),
-                                     std::make_tuple(data_types::f16, format::bfzyx),
-                                     std::make_tuple(data_types::f16, format::bfwzyx),
-                                     std::make_tuple(data_types::f32, format::bfyx),
-                                     std::make_tuple(data_types::f32, format::bfzyx),
-                                     std::make_tuple(data_types::f32, format::bfwzyx),
-                                 });
+    implementation_map<dft>::add(impl_types::ocl, dft_impl::create, {
+        MAKE_TUPLE2(bfyx,   f32, f16),
+        MAKE_TUPLE2(bfzyx,  f32, f16),
+        MAKE_TUPLE2(bfwzyx, f32, f16),
+    });
 }
 
 }  // namespace detail

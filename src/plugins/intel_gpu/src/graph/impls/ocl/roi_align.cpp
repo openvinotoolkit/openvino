@@ -91,11 +91,9 @@ public:
 namespace detail {
 
 attach_roi_align_impl::attach_roi_align_impl() {
-    implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create,
-                                       {
-                                           std::make_tuple(data_types::f16, format::bfyx),
-                                           std::make_tuple(data_types::f32, format::bfyx),
-                                       });
+    implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create, {
+        MAKE_TUPLE2(bfyx, f32, f16),
+    });
 }
 
 }  // namespace detail

@@ -69,17 +69,9 @@ namespace detail {
 
 attach_gather_elements_impl::attach_gather_elements_impl() {
     implementation_map<gather_elements>::add(impl_types::ocl, gather_elements_impl::create, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
+        MAKE_TUPLE3(bfwzyx, f32, f16,         i32),
+        MAKE_TUPLE5(bfyx,   f32, f16, u8, i8, i32),
+        MAKE_TUPLE3(bfzyx,  f32, f16,         i32),
     });
 }
 

@@ -61,12 +61,9 @@ namespace detail {
 
 attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
     implementation_map<pyramid_roi_align>::add(impl_types::ocl, pyramid_roi_align_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f16, format::byxf),
+        MAKE_TUPLE2(bfyx, f32, f16),
+        MAKE_TUPLE2(byxf, f32, f16),
+        MAKE_TUPLE2(yxfb, f32, f16),
     });
 }
 

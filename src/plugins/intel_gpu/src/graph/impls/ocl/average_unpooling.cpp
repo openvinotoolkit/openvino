@@ -62,15 +62,9 @@ namespace detail {
 
 attach_average_unpooling_impl::attach_average_unpooling_impl() {
     implementation_map<average_unpooling>::add(impl_types::ocl, average_unpooling_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
+        MAKE_TUPLE3(bfyx, f32, f16, i8),
+        MAKE_TUPLE3(byxf, f32, f16, i8),
+        MAKE_TUPLE3(yxfb, f32, f16, i8),
     });
 }
 

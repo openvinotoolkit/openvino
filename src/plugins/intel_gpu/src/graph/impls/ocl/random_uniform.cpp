@@ -45,18 +45,9 @@ namespace detail {
 
 attach_random_uniform_impl::attach_random_uniform_impl() {
     implementation_map<random_uniform>::add(impl_types::ocl, random_uniform_impl::create, {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfzyx),
-            std::make_tuple(data_types::f16, format::bfwzyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfzyx),
-            std::make_tuple(data_types::f32, format::bfwzyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfzyx),
-            std::make_tuple(data_types::i32, format::bfwzyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfzyx),
-            std::make_tuple(data_types::i64, format::bfwzyx),
+        MAKE_TUPLE4(bfwzyx, f32, f16, i32, i64),
+        MAKE_TUPLE4(bfyx,   f32, f16, i32, i64),
+        MAKE_TUPLE4(bfzyx,  f32, f16, i32, i64),
     });
 }
 

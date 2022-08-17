@@ -47,28 +47,11 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
 namespace detail {
 
 attach_roll_impl::attach_roll_impl() {
-    implementation_map<roll>::add(impl_types::ocl,
-                                  roll_impl::create,
-                                  {
-                                      std::make_tuple(data_types::u8, format::bfyx),
-                                      std::make_tuple(data_types::u8, format::bfzyx),
-                                      std::make_tuple(data_types::u8, format::bfwzyx),
-                                      std::make_tuple(data_types::i8, format::bfyx),
-                                      std::make_tuple(data_types::i8, format::bfzyx),
-                                      std::make_tuple(data_types::i8, format::bfwzyx),
-                                      std::make_tuple(data_types::f16, format::bfyx),
-                                      std::make_tuple(data_types::f16, format::bfzyx),
-                                      std::make_tuple(data_types::f16, format::bfwzyx),
-                                      std::make_tuple(data_types::f32, format::bfyx),
-                                      std::make_tuple(data_types::f32, format::bfzyx),
-                                      std::make_tuple(data_types::f32, format::bfwzyx),
-                                      std::make_tuple(data_types::i32, format::bfyx),
-                                      std::make_tuple(data_types::i32, format::bfzyx),
-                                      std::make_tuple(data_types::i32, format::bfwzyx),
-                                      std::make_tuple(data_types::i64, format::bfyx),
-                                      std::make_tuple(data_types::i64, format::bfzyx),
-                                      std::make_tuple(data_types::i64, format::bfwzyx),
-                                  });
+    implementation_map<roll>::add(impl_types::ocl, roll_impl::create, {
+        MAKE_TUPLE6(bfwzyx, f32, f16, u8, i8, i32, i64),
+        MAKE_TUPLE6(bfyx,   f32, f16, u8, i8, i32, i64),
+        MAKE_TUPLE6(bfzyx,  f32, f16, u8, i8, i32, i64),
+    });
 }
 
 }  // namespace detail

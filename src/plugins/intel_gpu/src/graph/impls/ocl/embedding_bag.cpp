@@ -68,8 +68,7 @@ namespace detail {
 
 attach_embedding_bag_impl::attach_embedding_bag_impl() {
     implementation_map<embedding_bag>::add(impl_types::ocl, embedding_bag_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
+        MAKE_TUPLE2(bfyx, f32, f16),
     });
 }
 

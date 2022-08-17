@@ -48,12 +48,9 @@ namespace detail {
 
 attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
     implementation_map<reorg_yolo>::add(impl_types::ocl, reorg_yolo_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
+        MAKE_TUPLE2(bfyx, f32, f16),
+        MAKE_TUPLE2(byxf, f32, f16),
+        MAKE_TUPLE2(yxfb, f32, f16),
     });
 }
 

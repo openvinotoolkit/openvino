@@ -61,10 +61,7 @@ namespace detail {
 
 attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
     implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, ctc_greedy_decoder_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
+        MAKE_TUPLE4(bfyx, f32, f16, i32, i64),
     });
 }
 

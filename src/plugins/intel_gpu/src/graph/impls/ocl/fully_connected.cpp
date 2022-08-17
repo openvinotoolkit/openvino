@@ -83,24 +83,14 @@ namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {
     implementation_map<fully_connected>::add(impl_types::ocl, fully_connected_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        MAKE_TUPLE4(bfyx,                   f32, f16, u8, i8),
+        MAKE_TUPLE2(byxf,                   f32, f16),
+        MAKE_TUPLE2(yxfb,                   f32, f16),
+        MAKE_TUPLE3(b_fs_yx_fsv4,           f32,      u8, i8),
+        MAKE_TUPLE2(b_fs_yx_fsv16,                    u8, i8),
+        MAKE_TUPLE2(b_fs_yx_fsv32,                    u8, i8),
+        MAKE_TUPLE1(fs_b_yx_fsv32,               f16),
+        MAKE_TUPLE2(bs_fs_yx_bsv16_fsv16,             u8, i8),
     });
 }
 

@@ -107,16 +107,9 @@ public:
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
     implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create,  {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
+        MAKE_TUPLE4(bfyx,   f32, f16, i8, i32),
+        MAKE_TUPLE3(bfzyx,  f32, f16, i8),
+        MAKE_TUPLE3(yxfb,   f32, f16, i8),
     });
 }
 }  // namespace detail

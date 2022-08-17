@@ -47,21 +47,9 @@ namespace detail {
 
 attach_tile_impl::attach_tile_impl() {
     implementation_map<tile>::add(impl_types::ocl, tile_impl::create, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
+        MAKE_TUPLE5(bfyx,   f32, f16, u8, i8, i32),
+        MAKE_TUPLE2(bfzyx,  f32, f16),
+        MAKE_TUPLE5(bfwzyx, f32, f16, u8, i8, i32),
     });
 }
 

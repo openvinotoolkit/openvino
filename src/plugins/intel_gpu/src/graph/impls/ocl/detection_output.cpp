@@ -78,8 +78,7 @@ namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
     implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
+        MAKE_TUPLE2(bfyx, f32, f16),
     });
 }
 

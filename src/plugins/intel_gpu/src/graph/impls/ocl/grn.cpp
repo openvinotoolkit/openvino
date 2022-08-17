@@ -50,8 +50,7 @@ namespace detail {
 
 attach_grn_impl::attach_grn_impl() {
     implementation_map<grn>::add(impl_types::ocl, grn_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
+        MAKE_TUPLE2(bfyx, f32, f16),
     });
 }
 

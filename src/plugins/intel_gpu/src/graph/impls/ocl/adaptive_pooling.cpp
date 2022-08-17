@@ -76,14 +76,8 @@ public:
 namespace detail {
 attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
     implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfzyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfzyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfzyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfzyx),
+        MAKE_TUPLE4(bfyx,   f32, f16, i32, i64),
+        MAKE_TUPLE4(bfzyx,  f32, f16, i32, i64),
     });
 }
 }  // namespace detail

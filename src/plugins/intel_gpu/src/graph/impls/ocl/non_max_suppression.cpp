@@ -172,9 +172,7 @@ namespace detail {
 
 attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
     implementation_map<non_max_suppression>::add(impl_types::ocl, non_max_suppression_impl::create, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
+        MAKE_TUPLE3(bfyx, f32, f16, i32),
     });
 }
 

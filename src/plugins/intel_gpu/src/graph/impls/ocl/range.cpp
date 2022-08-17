@@ -42,17 +42,9 @@ struct range_impl : typed_primitive_impl_ocl<range> {
 namespace detail {
 
 attach_range_impl::attach_range_impl() {
-    implementation_map<range>::add(
-        impl_types::ocl,
-        range_impl::create,
-        {
-            std::make_tuple(data_types::u8, format::bfyx),
-            std::make_tuple(data_types::i8, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-        });
+    implementation_map<range>::add(impl_types::ocl, range_impl::create, {
+        MAKE_TUPLE6(bfyx, f32, f16, u8, i8, i32, i64),
+    });
 }
 
 }  // namespace detail

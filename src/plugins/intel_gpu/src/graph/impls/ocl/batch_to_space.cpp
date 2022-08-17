@@ -54,22 +54,10 @@ namespace detail {
 
 attach_batch_to_space_impl::attach_batch_to_space_impl() {
     implementation_map<batch_to_space>::add(impl_types::ocl, batch_to_space_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+        MAKE_TUPLE4(bfwzyx,         f32, f16, u8, i8),
+        MAKE_TUPLE4(bfyx,           f32, f16, u8, i8),
+        MAKE_TUPLE4(bfzyx,          f32, f16, u8, i8),
+        MAKE_TUPLE4(b_fs_yx_fsv16,  f32, f16, u8, i8),
     });
 }
 

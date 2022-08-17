@@ -52,18 +52,8 @@ namespace detail {
 
 attach_one_hot_impl::attach_one_hot_impl() {
     implementation_map<one_hot>::add(impl_types::ocl, one_hot_impl::create, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
+        MAKE_TUPLE6(bfyx,   f32, f16, u8, i8, i32, i64),
+        MAKE_TUPLE6(bfzyx,  f32, f16, u8, i8, i32, i64),
     });
 }
 
