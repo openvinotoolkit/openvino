@@ -111,8 +111,6 @@ class SSliceComplex(MiddleReplacementPattern):
             after_complex_node = dst.node
             if after_complex_node.type == 'Roll':
                 add_constant_to_negative_values(after_complex_node, 2, int64_array(emulated_complex_tensor_rank))
-            else:
-                after_complex_node['input_rank_changed'] = True
 
         input_slices_have_ellipsis = len(np.argwhere(real_slices == Ellipsis).flatten()) != 0
 
