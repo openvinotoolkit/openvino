@@ -61,12 +61,12 @@ def test_basic_ovtypes(ovtype,
                        type_name,
                        type_size,
                        type_bitwidth):
-    assert ovtype.is_static() == static_flag
-    assert ovtype.is_dynamic() == dynamic_flag
-    assert ovtype.is_real() == real_flag
-    assert ovtype.is_integral() == integral_flag
-    assert ovtype.is_signed() == signed_flag
-    assert ovtype.is_quantized() == quantized_flag
+    assert ovtype.is_static() is static_flag
+    assert ovtype.is_dynamic() is dynamic_flag
+    assert ovtype.is_real() is real_flag
+    assert ovtype.is_integral() is integral_flag
+    assert ovtype.is_signed() is signed_flag
+    assert ovtype.is_quantized() is quantized_flag
     assert ovtype.get_type_name() == type_name
     assert ovtype.size == type_size
     assert ovtype.bitwidth == type_bitwidth
@@ -74,12 +74,12 @@ def test_basic_ovtypes(ovtype,
 
 def test_undefined_ovtype():
     ov_type = Type.undefined
-    assert ov_type.is_static() == True
-    assert ov_type.is_dynamic() == False
-    assert ov_type.is_real() == False
-    assert ov_type.is_integral() == True
-    assert ov_type.is_signed() == False
-    assert ov_type.is_quantized() == False
+    assert ov_type.is_static() is True
+    assert ov_type.is_dynamic() is False
+    assert ov_type.is_real() is False
+    assert ov_type.is_integral() is True
+    assert ov_type.is_signed() is False
+    assert ov_type.is_quantized() is False
     assert ov_type.get_type_name() == "undefined"
     assert ov_type.size == 0
 
@@ -90,12 +90,12 @@ def test_undefined_ovtype():
 
 def test_dynamic_ov_type():
     ov_type = Type.dynamic
-    assert ov_type.is_static() == False
-    assert ov_type.is_dynamic() == True
-    assert ov_type.is_real() == False
-    assert ov_type.is_integral() == True
-    assert ov_type.is_signed() == False
-    assert ov_type.is_quantized() == False
+    assert ov_type.is_static() is False
+    assert ov_type.is_dynamic() is True
+    assert ov_type.is_real() is False
+    assert ov_type.is_integral() is True
+    assert ov_type.is_signed() is False
+    assert ov_type.is_quantized() is False
     assert ov_type.get_type_name() == "dynamic"
     assert ov_type.size == 0
     assert ov_type.bitwidth == 0
@@ -110,7 +110,7 @@ def test_dynamic_ov_type():
     (Type.i16, Type.f32, False),
 ])
 def test_ovtypes_compatibility(ovtype_one, ovtype_two, expected):
-    assert ovtype_one.compatible(ovtype_two) == expected
+    assert ovtype_one.compatible(ovtype_two) is expected
 
 
 @pytest.mark.parametrize(("ovtype_one", "ovtype_two", "expected"), [
