@@ -863,8 +863,20 @@ void RNN::prepareParams() {
     prim = result.first;
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine(), dnnl::primitive_attr());
-        prepareMemory(itpd);
+        auto pd = (*prim).get_primitive_desc();
+        auto query_weights_md = [&pd](int idx = 0) -> dnnl::memory::desc {
+            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
+            const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
+            if (!cdesc)
+                IE_THROW() << "query_weights_md failed for idx " << idx << ".";
+            return dnnl::memory::desc(*cdesc);
+        };
+        std::vector<DnnlMemoryDescPtr> intDescs {
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
+            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
+        };
+        prepareMemory(intDescs);
         wasMemoryPrepared = true;
     }
 }
