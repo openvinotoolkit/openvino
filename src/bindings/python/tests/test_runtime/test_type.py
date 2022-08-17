@@ -81,7 +81,7 @@ def test_undefined_ovtype():
     assert ov_type.is_signed() == False
     assert ov_type.is_quantized() == False
     assert ov_type.get_type_name() == "undefined"
-    assert ov_type.size == False
+    assert ov_type.size == 0
 
     # Note: might depend on the system
     import sys
@@ -97,8 +97,8 @@ def test_dynamic_ov_type():
     assert ov_type.is_signed() == False
     assert ov_type.is_quantized() == False
     assert ov_type.get_type_name() == "dynamic"
-    assert ov_type.size == False
-    assert ov_type.bitwidth == False
+    assert ov_type.size == 0
+    assert ov_type.bitwidth == 0
 
 
 @pytest.mark.parametrize(("ovtype_one", "ovtype_two", "expected"), [
