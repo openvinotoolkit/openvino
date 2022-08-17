@@ -53,6 +53,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_reduce_to_reshape.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -160,7 +161,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
 
-        static const precisions_array convert_precision_list {
+        precisions_array convert_precision_list {
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -169,6 +170,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ngraph::element::i4, ngraph::element::i8},
                 {ngraph::element::u4, ngraph::element::u8},
         };
+
+        if (config.inference_precision != ov::element::undefined) {
+            std::vector<ov::element::Type> supported_fp_element_types = {ngraph::element::f32, ngraph::element::f16};
+            for (auto& et : supported_fp_element_types) {
+                if (et != config.inference_precision) {
+                    convert_precision_list.push_back({et, config.inference_precision});
+                }
+            }
+        }
 
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
@@ -192,7 +202,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return rank <= 5;
                 });
 
+        // Convert reduce to reshape expected to be optimized out
+        manager.register_pass<ngraph::pass::ConvertReduceToReshape>();
+
         if (device_info.supports_immad) {
+            // oneDNN reduction is used
             pass_config->disable<ngraph::pass::ConvertReduceSumToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
@@ -432,12 +446,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return true;
             };
 
-            size_t inputChannels;
+            size_t inputChannels = 0;
             if (!fillStaticChannel(node->get_input_partial_shape(0), inputChannels)) {
                 return true;
             }
 
-            size_t outputChannels;
+            size_t outputChannels = 0;
             if (!fillStaticChannel(node->get_output_partial_shape(0), outputChannels)) {
                 return true;
             }

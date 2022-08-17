@@ -9,6 +9,7 @@ file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
+add_subdirectory(gtest_main_manifest)
 add_subdirectory(test_builtin_extensions_1)
 add_subdirectory(test_builtin_extensions_2)
 
@@ -24,8 +25,9 @@ target_link_libraries(${TARGET_NAME}
                 cnpy
                 # TODO: replace with nlohmann_json::nlohmann_json
                 # but LTO fails for some reason
-                nlohmann_json_schema_validator
-                test_builtin_extensions_1 test_builtin_extensions_2)
+                nlohmann_json_schema_validator)
+
+add_dependencies(${TARGET_NAME} test_builtin_extensions_1 test_builtin_extensions_2)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE

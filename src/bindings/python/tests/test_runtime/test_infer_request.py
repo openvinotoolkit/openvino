@@ -202,12 +202,8 @@ def test_set_tensors(device):
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
-@pytest.mark.dynamic_library()
-@pytest.mark.template_extension()
 def test_batched_tensors(device):
     core = Core()
-    # TODO: remove when plugins will support set_input_tensors
-    core.register_plugin("openvino_template_plugin", "TEMPLATE")
 
     batch = 4
     one_shape = [1, 2, 2, 2]
@@ -230,7 +226,7 @@ def test_batched_tensors(device):
 
     model = Model([res1], [data1])
 
-    compiled_model = core.compile_model(model, "TEMPLATE")
+    compiled_model = core.compile_model(model, device)
 
     req = compiled_model.create_infer_request()
 
@@ -910,3 +906,13 @@ def test_array_like_input_async_infer_queue(device):
     infer_queue_list.wait_all()
     for i in range(jobs):
         assert np.array_equal(infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
+
+
+def test_convert_infer_request(device):
+    request, arr_1, arr_2 = create_simple_request_and_inputs(device)
+    inputs = [arr_1, arr_2]
+
+    res = request.infer(inputs)
+    with pytest.raises(TypeError) as e:
+        deepcopy(res)
+    assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
