@@ -619,11 +619,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // If reduce tensor size is small, it sets not to fuse eltwise which leads to select oneDNN reference reduction
             // Because oneDNN optimized kernel does NOT support eltwise fusing
             if (p.get_engine().get_device_info().supports_immad && node.get_output_layout().get_dims().size() <= 4 &&
-                ((find(axes.begin(), axes.end(), reduce::along_x) != axes.end() &&
+                ((find(axes.begin(), axes.end(), node.get_output_layout().get_rank() - 1) != axes.end() &&
                 node.input().get_output_layout().spatial(0) > 16) ||
-                (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
+                (find(axes.begin(), axes.end(), node.get_output_layout().get_rank() - 2) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
-                (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
+                (find(axes.begin(), axes.end(), 1) != axes.end() &&
                 node.input().get_output_layout().feature() > 16) ||
                 (node.get_output_layout().count() > 256)))
                 return false;
