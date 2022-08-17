@@ -137,7 +137,7 @@ protected:
     descriptor::Output& get_output_descriptor(size_t position);
 
     /// \brief Construct an uninitialized Node
-    Node() = default;
+    Node();
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
