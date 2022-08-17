@@ -28,7 +28,7 @@ is used if no parameter is specified. It is recommended to use not less than 300
 All other options should be considered as an advanced mode and require deep knowledge of the quantization process. Below
 is an overall description of all possible parameters:
 - `"model type"` - an optional parameter, required for additional patterns in the model. The default value is "None" ("Transformer" is only other supported value now).
-- `"inplace_statistic"` - an optional parameter, required for change of collect statistics method. This parameter reduces the amount of memory consumed, but increases the calibration time.
+- `"inplace_statistics"` - an optional parameter, required for change of collect statistics method. This parameter reduces the amount of memory consumed, but increases the calibration time.
 - `"ignored"` - NN subgraphs which should be excluded from the optimization process: 
     - `"scope"` - a list of particular nodes to exclude.
     - `"operations"` - a list of operation types to exclude (expressed in OpenVINO IR notation). This list consists of

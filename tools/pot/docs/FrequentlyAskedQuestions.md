@@ -62,7 +62,7 @@ Note that NNCF usage requires you to have a PyTorch or TensorFlow 2 based traini
 
 These issues happen due to insufficient available amount of memory for statistics collection during the quantization process of a huge model or
 due to a very high resolution of input images in the quantization dataset. If you do not have a possibility to increase your RAM size, one of the following options can help:
-- Set `inplace_statistic` parameters to "True". In that case the POT will change method collect statistics and use less memory. Note that such change might increase time required for quantization.
+- Set `inplace_statistics` parameters to "True". In that case the POT will change method collect statistics and use less memory. Note that such change might increase time required for quantization.
 - Set `eval_requests_number` and `stat_requests_number` parameters to 1. In that case the POT will limit the number of infer requests by 1 and use less memory.
 Note that such change might increase time required for quantization.
 - Set `use_fast_bias` parameter to `false`. In that case the POT will switch from the FastBiasCorrection algorithm to the full BiasCorrection algorithm
