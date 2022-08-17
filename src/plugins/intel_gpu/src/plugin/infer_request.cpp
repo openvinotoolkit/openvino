@@ -22,9 +22,6 @@ using namespace InferenceEngine;
 
 namespace {
 
-const char cannot_set_compound[] = "cannot set compound blob: supported only for input pre-processing";
-const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
-const char unsupported_batched_blob[] = "Batched input blob is expected to contain NV12 blobs";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
 
@@ -95,51 +92,25 @@ inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
     }
 }
 
-NV12Blob *getNV12BlobOrException(BatchedBlob *batched_ptr, int idx) {
-    auto nv12_ptr = batched_ptr->getBlob(idx)->as<NV12Blob>();
-    if (nv12_ptr == nullptr)
-        IE_THROW(NotImplemented) << unsupported_batched_blob;
-    return nv12_ptr;
-}
-
 void checkInputBlob(const Blob::Ptr &blob,
     const std::string &name,
-    const InputInfo::Ptr foundInput,
-    bool nv12_two_inputs = false) {
+    const InputInfo::Ptr foundInput) {
     const std::string strNotMatched("The input blob size is not equal to the network input size");
 
     if (!blob) {
         IE_THROW(NotAllocated) << str_input_not_allocated;
     }
 
-    if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-        nv12_two_inputs) {
-        if (auto nv12_ptr = blob->as<NV12Blob>()) {
-            checkAlloc(nv12_ptr->y(), str_input_not_allocated);
-            checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
-        } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
-            for (size_t i = 0; i < batched_ptr->size(); i++) {
-                auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
-                checkAlloc(nv12_ptr->y(), str_input_not_allocated);
-                checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
-            }
-        } else {
-            IE_THROW(ParameterMismatch) << wrong_nv12_blob;
-        }
+    SizeVector dims = foundInput->getTensorDesc().getDims();
+    size_t refSize = foundInput->getTensorDesc().getLayout() != SCALAR
+        ? details::product(dims)
+        : 1;
 
-    } else {
-        SizeVector dims = foundInput->getTensorDesc().getDims();
-
-        size_t refSize = foundInput->getTensorDesc().getLayout() != SCALAR
-            ? details::product(dims)
-            : 1;
-
-        if (refSize != blob->size()) {
-            IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
-        }
-
-        checkAlloc(blob, str_input_not_allocated);
+    if (refSize != blob->size()) {
+        IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
+
+    checkAlloc(blob, str_input_not_allocated);
 }
 
 void checkOutputBlob(const Blob::Ptr &blob,
@@ -198,13 +169,7 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        if (isDynamic) {
-            if (m_graph->GetMaxDynamicBatchSize() > 1) {
-                SizeVector outDims = data->getTensorDesc().getDims();
-                outDims[m_graph->GetOutputDynBatchDims()[name]] = m_curBatch;
-                data->getTensorDesc().setDims(outDims);
-            }
-        } else {
+        if (!isDynamic) {
             checkOutputBlob(data, name, foundOutput);
         }
     }
@@ -328,13 +293,6 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
         IE_THROW() << "At least one of the input blobs is empty. Input name: \'" << name << "\'";
     }
 
-    bool is_compound = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
-        return blob->is<CompoundBlob>();
-    });
-    if (is_compound) {
-        IE_THROW(NotImplemented) << cannot_set_compound;
-    }
-
     bool is_buffer = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
         return blob->is<gpu::ClBufferBlob>();
     });
@@ -404,7 +362,7 @@ void InferRequest::checkBlobs() {
         auto node = findInputByNodeName(input.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
         if (!is_dynamic)
-            checkInputBlob(input.second, input.first, foundInput, m_graph->getConfig().nv12_two_inputs);
+            checkInputBlob(input.second, input.first, foundInput);
     }
     for (auto const &output : _outputs) {
         DataPtr foundOutput = nullptr;
@@ -531,31 +489,7 @@ void InferRequest::enqueue() {
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
-
-        auto nv12_ptr = inputBlob->as<NV12Blob>();
-        auto batched_ptr = inputBlob->as<BatchedBlob>();
-        bool is_batched = batched_ptr != nullptr;
-        bool is_nv12 = nv12_ptr != nullptr;
-
-        if (is_nv12 || is_batched) {
-            int num_blobs = is_batched ? batched_ptr->size() : 1;
-            int expected_batch = is_batched
-                ? _networkInputs.at(inputName)->getTensorDesc().getDims()[0]
-                : 1;
-            for (auto i = 0; i < expected_batch; i++) {
-                std::string y_name = inputName + "_Y" + std::to_string(i);
-                std::string uv_name = inputName + "_UV" + std::to_string(i);
-                if (is_batched) {
-                    int idx = i < num_blobs ? i : num_blobs - 1;
-                    nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
-                }
-                prepare_input(y_name, nv12_ptr->y(), dependencies);
-                prepare_input(uv_name, nv12_ptr->uv(), dependencies);
-            }
-        } else {
-            // regular blob
-            prepare_input(inputName, inputBlob, dependencies);
-        }
+        prepare_input(inputName, inputBlob, dependencies);
     }
 
     cldnn::network::variables_states_map variables_states;
