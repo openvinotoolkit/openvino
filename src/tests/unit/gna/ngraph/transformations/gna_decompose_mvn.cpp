@@ -42,11 +42,11 @@ static std::shared_ptr<ngraph::Node> NormalizeVariance(const MVNParams& mvn_data
     auto combined_C_H = mvn_data.C * mvn_data.H;
 
     std::vector<float> avg_weights(8 * mvn_data.W / mvn_data.num_parts, 1.0f / mvn_data.W);
-    auto avg_weights_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, avg_weights);
+    auto avg_weights_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, avg_weights);
     std::vector<float> eps_tensor(combined_C_H * mvn_data.W, mvn_data.eps);
-    auto eps_tensor_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1, combined_C_H * mvn_data.W}, eps_tensor);
+    auto eps_tensor_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, combined_C_H * mvn_data.W}, eps_tensor);
     std::vector<float> minus_half(combined_C_H * mvn_data.W, -0.5f);
-    auto minus_half_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1, combined_C_H * mvn_data.W}, minus_half);
+    auto minus_half_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, combined_C_H * mvn_data.W}, minus_half);
 
     // Calculate square of the difference between input and its mean
     auto squared_diff = std::make_shared<ngraph::opset8::Multiply>(subtract_mean, subtract_mean);
@@ -104,14 +104,14 @@ static std::shared_ptr<ngraph::opset8::Result> Decompose(const std::shared_ptr<n
     auto combined_C_H = mvn_data.C * mvn_data.H;
 
     std::vector<float> neg_avg_weights(8 * mvn_data.W / mvn_data.num_parts, -1.0f / mvn_data.W);
-    auto neg_avg_weights_const = ngraph::opset8::Constant::create(ngraph::element::i64,
+    auto neg_avg_weights_const = ngraph::opset8::Constant::create(ngraph::element::f32,
         ngraph::Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, neg_avg_weights);
 
     std::vector<float> avg_broadcast(8 * mvn_data.W * mvn_data.num_parts, 0.0f);
     for (size_t i = 0; i < mvn_data.W * mvn_data.num_parts; i++) {
         avg_broadcast[i * 8] = 1.0f;
     }
-    auto avg_broadcast_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1}, avg_broadcast);
+    auto avg_broadcast_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1}, avg_broadcast);
 
     // Create average calculation part of the graph
     // We assume C = 1 case (combined channels)
@@ -193,7 +193,7 @@ std::shared_ptr<ngraph::Function> getReferenceFunction(const ngraph::Shape& inpu
     }
 
     // Create decomposed reference function
-    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
     std::shared_ptr<ngraph::opset8::Result> result = Decompose(input_params, mvn_data);
 
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
@@ -202,7 +202,7 @@ std::shared_ptr<ngraph::Function> getReferenceFunction(const ngraph::Shape& inpu
 std::shared_ptr<ngraph::Function> getInitialFunction(const ngraph::Shape& input_shape, const bool& normalize_variance,
     const float& eps, const ngraph::op::MVNEpsMode& eps_mode, const InferenceEngine::SizeVector& axes,
     const bool& across_channels, const bool& mvn_version_6) {
-    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
     std::shared_ptr<ngraph::Node> mvn;
 
     if (mvn_version_6) {

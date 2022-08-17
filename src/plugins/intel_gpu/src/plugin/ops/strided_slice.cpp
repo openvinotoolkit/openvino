@@ -20,6 +20,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
+    auto output_pshape = op->get_output_partial_shape(0);
     do {
         auto data_output = op->input_value(0);
         auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
@@ -32,8 +33,13 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             break;
         }
 
-        auto input_shape = op->get_input_shape(0);
-        auto output_shape = op->get_output_shape(0);
+        auto input_pshape = op->get_input_partial_shape(0);
+
+        if (input_pshape.is_dynamic() || output_pshape.is_dynamic())
+            return;
+
+        auto input_shape = input_pshape.to_shape();
+        auto output_shape = output_pshape.to_shape();
 
         auto begin = begin_node->cast_vector<int64_t>();
         auto end = end_node->cast_vector<int64_t>();
@@ -233,6 +239,10 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         return;
     } while (false);
 
+    // In case of dynamic shapes pass dummy shape value to strided_slice primitive
+    // To be removed once we enable internal shape infer for all operations
+    auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
+
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
                                                  inputPrimitives[0],
                                                  inputPrimitives[1],
@@ -242,7 +252,8 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                  op->get_end_mask(),
                                                  op->get_new_axis_mask(),
                                                  op->get_shrink_axis_mask(),
-                                                 op->get_output_partial_shape(0).to_shape(),
+                                                 op->get_ellipsis_mask(),
+                                                 output_shape,
                                                  op->get_friendly_name());
 
     p.AddPrimitive(stridedSlicePrim);

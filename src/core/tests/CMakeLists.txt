@@ -567,7 +567,6 @@ target_link_libraries(ov_core_unit_tests PRIVATE ngraph_test_util
                                         ngraph::builder
                                         openvino::util
                                         ov_shape_inference
-                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         Threads::Threads
                                         openvino::conditional_compilation

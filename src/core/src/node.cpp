@@ -25,6 +25,8 @@ using namespace std;
 
 atomic<size_t> ov::Node::m_next_instance_id(0);
 
+ov::Node::Node() = default;
+
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
       m_control_dependencies(node.m_control_dependencies),

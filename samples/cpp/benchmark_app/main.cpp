@@ -100,8 +100,12 @@ static void next_step(const std::string additional_info = "") {
         {11, "Dumping statistics report"}};
 
     step_id++;
-    if (step_names.count(step_id) == 0)
-        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+
+    OPENVINO_ASSERT(step_names.count(step_id) != 0,
+                    "Step ID ",
+                    step_id,
+                    " is out of total steps number ",
+                    step_names.size());
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -392,6 +396,7 @@ int main(int argc, char* argv[]) {
             } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
+                set_infer_precision();
 
                 if ((device_name.find("MULTI") != std::string::npos) &&
                     (device_name.find("CPU") != std::string::npos)) {
@@ -724,9 +729,10 @@ int main(int argc, char* argv[]) {
                 try {
                     nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
-                    IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support " << ov::optimal_number_of_infer_requests.name()
-                               << " Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                    throw ov::Exception("Every device used with the benchmark_app should support " +
+                                        std::string(ov::optimal_number_of_infer_requests.name()) +
+                                        " Failed to query the metric for the " + device_name +
+                                        " with error:" + ex.what());
                 }
             }
         }
@@ -824,7 +830,7 @@ int main(int argc, char* argv[]) {
                         nireq);
                 }
             } else {
-                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+                throw ov::Exception("Requested device doesn't support `use_device_mem` option.");
             }
         } else {
             if (newInputType) {
@@ -922,7 +928,7 @@ int main(int argc, char* argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.get_idle_request();
         if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
+            throw ov::Exception("No idle Infer Requests!");
         }
 
         if (!inferenceOnly) {
@@ -974,7 +980,7 @@ int main(int argc, char* argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.get_idle_request();
             if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
+                throw ov::Exception("No idle Infer Requests!");
             }
 
             if (!inferenceOnly) {
