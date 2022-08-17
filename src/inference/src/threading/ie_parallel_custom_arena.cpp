@@ -89,7 +89,6 @@ class TBBbindSystemTopology {
 
 public:
     ~TBBbindSystemTopology() {
-        TBB_BIND_SCOPE(TBBbindSystemTopology);
 #    if USE_TBBBIND_2_5
         if (is_binding_environment_valid()) {
             __TBB_internal_destroy_system_topology();
@@ -189,7 +188,6 @@ binding_observer::binding_observer(tbb::task_arena& ta, int num_slots, const con
 }
 
 binding_observer::~binding_observer() {
-    TBB_BIND_SCOPE(binding_observer);
     detail::__TBB_internal_deallocate_binding_handler(my_binding_handler);
 }
 

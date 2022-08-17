@@ -13,7 +13,9 @@
 
 #include <openvino/itt.hpp>
 
-namespace InferenceEngine {
+#include "openvino/core/except.hpp"
+
+namespace ov {
 namespace tbbbind {
 namespace itt {
 namespace domains {
@@ -21,12 +23,12 @@ OV_ITT_DOMAIN(tbb_bind);
 }  // namespace domains
 }  // namespace itt
 }  // namespace tbbbind
-}  // namespace InferenceEngine
+}  // namespace ov
 
 OV_CC_DOMAINS(tbb_bind);
 
 /*
- * TBB_BIND_SCOPE macro allows to disable parts of tbb_bind calling if they are not used
+ * TBB_BIND_SCOPE macro allows to disable parts of tbb_bind calling if they are not used.
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 
@@ -36,7 +38,7 @@ OV_CC_DOMAINS(tbb_bind);
 
 #    define TBB_BIND_SCOPE(region)                                        \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(tbb_bind, _, region)) == 0) \
-        return
+        throw ov::Exception(std::string(OV_PP_TOSTRING(OV_PP_CAT3(tbb_bind, _, region))) + " is disabled!")
 
 #else
 
