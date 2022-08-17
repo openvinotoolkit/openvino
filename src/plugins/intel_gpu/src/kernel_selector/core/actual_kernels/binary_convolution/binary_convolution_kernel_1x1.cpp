@@ -98,7 +98,7 @@ JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolutio
     }
     //This is workaround code for compiler bug in unit test "binary_convolution.basic_convolution_1x1_single_packed_channel" on DG2.
     //Delete it when the bug fixed.
-    jit.AddConstant(MakeJitConstant("WA_VOLATILE", params.engineInfo.bIMADSupport?"volatile":""));
+    jit.AddConstant(MakeJitConstant("WA_VOLATILE", params.engineInfo.bIMMADSupport?"volatile":""));
 
     return jit;
 }
