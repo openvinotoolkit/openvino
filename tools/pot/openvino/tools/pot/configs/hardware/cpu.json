@@ -228,6 +228,13 @@
                 "scales": "unified"
             }
         },
+        {
+            "type": "LSTMCell",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym"
+            }
+        },
         {"type": "Reshape"},
         {"type": "Flatten"},
         {"type": "Squeeze"},

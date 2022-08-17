@@ -127,7 +127,7 @@ def restore_original_node_names(output2node, accumulated_stats, stats_layout, st
 
 
 def align_stat_names_with_results(result_names, nodes_name, output2node, stats_layout, stat_aliases):
-    """ Change node name in stast to result name if in the original model the subgraph had 1 output,
+    """ Change node name in stats to result name if in the original model the subgraph had 1 output,
     but after adding outputs in the subgraph, the number of output ports increased.
     For such nodes, it is necessary to add a '.0' to the original output name
     :param: result_names: names of Result nodes
@@ -138,7 +138,9 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
     """
     if output2node:
         for original_out_name in nodes_name:
-            if original_out_name not in result_names and (original_out_name, 0) not in stats_layout:
+            if isinstance(original_out_name, str) and \
+               original_out_name not in result_names and \
+               (original_out_name, 0) not in stats_layout:
                 out_name_with_port = original_out_name + '.0'
                 assert out_name_with_port in result_names
                 update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)

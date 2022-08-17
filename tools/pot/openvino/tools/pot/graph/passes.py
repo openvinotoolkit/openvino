@@ -150,7 +150,7 @@ class InsertFakeQuantize(BackReplacementPattern):
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif m_op.type == 'LSTMCell':
-            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+            insert_fake_quantize(graph, m_op, [0, 1, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:
@@ -756,10 +756,10 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
             if len(input_node_outputs) > 1 and all([op.type == 'FakeQuantize' for op in input_node_outputs]):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
-            fq_node['orig_fq_name'] = copy(fq_node.name)
+            fq_node['orig_fq_name'] = nu.reset_node_fullname(input_node.fullname, copy(fq_node.name))
 
             if 'orig_node_name' not in input_node:
-                input_node['orig_node_name'] = copy(input_node.name)
+                input_node['orig_node_name'] = copy(input_node.fullname)
                 rename_node(input_node, f'{input_node.name}/pre_fq_input')
             rename_node(fq_node, new_fq_name)
 

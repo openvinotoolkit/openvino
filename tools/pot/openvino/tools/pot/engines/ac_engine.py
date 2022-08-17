@@ -214,7 +214,7 @@ class ACEngine(Engine):
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
 
-        if stats_layout:
+        if stats_layout and stat_aliases:
             restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
 
         return metrics, accumulated_stats
