@@ -1,88 +1,157 @@
-# Building the nGraph Python* API
+# Building the OpenVINO™ Python* API
 
-This document provides the instructions for building the nGraph Python API from source on Linux, macOS and Windows 10 platforms.
+This document provides the instructions for building the OpenVINO™ Python API from source on Linux, macOS and Windows 10 platforms.
 
 For each platform, you can build and install the API as a part of OpenVINO™ Toolkit or as a Python wheel.
-A Python wheel is a portable package that allows you to install nGraph in your Python distribution, or dedicated virtual environment.
+A Python wheel is a portable package that allows you to install OpenVINO™ in either your Python distribution or a dedicated virtual environment.
 
 ## Linux* and macOS*
 
 ### Prerequisites
 
-To build the nGraph Python API, you need to install a few additional packages.
+To build the OpenVINO™ Python API, you need to install a few additional packages.
 
 On Ubuntu* 20.04 LTS you can use the following instructions to install the required packages, including Python and Cython.
 
-    apt install git wget build-essential cmake
-    apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
+```bash
+apt install git wget build-essential cmake
+apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
+```
 
 On macOS, you can use [Homebrew](https://brew.sh) to install required packages:
 
-    brew install cmake
-    brew install automake
-    brew install libtool
-    brew install python3
+```bash
+brew install cmake
+brew install python3
+```
 
 Install Cython in the Python installation, or virtualenv that you are planning to use:
 
-    pip3 install cython
+```bash
+pip3 install cython
+```
 
- ### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
+### Configure and Build as a part of OpenVINO™ Toolkit on Linux and macOS
 
 The following section illustrates how to build and install OpenVINO™ in a workspace directory using CMake.
-The workspace directory is specified by the `${OPENVINO_BASEDIR}` variable. Set this variable to a directory of your choice:
+The workspace directory is specified by the `${OV_WORKSPACE}` variable. Set this variable to a directory of your choice:
 
-    export OPENVINO_BASEDIR=/path/to/my/workspace
+```bash
+export OV_WORKSPACE=/path/to/my/workspace
+```
 
-Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`. Please note that we're disabling
-the building of a few modules by setting the `ENABLE_*` flag to `OFF`. In order to build the OpenVINO™ Python APIs
-set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
+Now you can clone the OpenVINO™ repository, configure it using `cmake` and build using `make`.
 
-    cd "${OPENVINO_BASEDIR}"
-    git clone --recursive https://github.com/openvinotoolkit/openvino.git
-    mkdir openvino/build
-    cd openvino/build
+In order to build the OpenVINO™ Python APIs set the `ENABLE_PYTHON` flag to `ON`.
 
-    cmake .. \
-        -DENABLE_INTEL_GPU=OFF \
-        -DENABLE_OPENCV=OFF \
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF \
-        -DENABLE_PYTHON=ON \
-        -DENABLE_OV_ONNX_FRONTEND=ON \
-        -DCMAKE_INSTALL_PREFIX="${OPENVINO_BASEDIR}/openvino_dist"
+Note the `CMAKE_INSTALL_PREFIX`, which defaults to `/usr/local/` if not set.
 
-    make -j 4
-    make install
+```bash
+cd ${OV_WORKSPACE}
+git clone --recursive https://github.com/openvinotoolkit/openvino.git
+cd openvino
+git submodule update --init
 
-The Python module is installed in the `${OPENVINO_BASEDIR}/openvino_dist/python/python<version>/` folder.
+### You may also want to install OpenVINO™ dependencies with:
+# ./install_build_dependencies.sh
+
+mkdir build && cd build
+
+cmake .. \
+-DCMAKE_BUILD_TYPE=Release \
+-DENABLE_PYTHON=ON \
+-DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
+
+make -j 4 install
+```
+
+The Python module is installed in the folder:
+
+    ${OV_WORKSPACE}/openvino_dist/python/python<version>/
+
+You may also find it in:
+
+    ${OV_WORKSPACE}/openvino/bin/intel64/[BUILD_TYPE]/python_api/python<version>/
+
+If you would like to use a specific version of Python, or use a virtual environment, you can add the `PYTHON_EXECUTABLE` variable to your CMake command line. For example:
+
+```bash
+-DPYTHON_EXECUTABLE=/path/to/venv/bin/python
+# or while in virtual environment
+-DPYTHON_EXECUTABLE=`which python`
+```
+
 Set up the OpenVINO™ environment in order to add the module path to `PYTHONPATH`:
 
-    source ${OPENVINO_BASEDIR}/openvino_dist/setupvars.sh
-
-If you would like to use a specific version of Python, or use a virtual environment, you can set the `PYTHON_EXECUTABLE`
-variable. For example:
-
-```
--DPYTHON_EXECUTABLE=/path/to/venv/bin/python
--DPYTHON_EXECUTABLE=$(which python3.8)
+```bash
+source ${OV_WORKSPACE}/openvino_dist/setupvars.sh
 ```
 
-### Build an nGraph Python Wheel on Linux and macOS
+If you want more control over enviroment variables, to simply enable OpenVINO™ Python API, export these variables:
 
-You can build the Python wheel running the following command:
+```bash
+export LD_LIBRARY_PATH=${OV_WORKSPACE}/openvino_dist/runtime/lib/intel64/
+export PYTHONPATH=${OV_WORKSPACE}/openvino_dist/python/python<version>/
+```
 
-    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
-    python3 setup.py bdist_wheel
+### Rebuild OpenVINO™ project
+
+To rebuild project, simply navigate to build folder and re-run `make` command:
+```bash
+cd ${OV_WORKSPACE}/openvino/build
+
+make -j 4 install
+```
+*Note: If changes are adding new compilation units, files or change CMake scripts, there is a need to remove the exisiting build and rebuild it from scratch!*
+
+### Build an OpenVINO™ Python Wheel on Linux and macOS
+
+#### First method - using CMake command
+You can build the Python wheel by adding `ENABLE_WHEEL` flag to `cmake` command:
+
+```bash
+cmake .. \
+-DCMAKE_BUILD_TYPE=Release \
+-DENABLE_PYTHON=ON \
+-DENABLE_WHEEL=ON \
+-DCMAKE_INSTALL_PREFIX="${OV_WORKSPACE}/openvino_dist"
+```
 
 Once completed, the wheel package should be located under the following path:
 
-    $ ls "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
-    ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+```bash
+$ ls ${OV_WORKSPACE}/openvino/src/bindings/python/dist
+openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
 
 You can now install the wheel in your Python environment:
 
-    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
-    pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
+```bash
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/dist
+pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
+
+#### Second method - using setup.py file
+You can build the Python wheel running the following command:
+
+```bash
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel
+python3 setup.py bdist_wheel
+```
+
+Once completed, the wheel package should be located under the following path:
+
+```bash
+$ ls ${OV_WORKSPACE}/openvino/src/bindings/python/wheel/dist
+openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
+
+You can now install the wheel in your Python environment:
+
+```bash
+cd ${OV_WORKSPACE}/openvino/src/bindings/python/wheel/dist
+pip3 install openvino-0.0.0-cp<version>-cp<version>-linux_x86_64.whl
+```
 
 ## Windows* 10
 
@@ -108,7 +177,6 @@ cmake .. ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_INSTALL_PREFIX="%OPENVINO_BASEDIR%/openvino_dist" ^
     -DENABLE_INTEL_GPU=OFF ^
-    -DENABLE_OPENCV=OFF ^
     -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
     -DENABLE_OV_ONNX_FRONTEND=ON ^
     -DENABLE_PYTHON=ON ^

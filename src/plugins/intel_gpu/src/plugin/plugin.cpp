@@ -599,8 +599,9 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);
-                return temp;
+                return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -728,6 +729,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
