@@ -17,6 +17,23 @@ using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 namespace {
+static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+    std::vector<uint16_t> converted_axes;
+    for (auto axis : axes) {
+        if (axis == 0 || axis == 1) {
+            converted_axes.push_back(axis);
+            continue;
+        }
+
+        if (axis < 0)
+            axis = axis + rank;
+
+        converted_axes.push_back(rank + 1 - axis);
+    }
+
+    return converted_axes;
+}
+
 kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
     switch (mode) {
         case reduce_mode::max:
@@ -63,7 +80,7 @@ public:
         auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
 
-        reduce_params.reduceAxes = prim->axes;
+        reduce_params.reduceAxes = convert_axes(prim->axes, arg.get_output_layout().get_rank());
         reduce_params.keepDims = prim->keep_dims;
         reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
 
