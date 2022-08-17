@@ -130,7 +130,7 @@ public:
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
 
-        auto nodeRT = std::make_shared<ov::intel_cpu::NodeRuntime>(100, cpuEngine);
+        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
@@ -141,7 +141,7 @@ public:
         childEdge->reuse(childMemory);
 
         reorderNode->setDescs(inputDesc, outputDesc);
-        reorderNode->setRuntime(nodeRT);
+        reorderNode->setRuntimeCache(rtParamsCache);
         std::array<std::shared_ptr<ov::intel_cpu::Node>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();
