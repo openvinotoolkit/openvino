@@ -333,20 +333,6 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
     }, numIterations, numThreads);
 }
 
-// tested function: single IECore ReadNetwork, SetConfig, LoadNetwork, AddExtension
-TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_SingleIECore) {
-    std::atomic<unsigned int> counter{0u};
-    InferenceEngine::Core ie;
-
-    SetupNetworks();
-
-    runParallel([&] () {
-        auto value = counter++;
-        ie.SetConfig(config, deviceName);
-        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
-    }, numIterations, numThreads);
-}
-
 // tested function: ReadNetwork, SetConfig, LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
     std::atomic<unsigned int> counter{0u};
