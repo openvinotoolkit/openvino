@@ -57,7 +57,9 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
+ov_status_e ov_model_input_by_index(const ov_model_t* model,
+                                    const size_t index,
+                                    ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -66,6 +68,38 @@ ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index,
         std::unique_ptr<ov_output_const_node_t> _input_node(new ov_output_const_node_t);
         _input_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
         *input_node = _input_node.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_output_by_index(const ov_model_t* model,
+                                     const size_t index,
+                                     ov_output_const_node_t** output_node) {
+    if (!model || !output_node) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->output(index);
+        std::unique_ptr<ov_output_const_node_t> _output_node(new ov_output_const_node_t);
+        _output_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *output_node = _output_node.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_model_output_by_name(const ov_model_t* model,
+                                   const char* tensor_name,
+                                   ov_output_const_node_t** output_node) {
+    if (!model || !tensor_name || !output_node) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto result = std::const_pointer_cast<const ov::Model>(model->object)->output(tensor_name);
+        std::unique_ptr<ov_output_const_node_t> _output_node(new ov_output_const_node_t);
+        _output_node->object = std::make_shared<ov::Output<const ov::Node>>(std::move(result));
+        *output_node = _output_node.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

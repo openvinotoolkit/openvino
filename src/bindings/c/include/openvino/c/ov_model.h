@@ -72,7 +72,29 @@ OPENVINO_C_API(ov_status_e)
 ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
 
 /**
- * @brief Returns true if any of the ops defined in the model is dynamic shape.
+ * @brief Get the outputs of ov_model_t.
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param index input tensor index.
+ * @param output_node A pointer to the ov_input_node_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** output_node);
+
+/**
+ * @brief Get the outputs of ov_model_t.
+ * @ingroup model
+ * @param model A pointer to the ov_model_t.
+ * @param tensor_name input tensor name (char *).
+ * @param output_node A pointer to the ov_output_const_node_t.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_model_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** output_node);
+
+/**
+ * @brief Returns true if any of the ops defined in the model is dynamic shape..
  * @param model A pointer to the ov_model_t.
  * @return true if model contains dynamic shapes
  */

@@ -85,6 +85,50 @@ TEST(ov_model, ov_model_input_by_index) {
     ov_core_free(core);
 }
 
+TEST(ov_model, ov_model_output_by_index) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_output_const_node_t* output_node = nullptr;
+    OV_ASSERT_OK(ov_model_output_by_index(model, 0, &output_node));
+    ASSERT_NE(nullptr, output_node);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_node_get_shape(output_node, &shape));
+    ov_shape_deinit(&shape);
+
+    ov_output_node_free(output_node);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_model, ov_model_output_by_name) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_output_const_node_t* output_node = nullptr;
+    OV_ASSERT_OK(ov_model_output_by_name(model, "fc_out", &output_node));
+    ASSERT_NE(nullptr, output_node);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_node_get_shape(output_node, &shape));
+    ov_shape_deinit(&shape);
+
+    ov_output_node_free(output_node);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST(ov_model, ov_model_is_dynamic) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
