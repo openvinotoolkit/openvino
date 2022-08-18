@@ -21,7 +21,7 @@ public:
         return make_unique<wait_for_events_impl>(*this);
     }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
 
@@ -32,13 +32,13 @@ public:
 
     bool validate(const primitive_inst&) const override { return true; }
 
-    static primitive_impl* create_data(const data_node& data) { return new wait_for_events_impl(data); }
+    static primitive_impl* create_data(const data_node& data, const kernel_impl_params&) { return new wait_for_events_impl(data); }
 
-    static primitive_impl* create_input_layout(const input_layout_node& input) {
+    static primitive_impl* create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
         return new wait_for_events_impl(input);
     }
 
-    static primitive_impl* create_prior_box(const prior_box_node& prior_box) {
+    static primitive_impl* create_prior_box(const prior_box_node& prior_box, const kernel_impl_params&) {
         // This primitive is being executed on CPU during network compilation.
         return new wait_for_events_impl(prior_box);
     }

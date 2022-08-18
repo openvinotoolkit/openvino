@@ -18,7 +18,8 @@ const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_TEMPLATE[] = "TEMPLATE";
 const char DEVICE_HETERO[] = "HETERO";
 
-const char REPORT_FILENAME[] = "report";
+const char OP_REPORT_FILENAME[] = "report_op";
+const char API_REPORT_FILENAME[] = "report_api";
 const char REPORT_EXTENSION[] = ".xml";
 
 const unsigned int maxFileNameLength = 140;

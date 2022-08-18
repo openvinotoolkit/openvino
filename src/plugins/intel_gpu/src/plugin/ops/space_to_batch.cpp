@@ -11,7 +11,6 @@
 #include "intel_gpu/primitives/space_to_batch.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
@@ -19,8 +18,8 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto rank = op->get_input_shape(0).size();
-    auto format = DefaultFormatForDims(rank);
+    auto rank = op->get_input_partial_shape(0).size();
+    auto format = cldnn::format::get_default_format(rank);
 
     std::vector<cldnn::tensor> inputs;
     inputs.reserve(3);
@@ -37,7 +36,10 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
         }
         inputs.emplace_back(format, sizes, default_size);
     }
-    auto out_size = tensor_from_dims(op->get_output_shape(0));
+    auto output_pshape = op->get_output_partial_shape(0);
+    // In case of dynamic shapes pass dummy shape value to space_to_batch primitive
+    // To be removed once we enable internal shape infer for all operations
+    auto out_size = output_pshape.is_static() ? tensor_from_dims(output_pshape.to_shape()) : cldnn::tensor();
 
     auto batchToSpacePrim = cldnn::space_to_batch(layerName,
                                                   inputPrimitives[0], // input
@@ -54,5 +56,4 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
 REGISTER_FACTORY_IMPL(v1, SpaceToBatch);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

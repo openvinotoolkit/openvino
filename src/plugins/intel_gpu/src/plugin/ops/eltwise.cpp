@@ -31,7 +31,6 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
@@ -44,8 +43,8 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
         auto inputRank = inputShape.size();
         if (inputRank != outRank) {
             // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outRank);
-            if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
+            auto targetFormat = cldnn::format::get_default_format(outRank);
+            if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
                 auto reorderPrim = cldnn::reorder(reorderName,
@@ -197,5 +196,4 @@ REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

@@ -65,15 +65,23 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
 }
 
 template<typename data_t>
-void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis, int num_tiles) {
-    auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int> {
+void tile_ref(const memory::ptr input, memory::ptr output, int64_t axis, int num_tiles) {
+    auto get_sizes = [](const layout& l, int64_t axis, size_t rank) -> std::pair<int, int> {
         switch (axis) {
-        case tile::along_b: return std::make_pair(1, size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_f: return std::make_pair(size.batch[0], size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_z: return std::make_pair(size.batch[0] * size.feature[0], size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_y: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2], size.spatial[1] * size.spatial[0]);
-        case tile::along_x: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1], size.spatial[0]);
-        default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
+            case 0: return std::make_pair(1, l.batch() * l.feature() * l.spatial(2) * l.spatial(1) * l.spatial(0));
+            case 1: return std::make_pair(l.batch(), l.feature() * l.spatial(2) * l.spatial(1) * l.spatial(0));
+            case 2:
+                if (rank > 4)
+                    return std::make_pair(l.batch() * l.feature(), l.spatial(2) * l.spatial(1) * l.spatial(0));
+                else
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2), l.spatial(1) * l.spatial(0));
+            case 3:
+                if (rank > 4)
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2), l.spatial(1) * l.spatial(0));
+                else
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2) * l.spatial(1), l.spatial(0));
+            case 4: return std::make_pair(l.batch() * l.feature() * l.spatial(2) * l.spatial(1), l.spatial(0));
+            default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
         }
     };
 
@@ -82,8 +90,9 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
 
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
+    const auto& input_layout = input->get_layout();
 
-    auto sizes = get_sizes(input->get_layout().size, axis);
+    auto sizes = get_sizes(input_layout, axis, input_layout.get_rank());
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
@@ -107,11 +116,11 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
-    topology.add(tile("tile", "reshape", tensor(2, 1, 2, 4)));
+    topology.add(tile("tile", "reshape", { 1, 1, 4, 1 }));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
     set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, tile::along_y, 4);
+    tile_ref<float>(input, output_ref, 2, 4);
 
     network network(engine, topology);
     network.set_input_data("input", input);

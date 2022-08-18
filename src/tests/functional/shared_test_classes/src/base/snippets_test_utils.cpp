@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pugixml.hpp"
 #include "shared_test_classes/base/snippets_test_utils.hpp"
 #include "exec_graph_info.hpp"
 

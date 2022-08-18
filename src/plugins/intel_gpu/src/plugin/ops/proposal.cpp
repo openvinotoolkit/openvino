@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
@@ -62,7 +61,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
         }
 
         cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                    DefaultFormatForDims(op->get_output_shape(1).size()),
+                                                    cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                     tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -156,5 +155,4 @@ REGISTER_FACTORY_IMPL(v0, Proposal);
 REGISTER_FACTORY_IMPL(v4, Proposal);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

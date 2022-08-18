@@ -35,8 +35,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const adaptive_pooling_node& arg) {
-        auto params = get_default_params<kernel_selector::adaptive_pooling_params>(arg);
+    static primitive_impl* create(const adaptive_pooling_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(arg.get_program());
 
         const auto& primitive = arg.get_primitive();

@@ -39,9 +39,9 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 void SubgraphBaseTest::run() {
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
-    LayerTestsUtils::PassRate::Statuses status = isCurrentTestDisabled ?
-        LayerTestsUtils::PassRate::Statuses::SKIPPED :
-        LayerTestsUtils::PassRate::Statuses::CRASHED;
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status);
 
@@ -81,22 +81,22 @@ void SubgraphBaseTest::run() {
                 infer();
                 validate();
             }
-            status = LayerTestsUtils::PassRate::Statuses::PASSED;
+            status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = ex.what();
         } catch (...) {
-            status = LayerTestsUtils::PassRate::Statuses::FAILED;
+            status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
         summary.updateOPsStats(function, status);
-        if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, LayerTestsUtils::PassRate::Statuses::HANGED);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
 }
@@ -199,12 +199,9 @@ void SubgraphBaseTest::compile_model() {
         functionRefs = ov::clone_model(*function);
     }
 
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-        if (!configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16))
-            configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        // we will test brgconv kernels even it's disabled default
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_CPU_EXPERIMENTAL, "brgconv"});
+    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
+    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);

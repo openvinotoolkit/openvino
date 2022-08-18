@@ -17,6 +17,23 @@ using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 namespace {
+static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+    std::vector<uint16_t> converted_axes;
+    for (auto axis : axes) {
+        if (axis == 0 || axis == 1) {
+            converted_axes.push_back(axis);
+            continue;
+        }
+
+        if (axis < 0)
+            axis = axis + rank;
+
+        converted_axes.push_back(rank + 1 - axis);
+    }
+
+    return converted_axes;
+}
+
 kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
     switch (mode) {
         case reduce_mode::max:
@@ -58,13 +75,14 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg) {
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(arg);
+    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
 
-        reduce_params.reduceAxes = arg.get_primitive()->axes;
-        reduce_params.keepDims = arg.get_primitive()->keep_dims;
-        reduce_params.reduceMode = cldnn_2_reduce_mode(arg.get_primitive()->mode);
+        reduce_params.reduceAxes = convert_axes(prim->axes, arg.get_output_layout().get_rank());
+        reduce_params.keepDims = prim->keep_dims;
+        reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
 
         auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reduce_params, reduce_optional_params);
