@@ -11,8 +11,6 @@ from common.utils.common_utils import generate_ir
 
 
 class CommonMOConvertTest:
-    input_model_key = "input_model"
-
     @staticmethod
     def generate_ir_python_api(**kwargs):
         output_dir = kwargs['output_dir']
