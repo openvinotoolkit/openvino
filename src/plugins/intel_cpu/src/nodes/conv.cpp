@@ -1554,20 +1554,18 @@ void Convolution::initTryBrgconvFlag() {
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             shouldTryBrgconv = true;
             // should remove after binary postops performance issue resolved
-            // heuristics: if it's int8 model and it has binary post ops we will not use brgconv
-            if (canBeExecutedInInt8()) {
-                dnnl::primitive_attr attrs;
-                setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-                const auto& ops = attrs.get_post_ops();
-                for (int i = 0; i < ops.len(); i++) {
-                    if (ops.kind(i) == dnnl::primitive::kind::binary) {
-                        shouldTryBrgconv = false;
-                        break;
-                    }
+            // heuristics: if model has binary post ops we will not use brgconv
+            dnnl::primitive_attr attrs;
+            setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+            const auto& ops = attrs.get_post_ops();
+            for (int i = 0; i < ops.len(); i++) {
+                if (ops.kind(i) == dnnl::primitive::kind::binary) {
+                    shouldTryBrgconv = false;
+                    break;
                 }
-                if (shouldTryBrgconv)
-                    pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>(std::move(attrs));
             }
+            if (shouldTryBrgconv)
+                pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>(std::move(attrs));
         }
     }
 }
