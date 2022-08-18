@@ -45,6 +45,7 @@ if [ -f /etc/lsb-release ]; then
             unzip \
             shellcheck \
             patchelf \
+            lintian \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
@@ -109,6 +110,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \
