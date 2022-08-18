@@ -17,7 +17,7 @@ class typed_primitive_inst<softmax> : public typed_primitive_inst_base<softmax> 
     using parent = typed_primitive_inst_base<softmax>;
 
 public:
-    static layout calc_output_layout(softmax_node const& node);
+    static layout calc_output_layout(softmax_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(softmax_node const& node);
 
 public:

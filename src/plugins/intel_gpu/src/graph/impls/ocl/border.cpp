@@ -22,12 +22,12 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg) {
-        auto b_params = get_default_params<kernel_selector::border_params>(arg, 1);
+    static primitive_impl* create(const border_node& arg, const kernel_impl_params& impl_param) {
+        auto desc = arg.get_primitive();
+
+        auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
-
-        auto desc = arg.get_primitive();
 
         b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
         b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);

@@ -11,27 +11,38 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 
 using namespace cldnn;
-
 namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::cum_sum_axis convert_axis(cum_sum::cum_sum_axis axis) {
+kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
+    if (axis < 0) {
+        axis += rank;
+    }
     switch (axis) {
-        case cum_sum::along_x:
-            return kernel_selector::cum_sum_axis::X;
-        case cum_sum::along_y:
-            return kernel_selector::cum_sum_axis::Y;
-        case cum_sum::along_z:
-            return kernel_selector::cum_sum_axis::Z;
-        case cum_sum::along_w:
-            return kernel_selector::cum_sum_axis::W;
-        case cum_sum::along_f:
-            return kernel_selector::cum_sum_axis::FEATURE;
-        case cum_sum::along_b:
-            return kernel_selector::cum_sum_axis::BATCH;
-        default:
-            return kernel_selector::cum_sum_axis::BATCH;
+        case 0: return kernel_selector::cum_sum_axis::BATCH;
+        case 1: return kernel_selector::cum_sum_axis::FEATURE;
+        case 2:
+            if (rank == 6)
+                return kernel_selector::cum_sum_axis::W;
+            else if (rank == 5)
+                return kernel_selector::cum_sum_axis::Z;
+            else
+                return kernel_selector::cum_sum_axis::Y;
+        case 3:
+            if (rank == 6)
+                return kernel_selector::cum_sum_axis::Z;
+            else if (rank == 5)
+                return kernel_selector::cum_sum_axis::Y;
+            else
+                return kernel_selector::cum_sum_axis::X;
+        case 4:
+            if (rank == 6)
+                return kernel_selector::cum_sum_axis::Y;
+            else
+                return kernel_selector::cum_sum_axis::X;
+        case 5: return kernel_selector::cum_sum_axis::X;
+        default: return kernel_selector::cum_sum_axis::BATCH;
     }
 }
 }  // namespace
@@ -45,12 +56,15 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     }
 
 public:
-    static primitive_impl* create(const cum_sum_node& arg) {
-        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(arg);
+    static primitive_impl* create(const cum_sum_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+
+        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
         auto cum_sum_optional_params =
             get_default_optional_params<kernel_selector::cum_sum_optional_params>(arg.get_program());
 
-        cum_sum_params.axis = convert_axis(arg.get_primitive()->axis);
+        size_t rank = arg.get_output_layout().get_rank();
+        cum_sum_params.axis = convert_axis(prim->axis, rank);
         cum_sum_params.exclusive = arg.get_primitive()->exclusive;
         cum_sum_params.reverse = arg.get_primitive()->reverse;
 

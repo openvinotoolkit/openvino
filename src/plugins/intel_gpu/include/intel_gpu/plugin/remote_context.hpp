@@ -111,8 +111,8 @@ public:
                              cldnn::shared_surface surf = 0,
                              uint32_t plane = 0,
                              RemoteBlobImpl::BlobType mem_type = RemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
-        : _impl(context, stream, layout, mem, surf, plane, mem_type)
-        , TpublicAPI(desc) {}
+        : TpublicAPI(desc)
+        , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
         try {

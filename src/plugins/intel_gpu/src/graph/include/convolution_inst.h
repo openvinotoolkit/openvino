@@ -115,10 +115,21 @@ public:
     }
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
-
     bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
+
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
+                                              const layout& out_layout) const override {
+        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(),
+                                  in_layouts, out_layout,
+                                  get_fused_primitives(), get_fused_activations_funcs(), get_fused_activations_params(),
+                                  optional_layout(weights().get_output_layout()),
+                                  bias_term() ? optional_layout(bias().get_output_layout()) : optional_layout(),
+                                  weights_zero_points_term() ? optional_layout(weights_zero_points().get_output_layout()) : optional_layout(),
+                                  activations_zero_points_term() ? optional_layout(activations_zero_points().get_output_layout()) : optional_layout(),
+                                  compensation_term() ? optional_layout(compensation().get_output_layout()) : optional_layout()));
+    }
 
 private:
     int32_t split;
@@ -136,7 +147,7 @@ class typed_primitive_inst<convolution> : public typed_primitive_inst_base<convo
     using parent = typed_primitive_inst_base<convolution>;
 
 public:
-    static layout calc_output_layout(convolution_node const& node);
+    static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
 public:

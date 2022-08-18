@@ -27,7 +27,7 @@ class typed_primitive_inst<batch_to_space> : public typed_primitive_inst_base<ba
     using parent = typed_primitive_inst_base<batch_to_space>;
 
 public:
-    static layout calc_output_layout(batch_to_space_node const& node);
+    static layout calc_output_layout(batch_to_space_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(batch_to_space_node const& node);
 
 public:
