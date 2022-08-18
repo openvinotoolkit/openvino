@@ -8,15 +8,10 @@
 namespace ov {
 namespace test {
 namespace behavior {
-
-std::string OVInferRequestWaitTests::getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
-    return OVInferRequestTests::getTestCaseName(obj);
-}
-
 void OVInferRequestWaitTests::SetUp() {
+    OVInferRequestTests::SetUp();
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    OVInferRequestTests::SetUp();
     req = execNet.create_infer_request();
     input = execNet.input();
     output = execNet.output();
