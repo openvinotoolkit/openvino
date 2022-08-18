@@ -21,7 +21,6 @@ from tests import (
     xfail_issue_48190,
     xfail_issue_58676,
     xfail_issue_78843,
-    xfail_issue_86909,
     xfail_issue_86911,
     xfail_issue_onnx_models_140)
 
@@ -194,7 +193,6 @@ if len(zoo_models) > 0:
             (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
             (xfail_issue_78843, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
 
-            (xfail_issue_86909, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_86911, "test_MSFT_opset9_LSTM_Seq_lens_unpacked_model_cpu"),
 
         ]

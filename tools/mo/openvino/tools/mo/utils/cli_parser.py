@@ -10,6 +10,7 @@ from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
 from itertools import zip_longest
 from pathlib import Path
+from operator import xor
 from typing import List, Union
 
 import numpy as np
@@ -476,12 +477,12 @@ mo_convert_params = {
         mean_scale_value_to_str),
     'source_layout': ParamDescription(
         'Layout of the input or output of the model in the framework. {}Layout can'
-        ' be specified in the short form, e.g. nhwc, or in complex form, e.g. [n,h,w,c].'
+        ' be specified in the short form, e.g. nhwc, or in complex form, e.g. "[n,h,w,c]".'
         ' Example for many names: '
-        'in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc). Layout can be '
+        '"in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)". Layout can be '
         'partially defined, "?" can be used to specify undefined layout for one dimension, '
         '"..." can be used to specify undefined layout for multiple dimensions, for example '
-        '?c??, nc..., n...c, etc.', '',
+        '"?c??", "nc...", "n...c", etc.', '',
         'Layout can be set by passing a dictionary, where key is input name and value is '
         'LayoutMap object. Or layout can be set by string of the following format. ',
         source_target_layout_to_str),
@@ -492,10 +493,10 @@ mo_convert_params = {
         'Combination of --source_layout and --target_layout. Can\'t be used with either of '
         'them. If model has one input it is sufficient to specify layout of this input, for'
         ' example --layout nhwc. To specify layouts of many tensors, names must be provided,'
-        ' for example: --layout name1(nchw),name2(nc). It is possible to instruct '
+        ' for example: --layout "name1(nchw),name2(nc)". It is possible to instruct '
         'ModelOptimizer to change layout, for example: '
-        '--layout name1(nhwc->nchw),name2(cn->nc). Also "*" in long layout form can be used'
-        ' to fuse dimensions, for example [n,c,...]->[n*c,...].', '', '', layout_param_to_str),
+        '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
+        ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
     'data_type': ParamDescription(
         'Data type for all intermediate tensors and weights. ' +
         'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
@@ -1478,9 +1479,16 @@ def validate_layout(layout: str):
     :param layout: string containing layout
     :raises: if layout is incorrect
     """
-    valid_layout_re = re.compile(r'\[?[^\[\]\(\)\s]*\]?')
-    if layout and not valid_layout_re.fullmatch(layout):
-        raise Error('Invalid layout parsed: {}'.format(layout))
+    error_msg = 'Invalid layout parsed: {}'.format(layout)
+    if layout:
+        incorrect_brackets = xor(layout[0] == '[', layout[-1] == ']')
+        if incorrect_brackets or layout[-1] == '-':
+            error_msg += ', did you forget quotes?'
+        else:
+            valid_layout_re = re.compile(r'\[?[^\[\]\(\)\-\s]*\]?')
+            if valid_layout_re.fullmatch(layout):
+                return
+        raise Error(error_msg)
 
 
 def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = None):
@@ -1544,6 +1552,8 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
                 if dest is None:
                     error_msg += "\n  name(nhwc->[n,h,w,c])" \
                                  "\n  name[n,h,w,c]->[n,c,h,w]"
+                error_msg += '\n Please do not forget to surround whole expression with quotes, otherwise' \
+                             ' symbols >[]() would be treated as special characters.'
                 raise Error(error_msg)
             write_found_layout(found_g[0], found_g[1], parsed, dest)
 
