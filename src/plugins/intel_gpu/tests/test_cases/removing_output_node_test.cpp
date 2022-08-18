@@ -56,7 +56,7 @@ TEST(removing_output_node, multiple_outputs) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, {6, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, {}, {6, 1, 1, 1}));
 
     std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
@@ -72,7 +72,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output = outputs.at("reshape").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    ASSERT_TRUE(output->get_layout().size == after_reshape);
+    ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr[i], out_vec[i]);
@@ -82,7 +82,7 @@ TEST(removing_output_node, multiple_outputs) {
     auto output2 = outputs.at("strided_slice").get_memory();
     cldnn::mem_lock<float> output_ptr2(output, get_test_stream());
 
-    ASSERT_TRUE(output2->get_layout().size == after_strided_slice);
+    ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
         EXPECT_EQ(output_ptr2[i], out_vec[i]);

@@ -13,13 +13,19 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
-    const condition_node& outer;
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
     }
 
-    explicit condition_impl(const condition_node& outer) : outer(outer) {}
+    explicit condition_impl(const condition_node& outer) {
+        set_node_params(outer);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        IE_ASSERT(arg.is_type<condition>());
+        const auto& node = arg.as<condition>();
+        _node_id = node.id();
+    }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         for (auto& a : events) {
@@ -41,11 +47,13 @@ struct condition_impl : typed_primitive_impl<condition> {
         return ev;
     }
 
-    static primitive_impl* create(const condition_node& arg) { return new condition_impl(arg); }
+    static primitive_impl* create(const condition_node& arg, const kernel_impl_params&) { return new condition_impl(arg); }
 
-    void init_kernels() override {}
+    void init_kernels(const kernels_cache&) override {}
 
 private:
+    primitive_id _node_id;
+
     /*
     Add functions here.
     */
@@ -61,7 +69,7 @@ private:
                 return value_1 < value_2;
                 break;
             default:
-                throw("Unknown comparision function for: " + outer.id());
+                throw("Unknown comparision function for: " + _node_id);
                 break;
         }
     }

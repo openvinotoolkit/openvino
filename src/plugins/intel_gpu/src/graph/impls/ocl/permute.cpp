@@ -34,7 +34,7 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     }
 
     // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
+    for (int i = 0; i < (static_cast<int>(cldnn_order.size()) - 2) / 2; i++) {
         std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
     }
 
@@ -50,13 +50,14 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static primitive_impl* create(const permute_node& arg) {
-        auto permute_params = get_default_params<kernel_selector::permute_params>(arg);
+    static primitive_impl* create(const permute_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+        auto permute_params = get_default_params<kernel_selector::permute_params>(impl_param);
         auto permute_optional_params =
             get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
 
-        auto in_rank = arg.get_dependency(0).get_output_layout().get_rank();
-        auto permute_order = convert_permute_order(arg.get_primitive()->permute_order, in_rank);
+        auto in_rank = impl_param.input_layouts[0].get_rank();
+        auto permute_order = convert_permute_order(prim->permute_order, in_rank);
         permute_params.order = permute_order;
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(permute_params, permute_optional_params);

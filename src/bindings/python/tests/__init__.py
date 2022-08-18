@@ -5,7 +5,7 @@
 import pytest
 
 # test.BACKEND_NAME is a configuration variable determining which
-# nGraph backend tests will use. It's set during pytest configuration time.
+# OV backend tests will use. It's set during pytest configuration time.
 # See `pytest_configure` hook in `conftest.py` for more details.
 BACKEND_NAME = None
 
@@ -28,36 +28,36 @@ xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
-xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_33488 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "MaxUnpool")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
+xfail_issue_33589 = xfail_test(reason="OV does not support the following ONNX operations: "
                                       "IsNaN and isInf")
-xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_33595 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "Unique")
-xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations: "
+xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
                                       "ConcatFromSequence, SequenceConstruct, SequenceAt, SplitToSequence, "
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
-xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_33606 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "Det")
-xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "TfIdfVectorizer")
-xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_33581 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "GatherElements")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
-xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
 xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: STRING")
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
-xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
@@ -66,9 +66,9 @@ xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "half_pixel")
 xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop): "
                                       "value info has no element type specified")
-xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_38734 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adam")
-xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_38735 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
@@ -82,7 +82,7 @@ xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")
 # Model MSFT issues:
-xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
+xfail_issue_37957 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND, "
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
@@ -126,10 +126,9 @@ xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes stre
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
 
-xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph cache")
+xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in OV cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 
-xfail_issue_86909 = xfail_test(reason="ssd_resnet34 - AssertionError: zoo models results mismatch")
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")

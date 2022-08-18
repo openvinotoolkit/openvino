@@ -88,7 +88,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
 
 if(ENABLE_TESTS)
     if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
-        find_package(PythonInterp 3 REQUIRED)
+        find_host_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
         execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version
@@ -113,9 +113,9 @@ if(ENABLE_TESTS)
         endif()
 
         set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
-        add_custom_target(test_pip_prerequsites ALL
+        add_custom_target(test_pip_prerequisites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
-                          COMMENT "Install requirements_test.txt"
+                          COMMENT "Install requirements_test_onnx.txt"
                           VERBATIM
                           SOURCES ${reqs})
     endif()
@@ -127,8 +127,8 @@ if(ENABLE_TESTS)
                                              ${ie_onnx_import_out_files}
                                              ${docs_onnx_out_files})
 
-    if(TARGET test_pip_prerequsites)
-        add_dependencies(test_model_zoo test_pip_prerequsites)
+    if(TARGET test_pip_prerequisites)
+        add_dependencies(test_model_zoo test_pip_prerequisites)
     endif()
 
     if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)

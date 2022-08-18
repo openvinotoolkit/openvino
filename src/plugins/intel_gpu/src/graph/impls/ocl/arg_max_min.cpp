@@ -14,6 +14,28 @@
 namespace cldnn {
 namespace ocl {
 
+static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t rank) {
+    if (axis < 0) {
+        axis += rank;
+    }
+    switch (axis) {
+        case 0: return kernel_selector::argm_axis::BATCH;
+        case 1: return kernel_selector::argm_axis::FEATURE;
+        case 2:
+            if (rank > 4)
+                return kernel_selector::argm_axis::Z;
+            else
+                return kernel_selector::argm_axis::Y;
+        case 3:
+            if (rank > 4)
+                return kernel_selector::argm_axis::Y;
+            else
+                return kernel_selector::argm_axis::X;
+        case 4: return kernel_selector::argm_axis::X;
+        default: IE_THROW() << "Invalid arg_max_min axis " << axis;
+    }
+}
+
 struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     using parent = typed_primitive_impl_ocl<arg_max_min>;
     using parent::parent;
@@ -34,57 +56,35 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg) {
+    static primitive_impl* create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
-
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
-        const auto& out_type = primitive->output_type;
+        const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
-        const auto& with_axis = primitive->with_axis;
         const auto& values_first = primitive->values_first;
         const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
 
-        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(arg);
+        auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
             get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
 
         argm_params.outputs_num = outputs_num;
         argm_params.topK = top_k;
-        if (with_axis) {
-            switch (axis) {
-                case arg_max_min::batch:
-                    argm_params.argMaxMinAxis = kernel_selector::argm_axis::BATCH;
-                    break;
-                case arg_max_min::feature:
-                    argm_params.argMaxMinAxis = kernel_selector::argm_axis::FEATURE;
-                    break;
-                case arg_max_min::x:
-                    argm_params.argMaxMinAxis = kernel_selector::argm_axis::X;
-                    break;
-                case arg_max_min::y:
-                    argm_params.argMaxMinAxis = kernel_selector::argm_axis::Y;
-                    break;
-                case arg_max_min::z:
-                    argm_params.argMaxMinAxis = kernel_selector::argm_axis::Z;
-                    break;
-                default:
-                    break;
-            }
-        }
+        argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, arg.get_output_layout().get_rank());
 
-        if (out_type == primitive->max)
+        if (mode == ov::op::TopKMode::MAX)
             argm_params.argMaxMinOut = kernel_selector::argm_output::MAX;
         else
             argm_params.argMaxMinOut = kernel_selector::argm_output::MIN;
 
-        if (sort_type == primitive->sort_by_values)
+        if (sort_type == ov::op::TopKSortType::SORT_VALUES)
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::VALUE;
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
         if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(arg.get_dependency(2).get_output_layout()));
+            argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         }
 
         argm_params.values_first = values_first;

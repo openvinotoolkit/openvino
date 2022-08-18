@@ -50,6 +50,17 @@ void regclass_graph_Output(py::module m, std::string typestring)
         return std::hash<VT*>()(self.get_node()) + self.get_index();
     });
 
+    output.def("__copy__", [](ov::Output<VT>& self) {
+        return ov::Output<VT>(self);
+    });
+
+    output.def("__deepcopy__", [typestring](ov::Output<VT>& self, py::dict& memo) {
+        auto error_message = py::detail::c_str(std::string("cannot deepcopy 'openvino.runtime.")
+                                                + typestring + std::string("Output' object."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
+    });
+
     output.def("get_node",
                &ov::Output<VT>::get_node_shared_ptr,
                R"(

@@ -30,7 +30,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config) :
@@ -118,10 +117,8 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
         }
     }
 
-    if (this->_plugin) {
-        const auto& core = _plugin->GetCore();
-        if (core && core->isNewAPI())
-            internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (this->_plugin && _plugin->IsNewAPI()) {
+        internalRequest = CreateInferRequestImpl(_parameters, _results);
     }
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
@@ -140,7 +137,7 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 }
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
-    const bool is_new_api = _plugin->GetCore()->isNewAPI();
+    const bool is_new_api = _plugin->IsNewAPI();
     auto it = m_config.key_config_map.find(name);
     if (it != m_config.key_config_map.end()) {
         std::string val = it->second;
@@ -167,6 +164,8 @@ InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) con
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
                 return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -204,6 +203,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
@@ -237,5 +237,4 @@ std::shared_ptr<InferenceEngine::RemoteContext> CompiledModel::GetContext() cons
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

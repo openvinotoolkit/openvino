@@ -26,20 +26,20 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     }
 
 public:
-    static primitive_impl* create(const ctc_greedy_decoder_node& arg) {
-        auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(arg);
-        auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
+    static primitive_impl* create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
         auto prim = arg.get_primitive();
 
-        ctc_gd_params.inputs.push_back(
-            convert_data_tensor(arg.seq_indicators().get_output_layout()));
+        auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
+        auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
+
+        ctc_gd_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         ctc_gd_params.merge_repeated = prim->ctc_merge_repeated;
         ctc_gd_params.blank_index = prim->blank_index;
         ctc_gd_params.outputs_num = arg.has_second_output() ? 2 : 1;
 
         if (ctc_gd_params.outputs_num == 2) {
-            ctc_gd_params.inputs.push_back(
-                convert_data_tensor(arg.second_output().get_output_layout()));
+            const auto& second_output_layout = impl_param.input_layouts[1];
+            ctc_gd_params.inputs.push_back(convert_data_tensor(second_output_layout));
         }
 
         auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
