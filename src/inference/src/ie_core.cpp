@@ -1267,7 +1267,7 @@ public:
                     }
                     it = desc.defaultConfig.find("FALLBACK_PRIORITY");
                     if (it != desc.defaultConfig.end()) {
-                        initial_config[it->first] = it->second;
+                        initial_config[ov::device::priorities.name()] = ov::proxy::restore_order(it->second);
                     }
                     plugin.set_config(initial_config);
                 }

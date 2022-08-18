@@ -34,12 +34,24 @@ std::vector<std::string> split(const std::string& str, const std::string& delim 
 }
 }  // namespace
 
+std::string ov::proxy::restore_order(const std::string& original_order) {
+    std::string result;
+    std::vector<std::string> devices = split(original_order);
+    for (const auto& dev : devices) {
+        if (!result.empty())
+            result += ",";
+        result += dev;
+    }
+    return result;
+}
+
 ov::proxy::Plugin::Plugin() {}
 ov::proxy::Plugin::~Plugin() {}
 
 size_t ov::proxy::Plugin::get_device_from_config(const std::map<std::string, std::string>& config) const {
-    if (config.find("DEVICE_ID") != config.end())
-        return string_to_size_t(config.at("DEVICE_ID"));
+    auto it = config.find(ov::device::id.name());
+    if (it != config.end())
+        return string_to_size_t(it->second);
     return 0;
 }
 
@@ -94,14 +106,14 @@ void ov::proxy::Plugin::SetConfig(const std::map<std::string, std::string>& conf
         }
     }
 
-    it = config.find("FALLBACK_PRIORITY");
+    it = config.find(ov::device::priorities.name());
     if (it != config.end()) {
         fallback_order = split(it->second);
     }
     for (const auto& it : config) {
         // Skip proxy properties
-        if (ov::device::id.name() == it.first || it.first == "FALLBACK_PRIORITY" || it.first == "DEVICES_PRIORITY" ||
-            it.first == "ALIAS_FOR")
+        if (ov::device::id.name() == it.first || it.first == ov::device::priorities.name() ||
+            it.first == "DEVICES_PRIORITY" || it.first == "ALIAS_FOR")
             continue;
         property[it.first] = it.second;
     }
@@ -153,6 +165,11 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetConfig(
         return device_id;
 
     size_t idx = string_to_size_t(device_id);
+
+    if (name == ov::device::priorities) {
+        return fallback_order;
+    }
+
     return GetCore()->GetConfig(get_primary_device(idx), name);
 }
 InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
@@ -175,6 +192,13 @@ InferenceEngine::Parameter ov::proxy::Plugin::GetMetric(
         for (const auto& property : dev_properties) {
             if (property_names.find(property) != property_names.end())
                 continue;
+            supportedProperties.emplace_back(property);
+        }
+
+        // Add proxy specific options
+        {
+            // Fallback order
+            ov::PropertyName property(ov::device::priorities.name(), ov::device::priorities.mutability);
             supportedProperties.emplace_back(property);
         }
 
@@ -247,7 +271,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         }
     } else {
         // First of all create a vector of primary devices with device order.
-        // after that use FALLBACK_PRIORITY for right fallback order
+        // after that use ov::device::priorities for right fallback order
         //
         std::unordered_map<std::string, size_t> dev_fallback_priority;
         for (size_t i = 0; i < fallback_order.size(); i++) {
