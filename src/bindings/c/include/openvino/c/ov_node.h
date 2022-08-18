@@ -41,7 +41,16 @@ typedef struct {
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e) ov_const_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape);
+
+/**
+ * @brief Get the shape of ov_output_node.
+ * @ingroup node
+ * @param nodes A pointer to ov_output_node_t.
+ * @param tensor_shape tensor shape.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_node_get_shape(ov_output_node_t* node, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the tensor name of ov_output_node list by index.
@@ -97,10 +106,17 @@ ov_node_list_get_element_type_by_index(const ov_output_node_list_t* nodes, size_
 OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t* output_nodes);
 
 /**
+ * @brief free ov_output_node_t
+ * @ingroup node
+ * @param output_node The pointer to the instance of the ov_output_node_t to free.
+ */
+OPENVINO_C_API(void) ov_output_node_free(ov_output_node_t* output_node);
+
+/**
  * @brief free ov_output_const_node_t
  * @ingroup node
  * @param output_node The pointer to the instance of the ov_output_const_node_t to free.
  */
-OPENVINO_C_API(void) ov_output_node_free(ov_output_const_node_t* output_node);
+OPENVINO_C_API(void) ov_output_const_node_free(ov_output_const_node_t* output_node);
 
 /** @} */  // end of Node

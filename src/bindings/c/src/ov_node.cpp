@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape) {
+ov_status_e ov_const_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_shape) {
     if (!node || !tensor_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -13,6 +13,21 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
     try {
         auto shape = node->object->get_shape();
         ov_shape_create(shape.size(), nullptr, tensor_shape);
+        std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_node_get_shape(ov_output_node_t* node, ov_shape_t* tensor_shape) {
+    if (!node || !tensor_shape) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        auto shape = node->object->get_shape();
+        ov_shape_init(tensor_shape, shape.size());
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -106,7 +121,12 @@ void ov_output_node_list_free(ov_output_node_list_t* output_nodes) {
     }
 }
 
-void ov_output_node_free(ov_output_const_node_t* output_node) {
+void ov_output_node_free(ov_output_node_t* output_node) {
+    if (output_node)
+        delete output_node;
+}
+
+void ov_output_const_node_free(ov_output_const_node_t* output_node) {
     if (output_node)
         delete output_node;
 }

@@ -41,7 +41,7 @@ TEST(ov_model, ov_model_inputs) {
     ov_core_free(core);
 }
 
-TEST(ov_model, ov_model_input_by_name) {
+TEST(ov_model, ov_model_const_input_by_name) {
     ov_core_t* core = nullptr;
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
@@ -51,6 +51,50 @@ TEST(ov_model, ov_model_input_by_name) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_t* input_node = nullptr;
+    OV_ASSERT_OK(ov_model_const_input_by_name(model, "data", &input_node));
+    ASSERT_NE(nullptr, input_node);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_node_get_shape(input_node, &shape));
+    ov_shape_deinit(&shape);
+
+    ov_output_const_node_free(input_node);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_model, ov_model_const_input_by_index) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_output_const_node_t* input_node = nullptr;
+    OV_ASSERT_OK(ov_model_const_input_by_index(model, 0, &input_node));
+    ASSERT_NE(nullptr, input_node);
+
+    ov_shape_t shape;
+    OV_ASSERT_OK(ov_const_node_get_shape(input_node, &shape));
+    ov_shape_deinit(&shape);
+
+    ov_output_const_node_free(input_node);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_model, ov_model_input_by_name) {
+    ov_core_t* core = nullptr;
+    OV_ASSERT_OK(ov_core_create(&core));
+    ASSERT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
+    ASSERT_NE(nullptr, model);
+
+    ov_output_node_t* input_node = nullptr;
     OV_ASSERT_OK(ov_model_input_by_name(model, "data", &input_node));
     ASSERT_NE(nullptr, input_node);
 
@@ -72,7 +116,7 @@ TEST(ov_model, ov_model_input_by_index) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_const_node_t* input_node = nullptr;
+    ov_output_node_t* input_node = nullptr;
     OV_ASSERT_OK(ov_model_input_by_index(model, 0, &input_node));
     ASSERT_NE(nullptr, input_node);
 
@@ -99,10 +143,10 @@ TEST(ov_model, ov_model_output_by_index) {
     ASSERT_NE(nullptr, output_node);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(output_node, &shape));
+    OV_ASSERT_OK(ov_const_node_get_shape(output_node, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_node_free(output_node);
+    ov_output_const_node_free(output_node);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -121,10 +165,10 @@ TEST(ov_model, ov_model_output_by_name) {
     ASSERT_NE(nullptr, output_node);
 
     ov_shape_t shape;
-    OV_ASSERT_OK(ov_node_get_shape(output_node, &shape));
+    OV_ASSERT_OK(ov_const_node_get_shape(output_node, &shape));
     ov_shape_deinit(&shape);
 
-    ov_output_node_free(output_node);
+    ov_output_const_node_free(output_node);
     ov_model_free(model);
     ov_core_free(core);
 }
