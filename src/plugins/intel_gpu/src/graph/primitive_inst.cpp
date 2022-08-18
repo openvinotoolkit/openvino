@@ -489,20 +489,23 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         usm_device_allocatable = false;
 
     bool memory_reuse_by_user = true;
-    for (auto user : _node.get_users()) {
-        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
-            memory_reuse_by_user = false;
-            continue;
-        } else if (user->get_selected_impl() == nullptr) {
-            for (auto sub_user : user->get_users()) {
-                if ((sub_user->get_selected_impl() != nullptr) && (sub_user->get_selected_impl()->can_reuse_memory == false)) {
-                    memory_reuse_by_user = false;
-                    continue;
+
+    std::function<bool(const program_node&)> user_requesting_mem_reuse_false = [&user_requesting_mem_reuse_false](const program_node& node) {
+        for (auto& user : node.get_users()) {
+            if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
+                return true;
+            } else if (user->get_selected_impl() == nullptr) {
+                if (user_requesting_mem_reuse_false(*user)) {
+                    return true;
                 }
             }
         }
-    }
+        return false;
+    };
 
+    if (user_requesting_mem_reuse_false(_node)) {
+        memory_reuse_by_user = false;
+    }
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
