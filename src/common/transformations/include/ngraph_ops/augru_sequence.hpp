@@ -6,21 +6,22 @@
 
 #include <memory>
 #include <string>
+#include <transformations_visibility.hpp>
 #include <vector>
 
-#include "openvino/op/op.hpp"
-#include "openvino/op/util/rnn_cell_base.hpp"
+#include "ngraph/op/op.hpp"
+#include "ngraph/op/util/rnn_cell_base.hpp"
 
-namespace ov {
+namespace ngraph {
 namespace op {
-namespace v0 {
+namespace internal {
 ///
 /// \brief AUGRUSequence operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class AUGRUSequence : public util::RNNCellBase {
+class TRANSFORMATIONS_API AUGRUSequence : public ov::op::util::RNNCellBase {
 public:
-    OPENVINO_OP("AUGRUSequence", "dev_api", op::Op);
+    OPENVINO_OP("AUGRUSequence", "ie_internal_opset", ov::op::util::RNNCellBase);
     BWDCMP_RTTI_DECLARATION;
 
     AUGRUSequence();
@@ -49,6 +50,6 @@ protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
 };
-}  // namespace v0
+}  // namespace internal
 }  // namespace op
-}  // namespace ov
+}  // namespace ngraph

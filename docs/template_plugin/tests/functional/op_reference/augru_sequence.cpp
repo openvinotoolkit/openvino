@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "augru_sequence.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -108,7 +108,7 @@ private:
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
 
         const auto augru_sequence =
-            std::make_shared<op::v0::AUGRUSequence>(X,
+            std::make_shared<ngraph::op::internal::AUGRUSequence>(X,
                                                   H_t,
                                                   sequence_lengths,
                                                   W,

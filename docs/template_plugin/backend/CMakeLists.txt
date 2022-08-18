@@ -31,7 +31,7 @@ target_compile_definitions(interpreter_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util ov_core_dev_api)
+target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util inference_engine_transformations)
 
 target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 

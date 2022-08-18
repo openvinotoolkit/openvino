@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "augru_cell.hpp"
+#include "ngraph_ops/augru_cell.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -76,7 +76,7 @@ private:
         const auto B = std::make_shared<op::v0::Parameter>(params.B.type, params.B.shape);
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type, params.A.shape);
 
-        const auto augru_cell = std::make_shared<op::v0::AUGRUCell>(X,
+        const auto augru_cell = std::make_shared<ngraph::op::internal::AUGRUCell>(X,
                                                                 H_t,
                                                                 W,
                                                                 R,

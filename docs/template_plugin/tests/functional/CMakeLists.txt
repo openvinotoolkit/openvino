@@ -12,6 +12,7 @@ ov_add_test_target(
             openvino_template_plugin
         LINK_LIBRARIES
             openvino::funcSharedTests
+            inference_engine_transformations
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
@@ -29,7 +30,7 @@ find_package(OpenCV QUIET COMPONENTS core imgproc)
 if(OpenCV_FOUND)
     message("-- Reference preprocessing: OpenCV tests are enabled")
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
-    target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core ov_core_dev_api)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
 else()
     message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()

@@ -9,6 +9,8 @@
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph_ops/augru_cell.hpp>
+#include <ngraph_ops/augru_sequence.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
@@ -105,6 +107,8 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
         NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
+        NGRAPH_OP(AUGRUCell, ngraph::op::internal)
+        NGRAPH_OP(AUGRUSequence, ngraph::op::internal)
         NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
 #undef NGRAPH_OP
 
