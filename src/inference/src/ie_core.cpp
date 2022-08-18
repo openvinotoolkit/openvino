@@ -581,9 +581,9 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             it = config.find("FALLBACK");
             if (it != config.end()) {
                 if (defaultConfig.find("FALLBACK") == defaultConfig.end()) {
-                    defaultConfig["FALLBACK_PRIORITY"] = dev_name + "," + it->second;
+                    defaultConfig["FALLBACK_PRIORITY"] = dev_name + "->" + it->second;
                 } else {
-                    // TODO: implement insert
+                    defaultConfig["FALLBACK_PRIORITY"] += "," + dev_name + "->" + it->second;
                 }
             }
         };

@@ -92,14 +92,15 @@ TEST_F(ProxyTests, load_on_unsupported_plugin) {
     EXPECT_THROW(core.compile_model(model, "MOCK.0"), ov::Exception);
 }
 
-TEST_F(ProxyTests, load_on_supported_plugin_with_changed_priority) {
-    ov::AnyMap config;
-    config["DEVICES_PRIORITY"] = "BDE:0,ABC:1";
-    // Change device priority
-    core.set_property("MOCK", config);
-    auto model = create_model_with_subtract();
-    EXPECT_NO_THROW(core.compile_model(model, "MOCK.0"));
-}
+// TODO: Invalid case we don't provide an option DEVICES_PRIORITY
+// TEST_F(ProxyTests, load_on_supported_plugin_with_changed_priority) {
+//     ov::AnyMap config;
+//     config["DEVICES_PRIORITY"] = "BDE:0,ABC:1";
+//     // Change device priority
+//     core.set_property("MOCK", config);
+//     auto model = create_model_with_subtract();
+//     EXPECT_NO_THROW(core.compile_model(model, "MOCK.0"));
+// }
 
 #ifdef HETERO_ENABLED
 TEST_F(ProxyTests, load_on_support_with_hetero_plugin) {

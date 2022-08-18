@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <mutex>
+
+#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace ov {
 namespace proxy {
@@ -39,10 +41,13 @@ private:
     std::string get_fallback_device(size_t idx) const;
     std::vector<std::string> get_primary_devices() const;
     std::string get_primary_device(size_t idx) const;
-    size_t get_device_from_config(const std::map<std::string, std::string>& config) const;
 
-    std::vector<std::string> fallback_order, device_order;
+    std::string get_property(const std::string& property_name, const std::string& conf_name = "") const;
+
+    std::vector<std::string> device_order;
     std::unordered_set<std::string> alias_for;
+    std::unordered_map<std::string, std::map<std::string, std::string>> configs;
+    mutable std::mutex plugin_mutex;
 };
 
 }  // namespace proxy
