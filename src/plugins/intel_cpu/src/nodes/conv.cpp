@@ -954,8 +954,8 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     // Per channel zero point can only use attr[0];
     if (zpPerChannel)
         return;
-    // Only use 2 attributes on AMX with binary post-ops/per-tensor zp.
-    if (shouldTryBrgconv && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    // Try 2 attributes. Consider the shouldTRyBrgconv can be set via RTinfo to enforce brgconv.
+    if (shouldTryBrgconv) {
         attrs.resize(2);
         if (!zpPerTensor) {
             // attr[1] - Binary post ops && without zero point
@@ -1623,7 +1623,7 @@ void Convolution::initTryBrgconvFlag() {
             shouldTryBrgconv = true;
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             // should remove after binary postops performance issue resolved
-            // heuristics: if it's int8 model and it has binary post ops we will not use brgconv
+            // heuristics: if it's  avx512 ISA int8 model && it doesn't have legacy depthwise/quantization post ops or zero point.
             if (canBeExecutedInInt8()) {
                 shouldTryBrgconv = true;
                 dnnl::primitive_attr attr;
