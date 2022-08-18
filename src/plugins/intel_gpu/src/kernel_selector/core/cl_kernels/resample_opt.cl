@@ -24,6 +24,7 @@
 #define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
 
 
+#if !defined(SAMPLE_TYPE_LINEAR_ONNX)
 inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 {
 #if INPUT0_DIMS < 5
@@ -41,6 +42,7 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
 #error [clDNN resample_ref.cl]: output format - not supported
 #endif
 }
+#endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
@@ -235,7 +237,12 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
+#if OUTPUT_DIMS == 5
+    const int z = get_group_id(1) % OUTPUT_SIZE_Z;
+    const int f_block = get_group_id(1) / OUTPUT_SIZE_Z;
+#else
     const int f_block = get_group_id(1);
+#endif
     const int b = get_global_id(2);
     const int feature_num = f_block * FEATURE_SLICE_SIZE + get_sub_group_local_id();
     const uint feature_block = f_block * FEATURE_SLICE_SIZE;
@@ -302,10 +309,19 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
         bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 #endif // PADDING_USED == 1
+
+#if OUTPUT_DIMS == 5
+        const acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x1)));
+        const acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x2)));
+        const acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x1)));
+        const acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x2)));
+#else
         const acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
         const acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
         const acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
         const acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
+#endif
+
 #if PADDING_USED == 1
         if (tlOutOfBounds)
             top_left = INPUT0_VAL_ZERO;
@@ -328,7 +344,11 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 
+#if OUTPUT_DIMS == 5
+        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+#else
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
+#endif
     }
 }
 #endif // !SAMPLE_TYPE_CAFFE_INTERP
