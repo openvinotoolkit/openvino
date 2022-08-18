@@ -51,7 +51,7 @@ typedef struct ov_partial_shape {
  *  Static rank, and static dimensions on all axes.
  *     Examples: `{1,2,3,4}` or `{6}` or `{}`
  *
- * @param ov_status_e a status code.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_partial_shape_init(ov_partial_shape_t* partial_shape_obj, int64_t rank, ov_dimension_t* dims);
@@ -68,7 +68,7 @@ ov_partial_shape_init(ov_partial_shape_t* partial_shape_obj, int64_t rank, ov_di
  *  Static rank, and static dimensions on all axes.
  *     Examples: `{1,2,3,4}` or `{6}` or `{}"`
  *
- * @param ov_status_e a status code.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_partial_shape_init_dynamic_rank(ov_partial_shape_t* partial_shape_obj, ov_rank_t rank, ov_dimension_t* dims);
@@ -81,7 +81,7 @@ ov_partial_shape_init_dynamic_rank(ov_partial_shape_t* partial_shape_obj, ov_ran
  *  Static rank, and static dimensions on all axes.
  *     Examples: `{1,2,3,4}` or `{6}` or `{}`
  *
- * @param ov_status_e a status code.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_partial_shape_init_static(ov_partial_shape_t* partial_shape_obj, int64_t rank, int64_t* dims);
@@ -89,28 +89,42 @@ ov_partial_shape_init_static(ov_partial_shape_t* partial_shape_obj, int64_t rank
 /**
  * @brief Release internal memory allocated in partial shape.
  * @ingroup partial_shape
- * @param partial_shape will be released.
+ * @param partial_shape The object's internal memory will be released.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(void) ov_partial_shape_deinit(ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Convert partial shape without dynamic data to a static shape.
  * @ingroup partial_shape
- * @param ov_status_e a status code, return OK if successful.
+ * @param partial_shape The partial_shape pointer.
+ * @param shape The shape pointer.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shape_t* shape);
 
 /**
  * @brief Convert shape to partial shape.
  * @ingroup partial_shape
- * @param ov_status_e a status code, return OK if successful.
+ * @param shape The shape pointer.
+ * @param partial_shape The partial_shape pointer.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t* partial_shape);
 
 /**
+ * @brief Check this partial_shape whether is dynamic
+ * @ingroup partial_shape
+ * @param partial_shape The partial_shape pointer.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape);
+
+/**
  * @brief Helper function, convert a partial shape to readable string.
  * @ingroup partial_shape
- * @param ov_status_e a status code, return OK if successful.
+ * @param partial_shape The partial_shape pointer.
+ * @return A string reprensts partial_shape's content.
  */
 OPENVINO_C_API(const char*) ov_partial_shape_to_string(const ov_partial_shape_t* partial_shape);
 

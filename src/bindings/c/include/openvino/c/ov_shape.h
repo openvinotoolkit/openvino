@@ -22,25 +22,19 @@ typedef struct {
 } ov_shape_t;
 
 /**
- * @brief Initialize a fully shape object, allocate space for its dimensions and set its content.
+ * @brief Initialize a fully shape object, allocate space for its dimensions and set its content id dims is not null.
  * @ingroup shape
+ * @param shape The input shape object pointer.
  * @param rank The rank value for this object, it should be more than 0(>0)
  * @param dims The dimensions data for this shape object, it's size should be equal to rank.
- * @param ov_status_e a status code.
+ * @return ov_status_e The return status code.
  */
 OPENVINO_C_API(ov_status_e) ov_shape_init(ov_shape_t* shape, int64_t rank, int64_t* dims);
 
 /**
- * @brief Initialize a shape object, only allocate space for its dimensions.
- * @ingroup shape
- * @param rank The rank value for this object, it should be more than 0(>0).
- * @param ov_status_e a status code.
- */
-OPENVINO_C_API(ov_status_e) ov_shape_init_dimension(ov_shape_t* shape, int64_t rank);
-
-/**
  * @brief Free a shape object's internal memory.
  * @ingroup shape
- * @param ov_status_e a status code.
+ * @param shape The input shape object pointer.
+ * @return ov_status_e The return status code.
  */
 OPENVINO_C_API(ov_status_e) ov_shape_deinit(ov_shape_t* shape);

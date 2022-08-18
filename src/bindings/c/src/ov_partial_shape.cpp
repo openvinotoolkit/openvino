@@ -91,7 +91,7 @@ ov_status_e ov_partial_shape_to_shape(ov_partial_shape_t* partial_shape, ov_shap
             return ov_status_e::PARAMETER_MISMATCH;
         }
         auto rank = partial_shape->rank.max;
-        ov_shape_init_dimension(shape, rank);
+        ov_shape_init(shape, rank, nullptr);
 
         for (auto i = 0; i < rank; ++i) {
             auto& ov_dim = partial_shape->dims[i];
@@ -122,6 +122,25 @@ ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t* par
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+bool ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape) {
+    if (!partial_shape) {
+        PRINT_ERROR("null partial_shape");
+        return true;
+    }
+
+    if (ov_rank_is_dynamic(&partial_shape->rank)) {
+        return true;
+    }
+    auto rank = partial_shape->rank.max;
+    for (auto i = 0; i < rank; i++) {
+        auto dim = &partial_shape->dims[i];
+        if (ov_dimension_is_dynamic(dim)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const char* ov_partial_shape_to_string(const ov_partial_shape_t* partial_shape) {

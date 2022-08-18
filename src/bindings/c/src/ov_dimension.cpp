@@ -23,6 +23,10 @@ ov_status_e ov_dimension_init(ov_dimension_t* dim, int64_t dimension_value) {
 }
 
 bool ov_dimension_is_dynamic(const ov_dimension_t* dim) {
+    if (!dim) {
+        PRINT_ERROR("null dimension");
+        return true;
+    }
     if (dim->min == dim->max && dim->max > 0)
         return false;
     return true;

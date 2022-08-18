@@ -93,6 +93,7 @@ ov_node_list_get_element_type_by_index(const ov_output_node_list_t* nodes, size_
  * @brief free ov_output_node_list_t
  * @ingroup node
  * @param output_nodes The pointer to the instance of the ov_output_node_list_t to free.
+ * @return none
  */
 OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t* output_nodes);
 
@@ -100,6 +101,7 @@ OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t* output_node
  * @brief free ov_output_const_node_t
  * @ingroup node
  * @param output_node The pointer to the instance of the ov_output_const_node_t to free.
+ * @return none
  */
 OPENVINO_C_API(void) ov_output_node_free(ov_output_const_node_t* output_node);
 

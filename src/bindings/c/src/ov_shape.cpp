@@ -15,30 +15,17 @@ bool check_shape_dimension(const int64_t* dims, int64_t size) {
 }
 
 ov_status_e ov_shape_init(ov_shape_t* shape, int64_t rank, int64_t* dims) {
-    if (!shape || rank <= 0 || !dims || !check_shape_dimension(dims, rank)) {
+    if (!shape || rank <= 0 || (dims && !check_shape_dimension(dims, rank))) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         std::unique_ptr<int64_t> _dims(new int64_t[rank]);
         shape->dims = _dims.release();
-        std::memcpy(shape->dims, dims, rank * sizeof(int64_t));
+        if (dims) {
+            std::memcpy(shape->dims, dims, rank * sizeof(int64_t));
+        }
         shape->rank = rank;
-    }
-    CATCH_OV_EXCEPTIONS
-
-    return ov_status_e::OK;
-}
-
-ov_status_e ov_shape_init_dimension(ov_shape_t* shape, int64_t rank) {
-    if (!shape || rank <= 0) {
-        return ov_status_e::INVALID_C_PARAM;
-    }
-
-    try {
-        std::unique_ptr<int64_t> _dims(new int64_t[rank]);
-        shape->rank = rank;
-        shape->dims = _dims.release();
     }
     CATCH_OV_EXCEPTIONS
 

@@ -106,6 +106,7 @@ ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, size
  * @brief Infers specified input(s) in synchronous mode.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_request);
 
@@ -113,6 +114,7 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_req
  * @brief Cancels inference request.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_cancel(ov_infer_request_t* infer_request);
 
@@ -120,6 +122,7 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_cancel(ov_infer_request_t* infer_re
  * @brief Starts inference of specified input(s) in asynchronous mode.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_start_async(ov_infer_request_t* infer_request);
 
@@ -127,6 +130,7 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_start_async(ov_infer_request_t* inf
  * @brief Waits for the result to become available. Blocks until the result
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_infer_request_wait(ov_infer_request_t* infer_request);
 
@@ -144,6 +148,7 @@ ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callba
  * @brief Release the memory allocated by ov_infer_request_t.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t to free memory.
+ * @return none
  */
 OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t* infer_request);
 
@@ -161,6 +166,7 @@ ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request, ov_profil
  * @brief Release the memory allocated by ov_profiling_info_list_t.
  * @ingroup infer_request
  * @param profiling_infos A pointer to the ov_profiling_info_list_t to free memory.
+ * @return none
  */
 OPENVINO_C_API(void) ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos);
 

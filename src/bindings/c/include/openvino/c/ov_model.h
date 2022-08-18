@@ -28,6 +28,7 @@ typedef struct ov_model ov_model_t;
  * @brief Release the memory allocated by ov_model_t.
  * @ingroup model
  * @param model A pointer to the ov_model_t to free memory.
+ * @return none
  */
 OPENVINO_C_API(void) ov_model_free(ov_model_t* model);
 
@@ -74,6 +75,7 @@ ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_c
 /**
  * @brief Returns true if any of the ops defined in the model is dynamic shape.
  * @param model A pointer to the ov_model_t.
+ * @return Boolean value
  */
 OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
 
@@ -84,6 +86,7 @@ OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
  * @param tensor_names input tensor name (char *) list.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape(const ov_model_t* model,
@@ -97,6 +100,7 @@ ov_model_reshape(const ov_model_t* model,
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
  * @param partialShape A PartialShape.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_input_by_name(const ov_model_t* model,
@@ -108,6 +112,7 @@ ov_model_reshape_input_by_name(const ov_model_t* model,
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param partialShape A PartialShape.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t* partial_shape);
@@ -119,6 +124,7 @@ ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t*
  * @param ports The port list.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_ports(const ov_model_t* model,
@@ -133,6 +139,7 @@ ov_model_reshape_by_ports(const ov_model_t* model,
  * @param output_nodes The ov_output_node_t list.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_nodes(const ov_model_t* model,
@@ -145,6 +152,7 @@ ov_model_reshape_by_nodes(const ov_model_t* model,
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param friendly_name the model's friendly name.
+* @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_model_get_friendly_name(const ov_model_t* model, char** friendly_name);
 

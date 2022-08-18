@@ -37,6 +37,8 @@
         return ov_status_e::UNEXPECTED;                       \
     }
 
+#define PRINT_ERROR(str) std::cout << "Error: " << str << std::endl
+
 /**
  * @struct ov_core
  * @brief This struct represents OpenVINO Core entity.

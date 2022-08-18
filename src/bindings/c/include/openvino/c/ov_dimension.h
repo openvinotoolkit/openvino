@@ -32,19 +32,21 @@ typedef struct ov_dimension {
 /**
  * @brief Init a static dimension object
  * @ingroup dimension
+ * @param dimension The input pointer of dimension.
  * @param dimension_value The dimension value for this object
- * @param ov_status_e a status code.
+ * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e) ov_dimension_init(ov_dimension_t* dimension, int64_t dimension_value);
 
 /**
  * @brief Init a dynamic dimension object
  * @ingroup dimension
+ * @param dimension The input pointer of dimension.
  * @param min_dimension The lower inclusive limit for the dimension, for static object you should set same value(>=0)
  * with max_dimension
  * @param max_dimension The upper inclusive limit for the dimension, for static object you should set same value(>=0)
  * with min_dimension
- * @param ov_status_e a status code.
+ * @return Status code of the operation: OK(0) for success
  */
 OPENVINO_C_API(ov_status_e)
 ov_dimension_init_dynamic(ov_dimension_t* dimension, int64_t min_dimension, int64_t max_dimension);
@@ -52,7 +54,8 @@ ov_dimension_init_dynamic(ov_dimension_t* dimension, int64_t min_dimension, int6
 /**
  * @brief Check this dimension whether is dynamic
  * @ingroup dimension
- * @param ov_status_e a status code.
+ * @param dim The dimension pointer that will be checked.
+ * @return Boolean, true is dynamic and false is static.
  */
 OPENVINO_C_API(bool) ov_dimension_is_dynamic(const ov_dimension_t* dim);
 

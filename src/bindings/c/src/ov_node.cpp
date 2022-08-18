@@ -12,7 +12,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
     try {
         auto shape = node->object->get_shape();
-        ov_shape_init_dimension(tensor_shape, shape.size());
+        ov_shape_init(tensor_shape, shape.size(), nullptr);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -27,7 +27,7 @@ ov_status_e ov_node_list_get_shape_by_index(const ov_output_node_list_t* nodes, 
 
     try {
         auto shape = nodes->output_nodes[idx].object->get_shape();
-        ov_shape_init_dimension(tensor_shape, shape.size());
+        ov_shape_init(tensor_shape, shape.size(), nullptr);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
