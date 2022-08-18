@@ -38,12 +38,11 @@ size_t store_emitter_params::hash() const {
     return seed;
 }
 
-static int get_aux_regs_for_avx512_mask(const size_t byte_size, const bool is_fill = false) {
-    if (mayiuse(cpu::x64::avx512_core)) {
-        if (!one_of(byte_size, 64, 32, 16) || is_fill) {
-            return 1;
-        }
-    }
+static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = false) {
+    if (!one_of(byte_size, 64, 32, 16))
+        return 1;
+    if (mayiuse(cpu::x64::avx512_core) && is_fill)
+        return 1;
     return 0;
 }
 
@@ -62,7 +61,7 @@ size_t jit_load_emitter::get_inputs_num() const { return 1; }
 
 size_t jit_load_emitter::aux_gprs_count() const {
     // 0 for temp reg for mask load in avx512 if needed
-    int count = get_aux_regs_for_avx512_mask(load_num_ * dst_prc_.size(), is_fill_);
+    int count = get_aux_regs_as_temp(load_num_ * dst_prc_.size(), is_fill_);
 
     // 1 for table address
     if (is_fill_)
@@ -572,8 +571,8 @@ inline bool jit_store_emitter::is_truncation_emulation() const {
 }
 
 size_t jit_store_emitter::aux_gprs_count() const {
-    // for temp reg for mask store
-    int count = get_aux_regs_for_avx512_mask(store_num_ * src_prc_.size());
+    // for temp reg for store(mask version or special number cases)
+    int count = get_aux_regs_as_temp(store_num_ * src_prc_.size());
 
     // for table value in truncation arithmetic mode
     if (is_truncation_emulation())
@@ -760,7 +759,11 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
         // tail 7 bytes for lower or upper xmm
         switch (bytes_to_store) {
             case 0: break;
-            case 1: h->uni_vpextrb(addr(start_bytes), xmm, 0); break;
+            case 1:
+                h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+                h->mov(addr(start_bytes), Reg8(aux_gpr_idxs[0]));
+                break;
+                // h->uni_vpextrb(addr(start_bytes), xmm, 0); break;
             case 2: h->uni_vpextrw(addr(start_bytes), xmm, 0); break;
             case 3:
                 h->uni_vpextrw(addr(start_bytes), xmm, 0);
@@ -819,9 +822,9 @@ void jit_store_emitter::store_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int
             h->uni_vmovdqu(addr(0), xmm);
             break;
         default:
-                // heuristic threshold number between mask store and emulation with several simple partial store
-                const int threshold = 14;
-                if (mayiuse(cpu::x64::avx512_core) && store_size > threshold) {
+            // heuristic threshold number between mask store and emulation with several simple partial store
+            const int threshold = 14;
+            if (mayiuse(cpu::x64::avx512_core) && store_size > threshold) {
                 uint64_t mask = 1;
                 mask = (mask << store_size) - mask;
                 h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -886,7 +889,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Vmm &vmm, const Xbya
         } else {
             h->vpand(vmm, vmm, table_val("mask_truncation_byte"));  // to avoid saturation
             h->uni_vpackssdw(vmm, vmm, vmm);
-            if (is_ymm && (store_num > 4))
+            if (is_ymm)
                 h->vpermq(ymm, ymm, 0x08);
             h->uni_vpackuswb(vmm, vmm, vmm);
         }
