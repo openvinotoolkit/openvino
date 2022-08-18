@@ -17,7 +17,7 @@ namespace ngraph {
 namespace op {
 namespace internal {
 ///
-/// \brief AUGRUSequence operation.
+/// \brief AUGRUCell operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class TRANSFORMATIONS_API AUGRUCell : public ov::op::util::RNNCellBase {

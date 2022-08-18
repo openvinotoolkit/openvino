@@ -14,6 +14,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API ConvertRNNSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertGRUSequenceToTensorIterator;
+class TRANSFORMATIONS_API ConvertAUGRUSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
@@ -42,6 +43,12 @@ class ngraph::pass::ConvertGRUSequenceToTensorIterator : public ngraph::pass::Ma
 public:
     OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
     ConvertGRUSequenceToTensorIterator();
+};
+
+class ngraph::pass::ConvertAUGRUSequenceToTensorIterator : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
+    ConvertAUGRUSequenceToTensorIterator();
 };
 
 /**

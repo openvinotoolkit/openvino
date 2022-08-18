@@ -159,7 +159,8 @@ std::vector<AUGRUCellParams> generateParams() {
                 0.6549655f + 0.6699164f}),
             reference_tests::Tensor(ET, {2, 1}, std::vector<T>{0.4f, 0.7f}),
             reference_tests::Tensor(ET, {2, 3}, std::vector<T>{
-                0.686381f, 0.997266f, 0.897868f, 0.832165f, 0.963144f, 0.868483f})),
+                0.686381f, 0.997266f, 0.897868f, 0.832165f, 0.963144f, 0.868483f}),
+                "augru_attentional_gate_provided"),
 AUGRUCellParams(
             2, 3, 4, 3,
             reference_tests::Tensor(ET, {1, 3}, std::vector<T>{
@@ -188,7 +189,8 @@ AUGRUCellParams(
                 0.97930211f,   0.75002178f,   0.92500923f,   0.18957983f,   0.07849785f,   0.76568159f}),
             reference_tests::Tensor(ET, {1, 1}, std::vector<T>{0.3333f}),
             reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
-                0.666063f, 0.451451f, 0.792762f, 0.453281f})),
+                0.666063f, 0.451451f, 0.792762f, 0.453281f}),
+                "augru_different_input_and_hidden_size"),
      };
     return params;
 }
