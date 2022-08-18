@@ -17,9 +17,9 @@ endif()
 set(PYTHON_SOURCE_DIR ${OpenVINOPython_SOURCE_DIR}/src)
 
 # TODO: Remove this condition as 76672 will be fixed
-if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
-    set(DISABLE_PYBIND11 ON CACHE BOOL "Whether pybind11 can be used in python bindings")
-endif()
+# if(CMAKE_CROSSCOMPILING AND DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
+#     set(DISABLE_PYBIND11 ON CACHE BOOL "Whether pybind11 can be used in python bindings")
+# endif()
 
 #
 # Options
