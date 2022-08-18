@@ -34,18 +34,18 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
 
 ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
                                                              const std::string& tf_padding) {
-    std::vector<std::string> supported_ops = {"Conv2D",
-                                              "Conv2DBackpropInput",
-                                              "Conv3D",
-                                              "Conv3DBackpropInputV2",
-                                              "MaxPool",
-                                              "MaxPoolV2",
-                                              "MaxPool3D",
-                                              "ExtractImagePatches"};
+    std::set<std::string> supported_ops = {"Conv2D",
+                                           "Conv2DBackpropInput",
+                                           "Conv3D",
+                                           "Conv3DBackpropInputV2",
+                                           "MaxPool",
+                                           "MaxPoolV2",
+                                           "MaxPool3D",
+                                           "ExtractImagePatches"};
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
-                             std::find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                             supported_ops.count(op_type),
                              "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,

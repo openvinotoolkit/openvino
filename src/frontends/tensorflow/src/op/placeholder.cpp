@@ -30,7 +30,6 @@ OutputVector translate_placeholder_with_default_op(const NodeContext& node) {
                              "PlaceholderWithDefault must have at least one input that is the default value.");
     auto input = node.get_input(0);
     set_out_name(node.get_name(), input);
-    set_out_name(node.get_name() + ":" + "0", input);
     return {input};
 }
 
