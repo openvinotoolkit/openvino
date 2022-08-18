@@ -51,6 +51,8 @@ macro(ov_cpack_settings)
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
+           # the same for pugixml
+           NOT item STREQUAL "pugixml" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # not appropriate components
@@ -89,6 +91,8 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
     # we need triggers to run ldconfig for openvino
     set(CPACK_DEBIAN_CORE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+    # use lintian to check packages in post-build step
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian_post_build.cmake")
 
     # We currently don't have versioning for openvino core library
     ov_debian_add_lintian_suppression(core
@@ -147,8 +151,12 @@ macro(ov_cpack_settings)
     endif()
 
     # intel-cpu
-    if(ENABLE_INTEL_CPU)
-        set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
+    if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
+        if(ENABLE_INTEL_CPU)
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
+        else()
+            set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
+        endif()
         set(CPACK_COMPONENT_CPU_DEPENDS "core")
         set(CPACK_DEBIAN_CPU_PACKAGE_NAME "libopenvino-intel-cpu-${cpack_name_ver}")
         set(CPACK_DEBIAN_CPU_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
@@ -203,14 +211,14 @@ macro(ov_cpack_settings)
     #
 
     if(ENABLE_PYTHON)
-        set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DESCRIPTION "OpenVINO Python bindings")
+        set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DESCRIPTION "OpenVINO Python bindings")
         if(installed_plugins)
-            set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "${installed_plugins}")
+            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DEPENDS "${installed_plugins}")
         else()
-            set(CPACK_COMPONENT_PYTHON_PYTHON3.8_DEPENDS "core")
+            set(CPACK_COMPONENT_PYOPENVINO_PYTHON3.8_DEPENDS "core")
         endif()
-        set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
-        set(CPACK_DEBIAN_PYTHON_PYTHON3.8_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        set(CPACK_DEBIAN_PYOPENVINO_PYTHON3.8_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
+        set(CPACK_DEBIAN_PYOPENVINO_PYTHON3.8_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
     endif()
 
     #
@@ -257,7 +265,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
-    # ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
+    ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package
         "empty-binary-package")
@@ -266,19 +274,12 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
+    ov_debian_generate_conflicts(openvino ${conflicting_versions})
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
         "empty-binary-package")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
-
-    #
-    # install debian common files
-    #
-
-    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
-        ov_debian_add_changelog_and_copyright("${comp}")
-    endforeach()
 
     #
     # Install latest symlink packages
@@ -295,4 +296,12 @@ macro(ov_cpack_settings)
     # users can manually install specific version of package
     # e.g. sudo apt-get install openvino=2022.1.0
     # even if we have latest package version 2022.2.0
+
+    #
+    # install debian common files
+    #
+
+    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
+        ov_debian_add_changelog_and_copyright("${comp}")
+    endforeach()
 endmacro()
