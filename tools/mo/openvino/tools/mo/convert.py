@@ -15,6 +15,6 @@ def convert(**args):
     Run convert() to list available parameters.
 
     Returns:
-        openvino.pyopenvino.Model
+        openvino.runtime.Model
     """
     return _convert(**args)
