@@ -72,13 +72,13 @@ add_custom_command(TARGET ${TARGET_NAME}
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT}
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}

@@ -9,7 +9,7 @@
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_package)
-    find_package(PythonInterp 3 QUIET)
+    find_host_package(PythonInterp 3 QUIET)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
@@ -65,7 +65,7 @@ endfunction()
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_packages)
-    find_package(PythonInterp 3 QUIET)
+    find_host_package(PythonInterp 3 QUIET)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }

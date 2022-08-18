@@ -11,7 +11,7 @@ set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3
 
-find_package(PythonInterp 3 QUIET)
+find_host_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
     message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
     set(ENABLE_NCC_STYLE OFF)

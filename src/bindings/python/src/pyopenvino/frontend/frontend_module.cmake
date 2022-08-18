@@ -39,6 +39,6 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
                                               ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py)
 
     install(TARGETS ${TARGET_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}/openvino/frontend/${FRAMEWORK}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino/frontend/${FRAMEWORK}
             COMPONENT ${INSTALL_COMPONENT})
 endfunction()
