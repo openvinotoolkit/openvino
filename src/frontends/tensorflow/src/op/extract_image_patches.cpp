@@ -36,9 +36,9 @@ OutputVector translate_extract_image_patches_op(const NodeContext& node) {
 
     // layout for this operation is always NHWC
     bool is_nhwc = true;
-    convert_nhwc_to_hw(true, tf_ksizes, sizes);
-    convert_nhwc_to_hw(true, tf_strides, strides);
-    convert_nhwc_to_hw(true, tf_rates, rates);
+    convert_nhwc_to_hw(is_nhwc, tf_ksizes, sizes);
+    convert_nhwc_to_hw(is_nhwc, tf_strides, strides);
+    convert_nhwc_to_hw(is_nhwc, tf_rates, rates);
 
     // prepare input to ExtractImagePatches
     convert_nhwc_to_nchw(is_nhwc, images);
