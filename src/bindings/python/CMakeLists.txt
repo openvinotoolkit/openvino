@@ -135,17 +135,9 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
-if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYBIND11)
-    set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+if(ENABLE_TESTS AND NOT DISABLE_PYBIND11)
     add_subdirectory(tests/mock/mock_py_frontend)
-    add_dependencies(pyopenvino openvino_mock_py_frontend)
-    set_target_properties(openvino_mock_py_frontend PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
-    add_dependencies(pyopenvino pybind_mock_frontend)
 endif()
 
 if(InferenceEngineDeveloperPackage_FOUND)
