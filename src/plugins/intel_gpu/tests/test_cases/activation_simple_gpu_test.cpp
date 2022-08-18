@@ -1506,6 +1506,11 @@ using activation_random_test_params = std::tuple<data_types,
                                                  activation_additional_params,  // additional_params
                                                  padding>;
 
+
+template <typename T> static bool compare_output(const T& x, const T& y){return x==y;}
+template <> bool compare_output<FLOAT16>(const FLOAT16& x, const FLOAT16& y){return std::abs(double(x-y))<1e-4;}
+template <> bool compare_output<float>(const float& x, const float& y){return std::abs(double(x-y))<1e-5;}
+
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
     bool enable_profiling = false;
@@ -1584,7 +1589,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        EXPECT_EQ(ref_out_val, opt_out_val);
+                        EXPECT_TRUE(compare_output(ref_out_val, opt_out_val));
                     }
                 }
             }
