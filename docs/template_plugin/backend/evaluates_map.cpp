@@ -3589,7 +3589,7 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
-    const auto attrs = op->get_attrs();
+    const auto& attrs = op->get_attrs();
 
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
@@ -3600,12 +3600,12 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
 
-    const auto output_type = op->get_input_element_type(0);
+    const auto& output_type = op->get_input_element_type(0);
 
-    const auto im_info_shape = inputs[0]->get_shape();
-    const auto anchors_shape = inputs[1]->get_shape();
-    const auto deltas_shape = inputs[2]->get_shape();
-    const auto scores_shape = inputs[3]->get_shape();
+    const auto& im_info_shape = inputs[0]->get_shape();
+    const auto& anchors_shape = inputs[1]->get_shape();
+    const auto& deltas_shape = inputs[2]->get_shape();
+    const auto& scores_shape = inputs[3]->get_shape();
 
     const auto im_info_data = get_floats(inputs[0], im_info_shape);
     const auto anchors_data = get_floats(inputs[1], anchors_shape);
@@ -3639,7 +3639,7 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
     outputs[1]->set_element_type(output_type);
     outputs[1]->set_shape(output_scores_shape);
 
-    const auto roi_num_type = op->get_output_element_type(2);
+    const auto& roi_num_type = op->get_output_element_type(2);
     Shape output_roi_num_shape = Shape{im_info_shape[0]};
     outputs[2]->set_element_type(roi_num_type);
     outputs[2]->set_shape(output_roi_num_shape);

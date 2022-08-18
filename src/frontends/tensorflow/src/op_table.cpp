@@ -75,6 +75,7 @@ OP_CONVERTER(translate_random_uniform_int_op);
 OP_CONVERTER(translate_relu_6_op);
 OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
+OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -232,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ReverseV2", translate_reverse_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
+        {"ResourceGather", translate_resource_gather_op},
         {"Roll", translate_roll_op},
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
