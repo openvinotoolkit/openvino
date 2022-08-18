@@ -23,6 +23,11 @@ enum emitter_in_out_map {
     gpr_to_gpr,
 };
 
+// structure for storage of emitter parameters to hash in map
+struct emitter_params {
+    virtual size_t hash() const = 0;
+};
+
 struct emitter_context {
     virtual ~emitter_context() = default;
 };
