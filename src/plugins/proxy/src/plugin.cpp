@@ -374,6 +374,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
 
         // Use individual fallback order to generate result list
         for (size_t i = 0; i < all_highlevel_devices.size(); i++) {
+            std::vector<std::string> real_fallback_order;
             auto device = all_highlevel_devices[i];
             // In case of aliases use the proxy system of enumeration devices
             const auto fallback_order = split(get_property(ov::device::priorities.name(), std::to_string(i)));
@@ -386,6 +387,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                     auto it = device.device_to_full_name.find(fallback_dev);
                     if (it != device.device_to_full_name.end()) {
                         device_order.emplace_back(it->second);
+                        real_fallback_order.emplace_back(it->first);
                         found_primary_device = true;
                         continue;
                     } else {
@@ -395,6 +397,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                 // In case of hetero mode just add necessary devices
                 if (use_hetero_mode) {
                     device_order.emplace_back(fallback_dev);
+                    real_fallback_order.emplace_back(fallback_dev);
                     continue;
                 }
                 // Try to find unique device
@@ -408,6 +411,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                         ov::device::UUID uuid = core->get_property(full_device_name, ov::device::uuid.name(), {});
                         if (uuid.uuid == device.uuid.uuid) {
                             device_order.emplace_back(full_device_name);
+                            real_fallback_order.emplace_back(fallback_dev);
                             found_device = true;
                             break;
                         }
@@ -419,12 +423,22 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                 if (!found_device && dev_without_uuid) {
                     use_hetero_mode = true;
                     device_order.emplace_back(fallback_dev);
+                    real_fallback_order.emplace_back(fallback_dev);
                 }
             }
             if (device_order.empty()) {
                 device_order.emplace_back(device.device_to_full_name.begin()->second);
+                real_fallback_order.emplace_back(device.device_to_full_name.begin()->first);
             }
             result.emplace_back(device_order);
+            std::string new_fallback;
+            for (const auto& dev : real_fallback_order) {
+                if (!new_fallback.empty())
+                    new_fallback += ",";
+                new_fallback += dev;
+            }
+            std::lock_guard<std::mutex> lock(plugin_mutex);
+            configs[std::to_string(i)][ov::device::priorities.name()] = new_fallback;
         }
     }
     return result;

@@ -10,10 +10,18 @@ TEST_F(ProxyTests, get_available_devices) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"MOCK.0", "ABC"},
+                                                                       {"MOCK.1", "ABC BDE"},
+                                                                       {"MOCK.2", "ABC"},
+                                                                       {"MOCK.3", "BDE"},
+                                                                       {"MOCK.4", "BDE"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
     for (const auto& dev : available_devices) {
-        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
-            mock_reference_dev.erase(dev);
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
         }
     }
     // All devices should be found
@@ -29,6 +37,15 @@ TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
     // 0, 1, 2 is ABC plugin
     // 1, 3, 4 is BDE plugin
     // ABC doesn't support subtract operation
+    {
+        // We don't change fallback order for hetero case
+        std::unordered_map<std::string, std::string> mock_reference_dev = {{"MOCK.0", "ABC BDE"},
+                                                                           {"MOCK.1", "ABC BDE"},
+                                                                           {"MOCK.2", "ABC BDE"}};
+        for (const auto& it : mock_reference_dev) {
+            EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+        }
+    }
     std::set<std::string> mock_reference_dev = {"ABC.abc_a", "ABC.abc_b", "ABC.abc_c", "MOCK.0", "MOCK.1", "MOCK.2"};
     for (const auto& dev : available_devices) {
         if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
@@ -45,10 +62,18 @@ TEST_F(ProxyTests, get_available_devices_with_disabled_plugin) {
     // Change device priority
     core.set_property("MOCK", config);
     auto available_devices = core.get_available_devices();
-    std::set<std::string> mock_reference_dev = {"MOCK.0", "MOCK.1", "MOCK.2", "MOCK.3", "MOCK.4"};
+    std::unordered_map<std::string, std::string> mock_reference_dev = {{"MOCK.0", "ABC"},
+                                                                       {"MOCK.1", "BDE"},
+                                                                       {"MOCK.2", "ABC"},
+                                                                       {"MOCK.3", "BDE"},
+                                                                       {"MOCK.4", "BDE"}};
+    for (const auto& it : mock_reference_dev) {
+        EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
+    }
     for (const auto& dev : available_devices) {
-        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
-            mock_reference_dev.erase(dev);
+        auto it = mock_reference_dev.find(dev);
+        if (it != mock_reference_dev.end()) {
+            mock_reference_dev.erase(it);
         }
     }
     // All devices should be found
@@ -89,20 +114,23 @@ TEST_F(ProxyTests, load_and_infer_on_device_without_split) {
 
 TEST_F(ProxyTests, load_on_unsupported_plugin) {
     auto model = create_model_with_subtract();
+    EXPECT_EQ(core.get_property("MOCK.0", ov::device::priorities), "ABC");
     EXPECT_THROW(core.compile_model(model, "MOCK.0"), ov::Exception);
 }
 
-// TODO: Invalid case we don't provide an option DEVICES_PRIORITY
-// TEST_F(ProxyTests, load_on_supported_plugin_with_changed_priority) {
-//     ov::AnyMap config;
-//     config["DEVICES_PRIORITY"] = "BDE:0,ABC:1";
-//     // Change device priority
-//     core.set_property("MOCK", config);
-//     auto model = create_model_with_subtract();
-//     EXPECT_NO_THROW(core.compile_model(model, "MOCK.0"));
-// }
+TEST_F(ProxyTests, load_on_supported_plugin) {
+    auto model = create_model_with_subtract();
+    EXPECT_EQ(core.get_property("MOCK.3", ov::device::priorities), "BDE");
+    EXPECT_NO_THROW(core.compile_model(model, "MOCK.3"));
+}
 
 #ifdef HETERO_ENABLED
+TEST_F(ProxyTests, load_on_shared_plugin) {
+    auto model = create_model_with_subtract();
+    EXPECT_EQ(core.get_property("MOCK.1", ov::device::priorities), "ABC BDE");
+    EXPECT_NO_THROW(core.compile_model(model, "MOCK.1"));
+}
+
 TEST_F(ProxyTests, load_on_support_with_hetero_plugin) {
     auto model = create_model_with_subtract();
     auto infer_request = core.compile_model(model, "MOCK.1").create_infer_request();

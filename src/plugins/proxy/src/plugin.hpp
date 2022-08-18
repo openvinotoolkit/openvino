@@ -46,7 +46,8 @@ private:
 
     std::vector<std::string> device_order;
     std::unordered_set<std::string> alias_for;
-    std::unordered_map<std::string, std::map<std::string, std::string>> configs;
+    // Update per device config in get_hidden_devices
+    mutable std::unordered_map<std::string, std::map<std::string, std::string>> configs;
     mutable std::mutex plugin_mutex;
 };
 

@@ -22,7 +22,6 @@ TEST_F(ProxyTests, get_property_on_default_device) {
     size_t mutable_pr(0), immutable_pr(0);
     for (auto&& property : supported_properties) {
         property.is_mutable() ? mutable_pr++ : immutable_pr++;
-        std::cout << property << " " << property.is_mutable() << std::endl;
         if (property == ov::num_streams) {
             EXPECT_EQ("0", get_string_value(core.get_property(dev_name, property)));
             // TODO: we don't apply config immediatly. Need to check properties of compiled model
@@ -86,10 +85,8 @@ TEST_F(ProxyTests, get_property_on_specified_device) {
             EXPECT_EQ("0004080c1014181c2024282c3034383c", get_string_value(core.get_property(dev_name, property)));
         } else if (property == ov::device::priorities) {
             auto value = core.get_property(dev_name, property).as<std::vector<std::string>>();
-            // FIXME: should return only one device
-            EXPECT_EQ(value.size(), 2);
-            // EXPECT_EQ(value.size(), 1);
-            // EXPECT_EQ(value[0], "BDE");
+            EXPECT_EQ(value.size(), 1);
+            EXPECT_EQ(value[0], "BDE");
         } else {
             EXPECT_NO_THROW(core.get_property(dev_name, property));
         }
