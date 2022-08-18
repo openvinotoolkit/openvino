@@ -97,12 +97,6 @@ private:
     impl_desc_type implementationType;
 };
 
-struct NodeRuntime {
-    MultiCache paramsCache;
-    ScratchPad scratchPad;
-    NodeRuntime(size_t rtCacheCapacity, dnnl::engine eng) : paramsCache(rtCacheCapacity), scratchPad(eng) {}
-};
-
 class Node {
 public:
     Node(const Node &) = delete;
@@ -577,8 +571,12 @@ public:
 
     virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
 
-    void setRuntime(std::shared_ptr<NodeRuntime> rt) {
-        nodeRT = rt;
+    void setRuntimeCache(MultiCachePtr cache) {
+        rtParamsCache = cache;
+    }
+
+    void setRuntimeScratchPad(ScratchPadPtr scratchPad) {
+        rtScratchPad = scratchPad;
     }
 
     void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
@@ -751,12 +749,12 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCache * getRuntimeCache() {
-        return &(nodeRT->paramsCache);
+    MultiCachePtr getRuntimeCache() {
+        return rtParamsCache;
     }
 
-    ScratchPad * getRuntimeScratchPad() {
-        return &(nodeRT->scratchPad);
+    ScratchPadPtr getRuntimeScratchPad() {
+        return rtScratchPad;
     }
 
     std::vector<VectorDims> lastInputDims = {};
@@ -776,8 +774,6 @@ private:
 
     dnnl::engine engine;
 
-    std::shared_ptr<NodeRuntime> nodeRT;
-
     std::string name;
     std::string typeStr;
     Type type;
@@ -787,6 +783,9 @@ private:
 
     PerfCount perfCounter;
     PerfCounters profiling;
+
+    MultiCachePtr rtParamsCache;
+    ScratchPadPtr rtScratchPad;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 

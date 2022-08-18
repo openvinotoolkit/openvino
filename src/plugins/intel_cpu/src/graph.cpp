@@ -79,6 +79,7 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
     sharedMutex = mutex;
+    rtScratchPad = std::make_shared<ScratchPad>(getEngine());
 
     Replicate(net, extMgr);
     InitGraph();
@@ -97,7 +98,8 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     // disable weights caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
-    nodeRT = std::make_shared<NodeRuntime>(config.rtCacheCapacity, eng);
+    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    rtScratchPad = std::make_shared<ScratchPad>(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -158,6 +160,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
 
         node->setRuntimeCache(rtParamsCache);
         node->setSharedMutex(sharedMutex);
+        node->setRuntimeScratchPad(rtScratchPad);
 
         graphNodes.push_back(node);
 
@@ -269,10 +272,15 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+<<<<<<< HEAD
 
         node->setRuntimeCache(rtParamsCache);
         node->setSharedMutex(sharedMutex);
 
+=======
+        node->setRuntimeCache(rtParamsCache);
+        node->setRuntimeScratchPad(rtScratchPad);
+>>>>>>> 62e9fd5ac4 (Split NodeRuntime and use Memory for scratchpad allocation/resize)
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
@@ -1356,7 +1364,8 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     if (isQuantized()) {
         node->setQuantizedGraphFlag(true);
     }
-    node->setRuntime(nodeRT);
+    node->setRuntimeCache(rtParamsCache);
+    node->setRuntimeScratchPad(rtScratchPad);
 
     if (initNode) {
         node->getSupportedDescriptors();
