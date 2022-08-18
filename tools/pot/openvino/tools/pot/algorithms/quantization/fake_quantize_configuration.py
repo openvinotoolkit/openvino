@@ -6,7 +6,8 @@ from copy import deepcopy
 
 from .range_estimator import get_range_estimator_config
 from .utils import load_hardware_config
-from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
+from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS,\
+    CONCAT_UNIFY_INPUTS, RECURRENT_TYPES
 from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable,\
     get_hardware_config_operation_type
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
@@ -282,8 +283,8 @@ def get_configurations_by_qscheme(fq_to_hw_confs, qscheme):
     return res
 
 
-def unify_LSTMCell_fqs(model):
-    lstm_fqs_to_unify = []
+def unify_reccurent_fqs(model, recurrent_hw_ops):
+    reccurent_fqs_to_unify = []
 
     def source_fn(op):
         return [p for p in get_node_inputs(op) if p and p.type != 'Const']
@@ -304,23 +305,20 @@ def unify_LSTMCell_fqs(model):
             return input_fqs
         return []
 
-    def lstm_fq_to_unify(lstm_fullname, fq_1, fq_2):
-        fqs = set(fq_1).union(set(fq_2))
-        is_unified = all([get_node_input(get_node_by_name(model, name), 0).type != 'Const' for name in fqs])
-        if len(fqs) >= 2 and is_unified:
-            lstm_fqs_to_unify.append([[lstm_fullname], list(fqs)])
+    def reccurent_fq_to_unify(cell_fullname, fqs):
+        unique_fqs = set().union(*fqs)
+        is_unified = all([get_node_input(get_node_by_name(model, name), 0).type != 'Const' for name in unique_fqs])
+        if len(unique_fqs) >= 2 and is_unified:
+            reccurent_fqs_to_unify.append([[cell_fullname], list(unique_fqs)])
 
-    lstms = get_nodes_by_type(model, types=['LSTMCell'], recursively=True)
-    for lstm in lstms:
-        X = get_fqs_fullname(lstm, 0)
-        init_hidden_state = get_fqs_fullname(lstm, 1)
-        W = get_fqs_fullname(lstm, 3)
-        R = get_fqs_fullname(lstm, 4)
+    nodes = get_nodes_by_type(model, types=recurrent_hw_ops.keys(), recursively=True)
+    for node in nodes:
+        unify_group_indices = recurrent_hw_ops[node.type]
+        for indices in unify_group_indices:
+            fqs = [get_fqs_fullname(node, i) for i in indices]
+            reccurent_fq_to_unify(node.fullname, fqs)
 
-        lstm_fq_to_unify(lstm.fullname, X, init_hidden_state)
-        lstm_fq_to_unify(lstm.fullname, W, R)
-
-    return lstm_fqs_to_unify
+    return reccurent_fqs_to_unify
 
 
 def find_fqs_to_unify(model, config):
@@ -461,9 +459,19 @@ def find_fqs_to_unify(model, config):
                     len(to_unify[1]) > 1:
                 fqs_to_unify.append(to_unify)
 
-    if {'type': 'LSTMCell'} in hw_ops:
-        lstm_fqs = unify_LSTMCell_fqs(model)
-        fqs_to_unify.extend(lstm_fqs)
+    def _get_unified_reccurent_scales_ops(hw_ops_):
+        unified_scales_ops_ = {}
+        for hw_op in hw_ops_:
+            if hw_op['type'] in RECURRENT_TYPES and 'attributes' in hw_op and 'unified_scales' in hw_op['attributes']:
+                unified_scales_ops_[hw_op['type']] = hw_op['attributes']['unified_scales']
+                del hw_op['attributes']['unified_scales']
+                if not hw_op['attributes']:
+                    del hw_op['attributes']
+        return unified_scales_ops_
+
+    reccurent_hw_ops = _get_unified_reccurent_scales_ops(hw_ops)
+    reccurent_fqs = unify_reccurent_fqs(model, reccurent_hw_ops)
+    fqs_to_unify.extend(reccurent_fqs)
 
     fqs_to_unify = sorted([[sorted(c[0]), sorted(c[1])] for c in fqs_to_unify])
     logger.debug('Operations and corresponding fake quantize nodes to unify scales:')
