@@ -41,7 +41,9 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** input_node) {
+ov_status_e ov_model_input_by_name(const ov_model_t* model,
+                                   const char* tensor_name,
+                                   ov_output_const_node_t** input_node) {
     if (!model || !tensor_name || !input_node) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -55,9 +57,7 @@ ov_status_e ov_model_input_by_name(const ov_model_t* model, const char* tensor_n
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_input_by_index(const ov_model_t* model,
-                                    const size_t index,
-                                    ov_output_const_node_t** input_node) {
+ov_status_e ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node) {
     if (!model || !input_node) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -89,7 +89,7 @@ ov_status_e ov_model_output_by_index(const ov_model_t* model,
 
 ov_status_e ov_model_output_by_name(const ov_model_t* model,
                                     const char* tensor_name,
-                                    ov_output_const_node_t** output_node)) {
+                                    ov_output_const_node_t** output_node) {
     if (!model || !tensor_name || !output_node) {
         return ov_status_e::INVALID_C_PARAM;
     }
