@@ -221,6 +221,18 @@ def mean_scale_value_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + value_to_str(val, ","))
         return ",".join(values_str)
+    if isinstance(value, list) or isinstance(value, tuple):
+        list_of_lists = False
+        for val in value:
+            if isinstance(val, list) or isinstance(val, tuple):
+                list_of_lists = True
+        if list_of_lists:
+            values_str = []
+            for val in value:
+                values_str.append(value_to_str(val, ","))
+            return ",".join(values_str)
+        else:
+            return value_to_str(value, ",")
     return value_to_str(value, ",")
 
 
@@ -229,7 +241,8 @@ def layout_to_str(layout):
         return layout
     if isinstance(layout, Layout):
         return layout.to_string()
-    raise Exception("Incorrect layout type. Expected Layout or string, got {}".format(type(layout)))
+    raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
+                    "where key is operation name and value is Layout, got {}".format(type(layout)))
 
 
 def source_target_layout_to_str(value):
@@ -247,8 +260,7 @@ def source_target_layout_to_str(value):
             values_str.append(op_name + "(" + layout_to_str(layout) + ")")
         return ",".join(values_str)
 
-    raise Exception(
-        "Incorrect layout. Expected dictionary, where key is operation name and value is Layout. Got {}".format(value))
+    return layout_to_str(value)
 
 
 def layoutmap_to_str(value):
@@ -280,8 +292,7 @@ def layout_param_to_str(value):
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
 
-    raise Exception("Incorrect layout. Expected dictionary, where key is operation name and value is "
-                    "Layout or LayoutMap. Got {}".format(value))
+    return layoutmap_to_str(value)
 
 
 def batch_to_int(value):
