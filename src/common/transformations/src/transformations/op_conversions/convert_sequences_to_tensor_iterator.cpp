@@ -7,108 +7,14 @@
 #include <memory>
 #include <ngraph/op/util/activation_functions.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
 
 namespace {
-using namespace ov;
-std::shared_ptr<ov::Node> activation(const std::string& activation_name, const ov::Output<ov::Node>& apply_to) {
-    if (activation_name == "relu") {
-        return std::make_shared<ngraph::opset9::Relu>(apply_to);
-    } else if (activation_name == "sigmoid") {
-        return std::make_shared<ngraph::opset9::Sigmoid>(apply_to);
-    } else if (activation_name == "tanh") {
-        return std::make_shared<ngraph::opset9::Tanh>(apply_to);
-    } else {
-        throw std::runtime_error("Unsupported activation function");
-    }
-}
-
-std::shared_ptr<ngraph::Node> calculate_gru_cell(const Output<Node>& X,
-                                                 const Output<Node>& H_t,
-                                                 const Output<Node>& W,
-                                                 const Output<Node>& R,
-                                                 const Output<Node>& B,
-                                                 const Output<Node>& A,
-                                                 std::size_t hidden_size) {
-    const bool linear_before_reset = false;
-    const bool clip = false;
-    const std::vector<std::string> activations = {"sigmoid", "tanh"};
-    // Xt*(W^T)
-    auto Xt_W = std::make_shared<ngraph::opset9::MatMul>(X, W, false, true);
-    // Ht-1*(R^T)
-    auto Ht_R = std::make_shared<ngraph::opset9::MatMul>(H_t, R, false, true);
-
-    // split to gates:
-    auto axis_0 = ngraph::opset9::Constant::create(element::i64, Shape{}, {0});
-    auto axis_1 = ngraph::opset9::Constant::create(element::i64, Shape{}, {1});
-    auto Xt_W_zrh = std::make_shared<ngraph::opset9::Split>(Xt_W, axis_1, 3);
-    auto R_zrh = std::make_shared<ngraph::opset9::Split>(R, axis_0, 3);
-    auto Ht_R_zrh = std::make_shared<ngraph::opset9::Split>(Ht_R, axis_1, 3);
-    auto biases_zrh = std::make_shared<ngraph::opset9::Split>(B, axis_0, linear_before_reset ? 4 : 3);
-
-    //  Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz
-    auto add_z_1 = std::make_shared<ngraph::opset9::Add>(Ht_R_zrh->output(0), biases_zrh->output(0));
-    auto add_z_2 = std::make_shared<ngraph::opset9::Add>(Xt_W_zrh->output(0), add_z_1);
-
-    // Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr
-    auto add_r_1 = std::make_shared<ngraph::opset9::Add>(Ht_R_zrh->output(1), biases_zrh->output(1));
-    auto add_r_2 = std::make_shared<ngraph::opset9::Add>(Xt_W_zrh->output(1), add_r_1);
-
-    std::shared_ptr<Node> clamp_z = add_z_2;
-    std::shared_ptr<Node> clamp_r = add_r_2;
-    if (clip > 0.f) {
-        clamp_z = std::make_shared<ngraph::opset9::Clamp>(add_z_2, -clip, clip);
-        clamp_r = std::make_shared<ngraph::opset9::Clamp>(add_r_2, -clip, clip);
-    }
-
-    // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
-    auto z_t = activation(activations[0], clamp_z);
-    // rt = f(Xt*(Wr^T) + Ht-1*(Rr^T) + Wbr + Rbr)
-    auto r_t = activation(activations[0], clamp_r);
-
-    auto one = ngraph::opset9::Constant::create(z_t->get_element_type(), Shape{1}, {1.f});
-    auto a_sub = std::make_shared<ngraph::opset9::Subtract>(one, A);
-    z_t = std::make_shared<ngraph::opset9::Multiply>(z_t, a_sub);
-
-    std::shared_ptr<Node> _h;
-    if (linear_before_reset) {
-        // _h = Xt*(Wh^T) + (rt (.) (Ht-1*(Rh^T) + Rbh)) + Wbh
-        auto Ht_Rh_Rbh = std::make_shared<ngraph::opset9::Add>(Ht_R_zrh->output(2), biases_zrh->output(3));
-        auto mul_h_1 = std::make_shared<ngraph::opset9::Multiply>(r_t, Ht_Rh_Rbh);
-        auto add_h_1 = std::make_shared<ngraph::opset9::Add>(mul_h_1, biases_zrh->output(2));
-        _h = std::make_shared<ngraph::opset9::Add>(Xt_W_zrh->output(2), add_h_1);
-    } else {
-        // _h = Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh
-        auto rt_Ht = std::make_shared<ngraph::opset9::Multiply>(r_t, H_t);
-        auto mul_h_1 = std::make_shared<ngraph::opset9::MatMul>(rt_Ht, R_zrh->output(2), false, true);
-        auto add_h_1 = std::make_shared<ngraph::opset9::Add>(mul_h_1, biases_zrh->output(2));
-        _h = std::make_shared<ngraph::opset9::Add>(Xt_W_zrh->output(2), add_h_1);
-    }
-
-    // ht = g(_h)
-    std::shared_ptr<Node> clamp_h = _h;
-    if (clip > 0.f) {
-        clamp_h = std::make_shared<ngraph::opset9::Clamp>(_h, -clip, clip);
-    }
-    auto h_t = activation(activations[1], clamp_h);
-
-    // Ht = (1 - zt) (.) ht + zt (.) Ht-1
-    auto sub = std::make_shared<ngraph::opset9::Subtract>(one, z_t);
-    auto mul_1 = std::make_shared<ngraph::opset9::Multiply>(sub, h_t);
-    auto mul_2 = std::make_shared<ngraph::opset9::Multiply>(z_t, H_t);
-    auto out_H = std::make_shared<ngraph::opset9::Add>(mul_1, mul_2);
-
-    return out_H;
-}
-
 ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector& body_params,
                                               ngraph::ResultVector& body_results,
                                               const ngraph::Output<ngraph::Node>& seq_lengths) {
@@ -161,8 +67,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
                             const ngraph::Output<ngraph::Node>& W,
                             const ngraph::Output<ngraph::Node>& R,
                             const ngraph::Output<ngraph::Node>& B,
-                            const ngraph::op::RecurrentSequenceDirection& direction,
-                            const ngraph::Output<ngraph::Node>& A) {
+                            const ngraph::op::RecurrentSequenceDirection& direction) {
     auto X_pshape = X.get_partial_shape();
     if (X_pshape.size() < 2 || X_pshape[1].is_dynamic()) {
         return false;
@@ -185,11 +90,6 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     X_param_pshape[1] = 1;  // split by seq_lengths dimension
     auto X_body_param = std::make_shared<ngraph::opset5::Parameter>(X.get_element_type(), X_param_pshape);
 
-    auto A_param_pshape = A.get_partial_shape();
-    A_param_pshape[1] = 1;  // split by seq_lengths dimension
-    auto A_body_param = std::make_shared<ngraph::opset9::Parameter>(A.get_element_type(), A_param_pshape);
-    A_body_param->set_friendly_name("A_param");
-
     const auto squeezed_h = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(H_t, axis_1);
     auto H_body_param = std::make_shared<ngraph::opset5::Parameter>(squeezed_h->get_element_type(),
                                                                     squeezed_h->get_output_partial_shape(0));
@@ -210,7 +110,6 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     const auto squeezed_w = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(W, axis_0);
     const auto squeezed_r = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(R, axis_0);
     const auto squeezed_b = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(B, axis_0);
-    const auto squeezed_a = ngraph::op::util::make_try_fold<ngraph::opset9::Squeeze>(A_body_param, axis_1);
 
     std::shared_ptr<ngraph::Node> cell;
     if (const auto lstm_sequence = ngraph::as_type_ptr<ngraph::opset5::LSTMSequence>(sequence)) {
@@ -248,14 +147,6 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
                                                          gnn_sequence->get_activations_beta(),
                                                          gnn_sequence->get_clip(),
                                                          gnn_sequence->get_linear_before_reset());
-    } else if (const auto augru_sequence = ngraph::as_type_ptr<ngraph::op::internal::AUGRUSequence>(sequence)) {
-        cell = calculate_gru_cell(squeezed_x,
-                                  H_body_param,
-                                  squeezed_w,
-                                  squeezed_r,
-                                  squeezed_b,
-                                  squeezed_a,
-                                  augru_sequence->get_hidden_size());
     } else {
         return false;
     }
@@ -288,7 +179,6 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     if (cell_state_defined)
         body_params.push_back(C_body_param);
     body_params.push_back(seq_body_param);
-    body_params.push_back(A_body_param);
 
     body_results.push_back(concat_res);
     body_results.push_back(H_res);
@@ -311,7 +201,6 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     } else {
         // forward order
         tensor_iterator->set_sliced_input(X_body_param, X, 0, 1, 1, -1, 1);
-        tensor_iterator->set_sliced_input(A_body_param, A, 0, 1, 1, -1, 1);
         tensor_iterator->get_concatenated_slices(concat_res, 0, 1, 1, -1, 1);
     }
 
@@ -449,8 +338,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
                                       W,
                                       R,
                                       B,
-                                      sequence->get_direction(),
-                                      Output<Node>());
+                                      sequence->get_direction());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
@@ -493,59 +381,10 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
                                       W,
                                       R,
                                       B,
-                                      sequence->get_direction(),
-                                      Output<Node>());
+                                      sequence->get_direction());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_seq, matcher_name);
-    register_matcher(m, callback);
-}
-
-ngraph::pass::ConvertAUGRUSequenceToTensorIterator::ConvertAUGRUSequenceToTensorIterator() {
-    MATCHER_SCOPE(ConvertAUGRUSequenceToTensorIterator);
-    auto X_m = pattern::any_input(pattern::has_static_rank());
-    auto H_t_m = pattern::any_input();
-    auto seq_lengths_m = pattern::any_input();
-    auto W_m = pattern::any_input();
-    auto R_m = pattern::any_input();
-    auto B_m = pattern::any_input();
-    auto A_m = pattern::any_input();
-    auto augru_seq = ngraph::pattern::wrap_type<ngraph::op::internal::AUGRUSequence>(
-        {X_m, H_t_m, seq_lengths_m, W_m, R_m, B_m, A_m});
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        std::cout << "AUGRUSequence matched \n";
-        auto sequence = ngraph::as_type_ptr<ngraph::op::internal::AUGRUSequence>(m.get_match_root());
-
-        // Bidirectional Sequence op should be decomposed to Reverse + Forward
-        // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ||
-            transformation_callback(sequence)) {
-            return false;
-        }
-
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto& X = pattern_map.at(X_m);                      // split
-        const auto& H_t = pattern_map.at(H_t_m);                  // merged (init value + back edge)
-        const auto& seq_lengths = pattern_map.at(seq_lengths_m);  // invariant
-        const auto& W = pattern_map.at(W_m);                      // const in the body
-        const auto& R = pattern_map.at(R_m);                      // const in the body
-        const auto& B = pattern_map.at(B_m);                      // const in the body
-        const auto& A = pattern_map.at(A_m);                      // const in the body
-
-        return convert_sequence_to_ti(sequence,
-                                      X,
-                                      H_t,
-                                      Output<Node>(),
-                                      seq_lengths,
-                                      W,
-                                      R,
-                                      B,
-                                      sequence->get_direction(),
-                                      A);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(augru_seq, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -579,16 +418,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         const auto& R = pattern_map.at(R_m);                      // const in the body
         const auto& B = pattern_map.at(B_m);                      // const in the body
 
-        return convert_sequence_to_ti(sequence,
-                                      X,
-                                      H_t,
-                                      C_t,
-                                      seq_lengths,
-                                      W,
-                                      R,
-                                      B,
-                                      sequence->get_direction(),
-                                      Output<Node>());
+        return convert_sequence_to_ti(sequence, X, H_t, C_t, seq_lengths, W, R, B, sequence->get_direction());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_seq, matcher_name);
@@ -599,5 +429,4 @@ ngraph::pass::ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator()
     add_matcher<ConvertLSTMSequenceToTensorIterator>();
     add_matcher<ConvertRNNSequenceToTensorIterator>();
     add_matcher<ConvertGRUSequenceToTensorIterator>();
-    add_matcher<ConvertAUGRUSequenceToTensorIterator>();
 }
