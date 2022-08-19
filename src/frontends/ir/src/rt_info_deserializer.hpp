@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cctype>
 #include <istream>
 #include <memory>
 
