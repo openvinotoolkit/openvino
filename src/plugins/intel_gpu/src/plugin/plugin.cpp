@@ -506,7 +506,10 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     // 1. Constants are marked as supported when all outputs can be offloaded to GPU
     for (const auto& op : constants) {
         bool is_supported = true;
-
+        std::unordered_set<std::string> OpFusedNames;
+        for (auto&& FusedName : ngraph::getFusedNamesVector(op)) {
+            OpFusedNames.emplace(FusedName);
+        }
         for (size_t i = 0; i < op->get_output_size(); i++) {
             auto outTensors = op->get_output_target_inputs(i);
             for (auto& t : outTensors) {
@@ -514,8 +517,16 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                 const auto& name = output->get_friendly_name();
                 if (!InferenceEngine::details::contains(supported, name) &&
                     !InferenceEngine::details::contains(supportedNotOriginal, name)) {
-                    is_supported = false;
-                    break;
+                    if (InferenceEngine::details::contains(OpFusedNames, name)) {
+                        auto output_ptr = output->shared_from_this();
+                        is_supported = layerIsSupported(output_ptr);
+                        if (is_supported == false) {
+                            break;
+                        }
+                    } else {
+                        is_supported = false;
+                        break;
+                    }
                 }
             }
         }
