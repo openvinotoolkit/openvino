@@ -153,13 +153,13 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    ov_output_node_list_t output_nodes;
+    ov_output_const_node_list_t output_nodes;
     CHECK_STATUS(ov_model_outputs(model, &output_nodes));
     if (output_nodes.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
-    ov_output_node_list_t input_nodes;
+    ov_output_const_node_list_t input_nodes;
     CHECK_STATUS(ov_model_inputs(model, &input_nodes));
     if (input_nodes.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);

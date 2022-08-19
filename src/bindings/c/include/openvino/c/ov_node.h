@@ -19,12 +19,21 @@ typedef struct ov_output_node ov_output_node_t;
 
 /**
  * @struct ov_output_const_node_list_t
- * @brief Reprents an array of ov_output_nodes.
+ * @brief Represents an array of ov_output_nodes.
  */
 typedef struct {
     ov_output_const_node_t* output_nodes;
     size_t size;
 } ov_output_const_node_list_t;
+
+/**
+ * @struct ov_output_node_list_t
+ * @brief Represents an array of ov_output_nodes.
+ */
+typedef struct {
+    ov_output_node_t* output_nodes;
+    size_t size;
+} ov_output_node_list_t;
 
 // Node
 /**
