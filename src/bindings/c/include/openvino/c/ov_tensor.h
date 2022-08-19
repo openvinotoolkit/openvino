@@ -108,7 +108,6 @@ OPENVINO_C_API(ov_status_e) ov_tensor_data(const ov_tensor_t* tensor, void** dat
  * @brief Free ov_tensor_t.
  * @ingroup tensor
  * @param tensor A point to ov_tensor_t
- * @return none
  */
 OPENVINO_C_API(void) ov_tensor_free(ov_tensor_t* tensor);
 

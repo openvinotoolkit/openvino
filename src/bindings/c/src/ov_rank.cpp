@@ -22,10 +22,7 @@ ov_status_e ov_rank_init(ov_rank_t* rank, int64_t rank_value) {
 }
 
 bool ov_rank_is_dynamic(const ov_rank_t* rank) {
-    if (!rank) {
-        PRINT_ERROR("null rank");
-        return true;
-    }
+    assert(rank != nullptr);
     if (rank->min == rank->max && rank->max > 0)
         return false;
     return true;

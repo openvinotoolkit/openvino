@@ -28,7 +28,6 @@ typedef struct ov_model ov_model_t;
  * @brief Release the memory allocated by ov_model_t.
  * @ingroup model
  * @param model A pointer to the ov_model_t to free memory.
- * @return none
  */
 OPENVINO_C_API(void) ov_model_free(ov_model_t* model);
 
@@ -75,7 +74,7 @@ ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_c
 /**
  * @brief Returns true if any of the ops defined in the model is dynamic shape.
  * @param model A pointer to the ov_model_t.
- * @return Boolean value
+ * @return true if model contains dynamic shapes
  */
 OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
 

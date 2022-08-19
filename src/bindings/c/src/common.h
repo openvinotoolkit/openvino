@@ -37,7 +37,6 @@
         return ov_status_e::UNEXPECTED;                       \
     }
 
-#define PRINT_ERROR(str) std::cout << "Error: " << str << std::endl
 
 /**
  * @struct ov_core
@@ -72,10 +71,10 @@ struct ov_output_node {
 };
 
 /**
- * @struct ov_property
+ * @struct ov_properties
  * @brief This is an interface of property
  */
-struct ov_property {
+struct ov_properties {
     ov::AnyMap object;
 };
 

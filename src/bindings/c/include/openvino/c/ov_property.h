@@ -13,7 +13,7 @@
 
 #include "openvino/c/ov_common.h"
 
-typedef struct ov_property ov_properties_t;
+typedef struct ov_properties ov_properties_t;
 
 /**
  * @enum ov_performance_mode_e
@@ -124,7 +124,6 @@ OPENVINO_C_API(ov_status_e) ov_properties_create(ov_properties_t** property);
  * @brief Free properties object.
  * @ingroup property
  * @param property The properties object pointer will be released.
- * @return none.
  */
 OPENVINO_C_API(void) ov_properties_free(ov_properties_t* property);
 
@@ -132,7 +131,6 @@ OPENVINO_C_API(void) ov_properties_free(ov_properties_t* property);
  * @brief Free property data.
  * @ingroup property
  * @param value The property data will be clean.
- * @return none
  */
 OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t* value);
 

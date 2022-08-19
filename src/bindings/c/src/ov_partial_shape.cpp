@@ -125,10 +125,7 @@ ov_status_e ov_shape_to_partial_shape(ov_shape_t* shape, ov_partial_shape_t* par
 }
 
 bool ov_partial_shape_is_dynamic(const ov_partial_shape_t* partial_shape) {
-    if (!partial_shape) {
-        PRINT_ERROR("null partial_shape");
-        return true;
-    }
+    assert(partial_shape != nullptr);
 
     if (ov_rank_is_dynamic(&partial_shape->rank)) {
         return true;

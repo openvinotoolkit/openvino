@@ -148,7 +148,6 @@ ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callba
  * @brief Release the memory allocated by ov_infer_request_t.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t to free memory.
- * @return none
  */
 OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t* infer_request);
 
@@ -166,7 +165,6 @@ ov_infer_request_get_profiling_info(ov_infer_request_t* infer_request, ov_profil
  * @brief Release the memory allocated by ov_profiling_info_list_t.
  * @ingroup infer_request
  * @param profiling_infos A pointer to the ov_profiling_info_list_t to free memory.
- * @return none
  */
 OPENVINO_C_API(void) ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos);
 
