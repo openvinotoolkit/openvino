@@ -31,7 +31,7 @@ namespace cldnn {
 struct border : public primitive_base<border> {
     CLDNN_DECLARE_PRIMITIVE(border)
 
-    /// @brief Constructs border primitive / layer.
+    /// @brief Constructs border primitive / layer with static pads.
     ///
     /// @param id                 An identifier of new primitive.
     /// @param input              An identifier of primitive which is an input for newly created
@@ -54,6 +54,21 @@ struct border : public primitive_base<border> {
         : primitive_base(id, {input}, ext_prim_id, output_padding),
           pads_begin(pads_begin),
           pads_end(pads_end),
+          pad_mode(pad_mode),
+          pad_value(pad_value) {}
+
+    /// @brief Constructs border primitive / layer with dynamic pads.
+    border(const primitive_id& id,
+           const primitive_id& input,
+           const primitive_id& pads_begin_id,
+           const primitive_id& pads_end_id,
+           const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
+           const float pad_value = 0.0f,
+           const primitive_id& ext_prim_id = "",
+           const padding& output_padding = padding())
+        : primitive_base(id, {input, pads_begin_id, pads_end_id}, ext_prim_id, output_padding),
+          pads_begin({}),
+          pads_end({}),
           pad_mode(pad_mode),
           pad_value(pad_value) {}
 
