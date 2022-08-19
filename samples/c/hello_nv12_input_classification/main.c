@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_infer_request_infer(infer_request));
 
     // -------- Step 8. Process output --------
-    CHECK_STATUS(ov_infer_request_get_output_tensor(infer_request, 0, &output_tensor));
+    CHECK_STATUS(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     // Print classification results
     size_t results_num = 0;
     results = tensor_to_infer_result(output_tensor, &results_num);

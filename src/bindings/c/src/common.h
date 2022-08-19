@@ -151,6 +151,14 @@ struct ov_tensor {
 };
 
 /**
+ * @struct ov_tensor_list
+ * @brief A list of tensors
+ */
+struct ov_tensor_list {
+    std::vector<ov::Tensor> object;
+};
+
+/**
  * @struct ov_preprocess_prepostprocessor
  * @brief This is an interface of ov::preprocess::PrePostProcessor
  */
