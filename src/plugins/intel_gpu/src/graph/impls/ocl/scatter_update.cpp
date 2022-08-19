@@ -93,13 +93,7 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
         format::bfwzyx
     };
 
-    std::set<std::tuple<data_types, format::type>> keys;
-    for (const auto& t : types) {
-        for (const auto& f : formats) {
-            keys.emplace(t, f);
-        }
-    }
-    implementation_map<scatter_update>::add(impl_types::ocl, scatter_update_impl::create, keys);
+    implementation_map<scatter_update>::add(impl_types::ocl, scatter_update_impl::create, types, formats);
 }
 
 }  // namespace detail
