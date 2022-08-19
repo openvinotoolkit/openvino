@@ -14,7 +14,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(ie_executable_network, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(return_all_possible_device_combination()),
-                                    ::testing::ValuesIn(empty_config)),
+                                    ::testing::Values(ie_config)),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> execNetBaseElemTypes = {
@@ -28,6 +28,6 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(execNetBaseElemTypes),
                                     ::testing::ValuesIn(return_all_possible_device_combination()),
-                                    ::testing::ValuesIn(empty_config)),
+                                    ::testing::Values(ie_config)),
                             ExecNetSetPrecision::getTestCaseName);
 }  // namespace

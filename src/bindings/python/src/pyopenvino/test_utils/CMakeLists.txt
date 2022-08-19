@@ -49,12 +49,12 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
 
 install(PROGRAMS  ${PYTHON_SOURCE_DIR}/openvino/test_utils/__init__.py
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion}/openvino/test_utils
         COMPONENT tests
         EXCLUDE_FROM_ALL)

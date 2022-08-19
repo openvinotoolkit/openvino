@@ -67,8 +67,14 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         return ov::PartialShape(dims);
     }
 
-    case ::tensorflow::AttrValue::ValueCase::kType:
-        return TYPE_MAP().at(attrs[0].type());
+    case ::tensorflow::AttrValue::ValueCase::kType: {
+        if (TYPE_MAP().count(attrs[0].type())) {
+            return TYPE_MAP().at(attrs[0].type());
+        } else {
+            // for all unsupported types return undefined type
+            return ov::element::undefined;
+        }
+    }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
         const auto& list = attrs[0].list();

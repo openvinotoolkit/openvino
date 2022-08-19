@@ -51,6 +51,9 @@
 #include <utility>
 #include <deque>
 #include "intel_gpu/runtime/error_handler.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <impls/onednn/utils.hpp>
+#endif
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
@@ -73,7 +76,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             if (!node.is_in_place())
                 return;
 
-            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+            if (input_lay.identical(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }
@@ -246,8 +249,18 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                     return;
             }
 
-            if (input.is_type<reshape>() && use_onednn_impls)
-                return;
+            if (use_onednn_impls) {
+                if (input.is_type<reshape>())
+                    return;
+                #ifdef ENABLE_ONEDNN_FOR_GPU
+                // Activation should not fused if it isn't supported in onednn
+                try {
+                    onednn::convert_activation_func(node.get_primitive()->activation_function);
+                } catch (...) {
+                    return;
+                }
+                #endif
+            }
 
             if (input.get_fused_primitives().empty()) {
                 input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
@@ -619,11 +632,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // If reduce tensor size is small, it sets not to fuse eltwise which leads to select oneDNN reference reduction
             // Because oneDNN optimized kernel does NOT support eltwise fusing
             if (p.get_engine().get_device_info().supports_immad && node.get_output_layout().get_dims().size() <= 4 &&
-                ((find(axes.begin(), axes.end(), reduce::along_x) != axes.end() &&
+                ((find(axes.begin(), axes.end(), node.get_output_layout().get_rank() - 1) != axes.end() &&
                 node.input().get_output_layout().spatial(0) > 16) ||
-                (find(axes.begin(), axes.end(), reduce::along_y) != axes.end() &&
+                (find(axes.begin(), axes.end(), node.get_output_layout().get_rank() - 2) != axes.end() &&
                 node.input().get_output_layout().spatial(1) > 16) ||
-                (find(axes.begin(), axes.end(), reduce::along_f) != axes.end() &&
+                (find(axes.begin(), axes.end(), 1) != axes.end() &&
                 node.input().get_output_layout().feature() > 16) ||
                 (node.get_output_layout().count() > 256)))
                 return false;
@@ -637,7 +650,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
             if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                  !_lo.get_optimization_attributes().use_onednn_impls) ||
+                 out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
             return true;
@@ -703,6 +718,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (!input_data_supports_fusings(input_data, activation_node.id()) || input_data.get_dependencies().empty())
                 return;
+
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
+                #ifdef ENABLE_ONEDNN_FOR_GPU
+                // Activation should not fused if it isn't supported in onednn
+                try {
+                    onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
+                } catch (...) {
+                    return;
+                }
+                #endif
+            }
 
             bool should_fuse = input_data.is_type<binary_convolution>();
 
