@@ -67,7 +67,15 @@ def add(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies f(x) = A+B to the input nodes element-wise."""
+    """Return node which applies f(A,B) = A+B to the input nodes element-wise.
+
+    :param left_node: The first input node for add operation.
+    :param right_node: The second input node for add operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise addition.
+    """
     return _get_node_factory_opset1().create(
         "Add", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
     )
@@ -1645,7 +1653,15 @@ def maximum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies the maximum operation to input nodes elementwise."""
+    """Return node which applies the maximum operation to input nodes elementwise.
+
+    :param left_node: The first input node for maximum operation.
+    :param right_node: The second input node for maximum operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise maximum operation.
+    """
     return _get_node_factory_opset1().create(
         "Maximum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
     )
@@ -1658,7 +1674,15 @@ def minimum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies the minimum operation to input nodes elementwise."""
+    """Return node which applies the minimum operation to input nodes elementwise.
+
+    :param left_node: The first input node for minimum operation.
+    :param right_node: The second input node for minimum operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise minimum operation.
+    """
     return _get_node_factory_opset1().create(
         "Minimum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
     )
@@ -1691,7 +1715,15 @@ def multiply(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies f(x) = A*B to the input nodes elementwise."""
+    """Return node which applies f(A,B) = A*B to the input nodes elementwise.
+
+    :param left_node: The first input node for multiply operation.
+    :param right_node: The second input node for multiply operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise multiplication.
+    """
     return _get_node_factory_opset1().create(
         "Multiply", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
     )
@@ -1699,7 +1731,12 @@ def multiply(
 
 @unary_op
 def negative(node: NodeInput, name: Optional[str] = None) -> Node:
-    """Return node which applies f(x) = -x to the input node elementwise."""
+    """Return node which applies f(x) = -x to the input node elementwise.
+
+    :param node: Input node for negative operation.
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise multiplicaion by -1.
+    """
     return _get_node_factory_opset1().create("Negative", [node])
 
 
@@ -1845,7 +1882,13 @@ def parameter(
     dtype: Union[NumericType, Type] = np.float32,
     name: Optional[str] = None,
 ) -> Parameter:
-    """Return an openvino Parameter object."""
+    """Return an openvino Parameter object.
+
+    :param shape: The shape of the output tensor.
+    :param dtype: The type of elements of the output tensor. Defaults to np.float32.
+    :param name: The optional name for output new node.
+    :return: The node that specifies input to the model.
+    """
     return Parameter(
         get_element_type(dtype) if isinstance(dtype, (type, np.dtype)) else dtype,
         PartialShape(shape),
@@ -2508,6 +2551,7 @@ def reshape(
                          If special_zero is true, then all zeros in shape implies the copying
                          of corresponding dimensions from data.shape into the output shape.
                          Range of values: False or True
+    :return: The node reshaping an input tensor.
     """
     return _get_node_factory_opset1().create(
         "Reshape", as_nodes(node, output_shape), {"special_zero": special_zero},
