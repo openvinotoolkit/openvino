@@ -173,6 +173,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
@@ -375,7 +377,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      # because of IR reader v7 
+      # because of IR reader v7
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
