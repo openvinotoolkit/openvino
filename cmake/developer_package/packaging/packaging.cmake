@@ -51,19 +51,27 @@ ov_cpack_set_dirs()
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-unset(IE_CPACK_COMPONENTS_ALL CACHE)
 function(ie_cpack_add_component name)
     if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
-        cpack_add_component(${name} ${args})
+        cpack_add_component(${name} ${ARGN})
+
+        # need to store informarion about cpack_add_component arguments in CMakeCache.txt
+        # to restore it later
+        set(_${name}_cpack_component_args "${ARGN}" CACHE STRING "Argument for cpack_add_component for ${name} cpack component" FORCE)
 
         list(APPEND IE_CPACK_COMPONENTS_ALL ${name})
         set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
     endif()
 endfunction()
 
+foreach(comp IN LISTS IE_CPACK_COMPONENTS_ALL)
+    unset(_${comp}_cpack_component_args)
+endforeach()
+unset(IE_CPACK_COMPONENTS_ALL CACHE)
+
 # create `tests` component
 if(ENABLE_TESTS)
-    cpack_add_component(tests DISABLED)
+    cpack_add_component(tests HIDDEN)
 endif()
 
 #
@@ -83,8 +91,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_C_SAMPLES "c_samples")
     set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
     # python
-    # TODO: rename to pyie and fix product-config as well
-    set(OV_CPACK_COMP_PYTHON_IE_API "")
+    set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
@@ -110,6 +117,10 @@ if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian)
 endif()
 
+if(CPACK_GENERATOR STREQUAL "NSIS")
+    include(packaging/nsis)
+endif()
+
 macro(ie_cpack)
     if(NOT DEFINED CPACK_GENERATOR)
         set(CPACK_GENERATOR "TGZ")
@@ -122,15 +133,16 @@ macro(ie_cpack)
     set(CPACK_PACKAGE_CONTACT "OpenVINO Developers <openvino@intel.com>")
     set(CPACK_VERBATIM_VARIABLES ON)
     set(CPACK_COMPONENTS_ALL ${ARGN})
+    # TODO: set proper license file for Windows installer
+    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
 
-    # TODO: check whether we need it
     # default permissions for directories creation
     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
         OWNER_READ OWNER_WRITE OWNER_EXECUTE
-        GROUP_READ GROUP_EXECUTE
+        GROUP_READ GROUP_EXECUTE OWNER_EXECUTE
         WORLD_READ WORLD_EXECUTE)
 
-    # archive operations can be run in parallels since CMake 3.20
+    # archive operations can be run in parallel since CMake 3.20
     set(CPACK_THREADS 8)
 
     if(NOT DEFINED CPACK_STRIP_FILES)
@@ -145,6 +157,10 @@ macro(ie_cpack)
     endif()
 
     set(CPACK_PACKAGE_VERSION "${OpenVINO_VERSION}")
+    if(NOT OpenVINO_VERSION_BUILD STREQUAL "000")
+        set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.${OpenVINO_VERSION_BUILD}")
+    endif()
+
     foreach(ver MAJOR MINOR PATCH)
         if(DEFINED OpenVINO_VERSION_${ver})
             set(CPACK_PACKAGE_VERSION_${ver} ${OpenVINO_VERSION_${ver}})
@@ -159,15 +175,17 @@ macro(ie_cpack)
 
     # generator specific variables
     if(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|ZIP)$")
+        # New in version 3.18
+        set(CPACK_ARCHIVE_THREADS 8)
         # multiple packages are generated
         set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-    elseif(CPACK_GENERATOR STREQUAL "DEB")
-        # include Debian dedicated per-component configuration file
-        # NOTE: private modules need to define ov_debian_components macro
-        # for custom debian packages configuration
-        if(COMMAND ov_debian_components)
-            ov_debian_components()
-        endif()
+    endif()
+    
+    # include GENERATOR dedicated per-component configuration file
+    # NOTE: private modules need to define ov_cpack_settings macro
+    # for custom  packages configuration
+    if(COMMAND ov_cpack_settings)
+        ov_cpack_settings()
     endif()
 
     include(CPack)

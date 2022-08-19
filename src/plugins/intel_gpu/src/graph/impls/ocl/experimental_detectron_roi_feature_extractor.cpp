@@ -39,8 +39,9 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_roi_feature_extractor_node& arg) {
-        const auto output_layout = arg.get_output_layout();
+    static primitive_impl* create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        const auto output_layout = impl_param.output_layout;
         const auto padding_filling_value = output_layout.data_padding.filling_value();
         CLDNN_ERROR_NOT_EQUAL(arg.id(),
                               "experimental_detectron_roi_feature_extractor padding filling value",
@@ -48,14 +49,12 @@ public:
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in experimental_detectron_roi_feature_extractor.");
-
-        auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(arg);
+        auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(arg.get_program());
 
-        const auto& primitive = arg.get_primitive();
         size_t number_of_inputs = primitive->input_size() - 1;
         for (std::size_t i = 1; i < number_of_inputs; i++) {
-            params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         params.output_dim = primitive->output_dim;

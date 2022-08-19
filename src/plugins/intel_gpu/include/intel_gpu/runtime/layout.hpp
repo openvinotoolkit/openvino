@@ -38,52 +38,23 @@ enum class data_types : size_t {
     i64 = sizeof(int64_t)
 };
 
-class optional_data_type {
-    // Must be the same as the undrelying type of `data_types`.
-    using storage_type = size_t;
-
-    // Implicitly assumes that this value is not used in the `data_types`.
-    static constexpr auto non_specified_type =
-        std::numeric_limits<storage_type>::max();
-
-public:
-    optional_data_type()
-        : storage(non_specified_type) {}
-
-    explicit optional_data_type(data_types type)
-        : storage(static_cast<storage_type>(type)) {}
-
-    operator bool() const { return storage != non_specified_type; }
-
-    // Similarly to std::optional does *not* verify that the object has the type
-    // set. Unlike it, though, returns the value instead of pointer/reference.
-    data_types operator*() const { return static_cast<data_types>(storage); }
-
-    optional_data_type& operator=(const data_types new_type) {
-        storage = static_cast<storage_type>(new_type);
-        return *this;
-    }
-
-private:
-    storage_type storage;
-};
 
 /// Converts C++ type to @ref data_types .
 template <typename T>
 struct type_to_data_type;
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 template <>
-struct type_to_data_type<int8_t> { static const data_types value = data_types::i8; };
+struct type_to_data_type<int8_t> { static constexpr data_types value = data_types::i8; };
 template <>
-struct type_to_data_type<uint8_t> { static const data_types value = data_types::u8; };
+struct type_to_data_type<uint8_t> { static constexpr data_types value = data_types::u8; };
 template <>
-struct type_to_data_type<int32_t> { static const data_types value = data_types::i32; };
+struct type_to_data_type<int32_t> { static constexpr data_types value = data_types::i32; };
 template <>
-struct type_to_data_type<int64_t> { static const data_types value = data_types::i64; };
+struct type_to_data_type<int64_t> { static constexpr data_types value = data_types::i64; };
 template <>
-struct type_to_data_type<half_t> { static const data_types value = data_types::f16; };
+struct type_to_data_type<half_t> { static constexpr data_types value = data_types::f16; };
 template <>
-struct type_to_data_type<float> { static const data_types value = data_types::f32; };
+struct type_to_data_type<float> { static constexpr data_types value = data_types::f32; };
 #endif
 
 /// Converts @ref data_types to C++ type.
@@ -225,6 +196,10 @@ struct data_type_traits {
         }
     }
 };
+
+inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
+    return os << data_type_traits::name(dt);
+}
 
 /// Helper function to check if C++ type matches @p data_type.
 template <typename T>
@@ -428,6 +403,10 @@ private:
     /// The size of the @ref memory (excluding padding)
     tensor size;
 };
+
+inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
+    return os << p.to_string();
+}
 
 /// @}
 /// @}

@@ -39,36 +39,36 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_timeloop_node& arg) {
-        auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(arg);
+    static primitive_impl* create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+        auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(impl_param);
 
         // dyn length
-        const auto& dyn_length_tensor = arg.dyn_length().get_output_layout();
+        const auto& dyn_length_tensor = impl_param.input_layouts[arg.get_dependency_idx("dyn_length")];
         dlstm_timeloop_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
         // recurrent
-        const auto& recurrent_layout = arg.recurrent().get_output_layout();
+        const auto& recurrent_layout = impl_param.input_layouts[arg.get_dependency_idx("recurrent")];
         dlstm_timeloop_params.recurrent = convert_data_tensor(recurrent_layout);
 
         dlstm_timeloop_params.direction = arg.direction();
 
         if (arg.initial_cell_term()) {
-            const auto& cell_layout = arg.initial_cell().get_output_layout();
+            const auto& cell_layout = impl_param.input_layouts[arg.get_dependency_idx("initial_cell")];
             dlstm_timeloop_params.set_cell(convert_data_tensor(cell_layout));
         }
 
         if (arg.last_hidden_output_term()) {
-            const auto& last_hidden_output_layout = arg.last_hidden_state().get_output_layout();
+            const auto& last_hidden_output_layout = impl_param.input_layouts[arg.get_dependency_idx("last_hidden_output")];
             dlstm_timeloop_params.set_last_hidden_output(convert_data_tensor(last_hidden_output_layout));
         }
 
         if (arg.initial_hidden_term()) {
-            const auto& hidden_layout = arg.initial_hidden().get_output_layout();
+            const auto& hidden_layout = impl_param.input_layouts[arg.get_dependency_idx("initial_hidden")];
             dlstm_timeloop_params.set_hidden(convert_data_tensor(hidden_layout));
         }
 
         if (arg.last_cell_output_term()) {
-            const auto& last_cell_state_layout = arg.last_cell_state().get_output_layout();
+            const auto& last_cell_state_layout = impl_param.input_layouts[arg.get_dependency_idx("last_cell_output")];
             dlstm_timeloop_params.set_last_cell_output(convert_data_tensor(last_cell_state_layout));
         }
 

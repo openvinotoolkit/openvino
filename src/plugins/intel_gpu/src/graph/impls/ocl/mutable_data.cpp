@@ -18,7 +18,7 @@ struct mutable_data_impl : public typed_primitive_impl_ocl<mutable_data> {
     }
 
 public:
-    static primitive_impl* create(mutable_data_node const& arg) { return new mutable_data_impl(arg, {}); }
+    static primitive_impl* create(mutable_data_node const& arg, const kernel_impl_params&) { return new mutable_data_impl(arg, {}); }
 };
 
 namespace detail {
