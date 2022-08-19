@@ -155,4 +155,7 @@ install(TARGETS onnx_tests
 # process models
 add_dependencies(onnx_tests test_model_zoo)
 
+add_subdirectory(standalone_build)
+add_dependencies(onnx_tests onnx_fe_standalone_build_test)
+
 add_subdirectory(onnx_frontend_tests)
