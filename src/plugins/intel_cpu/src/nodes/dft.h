@@ -8,56 +8,11 @@
 #include <node.h>
 #include <string>
 
+#include "kernels/dft_uni_kernel.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-struct jit_args_dft {
-    const float* src;
-    float* dst;
-    const float* twiddles;
-
-    size_t work_amount;
-    size_t index;
-};
-
-struct jit_args_fft {
-    const float* src;
-    float* dst;
-    const float* twiddles;
-
-    size_t num_blocks;
-    size_t work_amount;
-    size_t n_complex;
-};
-
-struct jit_uni_dft_kernel {
-    void (*ker_)(const jit_args_dft*);
-
-    void operator()(const jit_args_dft* args) {
-        assert(ker_);
-        ker_(args);
-    }
-
-    jit_uni_dft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_dft_kernel() {}
-
-    virtual void create_ker() = 0;
-};
-
-struct jit_uni_fft_kernel {
-    void (*ker_)(const jit_args_fft*);
-
-    void operator()(const jit_args_fft* args) {
-        assert(ker_);
-        ker_(args);
-    }
-
-    jit_uni_fft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_fft_kernel() {}
-
-    virtual void create_ker() = 0;
-};
 
 class DFT : public Node {
 public:
@@ -77,24 +32,28 @@ public:
 
     struct DFTAttrs {
         bool inverse;
+        bool hasFFT;
+        bool hasDFT;
     };
 
 private:
+    std::vector<int32_t> getAxes() const;
+
     DFTAttrs interpAttrs;
 
     class DFTExecutor {
     public:
         DFTExecutor(const DFTAttrs&) {}
 
-        virtual void exec(const float* src,
-                          float* dst,
-                          size_t inputRank,
-                          std::vector<int32_t> axes,
-                          VectorDims inputShape,
-                          VectorDims outputShape,
-                          VectorDims inputStrides,
-                          VectorDims outputStrides,
-                          bool inverse);
+        void exec(const float* src,
+                  float* dst,
+                  size_t inputRank,
+                  const std::vector<int32_t>& axes,
+                  const VectorDims& inputShape,
+                  const VectorDims& outputShape,
+                  const VectorDims& inputStrides,
+                  const VectorDims& outputStrides,
+                  bool inverse);
 
         virtual ~DFTExecutor() = default;
 
@@ -102,7 +61,7 @@ private:
         void dftNd(float* output,
                    const VectorDims& outputShape,
                    const VectorDims& outputStrides,
-                   std::vector<int32_t> axes,
+                   const std::vector<int32_t>& axes,
                    bool inverse) const;
 
         virtual float* fft(float* inBuffer,
@@ -149,6 +108,7 @@ private:
         void naiveDFT(float* data, size_t dataLength, bool inverse) const override;
     };
 
+    std::vector<int32_t> axes;
     std::vector<size_t> inputShape;
     std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;

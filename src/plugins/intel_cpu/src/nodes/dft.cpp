@@ -11,9 +11,6 @@
 #include <dnnl_extension_utils.h>
 
 #include <common/primitive_hashing.hpp>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
@@ -22,15 +19,13 @@
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
-using namespace Xbyak;
 
-#define GET_OFF_DFT(field) offsetof(jit_args_dft, field)
-#define GET_OFF_FFT(field) offsetof(jit_args_fft, field)
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 namespace {
 struct DFTKey {
@@ -47,6 +42,8 @@ size_t DFTKey::hash() const {
     size_t seed = 0;
 
     seed = hash_combine(seed, nodeAttrs.inverse);
+    seed = hash_combine(seed, nodeAttrs.hasFFT);
+    seed = hash_combine(seed, nodeAttrs.hasDFT);
 
     return seed;
 }
@@ -54,315 +51,15 @@ size_t DFTKey::hash() const {
 bool DFTKey::operator==(const DFTKey& rhs) const {
     if (nodeAttrs.inverse != rhs.nodeAttrs.inverse)
         return false;
+    if (nodeAttrs.hasFFT != rhs.nodeAttrs.hasFFT)
+        return false;
+    if (nodeAttrs.hasDFT != rhs.nodeAttrs.hasDFT)
+        return false;
 
     return true;
 }
 
 }  // namespace
-
-namespace ov {
-namespace intel_cpu {
-namespace node {
-
-struct jit_dft_config_params {
-    bool inverse;
-};
-
-template <cpu_isa_t isa>
-struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_dft_kernel_f32)
-
-    jit_uni_dft_kernel_f32(jit_dft_config_params jcp) : jcp_(jcp), jit_uni_dft_kernel(), jit_generator() {}
-
-    void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
-    }
-
-    void generate() override {
-        this->preamble();
-
-        mov(reg_src, ptr[reg_params + GET_OFF_DFT(src)]);
-        mov(reg_dst, ptr[reg_params + GET_OFF_DFT(dst)]);
-        mov(reg_twiddles, ptr[reg_params + GET_OFF_DFT(twiddles)]);
-        mov(reg_work_amount, ptr[reg_params + GET_OFF_DFT(work_amount)]);
-        mov(reg_index, ptr[reg_params + GET_OFF_DFT(index)]);
-
-        Xbyak::Label main_loop_label;
-        Xbyak::Label main_loop_end_label;
-        Xbyak::Label tail_loop_label;
-        Xbyak::Label tail_loop_end_label;
-
-        mov(aux_reg_work_amount, reg_work_amount);
-        uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
-
-        int step = vlen / 8;
-
-        L(main_loop_label);
-        {
-            cmp(aux_reg_work_amount, step);
-            jl(main_loop_end_label, T_NEAR);
-
-            uni_vpshufd(vmm_data, ptr[reg_src], 0b01000001);
-            uni_vpshufd(vmm_twiddles, ptr[reg_twiddles], 0b01000100);
-            uni_vfmadd231ps(vmm_sum, vmm_data, vmm_twiddles);
-
-            uni_vpshufd(vmm_data, ptr[reg_src], 0b11101011);
-            uni_vpshufd(vmm_twiddles, ptr[reg_twiddles], 0b11101110);
-            uni_vfmadd231ps(vmm_sum, vmm_data, vmm_twiddles);
-
-            add(reg_twiddles, 2 * step * sizeof(float));
-            add(reg_src, 2 * step * sizeof(float));
-
-            sub(aux_reg_work_amount, step);
-            jmp(main_loop_label, T_NEAR);
-        }
-        L(main_loop_end_label);
-
-        if (mayiuse(cpu::x64::avx512_core)) {
-            Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
-            Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
-            Xbyak::Ymm ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
-
-            vextractf64x4(ymm_sum_2, zmm_sum, 1);
-            vaddps(ymm_sum, ymm_sum, ymm_sum_2);
-        }
-        if (mayiuse(cpu::x64::avx2)) {
-            Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
-
-            vextractf128(xmm_sum_2, ymm_sum, 1);
-            vaddps(xmm_sum, xmm_sum, xmm_sum_2);
-        }
-
-        L(tail_loop_label);
-        {
-            cmp(aux_reg_work_amount, 1);
-            jl(tail_loop_end_label, T_NEAR);
-
-            uni_vpshufd(xmm_data, ptr[reg_src], 0b01000001);
-            uni_vpshufd(xmm_twiddles, ptr[reg_twiddles], 0b01000100);
-            uni_vfmadd231ps(xmm_sum, xmm_data, xmm_twiddles);
-
-            add(reg_twiddles, 2 * sizeof(float));
-            add(reg_src, 2 * sizeof(float));
-
-            sub(aux_reg_work_amount, 1);
-            jmp(tail_loop_label, T_NEAR);
-        }
-        L(tail_loop_end_label);
-
-        vmovhlps(xmm_sum_2, xmm_sum_2, xmm_sum);
-
-        if (!jcp_.inverse) {
-            vhsubps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-            vhaddps(xmm_sum, xmm_sum, xmm_sum);
-        } else {
-            vhaddps(xmm_sum_2, xmm_sum_2, xmm_sum_2);
-            vhsubps(xmm_sum, xmm_sum, xmm_sum);
-
-            uni_vmovq(xmm_div, reg_work_amount);
-            uni_vcvtdq2ps(xmm_div, xmm_div);
-            vdivss(xmm_sum, xmm_sum, xmm_div);
-            vdivss(xmm_sum_2, xmm_sum_2, xmm_div);
-        }
-
-        uni_vmovss(ptr[reg_dst], xmm_sum_2);
-        uni_vmovss(ptr[reg_dst + sizeof(float)], xmm_sum);
-
-        this->postamble();
-    }
-
-private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
-
-    Xbyak::Reg64 reg_src = r8;
-    Xbyak::Reg64 reg_dst = r9;
-    Xbyak::Reg64 reg_twiddles = r10;
-    Xbyak::Reg64 reg_work_amount = r11;
-    Xbyak::Reg64 aux_reg_work_amount = r12;
-    Xbyak::Reg64 reg_index = r13;
-    Xbyak::Reg64 reg_params = abi_param1;
-
-    Vmm vmm_data = Vmm(0);
-    Xmm xmm_data = Xmm(0);
-    Vmm vmm_twiddles = Vmm(1);
-    Xmm xmm_twiddles = Xmm(1);
-    Vmm vmm_sum = Vmm(2);
-    Xmm xmm_sum = Xmm(2);
-
-    Vmm vmm_sum_2 = vmm_data;
-    Xmm xmm_sum_2 = xmm_data;
-    Xmm xmm_div = xmm_twiddles;
-
-    jit_dft_config_params jcp_ = {};
-};
-
-template <cpu_isa_t isa>
-struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_fft_kernel_f32)
-
-    jit_uni_fft_kernel_f32(jit_dft_config_params jcp) : jcp_(jcp), jit_uni_fft_kernel(), jit_generator() {}
-
-    void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
-    }
-
-    template <typename T>
-    void loop_process(int step) {
-        T reg_data_odd_1 = T(vmm_data_odd_1.getIdx());
-        T reg_data_odd_2 = T(vmm_data_odd_2.getIdx());
-        T reg_twiddle_imag = T(vmm_twiddle_imag.getIdx());
-        T reg_twiddle_real = T(vmm_twiddle_real.getIdx());
-        T reg_data_even = T(vmm_data_even.getIdx());
-        T reg_data_result = T(vmm_data_result.getIdx());
-        T reg_negative_mask = T(vmm_negative_mask.getIdx());
-
-        Xbyak::Label loop_label;
-        Xbyak::Label loop_end_label;
-
-        L(loop_label);
-        {
-            cmp(aux_reg_work_amount, step);
-            jl(loop_end_label, T_NEAR);
-
-            move_data(reg_data_odd_1, ptr[reg_src + reg_even_in_diff], step);
-            uni_vpshufd(reg_data_odd_2, reg_data_odd_1, 0b10110001);
-            uni_vmulps(reg_data_odd_2, reg_data_odd_2, reg_twiddle_imag);
-
-            if (mayiuse(cpu::x64::avx512_core)) {
-                if (!jcp_.inverse) {
-                    vfmaddsub213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
-                } else {
-                    vfmsubadd213ps(reg_data_odd_1, reg_twiddle_real, reg_data_odd_2);
-                }
-            } else {
-                if (jcp_.inverse) {
-                    uni_vxorps(reg_data_odd_2, reg_data_odd_2, reg_negative_mask);
-                }
-
-                uni_vmulps(reg_data_odd_1, reg_data_odd_1, reg_twiddle_real);
-                vaddsubps(reg_data_odd_1, reg_data_odd_1, reg_data_odd_2);
-            }
-
-            move_data(reg_data_even, ptr[reg_src], step);
-
-            uni_vaddps(reg_data_result, reg_data_even, reg_data_odd_1);
-            move_data(ptr[reg_dst], reg_data_result, step);
-
-            uni_vsubps(reg_data_result, reg_data_even, reg_data_odd_1);
-            move_data(ptr[reg_dst + reg_even_out_diff], reg_data_result, step);
-
-            add(reg_src, step * sizeof(float));
-            add(reg_dst, step * sizeof(float));
-
-            sub(aux_reg_work_amount, step);
-            jmp(loop_label, T_NEAR);
-        }
-        L(loop_end_label);
-    }
-
-    void generate() override {
-        this->preamble();
-
-        mov(reg_src, ptr[reg_params + GET_OFF_FFT(src)]);
-        mov(reg_dst, ptr[reg_params + GET_OFF_FFT(dst)]);
-        mov(reg_twiddles_addr, ptr[reg_params + GET_OFF_FFT(twiddles)]);
-
-        mov(reg_num_blocks, ptr[reg_params + GET_OFF_FFT(num_blocks)]);
-        mov(reg_work_amount, ptr[reg_params + GET_OFF_FFT(work_amount)]);
-
-        mov(reg_even_in_diff, sizeof(float));
-        mul(ptr[reg_params + GET_OFF_FFT(n_complex)]);
-        mov(reg_even_out_diff, reg_even_in_diff);
-
-        mov(reg_even_in_diff, sizeof(float));
-        mul(reg_work_amount);
-
-        if (jcp_.inverse) {
-            Xbyak::Reg32 reg_negative_mask = Xbyak::Reg32(aux_reg_work_amount.getIdx());
-            Xbyak::Xmm xmm_negative_mask = Xbyak::Xmm(vmm_negative_mask.getIdx());
-
-            mov(reg_negative_mask, 0x80000000);
-            uni_vmovd(xmm_negative_mask, reg_negative_mask);
-            uni_vpbroadcastd(vmm_negative_mask, xmm_negative_mask);
-        }
-
-        Xbyak::Label block_loop_label;
-        Xbyak::Label block_loop_end_label;
-
-        L(block_loop_label);
-        {
-            cmp(reg_num_blocks, 1);
-            jl(block_loop_end_label, T_NEAR);
-
-            mov(aux_reg_work_amount, reg_work_amount);
-            uni_vbroadcastss(vmm_twiddle_real, ptr[reg_twiddles_addr]);
-            uni_vbroadcastss(vmm_twiddle_imag, ptr[reg_twiddles_addr + sizeof(float)]);
-
-            if (mayiuse(cpu::x64::avx2)) {
-                loop_process<Vmm>(vlen / 4);
-            }
-            loop_process<Xmm>(4);
-            loop_process<Xmm>(2);
-
-            add(reg_twiddles_addr, 2 * sizeof(float));
-            add(reg_src, reg_even_in_diff);
-            sub(reg_num_blocks, 1);
-
-            jmp(block_loop_label, T_NEAR);
-        }
-        L(block_loop_end_label);
-
-        this->postamble();
-    }
-
-private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    const size_t vlen = cpu_isa_traits<isa>::vlen;
-
-    Xbyak::Reg32 aux_negative_mask = r8d;
-
-    Xbyak::Reg64 reg_even_in_diff = rax;
-    Xbyak::Reg64 reg_even_out_diff = rbx;
-
-    Xbyak::Reg64 reg_src = r9;
-    Xbyak::Reg64 reg_dst = r10;
-    Xbyak::Reg64 reg_num_blocks = r11;
-    Xbyak::Reg64 reg_work_amount = r12;
-    Xbyak::Reg64 aux_reg_work_amount = r13;
-    Xbyak::Reg64 reg_twiddles_addr = r14;
-    Xbyak::Reg64 reg_params = abi_param1;
-
-    Vmm vmm_data_odd_1 = Vmm(0);
-    Vmm vmm_data_odd_2 = Vmm(1);
-    Vmm vmm_twiddle_real = Vmm(2);
-    Vmm vmm_twiddle_imag = Vmm(3);
-    Vmm vmm_negative_mask = Vmm(4);
-    Vmm vmm_data_even = Vmm(5);
-
-    Vmm vmm_data_result = vmm_data_odd_2;
-
-    jit_dft_config_params jcp_ = {};
-
-    inline void move_data(const Xbyak::Address& addr, const Xmm& x, int count) {
-        if (count == 2) {
-            uni_vmovq(addr, x);
-        } else {
-            uni_vmovups(addr, x);
-        }
-    }
-
-    inline void move_data(const Xmm& x, const Xbyak::Address& addr, int count) {
-        if (count == 2) {
-            uni_vmovq(x, addr);
-        } else {
-            uni_vmovups(x, addr);
-        }
-    }
-};
 
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -579,28 +276,18 @@ void DFT::execute(dnnl::stream strm) {
         return;
     }
 
-    auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
-    auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += inputShape.size() - 1;
-        }
-    }
-    std::sort(axes.begin(), axes.end());
+    const auto& outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
-    auto outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
-
-    auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
-    auto outputDataEdge = getChildEdgeAt(0);
+    const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
+    const auto outputDataEdge = getChildEdgeAt(0);
 
     const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
     auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
 
-    auto inputRank = inputDataEdge->getMemory().GetShape().getRank();
+    const auto inputRank = inputDataEdge->getMemory().GetShape().getRank();
 
-    auto inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
     execPtr->exec(src, dst, inputRank, axes, inputShape, outputShape, inputStrides, outputStrides, inverse);
 }
@@ -608,11 +295,11 @@ void DFT::execute(dnnl::stream strm) {
 void DFT::DFTExecutor::exec(const float* src,
                             float* dst,
                             size_t inputRank,
-                            std::vector<int32_t> axes,
-                            VectorDims inputShape,
-                            VectorDims outputShape,
-                            VectorDims inputStrides,
-                            VectorDims outputStrides,
+                            const std::vector<int32_t>& axes,
+                            const VectorDims& inputShape,
+                            const VectorDims& outputShape,
+                            const VectorDims& inputStrides,
+                            const VectorDims& outputStrides,
                             bool inverse) {
     size_t nComplexMaxFFT = 0;
     for (size_t axis : axes) {
@@ -661,7 +348,7 @@ void DFT::DFTExecutor::exec(const float* src,
 void DFT::DFTExecutor::dftNd(float* output,
                              const VectorDims& outputShape,
                              const VectorDims& outputStrides,
-                             std::vector<int32_t> axes,
+                             const std::vector<int32_t>& axes,
                              bool inverse) const {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
     const size_t lastDimIndex = iterationRange.size() - 1;
@@ -847,23 +534,35 @@ DFT::DFTJitExecutor::DFTJitExecutor(const DFTAttrs& interpAttrs) : DFTExecutor(i
 
     jdp.inverse = interpAttrs.inverse;
 
-    if (mayiuse(cpu::x64::avx512_core)) {
-        dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>(jdp));
-        fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>(jdp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>(jdp));
-        fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>(jdp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>(jdp));
-        fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>(jdp));
-    } else {
-        IE_THROW() << "Can't create jit DFT kernel";
+    if (interpAttrs.hasDFT) {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>(jdp));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>(jdp));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>(jdp));
+        } else {
+            IE_THROW() << "Can't create jit DFT kernel";
+        }
+
+        if (dftKernel)
+            dftKernel->create_ker();
     }
 
-    if (dftKernel)
-        dftKernel->create_ker();
-    if (fftKernel)
-        fftKernel->create_ker();
+    if (interpAttrs.hasFFT) {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>(jdp));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>(jdp));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>(jdp));
+        } else {
+            IE_THROW() << "Can't create jit FFT kernel";
+        }
+
+        if (fftKernel)
+            fftKernel->create_ker();
+    }
 }
 
 float* DFT::DFTJitExecutor::fft(float* inBuffer,
@@ -945,6 +644,20 @@ void DFT::prepareParams() {
     DFTKey key = {};
 
     key.nodeAttrs.inverse = inverse;
+    key.nodeAttrs.hasDFT = false;
+    key.nodeAttrs.hasFFT = false;
+
+    axes = getAxes();
+    const auto outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+
+    for (size_t axis : axes) {
+        size_t nComplex = outputShape[axis];
+        if (!IsPowerOfTwo(nComplex)) {
+            key.nodeAttrs.hasDFT = true;
+        } else {
+            key.nodeAttrs.hasFFT = true;
+        }
+    }
 
     auto buildExecutor = [&](const DFTKey& key) -> std::shared_ptr<DFTExecutor> {
         std::shared_ptr<DFTExecutor> executor;
@@ -961,6 +674,19 @@ void DFT::prepareParams() {
     execPtr = result.first;
 
     lastInverse = inverse;
+}
+
+std::vector<int32_t> DFT::getAxes() const {
+    auto axesEdge = getParentEdgeAt(AXES_INDEX);
+    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
+    auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis += inputShape.size() - 1;
+        }
+    }
+    std::sort(axes.begin(), axes.end());
+    return axes;
 }
 
 void DFT::createPrimitive() {
