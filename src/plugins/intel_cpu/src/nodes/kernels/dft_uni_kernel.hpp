@@ -84,7 +84,7 @@ private:
     Xbyak::Reg64 reg_work_amount = r11;
     Xbyak::Reg64 aux_reg_work_amount = r12;
     Xbyak::Reg64 reg_index = r13;
-    Xbyak::Reg64 reg_params = abi_param1;
+    Xbyak::Reg64 reg_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
     Vmm vmm_data = Vmm(0);
     Vmm vmm_twiddles = Vmm(1);
@@ -128,7 +128,7 @@ private:
     Xbyak::Reg64 reg_work_amount = r12;
     Xbyak::Reg64 aux_reg_work_amount = r13;
     Xbyak::Reg64 reg_twiddles_addr = r14;
-    Xbyak::Reg64 reg_params = abi_param1;
+    Xbyak::Reg64 reg_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
     Vmm vmm_data_odd_1 = Vmm(0);
     Vmm vmm_data_odd_2 = Vmm(1);
