@@ -5,17 +5,9 @@
 #include "utils.hpp"
 
 #include "openvino/opsets/opset8.hpp"
+#include "openvino_conversions.hpp"
 
 using namespace ov::opset8;
-
-void ov::frontend::tensorflow::tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape,
-                                                    ov::PartialShape* ng_shape) {
-    std::vector<ov::Dimension> dims;
-    for (int i = 0; i < tf_shape.dim_size(); i++) {
-        dims.emplace_back(tf_shape.dim(i).size());
-    }
-    *ng_shape = ov::PartialShape(dims);
-}
 
 void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
