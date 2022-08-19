@@ -14,28 +14,28 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_bias_add_op(const NodeContext& node) {
+    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 1, "BiasAdd must have at least two inputs.");
     auto value = node.get_input(0);
     auto bias = node.get_input(1);
 
+    // retrieve optional attributes
     std::string data_format = node.get_attribute<std::string>("data_format", "NHWC");
-
     TENSORFLOW_OP_VALIDATION(node,
                              data_format == "NHWC" || data_format == "NCHW",
                              "BiasAdd data format is neither NHWC nor NCHW.");
-
-    auto value_shape = value.get_partial_shape();
-    auto bias_shape = bias.get_partial_shape();
-    TENSORFLOW_OP_VALIDATION(node, bias_shape.size() == 1, "Bias input of BiasAdd must have one dimension");
 
     Output<Node> bias_reshaped = bias;
 
     // in case NCHW layout bias must be reshaped to have a shape (1, C, 1, ...)
     // for further correct use of Add operation
     if (data_format == "NCHW") {
+        // TODO: add support for dynamic rank in case NCHW layout
+        auto value_shape = value.get_partial_shape();
         TENSORFLOW_OP_VALIDATION(node,
                                  value_shape.rank().is_static(),
                                  "Value of dynamic rank for BiasAdd in NCHW layout is not supported.");
         auto value_rank = value_shape.rank().get_length();
+
         std::vector<int64_t> axes_unsqueeze;
         for (size_t dim_ind = 0; dim_ind < value_rank; ++dim_ind) {
             if (dim_ind != 1) {
