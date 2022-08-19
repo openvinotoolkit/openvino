@@ -12,7 +12,7 @@ TEST(ov_model, ov_model_outputs) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_node_list_t output_node_list;
+    ov_output_const_node_list_t output_node_list;
     output_node_list.output_nodes = nullptr;
     OV_ASSERT_OK(ov_model_outputs(model, &output_node_list));
     ASSERT_NE(nullptr, output_node_list.output_nodes);
@@ -31,7 +31,7 @@ TEST(ov_model, ov_model_inputs) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_node_list_t input_node_list;
+    ov_output_const_node_list_t input_node_list;
     input_node_list.output_nodes = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list));
     ASSERT_NE(nullptr, input_node_list.output_nodes);
@@ -241,7 +241,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     OV_ASSERT_OK(ov_core_read_model(core, xml, bin, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_output_node_list_t input_node_list1;
+    ov_output_const_node_list_t input_node_list1;
     input_node_list1.output_nodes = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list1));
     ASSERT_NE(nullptr, input_node_list1.output_nodes);
@@ -257,7 +257,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     OV_ASSERT_OK(ov_shape_to_partial_shape(shape, &partial_shape));
     OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
 
-    ov_output_node_list_t input_node_list2;
+    ov_output_const_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list2));
     ASSERT_NE(nullptr, input_node_list2.output_nodes);

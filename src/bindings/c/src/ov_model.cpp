@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* output_nodes) {
+ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_const_node_list_t* output_nodes) {
     if (!model || !output_nodes) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -23,7 +23,7 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes) {
+ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_const_node_list_t* input_nodes) {
     if (!model || !input_nodes) {
         return ov_status_e::INVALID_C_PARAM;
     }

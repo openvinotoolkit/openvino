@@ -38,7 +38,7 @@ OPENVINO_C_API(void) ov_model_free(ov_model_t* model);
  * @param output_nodes A pointer to the ov_output_nodes.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* output_nodes);
+OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_const_node_list_t* output_nodes);
 
 /**
  * @brief Get the outputs of ov_model_t.
@@ -47,7 +47,7 @@ OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_
  * @param input_nodes A pointer to the ov_input_nodes.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* input_nodes);
+OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_const_node_list_t* input_nodes);
 
 /**
  * @brief Get the outputs of ov_model_t.

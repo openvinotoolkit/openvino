@@ -45,17 +45,17 @@ ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, o
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* input_nodes);
+ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model, ov_output_const_node_list_t* input_nodes);
 
 /**
  * @brief Get all outputs of a compiled model.
  * @ingroup compiled_model
  * @param compiled_model A pointer to the ov_compiled_model_t.
- * @param output_nodes A pointer to the ov_output_node_list_t.
+ * @param output_nodes A pointer to the ov_output_const_node_list_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_node_list_t* output_nodes);
+ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model, ov_output_const_node_list_t* output_nodes);
 
 /**
  * @brief Creates an inference request object used to infer the compiled model.

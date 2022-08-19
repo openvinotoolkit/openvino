@@ -113,7 +113,7 @@ ov_status_e ov_node_list_get_element_type_by_index(const ov_output_node_list_t* 
     return ov_status_e::OK;
 }
 
-void ov_output_node_list_free(ov_output_node_list_t* output_nodes) {
+void ov_output_node_list_free(ov_output_const_node_list_t* output_nodes) {
     if (output_nodes) {
         if (output_nodes->output_nodes)
             delete[] output_nodes->output_nodes;
