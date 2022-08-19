@@ -382,10 +382,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (ngraph::op::is_constant(node))
             continue;
-        if (ngraph::op::is_parameter(node)) {
-            SetNodeFusingType(node, NodeFusingType::IgnoredAfterInputs);
-            continue;
-        } else if (isSuitableConvolutionParent(node)) {
+        if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
             continue;
