@@ -193,10 +193,10 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 
 
 /// DIVIDE ///
-jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {}
-jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, Precision exec_prc)
-: jit_emitter(host, host_isa, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, bool python_div, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc), python_div_(python_div) {}
+jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, bool python_div, Precision exec_prc)
+: jit_emitter(host, host_isa, exec_prc), python_div_(python_div) {}
 
 size_t jit_divide_emitter::get_inputs_num() const { return 2; }
 
@@ -231,11 +231,14 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
                 Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
                 // The opset doesn't contain vector instruction for integer divide operation
-                // As WA we emulate its behavior via fp divide followed by rounding to zero
+                // As WA we emulate its behavior via fp divide followed by..
+                //  - rounding to -inf if python_div
+                //  - rounding to zero otherwise
+                int round_mode = python_div_ ? 1 : 3;
                 h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
                 h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
                 h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
-                h->uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+                h->uni_vroundps(vmm_dst, vmm_dst, round_mode); // rounding
                 h->uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             }

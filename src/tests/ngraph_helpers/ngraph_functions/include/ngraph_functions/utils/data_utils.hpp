@@ -23,6 +23,8 @@ generateVector(size_t vec_len,
                int32_t seed = 1) {
     using dataType = typename ngraph::helpers::nGraphTypesTrait<dType>::value_type;
     std::vector<dataType> res(vec_len);
+    if (vec_len == 0)
+        return res;
 
     std::mt19937 gen(seed);
     if (std::is_floating_point<dataType>()) {
@@ -61,6 +63,9 @@ generateVector<ngraph::element::Type_t::f16>(size_t vec_len,
                                              ngraph::float16 startFrom,
                                              int32_t seed) {
     std::vector<ngraph::float16> res(vec_len);
+    if (vec_len == 0)
+        return res;
+
     std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_real_distribution<float> dist(startFrom, upTo);
@@ -80,6 +85,8 @@ generateVector<ngraph::element::Type_t::bf16>(size_t vec_len,
                                               ngraph::bfloat16 startFrom,
                                               int32_t seed) {
     std::vector<ngraph::bfloat16> res(vec_len);
+    if (vec_len == 0)
+        return res;
 
     std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)

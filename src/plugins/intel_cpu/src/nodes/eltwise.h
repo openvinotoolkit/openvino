@@ -74,6 +74,7 @@ public:
         float alpha;
         float beta;
         float gamma;
+        bool pythonDiv;
 
         bool operator==(const EltwiseData& rhs) const noexcept;
     };
@@ -108,6 +109,7 @@ public:
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    bool isPythonDiv() const { return pythonDiv; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
@@ -151,6 +153,7 @@ private:
     float alpha = 0;
     float beta = 0;
     float gamma = 0;
+    bool pythonDiv = true;
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};

@@ -131,7 +131,8 @@ enum EltwiseTypes {
     ADD,
     MULTIPLY,
     SUBTRACT,
-    DIVIDE,
+    DIVIDE,          // op with default python (floor) division
+    DIVIDE_REGULAR,  // op with regular division
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,

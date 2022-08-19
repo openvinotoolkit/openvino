@@ -659,6 +659,9 @@ std::ostream& operator<<(std::ostream & os, const ngraph::helpers::EltwiseTypes 
         case ngraph::helpers::EltwiseTypes::DIVIDE:
             os << "Div";
             break;
+        case ngraph::helpers::EltwiseTypes::DIVIDE_REGULAR:
+            os << "DivRegular";
+            break;
         case ngraph::helpers::EltwiseTypes::SQUARED_DIFF:
             os << "SqDiff";
             break;

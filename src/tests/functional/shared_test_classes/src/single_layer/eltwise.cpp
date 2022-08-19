@@ -110,9 +110,14 @@ void EltwiseLayerTest::SetUp() {
         ov::Shape shape = inputDynamicShapes.back().get_max_shape();
         switch (eltwiseType) {
             case ngraph::helpers::EltwiseTypes::DIVIDE:
+            case ngraph::helpers::EltwiseTypes::DIVIDE_REGULAR:
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
-                std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
+                size_t count = ngraph::shape_size(shape);
+                std::vector<float> positive_data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(count / 2, 10, 2);
+                std::vector<float> negative_data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(count - positive_data.size(), -2, -10);
+                std::vector<float> data(std::move(negative_data));
+                data.insert(data.end(), std::make_move_iterator(positive_data.begin()), std::make_move_iterator(positive_data.end()));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
                 break;
             }

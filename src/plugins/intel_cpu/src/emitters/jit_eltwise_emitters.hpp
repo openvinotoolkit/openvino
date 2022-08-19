@@ -89,10 +89,10 @@ private:
 
 class jit_divide_emitter : public jit_emitter {
 public:
-    jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+    jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, bool python_div = true,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
     jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
-                       InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
+                       bool python_div = true, InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() const override;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
@@ -105,6 +105,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
     size_t aux_vecs_count() const override;
+
+    bool python_div_ = true;
 };
 
 class jit_floor_emitter : public jit_emitter {

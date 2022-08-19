@@ -94,6 +94,13 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+template<>
+struct EltwiseEmitter<jit_divide_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<jit_divide_emitter>(ctx.host, ctx.host_isa, ctx.opData.pythonDiv, ctx.exec_prc);
+    }
+};
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -856,6 +863,7 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     {ngraph::op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseDivide;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        node.pythonDiv = ov::as_type_ptr<ov::op::v1::Divide>(op)->is_pythondiv();
     }},
     {ngraph::op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSquaredDifference;
@@ -1967,7 +1975,7 @@ void Eltwise::prepareParams() {
 
     auto outPrc = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
+    EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma(), isPythonDiv()};
 
     EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, canUseOptimizedImpl};
 
@@ -1977,7 +1985,7 @@ void Eltwise::prepareParams() {
         if (node->getType() == Type::Eltwise) {
             if (auto eltwise = std::dynamic_pointer_cast<Eltwise>(node)) {
                 key.eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getOneDnnAlgorithm(), eltwise->getAlpha(),
-                                            eltwise->getBeta(), eltwise->getGamma()});
+                                            eltwise->getBeta(), eltwise->getGamma(), eltwise->isPythonDiv()});
             }
         } else if (node->getType() == Type::FakeQuantize) {
             node->appendPostOps(key.postOps, {}, fqDataPtrs);

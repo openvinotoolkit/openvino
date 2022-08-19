@@ -22,6 +22,8 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
             return std::make_shared<ngraph::opset3::Multiply>(in0, in1);
         case ngraph::helpers::EltwiseTypes::DIVIDE:
             return std::make_shared<ngraph::opset3::Divide>(in0, in1);
+        case ngraph::helpers::EltwiseTypes::DIVIDE_REGULAR:
+            return std::make_shared<ngraph::opset3::Divide>(in0, in1, false);
         case ngraph::helpers::EltwiseTypes::SQUARED_DIFF:
             return std::make_shared<ngraph::opset3::SquaredDifference>(in0, in1);
         case ngraph::helpers::EltwiseTypes::POWER:
