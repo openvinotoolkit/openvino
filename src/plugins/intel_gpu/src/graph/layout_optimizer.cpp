@@ -312,11 +312,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
         // keep reorder(byxf/bzyxf) before first conv(shallow feature)
         if (use_onednn_impls && next.is_type<convolution>()) {
-            auto reorder_layout = next.get_dependency(0).get_output_layout();
             int shallow_ch = 8;
-            if (data_type_traits::is_i8_u8(reorder_layout.data_type)) shallow_ch = 16;
-            if ((reorder_layout.format == format::byxf || reorder_layout.format == format::bzyxf) &&
-                (reorder_layout.feature() <= shallow_ch)) {
+            if (data_type_traits::is_i8_u8(prev_output_layout.data_type)) shallow_ch = 16;
+            if ((prev_output_layout.format == format::byxf || prev_output_layout.format == format::bzyxf) &&
+                (prev_output_layout.feature() <= shallow_ch)) {
                 return false;
             }
         }
@@ -395,11 +394,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
     // fusing reorder(byxf/bzyxf) before first conv(shallow feature)
     if (use_onednn_impls && next->is_type<convolution>()) {
-        auto reorder_layout = next->get_dependency(0).get_output_layout();
         int shallow_ch = 8;
-        if (data_type_traits::is_i8_u8(reorder_layout.data_type)) shallow_ch = 16;
-        if ((reorder_layout.format == format::byxf || reorder_layout.format == format::bzyxf) &&
-            (reorder_layout.feature() <= shallow_ch)) {
+        if (data_type_traits::is_i8_u8(prev.get_output_layout().data_type)) shallow_ch = 16;
+        if ((prev.get_output_layout().format == format::byxf || prev.get_output_layout().format == format::bzyxf) &&
+            (prev.get_output_layout().feature() <= shallow_ch)) {
             return true;
         }
     }
