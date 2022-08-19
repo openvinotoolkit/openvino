@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 import os
 import sys
 from functools import wraps
 from typing import Callable, Any
+
+from openvino.pyopenvino.util import deprecation_warning
 
 
 def add_openvino_libs_to_path() -> None:
@@ -40,7 +43,6 @@ def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
     def decorator(wrapped: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(wrapped)
         def wrapper(*args: Any, **kwargs: Any) -> Callable[..., Any]:
-            from openvino.pyopenvino.util import deprecation_warning
             deprecation_warning(wrapped.__name__, version, message)
             return wrapped(*args, **kwargs)
         return wrapper
