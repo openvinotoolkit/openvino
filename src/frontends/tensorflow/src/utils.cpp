@@ -5,17 +5,9 @@
 #include "utils.hpp"
 
 #include "openvino/opsets/opset8.hpp"
+#include "openvino_conversions.hpp"
 
 using namespace ov::opset8;
-
-void ov::frontend::tensorflow::tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape,
-                                                    ov::PartialShape* ng_shape) {
-    std::vector<ov::Dimension> dims;
-    for (int i = 0; i < tf_shape.dim_size(); i++) {
-        dims.emplace_back(tf_shape.dim(i).size());
-    }
-    *ng_shape = ov::PartialShape(dims);
-}
 
 void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
@@ -34,13 +26,19 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
 
 ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
                                                              const std::string& tf_padding) {
+    std::set<std::string> supported_ops = {"Conv2D",
+                                           "Conv2DBackpropInput",
+                                           "Conv3D",
+                                           "Conv3DBackpropInputV2",
+                                           "MaxPool",
+                                           "MaxPoolV2",
+                                           "MaxPool3D",
+                                           "ExtractImagePatches"};
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
-                             op_type == "Conv2D" || op_type == "Conv2DBackpropInput" || op_type == "Conv3D" ||
-                                 op_type == "Conv3DBackpropInputV2" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-                                 op_type == "MaxPool3D",
-                             "The convert_conv_tf_padding routine supports only convolutional operations.");
+                             supported_ops.count(op_type),
+                             "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,
         tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
@@ -57,7 +55,7 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
             return ov::op::PadType::SAME_LOWER;
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-               op_type == "MaxPool3D") {
+               op_type == "MaxPool3D" || op_type == "ExtractImagePatches") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
