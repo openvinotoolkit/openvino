@@ -97,8 +97,6 @@ elif [ -f /etc/redhat-release ]; then
             make \
             patchelf \
             pkg-config \
-            gflags-devel.i686 \
-            zlib-devel.i686 \
             glibc-static \
             glibc-devel \
             libstdc++-static \
