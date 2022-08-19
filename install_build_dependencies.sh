@@ -104,6 +104,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \
