@@ -41,7 +41,7 @@ namespace ov {
 /*
  * @brief Wrapper for old IE extensions to new API
  */
-class ExtensionWrapper : public ov::BaseOpExtension {
+class ExtensionWrapper : public ov::LegacyOpExtension {
 public:
     ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
         : m_ext(ext),
