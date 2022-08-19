@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace std;
 using namespace ov::opset8;
