@@ -137,7 +137,7 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
-                                  const ov_property_t* property,
+                                  const ov_properties_t* property,
                                   ov_compiled_model_t** compiled_model) {
     if (!core || !model || !compiled_model) {
         return ov_status_e::INVALID_C_PARAM;
@@ -163,7 +163,7 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             const char* model_path,
                                             const char* device_name,
-                                            const ov_property_t* property,
+                                            const ov_properties_t* property,
                                             ov_compiled_model_t** compiled_model) {
     if (!core || !model_path || !compiled_model) {
         return ov_status_e::INVALID_C_PARAM;
@@ -186,7 +186,7 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property) {
+ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_properties_t* property) {
     if (!core || !property) {
         return ov_status_e::INVALID_C_PARAM;
     }

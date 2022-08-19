@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
     CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
-    ov_property_t* property = NULL;
+    ov_properties_t* property = NULL;
     CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, property, &compiled_model));
 
     // -------- Step 6. Create an infer request --------

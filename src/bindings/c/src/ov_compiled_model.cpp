@@ -78,7 +78,7 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_property_t* property) {
+ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_properties_t* property) {
     if (!compiled_model || !property) {
         return ov_status_e::INVALID_C_PARAM;
     }

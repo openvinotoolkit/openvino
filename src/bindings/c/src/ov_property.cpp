@@ -11,24 +11,24 @@ const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mod
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
-ov_status_e ov_property_create(ov_property_t** property) {
+ov_status_e ov_properties_create(ov_properties_t** property) {
     if (!property) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        std::unique_ptr<ov_property_t> _property(new ov_property_t);
+        std::unique_ptr<ov_properties_t> _property(new ov_properties_t);
         *property = _property.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
 
-void ov_property_free(ov_property_t* property) {
+void ov_properties_free(ov_properties_t* property) {
     if (property)
         delete property;
 }
 
-ov_status_e ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value) {
+ov_status_e ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_property_value_t* value) {
     if (!property || !value) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -101,4 +101,28 @@ void ov_property_value_free(ov_property_value_t* value) {
         value->ptr = nullptr;
         value->size = 0;
     }
+}
+
+size_t ov_properties_size(ov_properties_t* property) {
+    if (!property) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    auto size = property->object.size();
+    return size;
+}
+
+ov_status_e ov_properties_dump(ov_properties_t* property) {
+    if (!property) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::cout << "Property number: " << property->object.size() << std::endl;
+        for (auto& item : property->object) {
+            // TODO: map and print any value here.
+            std::cout << "    key: " << item.first << std::endl;
+        }
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
 }

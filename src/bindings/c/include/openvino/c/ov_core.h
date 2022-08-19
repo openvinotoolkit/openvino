@@ -160,7 +160,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model(const ov_core_t* core,
                       const ov_model_t* model,
                       const char* device_name,
-                      const ov_property_t* property,
+                      const ov_properties_t* property,
                       ov_compiled_model_t** compiled_model);
 
 /**
@@ -180,7 +180,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* model_path,
                                 const char* device_name,
-                                const ov_property_t* property,
+                                const ov_properties_t* property,
                                 ov_compiled_model_t** compiled_model);
 
 /**
@@ -192,7 +192,7 @@ ov_core_compile_model_from_file(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property);
+ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_properties_t* property);
 
 /**
  * @brief Gets properties related to device behaviour.

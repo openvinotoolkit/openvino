@@ -13,7 +13,7 @@
 
 #include "openvino/c/ov_common.h"
 
-typedef struct ov_property ov_property_t;
+typedef struct ov_property ov_properties_t;
 
 /**
  * @enum ov_performance_mode_e
@@ -113,31 +113,54 @@ typedef struct {
  */
 
 /**
- * @brief Create a property object.
+ * @brief Create a properties object.
  * @ingroup property
- * @param ov_status_e a status code, return OK if successful
+ * @param property The properties object pointer will be created.
+ * @return ov_status_e a status code, return OK if successful
  */
-OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
+OPENVINO_C_API(ov_status_e) ov_properties_create(ov_properties_t** property);
 
 /**
- * @brief Free property object.
+ * @brief Free properties object.
  * @ingroup property
- * @param property will be released.
+ * @param property The properties object pointer will be released.
+ * @return none.
  */
-OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
+OPENVINO_C_API(void) ov_properties_free(ov_properties_t* property);
 
 /**
  * @brief Free property data.
  * @ingroup property
- * @param property data will be clean.
+ * @param value The property data will be clean.
+ * @return none
  */
 OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t* value);
 
 /**
- * @brief Put <key, value> into property object.
+ * @brief Add a new <key, value> to this properties object, which can store multiple <key, value>.
  * @ingroup property
- * @param property will be add new <key, value>.
+ * @param property The property pointer that will be set with a new <key, value>.
+ * @param key The key for this new property data.
+ * @param value The value for this property data.
+ * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value);
+OPENVINO_C_API(ov_status_e)
+ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_property_value_t* value);
+
+/**
+ * @brief Get number of <key, value> in this properties object.
+ * @ingroup property
+ * @param property The properties object pointer that to get its <key, value>.
+ * @return The number of property.
+ */
+OPENVINO_C_API(size_t) ov_properties_size(ov_properties_t* property);
+
+/**
+ * @brief Dump all <key, value> of this properties object.
+ * @ingroup property
+ * @param property The properties object pointer that to get its <key, value>.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e) ov_properties_dump(ov_properties_t* property);
 
 /** @} */  // end of Property
