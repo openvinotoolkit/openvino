@@ -14,7 +14,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               SKIP_INSTALL
               SKIP_REGISTRATION
               DEFAULT_CONFIG 
-                  PROXY_NAME:MOCK;PROXY_PRIORITY:1
+                  ALIAS:MOCK;DEVICE_PRIORITY:1;FALLBACK:BDE
               ADD_CLANG_FORMAT)
 
 target_link_libraries(${TARGET_NAME} PRIVATE mock_plugin_shared)

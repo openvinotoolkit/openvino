@@ -8,6 +8,7 @@
 
 using namespace ov::proxy::tests;
 
+#ifndef OPENVINO_STATIC_LIBRARY
 class PluginXMLGenerator {
 public:
     PluginXMLGenerator()
@@ -372,6 +373,9 @@ TEST_F(PluginsXmlProxyTests, MatchingModeWithHetero) {
     // All devices should be found
     EXPECT_TRUE(mock_reference_dev.empty());
 }
+
+#endif
+
 // clang-format off
 // <ie>
 //     <plugins>

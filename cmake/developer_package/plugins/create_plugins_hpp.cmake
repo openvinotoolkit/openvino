@@ -14,7 +14,6 @@ set(IE_PLUGINS_DECLARATIONS "")
 set(IE_PLUGINS_MAP_DEFINITION
     "    static const std::map<Key, Value> plugins_hpp = {")
 
-# FIXME: plugins.hpp contains only first config
 foreach(dev_map IN LISTS IE_DEVICE_MAPPING)
     string(REPLACE ":" ";" dev_map "${dev_map}")
     list(GET dev_map 0 mapped_dev_name)
@@ -37,7 +36,8 @@ IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_EXTENSION_FUNC});")
     # definitions
     set(dev_config "{")
     if(${mapped_dev_name}_CONFIG)
-        foreach(props IN LISTS ${mapped_dev_name}_CONFIG)
+        string(REPLACE "@" ";" dev_config_parced "${${mapped_dev_name}_CONFIG}")
+        foreach(props IN LISTS dev_config_parced)
             string(REPLACE ":" ";" props "${props}")
 
             list(GET props 0 key)
