@@ -338,7 +338,9 @@ function(ie_generate_plugins_hpp)
 
         # add default plugin config options
         if(${device_name}_CONFIG)
-            list(APPEND device_configs -D "${device_name}_CONFIG=${${device_name}_CONFIG}")
+            # Replace ; to @ in order to have list inside list
+            string(REPLACE ";" "@" config "${${device_name}_CONFIG}")
+            list(APPEND device_configs -D "${device_name}_CONFIG=${config}")
         endif()
     endforeach()
 
