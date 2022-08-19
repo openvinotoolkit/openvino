@@ -141,11 +141,12 @@ public:
         return get_kernel_impl_params(get_input_layouts(), output_layout);
     }
 
-    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
-                                                      const layout& out_layout) const {
-        return std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
-                                  get_fused_primitives(),
-                                  get_fused_activations_funcs(), get_fused_activations_params()));
+    virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const {
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layout,
+                                                                                 get_fused_primitives(),
+                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+
+        return params;
     }
 
     const primitive_id& get_ext_prim_id() const { return desc->ext_prim_id; }
@@ -226,6 +227,7 @@ public:
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
     layout calc_output_layout() const;
+    std::vector<layout> calc_output_layouts() const;
 
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true

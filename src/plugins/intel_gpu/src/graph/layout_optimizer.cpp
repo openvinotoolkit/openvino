@@ -1845,8 +1845,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
         // But oneDNN does not allow this. So planar format is used for this case.
         if (prim->keep_dims == false &&
-            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_f) != reduce_axes.end() ||
-            (find(reduce_axes.begin(), reduce_axes.end(), reduce::along_b) != reduce_axes.end() && input_layout.batch() > 1)) &&
+            (find(reduce_axes.begin(), reduce_axes.end(), 1) != reduce_axes.end() ||
+            (find(reduce_axes.begin(), reduce_axes.end(), 0) != reduce_axes.end() && input_layout.batch() > 1)) &&
             use_onednn_impls) {
             if (input_layout.format.dimension() == 6)
                 expected = format::bfwzyx;

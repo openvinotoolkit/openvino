@@ -108,6 +108,7 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
@@ -142,7 +143,6 @@ jobs:
         -DENABLE_PYTHON=ON
         -DENABLE_OPENCV=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -150,6 +150,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=DEB
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
@@ -245,7 +247,7 @@ jobs:
       sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # sudo apt-get install openvino -y
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -337,7 +339,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      # because of IR reader v7 
+      # because of IR reader v7
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'

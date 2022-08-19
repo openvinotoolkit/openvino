@@ -244,12 +244,17 @@ const char expected_serialized_model[] = R"V0G0N(
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
-    std::string targetDevice = obj.param;
-    result << "TargetDevice=" << targetDevice;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    result << "TargetDevice=" << target_device;
     return result.str();
 }
 
 void ExecGraphSerializationTest::SetUp() {
+    target_device = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
+
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
@@ -257,11 +262,10 @@ void ExecGraphSerializationTest::SetUp() {
 
     m_out_xml_path = model_name + XML_EXT;
     m_out_bin_path = model_name + BIN_EXT;
-
-    deviceName = this->GetParam();
 }
 
 void ExecGraphSerializationTest::TearDown() {
+    APIBaseTest::TearDown();
     CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
@@ -340,10 +344,10 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_docs(const pugi
 }
 
 TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
-    auto ie = PluginCache::get().ie(deviceName);
+    auto ie = PluginCache::get().ie(target_device);
     InferenceEngine::Blob::Ptr a;
     auto cnnNet = ie->ReadNetwork(serialize_test_model, a);
-    auto execNet = ie->LoadNetwork(cnnNet, deviceName);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
     auto execGraph = execNet.GetExecGraphInfo();
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     execGraph.serialize(m_out_xml_path, m_out_bin_path);
@@ -365,6 +369,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
     std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -375,11 +380,12 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 }
 
 void ExecGraphUniqueNodeNames::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    APIBaseTest::SetUp();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -390,15 +396,11 @@ void ExecGraphUniqueNodeNames::SetUp() {
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
-void ExecGraphUniqueNodeNames::TearDown() {
-    fnPtr.reset();
-}
-
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
-    auto ie = PluginCache::get().ie(targetDevice);
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto ie = PluginCache::get().ie(target_device);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
