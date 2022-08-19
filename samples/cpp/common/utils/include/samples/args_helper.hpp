@@ -76,7 +76,7 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         std::cout << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << std::endl;
+                  << ov::layout::get_layout(input).to_string() << " / " << input.get_partial_shape() << std::endl;
     }
 
     std::cout << "Network outputs:" << std::endl;
@@ -105,6 +105,6 @@ void printInputAndOutputsInfoShort(const T& network) {
         }
 
         std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
-                  << ov::layout::get_layout(output).to_string() << std::endl;
+                  << ov::layout::get_layout(output).to_string() << " / " << output.get_partial_shape() << std::endl;
     }
 }

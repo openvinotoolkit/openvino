@@ -21,7 +21,6 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
         if (!ov::is_decompression(node))
             return false;
         enable_constant_folding(node);
-        MATCHER_SCOPE_ENABLE(EnableDecompressionConvertConstantFolding);
         return true;
     };
 
@@ -30,6 +29,7 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 }
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
     if (ngraph::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
 

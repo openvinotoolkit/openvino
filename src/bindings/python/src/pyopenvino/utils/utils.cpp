@@ -122,5 +122,19 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
     }
     return properties_to_cpp;
 }
+
+std::string convert_path_to_string(const py::object& path) {
+    // import pathlib.Path
+    py::object Path = py::module_::import("pathlib").attr("Path");
+    // check if model path is either a string or pathlib.Path
+    if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
+        return path.str();
+    }
+    std::stringstream str;
+    str << "Path: '" << path << "'"
+        << " does not exist. Please provide valid model's path either as a string or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    throw ov::Exception(str.str());
+}
 };  // namespace utils
 };  // namespace Common

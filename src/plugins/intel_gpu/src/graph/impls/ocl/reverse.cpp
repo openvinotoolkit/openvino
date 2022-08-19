@@ -24,8 +24,8 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
     }
 
 public:
-    static primitive_impl* create(const reverse_node& arg) {
-        auto params = get_default_params<kernel_selector::reverse_params>(arg);
+    static primitive_impl* create(const reverse_node& arg, const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::reverse_params>(impl_param);
         const auto optional_params =
             get_default_optional_params<kernel_selector::reverse_optional_params>(arg.get_program());
 

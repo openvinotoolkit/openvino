@@ -13,6 +13,28 @@
 namespace cldnn {
 namespace ocl {
 
+static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t rank) {
+    if (axis < 0) {
+        axis += rank;
+    }
+    switch (axis) {
+        case 0: return kernel_selector::softmax_dim::BATCH;
+        case 1: return kernel_selector::softmax_dim::FEATURE;
+        case 2:
+            if (rank > 4)
+                return kernel_selector::softmax_dim::Z;
+            else
+                return kernel_selector::softmax_dim::Y;
+        case 3:
+            if (rank > 4)
+                return kernel_selector::softmax_dim::Y;
+            else
+                return kernel_selector::softmax_dim::X;
+        case 4: return kernel_selector::softmax_dim::X;
+        default: IE_THROW() << "Invalid softmax axis " << axis;
+    }
+}
+
 struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     using parent = typed_primitive_impl_ocl<softmax>;
     using parent::parent;
@@ -21,54 +43,14 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         return make_unique<softmax_impl>(*this);
     }
 
-    static primitive_impl* create(const softmax_node& arg) {
-        auto sm_params = get_default_params<kernel_selector::softmax_params>(arg);
+    static primitive_impl* create(const softmax_node& arg, const kernel_impl_params& impl_param) {
+        const auto primitive = arg.get_primitive();
+        auto sm_params = get_default_params<kernel_selector::softmax_params>(impl_param);
         auto sm_optional_params =
             get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
 
-        auto& input = sm_params.inputs[0];
-        auto& output = sm_params.outputs[0];
-        const auto primitive = arg.get_primitive();
-
-        switch (primitive->dimension) {
-            case softmax::normalize_x:
-                sm_params.dim = kernel_selector::softmax_dim::X;
-                break;
-
-            case softmax::normalize_y:
-                sm_params.dim = kernel_selector::softmax_dim::Y;
-                break;
-
-            case softmax::normalize_fyx:
-                // Flatten fused with softmax
-                input = input.FlattenFeatureAndSpatials();
-                output = output.FlattenFeatureAndSpatials();
-
-                sm_params.dim = kernel_selector::softmax_dim::FEATURE;
-                break;
-
-            case softmax::normalize_b:
-                sm_params.dim = kernel_selector::softmax_dim::BATCH;
-                break;
-
-            case softmax::normalize_f:
-                sm_params.dim = kernel_selector::softmax_dim::FEATURE;
-                break;
-
-            case softmax::normalize_z:
-                sm_params.dim = kernel_selector::softmax_dim::Z;
-                break;
-
-            case softmax::normalize_all:
-                input = input.FlattenEverything();
-                output = output.FlattenEverything();
-
-                sm_params.dim = kernel_selector::softmax_dim::FEATURE;
-                break;
-
-            default:
-                throw std::runtime_error("Wrong API - no such softmax");
-        }
+        size_t rank = arg.get_output_layout().get_rank();
+        sm_params.dim = get_softmax_dim(primitive->dimension, rank);
 
         auto& kernel_selector = kernel_selector::softmax_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);
