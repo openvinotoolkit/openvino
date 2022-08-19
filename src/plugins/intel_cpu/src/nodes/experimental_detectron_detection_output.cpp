@@ -327,7 +327,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     std::vector<int> detections_per_class(classes_num_, 0);
     int total_detections_num = 0;
 
-    for (int class_idx = 0; class_idx < classes_num_; ++class_idx) {
+    for (int class_idx = 1; class_idx < classes_num_; ++class_idx) {
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],
                &refined_boxes[refined_box_idx({class_idx, 0, 0})],
                &refined_boxes_areas[refined_score_idx({class_idx, 0})],
