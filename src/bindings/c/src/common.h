@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <cassert>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -36,7 +37,6 @@
     catch (...) {                                             \
         return ov_status_e::UNEXPECTED;                       \
     }
-
 
 /**
  * @struct ov_core
