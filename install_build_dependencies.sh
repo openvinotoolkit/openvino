@@ -24,9 +24,9 @@ if [ -f /etc/lsb-release ]; then
     # Ubuntu
     host_cpu=$(uname -m)
     if [ "$host_cpu" = "x86_64" ]; then
-        x86_64_specific_packages="gcc-multilib g++-multilib"
+        x86_64_specific_packages=(gcc-multilib g++-multilib)
     else
-        x86_64_specific_packages=""
+        x86_64_specific_packages=()
     fi
 
     sudo -E apt update
@@ -40,11 +40,12 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             git-lfs \
-            $x86_64_specific_packages \
+            "${x86_64_specific_packages[@]}" \
             libgtk2.0-dev \
             unzip \
             shellcheck \
             patchelf \
+            lintian \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
@@ -52,6 +53,7 @@ if [ -f /etc/lsb-release ]; then
             python3-pip \
             python3-enchant \
             python3-setuptools \
+            libpython3-dev \
             `# samples` \
             pkg-config \
             libgflags-dev \
@@ -108,6 +110,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc \
             gcc-c++ \
             make \
+            patchelf \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \
@@ -172,12 +175,13 @@ else
     echo "Unknown OS, please install build dependencies manually"
 fi
 
-# cmake 3.17 or higher is required to build OpenVINO
-current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
-required_cmake_ver=3.17
-if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
-    wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
-    tar xf cmake-3.18.4.tar.gz
-    (cd cmake-3.18.4 && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
-    rm -rf cmake-3.18.4 cmake-3.18.4.tar.gz
+# cmake 3.20 or higher is required to build OpenVINO
+current_cmake_ver=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+required_cmake_ver=3.20.0
+if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
+    installed_cmake_ver=3.23.2
+    wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}.tar.gz"
+    tar xf cmake-${installed_cmake_ver}.tar.gz
+    (cd cmake-${installed_cmake_ver} && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
+    rm -rf cmake-${installed_cmake_ver} cmake-${installed_cmake_ver}.tar.gz
 fi

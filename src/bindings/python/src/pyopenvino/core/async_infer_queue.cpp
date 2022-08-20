@@ -113,7 +113,11 @@ public:
                 try {
                     f_callback(_requests[handle], _user_ids[handle]);
                 } catch (py::error_already_set py_error) {
-                    assert(PyErr_Occurred());
+                    // This should behave the same as assert(!PyErr_Occurred())
+                    // since constructor for pybind11's error_already_set is
+                    // performing PyErr_Fetch which clears error indicator and
+                    // saves it inside itself.
+                    assert(py_error.type());
                     // acquire the mutex to access _errors
                     std::lock_guard<std::mutex> lock(_mutex);
                     _errors.push(py_error);

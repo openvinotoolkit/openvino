@@ -34,7 +34,7 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     }
 
     // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
+    for (int i = 0; i < (static_cast<int32_t>(cldnn_order.size()) - 2) / 2; i++) {
         std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
     }
 

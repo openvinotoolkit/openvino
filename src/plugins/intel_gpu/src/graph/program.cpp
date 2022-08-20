@@ -110,6 +110,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -123,6 +124,7 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
+      _stream(_engine.create_stream()),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
@@ -130,10 +132,18 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
 }
+
+program::program(engine& engine)
+    : _engine(engine),
+      _stream(_engine.create_stream()),
+      options(build_options()),
+      processing_order(),
+      tuning_cache(nullptr) { }
 
 program::~program() {
 }
@@ -158,7 +168,7 @@ void program::compile() {
 void program::init_kernels() {
     for (auto& n : get_processing_order()) {
         if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels();
+            n->get_selected_impl()->init_kernels(*_kernels_cache);
     }
 }
 
@@ -177,6 +187,10 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
 
 kernel::ptr program::get_kernel(kernel_id id) {
     return _kernels_cache->get_kernel(id);
+}
+
+kernels_cache& program::get_kernels_cache() const {
+    return *_kernels_cache;
 }
 
 program::ptr program::build_program(engine& engine,
@@ -228,9 +242,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto inputSize = prim_node.input().get_output_layout().size;
+            auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
@@ -250,9 +264,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
@@ -274,9 +288,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -303,7 +317,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = prim->size[prim->size.size() - i - 1];
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -631,7 +645,7 @@ void program::transfer_memory_to_device() {
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
 
-            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+            if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
@@ -1039,10 +1053,11 @@ void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
-    fused_primitive_desc local_desc;
-    local_desc.node = get_node_ptr(peer_node.id());
+    fused_primitive_desc local_desc(peer_node.get_primitive());
+    local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
+    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1335,7 +1350,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
             auto ifm = static_cast<uint32_t>(input_size.feature[0]);
             if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                 total_dw_conv_layers++;
@@ -1549,9 +1564,13 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, 0, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
         }
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
+}
+
+void program::remove_kernel(kernel_id id) {
+    _kernels_cache->remove_kernel(id);
 }

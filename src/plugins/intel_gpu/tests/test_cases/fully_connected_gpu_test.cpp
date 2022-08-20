@@ -14,11 +14,6 @@
 
 #include <cmath>
 
-namespace cldnn
-{
-    template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 using namespace cldnn;
 using namespace ::tests;
 
@@ -104,7 +99,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
     //EXPECT_EQ(output_layout.format.value, test_input_fmt);
-    tensor output_tensor = output_layout.size;
+    tensor output_tensor = output_layout.get_tensor();
     int b_size = output_tensor.batch[0];
     int x_size = output_tensor.feature[0];
     EXPECT_EQ(b_size, input_b);

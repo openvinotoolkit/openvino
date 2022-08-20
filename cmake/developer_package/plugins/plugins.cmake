@@ -20,6 +20,7 @@ endif()
 #
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
+#               [PSEUDO_DEVICE]
 #               [PSEUDO_PLUGIN_FOR <actual_device>]
 #               [AS_EXTENSION]
 #               [DEFAULT_CONFIG <key:value;...>]
@@ -32,7 +33,7 @@ endif()
 #               )
 #
 function(ie_add_plugin)
-    set(options SKIP_INSTALL ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -135,9 +136,20 @@ function(ie_add_plugin)
         # install rules
         if(NOT IE_PLUGIN_SKIP_INSTALL OR NOT BUILD_SHARED_LIBS)
             string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
-            ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
+
+            if(IE_PLUGIN_PSEUDO_DEVICE)
+                set(plugin_hidden HIDDEN)
+            endif()
+            ie_cpack_add_component(${install_component} 
+                                   DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
+                                   ${plugin_hidden}
+                                   DEPENDS ${OV_CPACK_COMP_CORE})
 
             if(BUILD_SHARED_LIBS)
+                install(TARGETS ${IE_PLUGIN_NAME}
+                        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
+                        COMPONENT ${install_component})
                 install(TARGETS ${IE_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
@@ -326,7 +338,9 @@ function(ie_generate_plugins_hpp)
 
         # add default plugin config options
         if(${device_name}_CONFIG)
-            list(APPEND device_configs -D "${device_name}_CONFIG=${${device_name}_CONFIG}")
+            # Replace ; to @ in order to have list inside list
+            string(REPLACE ";" "@" config "${${device_name}_CONFIG}")
+            list(APPEND device_configs -D "${device_name}_CONFIG=${config}")
         endif()
     endforeach()
 

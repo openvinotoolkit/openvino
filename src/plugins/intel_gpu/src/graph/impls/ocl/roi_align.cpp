@@ -55,11 +55,11 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const roi_align_node& arg) {
-        const auto& input_layout = arg.input().get_output_layout();
-        const auto& output_layout = arg.get_output_layout();
-        const auto& rois_layout = arg.input(1).get_output_layout();
-        const auto& batches_layout = arg.input(2).get_output_layout();
+    static primitive_impl* create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
+        const auto& input_layout = impl_param.input_layouts[0];
+        const auto& output_layout = impl_param.output_layout;
+        const auto& rois_layout = impl_param.input_layouts[1];
+        const auto& batches_layout = impl_param.input_layouts[2];
         const auto& primitive = arg.get_primitive();
 
         const auto padding_filling_value = output_layout.data_padding.filling_value();
@@ -75,8 +75,7 @@ public:
                                       input_layout.format.value,
                                       "output_layout.format",
                                       output_layout.format);
-
-        auto roi_align_params = get_default_params<kernel_selector::roi_align_params>(arg);
+        auto roi_align_params = get_default_params<kernel_selector::roi_align_params>(impl_param);
         auto roi_align_optional_params =
             get_default_optional_params<kernel_selector::roi_align_optional_params>(arg.get_program());
 

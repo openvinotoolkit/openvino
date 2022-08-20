@@ -21,13 +21,14 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         return make_unique<shape_of_impl>(*this);
     }
 
-    static primitive_impl* create(const shape_of_node& arg) {
-        auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(arg);
+    static primitive_impl* create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
+        auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(impl_param);
         auto shape_of_optional_params =
             get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
 
-        shape_of_params.input_rank = arg.get_dependency(0).get_output_layout().get_rank();
-        shape_of_params.input_dims = arg.get_dependency(0).get_output_layout().get_dims();
+        auto input_layout = impl_param.input_layouts[0];
+        shape_of_params.input_rank = input_layout.get_rank();
+        shape_of_params.input_dims = input_layout.get_dims();
 
         auto& kernel_selector = kernel_selector::shape_of_instance();
         auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);

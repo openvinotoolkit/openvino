@@ -2230,7 +2230,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -2502,9 +2502,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights, ::testing::V
 class conv_int8_asymmetric_data : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data, basic) {
     auto p = GetParam();
-    auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
-                          get_weights_layout(p);
+    layout weights_layout = get_weights_layout(p);
+    if (!engine.get_device_info().supports_immad) {
+        auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(weights_layout)),
@@ -2907,7 +2909,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_sum_out) {
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("shift", { "conv_prim", "shift_data" }, eltwise_mode::sum, data_types::f32),
         // Add 'not fusable' primitive to be able to test full size tensor sum
-        crop("crop", "shift", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "shift", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -2925,7 +2927,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()) ),
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("scale", { "conv_prim", "scale_data" }, eltwise_mode::prod, data_types::u8),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "scale", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -3225,7 +3227,7 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
         eltwise("sum", { "conv_prim", "sum_data" }, eltwise_mode::sum, data_types::f32),
         eltwise("scale", { "sum", "scale_data" }, eltwise_mode::prod, data_types::f32),
-        crop("crop", "scale", get_output_layout(p).size, { 0, 0, 0, 0 }),
+        crop("crop", "scale", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
@@ -3793,7 +3795,7 @@ class implicit_crop_concat_bfyx_input_tensor : public ImplicitCropConcatTestOneD
 TEST_P(implicit_crop_concat_bfyx_input_tensor, basic) {
     auto p = GetParam();
 
-    tensor crop_output = get_input_layout(p).size;
+    tensor crop_output = get_input_layout(p).get_tensor();
     crop_output.feature[0] = 1;
     auto crop_offset1 = tensor(batch(0), feature(0), spatial(0, 0));
     auto crop_offset2 = tensor(batch(0), feature(1), spatial(0, 0));

@@ -115,10 +115,24 @@ public:
     }
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
-
     bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
+
+    using parent::get_kernel_impl_params;
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const layout& out_layout) const override {
+        auto params = parent::get_kernel_impl_params(in_layouts, out_layout);
+        params->weights_layout = optional_layout(weights().get_output_layout());
+        if (bias_term())
+            params->bias_layout = optional_layout(bias().get_output_layout());
+        if (weights_zero_points_term())
+            params->weights_zero_points_layout = optional_layout(weights_zero_points().get_output_layout());
+        if (activations_zero_points_term())
+            params->activations_zero_points_layout = optional_layout(activations_zero_points().get_output_layout());
+        if (compensation_term())
+            params->compensation_layout = optional_layout(compensation().get_output_layout());
+        return params;
+    }
 
 private:
     int32_t split;
@@ -136,14 +150,16 @@ class typed_primitive_inst<convolution> : public typed_primitive_inst_base<convo
     using parent = typed_primitive_inst_base<convolution>;
 
 public:
-    static layout calc_output_layout(convolution_node const& node);
+    static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 
 public:
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (node.get_groups() == 1) {
+        if (_node.is_dynamic() && _impl_params->reordered_weights != nullptr) {
+            return _impl_params->reordered_weights;
+        } else if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("weights offset too big");
             return dep_memory_ptr(1 + index + node.get_deform_conv_dep_offset());

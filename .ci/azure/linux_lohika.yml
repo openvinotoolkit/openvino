@@ -57,7 +57,6 @@ jobs:
 #        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 #        -DENABLE_PYTHON=ON
 #        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-#        -DENABLE_WHEEL=ON
 #        -DENABLE_TESTS=ON
 #        -DENABLE_OV_ONNX_FRONTEND=ON
 #        -DENABLE_FASTER_BUILD=ON

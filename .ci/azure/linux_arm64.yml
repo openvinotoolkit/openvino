@@ -127,7 +127,6 @@ jobs:
         -GNinja
         -DVERBOSE_BUILD=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DENABLE_OPENCV=OFF
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
         -DENABLE_PYTHON=ON
@@ -148,6 +147,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DOUTPUT_ROOT=$(INSTALL_OPENVINO)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
@@ -189,6 +190,8 @@ jobs:
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
         $(OPENVINO_REPO_DIR)/src/bindings/python
       workingDirectory: $(BUILD_OPENVINO_PYTHON)

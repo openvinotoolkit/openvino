@@ -516,7 +516,6 @@ openvino/tools/mo/front/tf/concat_ext.py
 openvino/tools/mo/front/tf/const_ext.py
 openvino/tools/mo/front/tf/conv_ext.py
 openvino/tools/mo/front/tf/CorrectPaddingsForPadAfterComplex.py
-openvino/tools/mo/front/tf/CorrectRollAxes.py
 openvino/tools/mo/front/tf/crop_and_resize_ext.py
 openvino/tools/mo/front/tf/CropAndResizeReplacement.py
 openvino/tools/mo/front/tf/CTCGreedyDecoder_ext.py
@@ -573,7 +572,6 @@ openvino/tools/mo/front/tf/graph_utils.py
 openvino/tools/mo/front/tf/identity_ext.py
 openvino/tools/mo/front/tf/identityN_to_identity.py
 openvino/tools/mo/front/tf/if_ext.py
-openvino/tools/mo/front/tf/InterpolateTransposes.py
 openvino/tools/mo/front/tf/IteratorGetNext_ext.py
 openvino/tools/mo/front/tf/IteratorGetNextCut.py
 openvino/tools/mo/front/tf/loader.py
@@ -717,7 +715,6 @@ openvino/tools/mo/main_tf.py
 openvino/tools/mo/middle/__init__.py
 openvino/tools/mo/middle/AddFakeQuantizeFuse.py
 openvino/tools/mo/middle/AddIsCyclicAttribute.py
-openvino/tools/mo/middle/AddMeanScaleValues.py
 openvino/tools/mo/middle/ApplyNHWCtoNCHWpermutation.py
 openvino/tools/mo/middle/ApplyPermutations.py
 openvino/tools/mo/middle/ArgOpsToTopK.py
@@ -812,7 +809,6 @@ openvino/tools/mo/middle/reverse_tensor_iterator.py
 openvino/tools/mo/middle/ReverseTransposeNormalization.py
 openvino/tools/mo/middle/ReverseV2ToReverseSequence.py
 openvino/tools/mo/middle/RNNSequenceNormalizeToIE.py
-openvino/tools/mo/middle/ScaleInput.py
 openvino/tools/mo/middle/SharedWeightsDuplication.py
 openvino/tools/mo/middle/SliceConverter.py
 openvino/tools/mo/middle/SliceLikeToStridedSlice.py
