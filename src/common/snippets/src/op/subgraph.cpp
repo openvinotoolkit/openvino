@@ -202,7 +202,8 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                               PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                               "Failed to create broadcastable shapes in snippets canonicalization");
         const auto paramShape = m_body->get_parameters()[i]->get_shape();
-        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
+        const auto paramType =  m_body->get_parameters()[i]->get_element_type();
+        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()) || paramType != inType)
                 m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
     }
 
@@ -267,11 +268,12 @@ void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputSha
                         existing_convert_t->get_input_node_shared_ptr(0), original_input_element_type);
                 existing_convert_t->set_argument(0, convert);
             }
-        } else {
-            const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
-                    body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
-            body_results[i]->set_argument(0, convert);
         }
+
+        // We should insert Convert before Results to return original output element type
+        const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
+        body_results[i]->set_argument(0, convert);
     }
 
     ngraph::pass::Manager manager;
