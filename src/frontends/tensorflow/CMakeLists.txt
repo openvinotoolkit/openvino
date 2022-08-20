@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT CPACK_GENERATOR STREQUAL "DEB")
+    set(linkable_frontend LINKABLE_FRONTEND)
+endif()
+
 ov_add_frontend(NAME tensorflow
-                LINKABLE_FRONTEND
+                ${linkable_frontend}
                 SHUTDOWN_PROTOBUF
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
@@ -11,6 +15,10 @@ ov_add_frontend(NAME tensorflow
 # give a different name during installation to OpenVINO package
 set(target_name "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
 set_target_properties(${target_name} PROPERTIES OUTPUT_NAME openvino_tensorflow_fe)
+
+if(NOT TARGET openvino::frontend::tensorflow)
+    add_library(openvino::frontend::tensorflow ALIAS ${target_name})
+endif()
 
 function(ov_frontend_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_LIBRARY_PREFIX}")

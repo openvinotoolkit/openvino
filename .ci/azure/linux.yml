@@ -35,7 +35,7 @@ jobs:
       #   CMAKE_BUILD_SHARED_LIBS: 'ON'
       #   PYTHON_STATIC_ARGS:
       #   CMAKE_CPACK_GENERATOR: 'DEB'
-      #   SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
+      #   SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
       #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
