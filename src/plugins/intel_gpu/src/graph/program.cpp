@@ -1452,6 +1452,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id()) {
             can_use_fsv16 = false;
         }
@@ -1495,6 +1496,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::deconvolution::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
