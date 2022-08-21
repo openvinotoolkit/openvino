@@ -22,6 +22,19 @@ op::Parameter::Parameter(const element::Type& element_type, const ov::PartialSha
     constructor_validate_and_infer_types();
 }
 
+
+op::Parameter::Parameter(const element::Type& element_type, const ov::Any& element_custom_type, const ov::PartialShape& pshape)
+    : m_partial_shape(pshape),
+      m_is_relevant_to_shapes(false) {
+    OPENVINO_ASSERT(element_type == element::custom, "Parameter ctor with 3 arguments accept element_type = element::custom only");
+    // If element_type is custom, it doesn't mean that it is really custom, it may be just a way to hide normal type under Any
+    // In some circumstances it is simpler to wrap a regular type in Any and then pass through multi-layer API that works with Any only
+    if(element_custom_type.is<element::Type>()) {
+        m_element_type = element_custom_type.as<element::Type>();
+    }
+    constructor_validate_and_infer_types();
+}
+
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);

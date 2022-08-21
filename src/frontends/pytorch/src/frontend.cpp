@@ -20,7 +20,7 @@ namespace pytorch {
 
 #define OV_FRONTEND_REQUIRE(X) \
     do if(!(X)) { \
-        throw std::runtime_error(std::string("[ ERROR ] Failed: ") + #X); \
+        throw std::runtime_error(std::string("[ ERROR ] Failed: ") + #X + " at " + __FILE__ + ":" + std::to_string(__LINE__)); \
     } while(false)
 
 
@@ -174,6 +174,8 @@ public:
         attrs["PtTypeName"] = m_decoder->get_op_type();
         set_attrs(attrs);
 
+        //std::cout << attrs["PtTypeName"] << std::endl;
+
         // Set output shapes and types if recognized
 
         for(size_t i = 0; i < m_decoder->num_of_outputs(); ++i) {
@@ -189,10 +191,14 @@ public:
             // FIXME: ROUGH
             try {
                 type = m_decoder->get_output_type(i);
-            } catch (...) {
+            } catch (std::runtime_error& e) {
                 // nothing, means the info cannot be queried and remains unknown
-                //std::cerr << "[ ERROR ] Cannot retrieve type\n";
+                std::cerr << "[ ERROR ] Cannot retrieve type\n" << e.what() << std::endl;
             }
+            // Let's see what type we have
+            //std::cout << "Can be represented as element::Type: " << type.is<element::Type>() << std::endl;
+            //std::cout << "element::Type value: " << type.as<element::Type>() << "\n";
+            //std::exit(0);
             set_custom_output_type(i, type, ps);
         }
     }
@@ -297,7 +303,7 @@ Output<Node> reshape_kernel_for_group(
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model, const TensorMap& external_tensor_map);
 
 OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMap& tensor_map) {
-    std::cout << "[  ----  DEBUG  ---- ] convert_node\n";
+    //std::cout << "[  ----  DEBUG  ---- ] convert_node\n";
     using ints = std::vector<int64_t>;
     using namespace ngraph;
     using std::make_shared;
@@ -308,12 +314,19 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
 
     auto context = NodeContext(decoder, tensor_map);
 
+        
+    auto relu = [&]() -> OutputVector {
+        return { context.mark_node(make_shared<opset7::Relu>(context.get_input(0))) };
+    };    
+    auto add = [&]() -> OutputVector {
+        return { context.mark_node(make_shared<opset7::Add>(context.get_input(0), context.get_input(1))) };
+    };
+
     try {
     std::map<std::string, std::function<OutputVector()> > converters = {
-        
-        { "aten::relu", [&]() -> OutputVector {
-            return { context.mark_node(make_shared<opset7::Relu>(context.get_input(0))) };
-        }},
+
+        { "aten::relu", relu},
+        { "aten::relu_", relu}, // inplace version of relu, for us it is identical to regular relu
 
         { "aten::conv2d", [&]() -> OutputVector {
             auto strides = context.const_input<Strides>(3);
@@ -420,9 +433,8 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
             return { context.mark_node(out_node) };
         }},
 
-        { "aten::add", [&]() -> OutputVector {
-            return { context.mark_node(make_shared<opset7::Add>(context.get_input(0), context.get_input(1))) };
-        }},
+        { "aten::add", add},
+        { "aten::add_", add},   // inplace version of add, for us it is identical to regular add
 
         { "aten::mul", [&]() -> OutputVector {
             return { context.mark_node(make_shared<opset7::Multiply>(context.get_input(0), context.get_input(1))) };
@@ -673,10 +685,13 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
         }},
 
         { "aten::size", [&]() -> OutputVector {
-            OV_FRONTEND_REQUIRE(!context.input_is_none(1));
             auto shape = context.mark_node(make_shared<opset8::ShapeOf>(context.get_input(0)));
-            auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
-            return { context.mark_node(make_shared<opset8::Gather>(shape, context.get_input(1), axis_0)) };
+            if(context.input_is_none(1)) {
+                return shape->outputs();
+            } else {
+                auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
+                return { context.mark_node(make_shared<opset8::Gather>(shape, context.get_input(1), axis_0)) };
+            }
         }},
 
         { "aten::view", [&]() -> OutputVector {
@@ -754,27 +769,37 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
 
     auto it = converters.find(context.get_op_type());
     if(it != converters.end()) {
+        //std::cout << "FOUND converter for " << context.get_op_type() << "\n";
         return it->second();
+    } else {
+        std::cout << "DIDN'T FIND converter for " << context.get_op_type() << "\n";
     }
 
     }
+    // catch(pybind11::error_already_set& e) {
+    //     std::cout << "Python exception: " << e << "\n";
+    // }
+    catch (std::runtime_error& e) {
+        std::cout << "Exception happened during conversion: " << e.what() << '\n';
+        //throw;
+    }
     catch (...) {
         std::cout << "Some exception happened during convertion of node of type: " << context.get_op_type() << std::endl;
+        //throw;
     }
     //if (node->kind() != prim::ListConstruct) {
     //    std::cout << "Making unsupported " << node->kind().toQualString() << std::endl;
     //    node->dump();
     //}
-    std::cerr << "KKKKKKKKKKKKKK\n";
-
+    
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     // Pay attention to subgraphs that may appear in the node
     auto fw_node = make_shared<PtFrameworkNode>(decoder, context.inputs());
 
     for(size_t i = 0; i < decoder->get_subgraph_size(); ++i) {
-        std::cout << "Start converting subgraph\n";
+        //std::cout << "Start converting subgraph\n";
         fw_node->add_subgraph(convert_pytorch_model(decoder->get_subgraph_decoder(i), tensor_map)); // tensor_map should contain both local context and all external contexts
-        std::cout << "End converting subgraph\n";
+        //std::cout << "End converting subgraph\n";
     }
 
     return decoder->mark_node(fw_node)->outputs();
@@ -782,19 +807,23 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
 
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model, const TensorMap& external_tensor_map) {
+    std::shared_ptr<ov::Model> resulting_model; // define here to make a conversion in a nested scope
+    {
     ParameterVector parameters;
 
     TensorMap tensor_map;   // tensor map of the current context
 
-    std::cerr << "+++++before++++\n";
+    //std::cerr << "+++++before++++\n";
     // Go over all pytorch_model inputs and register them in the tensor map:
     auto inputs = pytorch_model->inputs();
-    std::cerr << "+++++after++++++\n";
-    std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
+    //std::cerr << "+++++after++++++\n";
+    //std::cout << "[  ---  DEBUG --- ] convert_pytorch_model: number of inputs: " << inputs.size() << '\n';
     for (int i = 0; i < inputs.size(); ++i) {
-        std::cout << "Input: " << i << ": " << inputs[i] << "\n";
+        //std::cout << "Input: " << i << ": " << inputs[i] << "\n";
         PartialShape ps = pytorch_model->get_input_shape(i);
-        auto parameter = std::make_shared<opset7::Parameter>(pytorch_model->get_input_type(i), ps);
+        //std::cout << "PartialShape = " << ps << "\n";
+        auto parameter = std::make_shared<opset7::Parameter>(ov::element::custom, pytorch_model->get_input_type(i), ps);
+        //std::cout << "Parameter: " << parameter << "\n";
         parameters.push_back(parameter);
         auto order = pytorch_model->get_input_transpose_order(i);
         if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
@@ -817,7 +846,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
     
     auto node_visitor = [&](std::shared_ptr<Decoder> node)
     {
-        std::cerr << "Node convert start" << std::endl;
+        //std::cerr << "Node convert start" << std::endl;
 
         // Explore all inputs of node. Node may refer to input value that hasn't been created in the current scope.
         // But this value can be found in the outer scope, for this purpose we need to search node in external_tensor_map as well
@@ -826,7 +855,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         for(size_t i = 0; i < raw_inputs.size(); ++i) {
             auto input = node->input(i);
             if(tensor_map.find(input) == tensor_map.end()) {
-                std::cout << "Trampoline for input index " << i << " with value " << input << "\n";
+                //std::cout << "Trampoline for input index " << i << " with value " << input << "\n";
                 // input refers value in the outer scope, need to create a new Parameter in the current scope
                 // TODO: Connect outer scope and inner scope properly -- should be handled at the level of that operation that introduced this nest of scopes (e.g. loop or if)
                 // TODO: Eliminate duplication with the main code for Parameters creation
@@ -836,12 +865,12 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                 parameters.push_back(parameter);
                 // TODO: Missing get_input_transpose_order handling for not trivial layouts
                 tensor_map[input] = parameter;
-                std::cout << "Parameter created\n";
+                //std::cout << "Parameter created\n";
             }
         }
 
         auto converted_outputs = convert_node(node, tensor_map);
-        std::cerr << "Node convert before outputs" << std::endl;
+        //std::cerr << "Node convert before outputs" << std::endl;
 
         auto fw_outputs = node->outputs();
 
@@ -857,25 +886,25 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
             // Output shape of converted node should match the original output shape
             //std::cerr << "[ DEBUG ] PT output shape = " << get_ov_shape(fw_outputs[i]) << '\n';
-            std::cerr << "[ DEBUG ] OV output shape = " << converted_outputs[i].get_partial_shape() << '\n';
+            //std::cerr << "[ DEBUG ] OV output shape = " << converted_outputs[i].get_partial_shape() << '\n';
             //OV_FRONTEND_REQUIRE(get_ov_shape(fw_outputs[i]) == converted_outputs[i].get_partial_shape());
 
             tensor_map[fw_tensor_id] = converted_outputs[i];
         }
-        std::cout << "Node convert end" << std::endl;
+        //std::cout << "Node convert end" << std::endl;
     };
 
     OV_FRONTEND_REQUIRE(pytorch_model->get_subgraph_size() == 1);
     pytorch_model->visit_subgraph(0, node_visitor);
-    std::cout << "All nodes convert end" << std::endl;
+    //std::cout << "All nodes convert end" << std::endl;
 
     ResultVector results;
-    std::cerr << "Outputs:\n";
+    //std::cerr << "Outputs:\n";
     for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
-        std::cerr << i << "\n";
+        //std::cerr << i << "\n";
         size_t id = pytorch_model->output(i);
-        std::cout << "value = " << id << '\n';
-        std::cout << "X\n";
+        //std::cout << "value = " << id << '\n';
+        //std::cout << "X\n";
         if(tensor_map.find(id) == tensor_map.end()) {
             // Not found in this scope, searching in the outer scope
             // TODO: do real search here, skipped for now
@@ -883,23 +912,23 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             auto parameter = std::make_shared<opset7::Parameter>(element::dynamic, PartialShape::dynamic());
             parameters.push_back(parameter);
             tensor_map[id] = parameter;
-            std::cout << "Added new parameter based on external value\n";
+            //std::cout << "Added new parameter based on external value\n";
         }
         auto ov_output = tensor_map[id];
-        std::cout << "X\n";
+        //std::cout << "X\n";
         auto order = pytorch_model->get_output_transpose_order(i);
-        std::cout << "X\n";
+        //std::cout << "X\n";
         if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
             throw "Output strides have wrong order.";
         }
-        std::cout << "X\n";
-        std::cout << ov_output << '\n';
+        //std::cout << "X\n";
+        //std::cout << ov_output << '\n';
         auto result = std::make_shared<opset7::Result>(ov_output);
-        std::cout << "X\n";
+        //std::cout << "X\n";
         results.push_back(result);
         //std::cerr << "Cluster result " << value->unique() << " with shape " << result->get_output_partial_shape(0) << "\n";
     }
-        std::cout << "Y\n";
+        //std::cout << "Y\n";
 
     for(size_t i = 0; i < parameters.size(); ++i) {
         auto parameter = parameters[i];
@@ -907,14 +936,33 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         //    << parameter->get_output_shape(0) << ", consumers: " << parameter->output(0).get_target_inputs().size() << "\n";
     }
     //std::cout << "Convert end" << std::endl;
-    std::cout << "Number of values collected: " << tensor_map.size() << "\n";
+    //std::cout << "Number of values collected: " << tensor_map.size() << "\n";
 
-    return std::make_shared<ov::Model>(results, parameters);
+    resulting_model = std::make_shared<ov::Model>(results, parameters);
+    
+    // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
+    }
+
+    // TODO: Propose better solution for the next code block
+    // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
+    // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model inference
+    // if model is completelly frozed and all methods are inlined. So we check if it doesn't have any consumers
+    // in the finally converted model and remove this parameter. This parameter should have index 0.
+    if(resulting_model->get_parameters().size() > 0) {
+        auto self = resulting_model->get_parameters()[0];
+        if(self->output(0).get_target_inputs().empty()) {
+            // There is no consumers: safe to remove
+            std::cout << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used and treated as `self`\n";
+            resulting_model->remove_parameter(self);
+        }
+    }    
+    
+    return resulting_model;
 }
 
 std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     try {
-        std::cerr << "[   HERE   ]\n";
+        //std::cerr << "[   HERE   ]\n";
         auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
         // TODO: Remove this super-hack, tensor_map should be local for each conversion activity, see more info where tensor_map is defined now
         TensorMap external_tensor_map; // intentionally empty because there is no external context
@@ -922,24 +970,24 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         return model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Error while converting pytorch model: " << e.what() << "\n";
-        std::cerr << "Rethrowing. Misleading error message from pybind11 may come later. TODO.";
+        std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
         throw;
     }
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    std::cout << "[  ----- DEBUG ------ ] supported_impl with " << variants.size() << " arguments\n";
+    //std::cout << "[  ----- DEBUG ------ ] supported_impl with " << variants.size() << " arguments\n";
     return false;
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    std::cout << "[  ----- DEBUG -----  ] load_impl with " << variants.size() << " parameters\n";
+    //std::cout << "[  ----- DEBUG -----  ] load_impl with " << variants.size() << " parameters\n";
     if(variants.size() != 1) {
         throw std::runtime_error("Pytorch frontend supports exactly one parameter in model representation, got " +
         std::to_string(variants.size()) + "instead.");
     }
     auto decoder = variants[0].as<std::shared_ptr<Decoder>>();
-    std::cout << "Recognized decoder: " << decoder << "\n";
+    //std::cout << "Recognized decoder: " << decoder << "\n";
     return std::make_shared<pytorch::InputModel>(decoder);
 }
 

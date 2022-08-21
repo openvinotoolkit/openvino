@@ -261,7 +261,7 @@ void ov::Node::set_output_type(size_t i, const element::Type& element_type, cons
 
 void ov::Node::set_custom_output_type(size_t i, ov::Any custom_element_type, const PartialShape& pshape) {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(custom_element_type, pshape);
+    get_output_descriptor(i).get_tensor_ptr()->set_custom_tensor_type(custom_element_type, pshape);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 

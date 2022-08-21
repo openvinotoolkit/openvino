@@ -49,8 +49,8 @@ void ov::descriptor::Tensor::set_element_type(const element::Type& element_type)
 
 void ov::descriptor::Tensor::set_custom_element_type(ov::Any custom_element_type) {
     // Check if custom_element_type is actually element::Type_t, in this case the type is regular, not a custom one
-    if (custom_element_type.is<element::Type_t>()) {
-        set_element_type(custom_element_type.as<element::Type_t>());
+    if (custom_element_type.is<element::Type>()) {
+        set_element_type(custom_element_type.as<element::Type>());
     } else {
         set_element_type(element::custom);
         m_custom_element_type = custom_element_type;
