@@ -140,7 +140,7 @@ function(ie_add_plugin)
             if(IE_PLUGIN_PSEUDO_DEVICE)
                 set(plugin_hidden HIDDEN)
             endif()
-            ie_cpack_add_component(${install_component} 
+            ie_cpack_add_component(${install_component}
                                    DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
                                    DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
                                    ${plugin_hidden}

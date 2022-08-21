@@ -25,10 +25,15 @@ jobs:
 - job: Win
   strategy:
     matrix:
-      Static:
-        CMAKE_BUILD_SHARED_LIBS: 'OFF'
-    #  Dynamic:
-    #    CMAKE_BUILD_SHARED_LIBS: 'ON'
+      # Static:
+      #   CMAKE_BUILD_SHARED_LIBS: 'OFF'
+      #  USE_TOOLCHAIN: 'OFF'
+     Dynamic:
+       CMAKE_BUILD_SHARED_LIBS: 'ON'
+       USE_TOOLCHAIN: 'OFF'
+    #  OneCore:
+    #    CMAKE_BUILD_SHARED_LIBS: 'OFF'
+    #    USE_TOOLCHAIN: 'ON'
     maxParallel: 2
 
   # About 150% of total time
@@ -131,13 +136,13 @@ jobs:
 
   - powershell: |
       Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(OV_CMAKE_TOOLCHAIN_FILE)"
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    condition: eq(variables['USE_TOOLCHAIN'], 'ON')
     displayName: "Set cmake toolchain"
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
-        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
+        -DENABLE_ONEDNN_FOR_GPU=$(USE_TOOLCHAIN) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_REQUIREMENTS_INSTALL=OFF ^
         -DENABLE_FASTER_BUILD=ON ^
@@ -151,7 +156,8 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -S $(REPO_DIR) -B $(BUILD_DIR)
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR)
     displayName: 'CMake'
 
   - script: dir $(REPO_DIR)\temp\ /s
