@@ -93,7 +93,7 @@ ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_m
 
 ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
                                            const ov_property_key_e key,
-                                           ov_property_value_t* value) {
+                                           ov_any_t* value) {
     if (!compiled_model || !value) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -110,7 +110,7 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
             std::copy_n(tmp_s.c_str(), tmp_s.length() + 1, temp);
             value->ptr = static_cast<void*>(temp);
             value->size = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         default:

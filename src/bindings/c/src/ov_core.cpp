@@ -5,35 +5,6 @@
 
 #include "common.h"
 
-/**
- * @variable global value for error info.
- * Don't change its order.
- */
-char const* error_infos[] = {"success",
-                             "general error",
-                             "it's not implement",
-                             "failed to network",
-                             "input parameter mismatch",
-                             "cannot find the value",
-                             "out of bounds",
-                             "run with unexpected error",
-                             "request is busy",
-                             "result is not ready",
-                             "it is not allocated",
-                             "inference start with error",
-                             "network is not ready",
-                             "inference is canceled",
-                             "invalid c input parameters",
-                             "unknown c error"};
-
-const char* ov_get_error_info(ov_status_e status) {
-    auto index = -status;
-    auto max_index = sizeof(error_infos) / sizeof(error_infos[0]) - 1;
-    if (index > max_index)
-        return error_infos[max_index];
-    return error_infos[index];
-}
-
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
     char* char_array = _char_array.release();
@@ -205,7 +176,7 @@ ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name,
 ov_status_e ov_core_get_property(const ov_core_t* core,
                                  const char* device_name,
                                  const ov_property_key_e key,
-                                 ov_property_value_t* value) {
+                                 ov_any_t* value) {
     if (!core || !device_name || !value) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -221,7 +192,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::AVAILABLE_DEVICES: {
@@ -234,7 +205,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::OPTIMAL_NUMBER_OF_INFER_REQUESTS: {
@@ -244,7 +215,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = optimal_number_of_infer_requests;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         case ov_property_key_e::RANGE_FOR_ASYNC_INFER_REQUESTS: {
@@ -255,7 +226,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             temp[2] = std::get<2>(range);
             value->ptr = static_cast<void*>(temp);
             value->size = 3;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         case ov_property_key_e::RANGE_FOR_STREAMS: {
@@ -265,7 +236,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             temp[1] = std::get<1>(range);
             value->ptr = static_cast<void*>(temp);
             value->size = 2;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         case ov_property_key_e::FULL_DEVICE_NAME: {
@@ -274,7 +245,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(name.begin(), name.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = name.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::OPTIMIZATION_CAPABILITIES: {
@@ -287,7 +258,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::CACHE_DIR: {
@@ -296,7 +267,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(dir.begin(), dir.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = dir.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::NUM_STREAMS: {
@@ -305,7 +276,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = num.num;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::INT32;
+            value->type = ov_any_type_e::INT32;
             break;
         }
         case ov_property_key_e::AFFINITY: {
@@ -314,7 +285,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = static_cast<ov_affinity_e>(affinity);
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::ENUM;
+            value->type = ov_any_type_e::ENUM;
             break;
         }
         case ov_property_key_e::INFERENCE_NUM_THREADS: {
@@ -323,7 +294,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = num;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::INT32;
+            value->type = ov_any_type_e::INT32;
             break;
         }
         case ov_property_key_e::PERFORMANCE_HINT: {
@@ -332,7 +303,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = static_cast<ov_performance_mode_e>(perf_mode);
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::ENUM;
+            value->type = ov_any_type_e::ENUM;
             break;
         }
         case ov_property_key_e::NETWORK_NAME: {
@@ -341,7 +312,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             std::copy_n(name.begin(), name.length() + 1, tmp);
             value->ptr = static_cast<void*>(tmp);
             value->size = name.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
+            value->type = ov_any_type_e::CHAR;
             break;
         }
         case ov_property_key_e::INFERENCE_PRECISION_HINT: {
@@ -350,7 +321,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = static_cast<ov_element_type_e>(ov::element::Type_t(infer_precision));
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::ENUM;
+            value->type = ov_any_type_e::ENUM;
             break;
         }
         case ov_property_key_e::OPTIMAL_BATCH_SIZE: {
@@ -359,7 +330,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = batch_size;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         case ov_property_key_e::MAX_BATCH_SIZE: {
@@ -368,7 +339,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = batch_size;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
@@ -377,7 +348,7 @@ ov_status_e ov_core_get_property(const ov_core_t* core,
             *temp = num_requests;
             value->ptr = static_cast<void*>(temp);
             value->size = 1;
-            value->type = ov_property_value_type_e::UINT32;
+            value->type = ov_any_type_e::UINT32;
             break;
         }
         default:
@@ -486,9 +457,4 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
     if (versions->versions)
         delete[] versions->versions;
     versions->versions = nullptr;
-}
-
-void ov_free(const char* content) {
-    if (content)
-        delete content;
 }

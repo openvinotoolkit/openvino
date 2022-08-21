@@ -208,7 +208,7 @@ OPENVINO_C_API(ov_status_e)
 ov_core_get_property(const ov_core_t* core,
                      const char* device_name,
                      const ov_property_key_e property_name,
-                     ov_property_value_t* property_value);
+                     ov_any_t* property_value);
 
 /**
  * @brief Returns devices available for inference.

@@ -81,29 +81,6 @@ typedef enum {
                                     //!<  number of video-cameras, or other sources of inputs)
 } ov_property_key_e;
 
-/**
- * @enum ov_property_value_type_e
- * @brief Enum to define property value type.
- */
-typedef enum {
-    BOOL = 0U,  //!< boolean data
-    CHAR,       //!< char data
-    ENUM,       //!< enum data
-    INT32,      //!< int32 data
-    UINT32,     //!< uint32 data
-    FLOAT,      //!< float data
-} ov_property_value_type_e;
-
-/**
- * @struct ov_property_value_t
- * @brief Represent a property value
- */
-typedef struct {
-    void* ptr;
-    size_t size;
-    ov_property_value_type_e type;
-} ov_property_value_t;
-
 // Property
 /**
  * @defgroup Property Property
@@ -115,7 +92,7 @@ typedef struct {
 /**
  * @brief Create a properties object.
  * @ingroup property
- * @param property The properties object pointer will be created.
+ * @param property The properties object will be created.
  * @return ov_status_e a status code, return OK if successful
  */
 OPENVINO_C_API(ov_status_e) ov_properties_create(ov_properties_t** property);
@@ -128,13 +105,6 @@ OPENVINO_C_API(ov_status_e) ov_properties_create(ov_properties_t** property);
 OPENVINO_C_API(void) ov_properties_free(ov_properties_t* property);
 
 /**
- * @brief Free property data.
- * @ingroup property
- * @param value The property data will be clean.
- */
-OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t* value);
-
-/**
  * @brief Add a new <key, value> to this properties object, which can store multiple <key, value>.
  * @ingroup property
  * @param property The property pointer that will be set with a new <key, value>.
@@ -143,13 +113,13 @@ OPENVINO_C_API(void) ov_property_value_free(ov_property_value_t* value);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_property_value_t* value);
+ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_any_t* value);
 
 /**
  * @brief Get number of <key, value> in this properties object.
  * @ingroup property
  * @param property The properties object pointer that to get its <key, value>.
- * @return The number of property.
+ * @return The number of property item.
  */
 OPENVINO_C_API(size_t) ov_properties_size(ov_properties_t* property);
 

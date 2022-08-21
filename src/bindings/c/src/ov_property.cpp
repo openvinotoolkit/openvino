@@ -28,7 +28,7 @@ void ov_properties_free(ov_properties_t* property) {
         delete property;
 }
 
-ov_status_e ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_property_value_t* value) {
+ov_status_e ov_properties_add(ov_properties_t* property, ov_property_key_e key, ov_any_t* value) {
     if (!property || !value) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -90,17 +90,6 @@ ov_status_e ov_properties_add(ov_properties_t* property, ov_property_key_e key, 
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
-}
-
-void ov_property_value_free(ov_property_value_t* value) {
-    if (value) {
-        if (value->ptr) {
-            char* temp = static_cast<char*>(value->ptr);
-            delete temp;
-        }
-        value->ptr = nullptr;
-        value->size = 0;
-    }
 }
 
 size_t ov_properties_size(ov_properties_t* property) {

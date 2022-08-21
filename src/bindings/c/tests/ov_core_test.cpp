@@ -134,10 +134,10 @@ TEST_P(ov_core, ov_core_set_property) {
 
     ov_property_key_e key = ov_property_key_e::PERFORMANCE_HINT;
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
-    ov_property_value_t value;
+    ov_any_t value;
     value.ptr = (void*)&mode;
     value.size = 1;
-    value.type = ov_property_value_type_e::ENUM;
+    value.type = ov_any_type_e::ENUM;
     OV_ASSERT_OK(ov_properties_add(property, key, &value));
 
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
@@ -151,10 +151,10 @@ TEST_P(ov_core, ov_core_get_property) {
     OV_ASSERT_OK(ov_core_create(&core));
     ASSERT_NE(nullptr, core);
 
-    ov_property_value_t property_value;
+    ov_any_t property_value;
     OV_ASSERT_OK(
         ov_core_get_property(core, device_name.c_str(), ov_property_key_e::SUPPORTED_PROPERTIES, &property_value));
-    ov_property_value_free(&property_value);
+    ov_any_free(&property_value);
     ov_core_free(core);
 }
 
@@ -169,19 +169,19 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
 
     ov_property_key_e key = ov_property_key_e::CACHE_DIR;
     const char cache_dir[] = "./cache_dir";
-    ov_property_value_t value;
+    ov_any_t value;
     value.ptr = (void*)cache_dir;
     value.size = sizeof(cache_dir);
-    value.type = ov_property_value_type_e::CHAR;
+    value.type = ov_any_type_e::CHAR;
     OV_ASSERT_OK(ov_properties_add(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
 
-    ov_property_value_t property_value;
+    ov_any_t property_value;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     EXPECT_STREQ(cache_dir, (char*)property_value.ptr);
 
     ov_properties_free(property);
-    ov_property_value_free(&property_value);
+    ov_any_free(&property_value);
     ov_core_free(core);
 }
 
@@ -196,18 +196,18 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
 
     ov_property_key_e key = ov_property_key_e::INFERENCE_NUM_THREADS;
     int32_t num = 8;
-    ov_property_value_t value;
+    ov_any_t value;
     value.ptr = (void*)&num;
     value.size = 1;
-    value.type = ov_property_value_type_e::INT32;
+    value.type = ov_any_type_e::INT32;
     OV_ASSERT_OK(ov_properties_add(property, key, &value));
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), property));
 
-    ov_property_value_t property_value;
+    ov_any_t property_value;
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     int32_t res = *(int32_t*)property_value.ptr;
     EXPECT_EQ(num, res);
-    ov_property_value_free(&property_value);
+    ov_any_free(&property_value);
 
     ov_properties_free(property);
     ov_core_free(core);
