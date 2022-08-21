@@ -4,12 +4,14 @@
 
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
+#include "graph_iterator_proto.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
