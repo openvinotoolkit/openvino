@@ -32,110 +32,110 @@ typedef struct ov_model ov_model_t;
 OPENVINO_C_API(void) ov_model_free(ov_model_t* model);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get output ports list of ov_model_t.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param output_nodes A pointer to the ov_output_nodes.
+ * @param output_ports A pointer to the ov_output_nodes.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_const_node_list_t* output_nodes);
+OPENVINO_C_API(ov_status_e) ov_model_outputs(const ov_model_t* model, ov_output_const_node_list_t* output_ports);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get input ports list of ov_model_t.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param input_nodes A pointer to the ov_input_nodes.
+ * @param input_ports A pointer to the ov_input_nodes.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_const_node_list_t* input_nodes);
+OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_const_node_list_t* input_ports);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get a const input port of ov_model_t by name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param tensor_name The name of input tensor.
- * @param input_node A pointer to the ov_output_const_node_t.
+ * @param input_port A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** input_node);
+ov_model_const_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** input_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get a const input port of ov_model_t by port index.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param index input tensor index.
- * @param input_node A pointer to the ov_output_const_node_t.
+ * @param input_port A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_node);
+ov_model_const_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** input_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get an input port of ov_model_t by name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
- * @param input_node A pointer to the ov_output_node_t.
+ * @param input_port A pointer to the ov_output_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** input_node);
+ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** input_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get an input port of ov_model_t by port index.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param index input tensor index.
- * @param input_node A pointer to the ov_output_node_t.
+ * @param input_port A pointer to the ov_output_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_node_t** input_node);
+ov_model_input_by_index(const ov_model_t* model, const size_t index, ov_output_node_t** input_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get a const output port of ov_model_t by port index.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param index input tensor index.
- * @param output_node A pointer to the ov_output_const_node_t.
+ * @param output_port A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_output_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** output_node);
+ov_model_const_output_by_index(const ov_model_t* model, const size_t index, ov_output_const_node_t** output_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get a const output port of ov_model_t by name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
- * @param output_node A pointer to the ov_output_const_node_t.
+ * @param output_port A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** output_node);
+ov_model_const_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_node_t** output_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get an output port of ov_model_t by port index.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param index input tensor index.
- * @param output_node A pointer to the ov_output_node_t.
+ * @param output_port A pointer to the ov_output_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_node_t** output_node);
+ov_model_output_by_index(const ov_model_t* model, const size_t index, ov_output_node_t** output_port);
 
 /**
- * @brief Get the outputs of ov_model_t.
+ * @brief Get an output port of ov_model_t by name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
  * @param tensor_name input tensor name (char *).
- * @param output_node A pointer to the ov_output_node_t.
+ * @param output_port A pointer to the ov_output_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** output_node);
+ov_model_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_node_t** output_port);
 
 /**
  * @brief Returns true if any of the ops defined in the model is dynamic shape..
@@ -201,14 +201,14 @@ ov_model_reshape_by_port_indexes(const ov_model_t* model,
  * @brief Do reshape in model with a list of <ov_output_node_t, partial shape>.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param output_nodes The ov_output_node_t list.
+ * @param output_ports The ov_output_node_t list.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_ports(const ov_model_t* model,
-                          const ov_output_node_t** output_nodes,
+                          const ov_output_node_t** output_ports,
                           const ov_partial_shape_t* partial_shapes,
                           size_t size);
 

@@ -13,9 +13,9 @@ TEST(ov_model, ov_model_outputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t output_node_list;
-    output_node_list.output_nodes = nullptr;
+    output_node_list.output_ports = nullptr;
     OV_ASSERT_OK(ov_model_outputs(model, &output_node_list));
-    ASSERT_NE(nullptr, output_node_list.output_nodes);
+    ASSERT_NE(nullptr, output_node_list.output_ports);
 
     ov_output_node_list_free(&output_node_list);
     ov_model_free(model);
@@ -32,9 +32,9 @@ TEST(ov_model, ov_model_inputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t input_node_list;
-    input_node_list.output_nodes = nullptr;
+    input_node_list.output_ports = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list));
-    ASSERT_NE(nullptr, input_node_list.output_nodes);
+    ASSERT_NE(nullptr, input_node_list.output_ports);
 
     ov_output_node_list_free(&input_node_list);
     ov_model_free(model);
@@ -242,9 +242,9 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t input_node_list1;
-    input_node_list1.output_nodes = nullptr;
+    input_node_list1.output_ports = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list1));
-    ASSERT_NE(nullptr, input_node_list1.output_nodes);
+    ASSERT_NE(nullptr, input_node_list1.output_ports);
 
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_list_get_any_name_by_index(&input_node_list1, 0, &tensor_name));
@@ -258,11 +258,11 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
 
     ov_output_const_node_list_t input_node_list2;
-    input_node_list2.output_nodes = nullptr;
+    input_node_list2.output_ports = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_node_list2));
-    ASSERT_NE(nullptr, input_node_list2.output_nodes);
+    ASSERT_NE(nullptr, input_node_list2.output_ports);
 
-    EXPECT_NE(input_node_list1.output_nodes, input_node_list2.output_nodes);
+    EXPECT_NE(input_node_list1.output_ports, input_node_list2.output_ports);
 
     ov_shape_free(&shape);
     ov_partial_shape_free(&partial_shape);

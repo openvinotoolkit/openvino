@@ -68,10 +68,10 @@ TEST_P(ov_compiled_model, get_inputs) {
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_const_node_list_t input_nodes;
-    input_nodes.output_nodes = nullptr;
+    input_nodes.output_ports = nullptr;
     input_nodes.size = 0;
     OV_EXPECT_OK(ov_compiled_model_inputs(compiled_model, &input_nodes));
-    EXPECT_NE(nullptr, input_nodes.output_nodes);
+    EXPECT_NE(nullptr, input_nodes.output_ports);
     EXPECT_NE(0, input_nodes.size);
 
     ov_output_node_list_free(&input_nodes);
@@ -95,7 +95,7 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_const_node_list_t input_nodes;
-    input_nodes.output_nodes = nullptr;
+    input_nodes.output_ports = nullptr;
     input_nodes.size = 0;
     OV_EXPECT_NOT_OK(ov_compiled_model_inputs(nullptr, &input_nodes));
     OV_EXPECT_NOT_OK(ov_compiled_model_inputs(compiled_model, nullptr));
@@ -121,10 +121,10 @@ TEST_P(ov_compiled_model, get_outputs) {
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_const_node_list_t output_nodes;
-    output_nodes.output_nodes = nullptr;
+    output_nodes.output_ports = nullptr;
     output_nodes.size = 0;
     OV_EXPECT_OK(ov_compiled_model_outputs(compiled_model, &output_nodes));
-    EXPECT_NE(nullptr, output_nodes.output_nodes);
+    EXPECT_NE(nullptr, output_nodes.output_ports);
     EXPECT_NE(0, output_nodes.size);
 
     ov_output_node_list_free(&output_nodes);
@@ -148,7 +148,7 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_const_node_list_t output_nodes;
-    output_nodes.output_nodes = nullptr;
+    output_nodes.output_ports = nullptr;
     output_nodes.size = 0;
     OV_EXPECT_NOT_OK(ov_compiled_model_outputs(nullptr, &output_nodes));
     OV_EXPECT_NOT_OK(ov_compiled_model_outputs(compiled_model, nullptr));

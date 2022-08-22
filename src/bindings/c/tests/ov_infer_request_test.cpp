@@ -13,13 +13,13 @@ inline void get_tensor_info(ov_model_t* model,
                             ov_element_type_e* type) {
     ov_output_node_list_t output_nodes;
     output_nodes.size = 0;
-    output_nodes.output_nodes = nullptr;
+    output_nodes.output_ports = nullptr;
     if (input) {
         OV_EXPECT_OK(ov_model_inputs(model, &output_nodes));
     } else {
         OV_EXPECT_OK(ov_model_outputs(model, &output_nodes));
     }
-    EXPECT_NE(nullptr, output_nodes.output_nodes);
+    EXPECT_NE(nullptr, output_nodes.output_ports);
     EXPECT_NE(0, output_nodes.size);
 
     OV_EXPECT_OK(ov_node_list_get_any_name_by_index(&output_nodes, idx, name));
