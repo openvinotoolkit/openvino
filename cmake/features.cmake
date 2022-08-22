@@ -5,6 +5,16 @@
 #
 # Common cmake options
 #
+ie_option (ENABLE_MAC_X86_EMULATION "Enable x86_64 architectures emulation for macOS" OFF)
+if (ENABLE_MAC_X86_EMULATION)
+    if (APPLE)
+        set(CMAKE_OSX_ARCHITECTURES "x86_64")
+        # Disable -mcpu=native
+        ie_add_compiler_flags(-Wno-error=unused-command-line-argument)
+    else()
+        set(ENABLE_MAC_X86_EMULATION OFF)
+    endif()
+endif()
 
 ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_64" OFF)
 
