@@ -13,13 +13,10 @@
 using namespace cldnn;
 using namespace ::tests;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 namespace {
 template<typename T>
 struct ReorgYoloParams {
-    tensor inputTensor;
+    ov::PartialShape inputTensor;
     std::vector<T> input;
     uint32_t stride;
     std::vector<T> expected;
@@ -64,7 +61,7 @@ template<typename T>
 std::vector<ReorgYoloParams<T>> generateParams() {
     static const std::vector<ReorgYoloParams<T>> result = {
         {
-            tensor{1, 4, 2, 2},
+            ov::PartialShape{1, 4, 2, 2},
             getValues<T>({
                 0.0, 1.0,
                 2.0, 3.0,
@@ -88,7 +85,7 @@ std::vector<ReorgYoloParams<T>> generateParams() {
             })
         },
         {
-            tensor{2, 9, 3, 3},
+            ov::PartialShape{2, 9, 3, 3},
             getValues<T>({
                 0.0f, 1.0f, 2.0f,
                 3.0f, 4.0f, 5.0f,
@@ -145,7 +142,7 @@ std::vector<ReorgYoloParams<T>> generateParams() {
             }),
         },
         {
-            tensor{2, 5, 4, 4},
+            ov::PartialShape{2, 5, 4, 4},
             getValues<T>({
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f,
@@ -227,7 +224,7 @@ template<typename T>
 std::vector<ReorgYoloParams<T>> generateInvalidParams() {
     static const std::vector<ReorgYoloParams<T>> result = {
         { // Feature < stride*stride
-            tensor{1, 3, 4, 4},
+            ov::PartialShape{1, 3, 4, 4},
             getValues<T>({
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
                 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
@@ -239,7 +236,7 @@ std::vector<ReorgYoloParams<T>> generateInvalidParams() {
             getValues<T>({}),
         },
         { // Height % stride != 0
-            tensor{1, 4, 5, 4},
+            ov::PartialShape{1, 4, 5, 4},
             getValues<T>({
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
                 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
@@ -254,7 +251,7 @@ std::vector<ReorgYoloParams<T>> generateInvalidParams() {
             getValues<T>({}),
         },
         { // Width % stride != 0
-            tensor{1, 4, 4, 5},
+            ov::PartialShape{1, 4, 4, 5},
             getValues<T>({
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
                 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
@@ -272,33 +269,6 @@ std::vector<ReorgYoloParams<T>> generateInvalidParams() {
     return result;
 }
 
-std::string toString(const format::type format) {
-    switch(format) {
-        case format::bfyx:
-            return "bfyx";
-        case format::yxfb:
-            return "yxfb";
-        case format::b_fs_yx_fsv16:
-            return "b_fs_yx_fsv16";
-        case format::b_fs_yx_fsv32:
-            return "b_fs_yx_fsv32";
-        case format::bs_fs_yx_bsv16_fsv16:
-            return "bs_fs_yx_bsv16_fsv16";
-        case format::bs_fs_yx_bsv32_fsv16:
-            return "bs_fs_yx_bsv32_fsv16";
-        case format::bs_fs_yx_bsv32_fsv32:
-            return "bs_fs_yx_bsv32_fsv32";
-        case format::bfzyx:
-            return "bfzyx";
-        case format::b_fs_zyx_fsv16:
-            return "b_fs_zyx_fsv16";
-        case format::bs_fs_zyx_bsv16_fsv16:
-            return "bs_fs_zyx_bsv16_fsv16";
-        default:
-            return std::to_string(format);
-    }
-}
-
 struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ReorgYoloParamsWithLayout<T> > &param) {
@@ -307,9 +277,9 @@ struct PrintToStringParamName {
         format::type target_format;
         bool should_fail;
         std::tie(p, target_format, should_fail) = param.param;
-        buf << "InputTensor=" << p.inputTensor.to_string()
+        buf << "InputTensor=" << to_string(p.inputTensor)
             << ".stride=" << p.stride
-            << ".TargetLayout=" << toString(target_format);
+            << ".TargetLayout=" << fmt_to_str(target_format);
         return buf.str();
     }
 };
@@ -339,7 +309,7 @@ private:
 
         auto& engine = get_test_engine();
 
-        auto input = engine.allocate_memory({data_type, plain_format, params.inputTensor});
+        auto input = engine.allocate_memory({params.inputTensor, data_type, plain_format});
 
         set_values(input, params.input);
 
@@ -356,7 +326,6 @@ private:
         auto out_mem = result.at("reorg_yolo_reordered").get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
-        ASSERT_EQ(params.inputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.expected.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected.size(); ++i) {
             EXPECT_NEAR(params.expected[i], out_ptr[i], getError<T>()) << "format=" << target_format << ", i= " << i;

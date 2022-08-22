@@ -42,10 +42,11 @@ inline void FUNC(planar_to_bfyx)(const uint planar_index,
 
 KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {
-#if OUTPUT_LAYOUT_BFYX
     int ic = get_global_id(2);
     int ih = get_global_id(1);
     int iw = get_global_id(0);
+
+#if OUTPUT_LAYOUT_BFYX
     for (int b = 0; b < B; b++) {
         int dstIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
 
@@ -60,10 +61,6 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
         output[dstIndex] = input[srcIndex];
     }
 #else
-    const uint ic = get_global_id(2);
-    const uint ih = get_global_id(1);
-    const uint iw = get_global_id(0);
-
     const uint OC = IC * STRIDE * STRIDE;
     const uint OH = IH / STRIDE;
     const uint OW = IW / STRIDE;

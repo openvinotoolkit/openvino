@@ -58,13 +58,7 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
             format::bs_fs_yx_bsv32_fsv32,
     };
 
-    std::set<std::tuple<data_types, format::type>> keys;
-    for (const auto& t : types) {
-        for (const auto& f : formats) {
-            keys.emplace(t, f);
-        }
-    }
-    implementation_map<reorg_yolo>::add(impl_types::ocl, reorg_yolo_impl::create, keys);
+    implementation_map<reorg_yolo>::add(impl_types::ocl, reorg_yolo_impl::create, types, formats);
 }
 
 }  // namespace detail
