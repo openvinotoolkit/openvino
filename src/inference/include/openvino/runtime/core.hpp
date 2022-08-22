@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_plugin_config.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -520,6 +519,18 @@ public:
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const;
 
     /**
+     * @brief Gets properties related to core behaviour.
+     *
+     * The method extracts information that can be set via the set_property method.
+     *
+     * @param name  Property name.
+     * @return Value of a property corresponding to the property name.
+     */
+    Any get_property(const std::string& name) const {
+        return get_property(std::string(), name);
+    }
+
+    /**
      * @brief Gets properties related to device behaviour.
      *
      * The method is needed to request common device or system properties.
@@ -671,5 +682,16 @@ public:
      */
     RemoteContext get_default_context(const std::string& device_name);
 };
+
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ *
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+OPENVINO_RUNTIME_API void shutdown();
 
 }  // namespace ov

@@ -35,7 +35,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev
-                                             inference_engine_legacy pugixml::static openvino::itt)
+                                             inference_engine_legacy openvino::pugixml openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -56,18 +56,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # Install rules
 
-# for ieFuncTests
 install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT tests EXCLUDE_FROM_ALL)
-
-# for InferenceEngineUnitTest
-# For public CI
-install(TARGETS ${TARGET_NAME}
-    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-if(NOT WIN32)
-    # For private CI
-    install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

@@ -196,11 +196,7 @@ macro(ov_add_frontend)
 
     target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
-
-    # TODO: define proper library version, currently SOVERSION 2022
-    # set_target_properties(${TARGET_NAME} PROPERTIES
-    #     SOVERSION ${OpenVINO_VERSION_MAJOR}
-    #     VERSION ${OpenVINO_VERSION})
+    ov_add_library_version(${TARGET_NAME})
 
     # WA for TF frontends which always require protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs

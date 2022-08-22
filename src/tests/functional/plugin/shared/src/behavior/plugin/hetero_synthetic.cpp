@@ -7,8 +7,11 @@
 #include <ngraph/variant.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include <random>
 #include "ie_algorithm.hpp"
+
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
@@ -115,11 +118,17 @@ void HeteroSyntheticTest::SetUp() {
     for (auto&& pluginParameter : std::get<Plugin>(param)) {
         bool registred = true;
         try {
-            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
-                + IE_BUILD_POSTFIX, pluginParameter._name);
+            if (pluginParameter._location == "openvino_template_plugin") {
+                PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
+                    CommonTestUtils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    pluginParameter._name);
+            } else {
+                PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
+                    + IE_BUILD_POSTFIX, pluginParameter._name);
+            }
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
-                                             + "\"  is already registered in the InferenceEngine")
+                                             + "\"  is already registered in the OpenVINO Runtime")
                 == std::string::npos) {
                 throw ex;
             } else {
