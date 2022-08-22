@@ -694,6 +694,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
     auto iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.find(cldnn::debug_configuration::get_device_id());
     auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
     auto device_info = device->get_info();
     bool is_new_api = IsNewAPI();

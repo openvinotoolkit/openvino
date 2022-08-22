@@ -49,7 +49,7 @@ GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
     for (int i = 0; i + 1 < argc; i++)
         if (!strcmp(argv[i], "-d"))
-            cldnn::debug_configuration::test_device_id = argv[i + 1];
+            cldnn::debug_configuration::_device_id = argv[i + 1];
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

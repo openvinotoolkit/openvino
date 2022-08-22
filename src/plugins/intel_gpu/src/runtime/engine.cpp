@@ -254,9 +254,10 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
-    auto device_map = query.get_available_devices();
-    auto iter = device_map.find(debug_configuration::test_device_id);
-    auto& device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto devices = query.get_available_devices();
+
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->verbose >= 1) {

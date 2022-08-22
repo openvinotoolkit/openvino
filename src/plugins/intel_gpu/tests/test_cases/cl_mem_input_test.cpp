@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/runtime/device_query.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -105,9 +106,9 @@ TEST(cl_mem_check, check_2_inputs) {
 
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
     auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
     auto input2 = input_layout("input2", { data_types::i8, format::nv12, {1,1,height / 2,width / 2} });
@@ -217,8 +218,9 @@ TEST(cl_mem_check, check_input) {
 
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second);
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
     auto input = input_layout("input", { data_types::i8, format::nv12, {1,1,height,width} });
     auto output_format = cldnn::format::byxf;

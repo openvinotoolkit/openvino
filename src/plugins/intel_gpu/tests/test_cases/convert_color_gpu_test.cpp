@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/convert_color.hpp>
 #include <intel_gpu/runtime/device_query.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include <ocl/ocl_wrapper.hpp>
 
@@ -296,9 +297,9 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     auto ocl_instance = std::make_shared<OpenCL>();
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -376,9 +377,9 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     auto ocl_instance = std::make_shared<OpenCL>();
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
@@ -531,9 +532,9 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     auto ocl_instance = std::make_shared<OpenCL>();
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-
-    auto engine_config = cldnn::engine_configuration();
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, devices.begin()->second, engine_config);
+    auto iter = devices.find(debug_configuration::get_device_id());
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
     if (!engine->get_device_info().supports_image) {
         GTEST_SKIP() << "Device doesn't support images";
