@@ -56,6 +56,7 @@ public:
 
     AnyMap compileModelProperties;
 };
+using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
 
 }  // namespace behavior
 }  // namespace test
