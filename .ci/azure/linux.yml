@@ -176,6 +176,7 @@ jobs:
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
+        -DBUILD_cuda_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -390,7 +391,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
