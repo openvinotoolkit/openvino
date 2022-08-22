@@ -47,8 +47,8 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
 
     auto avg_pool =
         make_shared<AvgPool>(input, strides, Shape({}), Shape({}), kernel_shape, true, ov::op::RoundingType::FLOOR);
-
-    convert_nchw_to_nhwc(is_nhwc, avg_pool->output(0), ov::Rank(spatial_dim + 2));
+    auto avg_pool_output = avg_pool->output(0);
+    convert_nchw_to_nhwc(is_nhwc, avg_pool_output, ov::Rank(spatial_dim + 2));
     set_node_name(node.get_name(), avg_pool);
     return {avg_pool};
 }
