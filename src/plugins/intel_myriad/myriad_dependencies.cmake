@@ -14,7 +14,7 @@ set(VPU_SUPPORTED_FIRMWARES_HASH
 #
 
 set(FIRMWARE_PACKAGE_VERSION 20220307_34)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-22.08.0")
 
 #
 # CMake variables to override default firmware files
