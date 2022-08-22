@@ -115,7 +115,15 @@ ov_status_e ov_node_list_get_element_type_by_index(const ov_output_node_list_t* 
     return ov_status_e::OK;
 }
 
-void ov_output_node_list_free(ov_output_const_node_list_t* output_ports) {
+void ov_output_node_list_free(ov_output_node_list_t* output_ports) {
+    if (output_ports) {
+        if (output_ports->output_ports)
+            delete[] output_ports->output_ports;
+        output_ports->output_ports = nullptr;
+    }
+}
+
+void ov_output_const_node_list_free(ov_output_const_node_list_t* output_ports) {
     if (output_ports) {
         if (output_ports->output_ports)
             delete[] output_ports->output_ports;

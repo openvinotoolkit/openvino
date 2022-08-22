@@ -154,13 +154,13 @@ int main(int argc, char** argv) {
     print_model_input_output_info(model);
 
     ov_output_const_node_list_t output_ports;
-    CHECK_STATUS(ov_model_outputs(model, &output_ports));
+    CHECK_STATUS(ov_model_const_outputs(model, &output_ports));
     if (output_ports.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
     ov_output_const_node_list_t input_port;
-    CHECK_STATUS(ov_model_inputs(model, &input_port));
+    CHECK_STATUS(ov_model_const_inputs(model, &input_port));
     if (input_port.size != 1) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
@@ -230,8 +230,8 @@ err:
     free(results);
     image_free(&img);
     ov_shape_free(&input_shape);
-    ov_output_node_list_free(&output_ports);
-    ov_output_node_list_free(&input_port);
+    ov_output_const_node_list_free(&output_ports);
+    ov_output_const_node_list_free(&input_port);
     if (output_tensor)
         ov_tensor_free(output_tensor);
     if (infer_request)

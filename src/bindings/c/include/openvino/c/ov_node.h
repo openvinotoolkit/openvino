@@ -110,9 +110,16 @@ ov_node_list_get_element_type_by_index(const ov_output_node_list_t* port_list, s
 /**
  * @brief free port_list
  * @ingroup node
+ * @param port_list The pointer to the instance of the ov_output_node_list_t to free.
+ */
+OPENVINO_C_API(void) ov_output_node_list_free(ov_output_node_list_t* port_list);
+
+/**
+ * @brief free const port_list
+ * @ingroup node
  * @param port_list The pointer to the instance of the ov_output_const_node_list_t to free.
  */
-OPENVINO_C_API(void) ov_output_node_list_free(ov_output_const_node_list_t* port_list);
+OPENVINO_C_API(void) ov_output_const_node_list_free(ov_output_const_node_list_t* port_list);
 
 /**
  * @brief free port object

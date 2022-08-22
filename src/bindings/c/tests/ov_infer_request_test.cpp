@@ -17,9 +17,9 @@ inline void get_tensor_info(ov_model_t* model,
     output_ports.output_ports = nullptr;
 
     if (input) {
-        OV_EXPECT_OK(ov_model_inputs(model, &output_ports));
+        OV_EXPECT_OK(ov_model_const_inputs(model, &output_ports));
     } else {
-        OV_EXPECT_OK(ov_model_outputs(model, &output_ports));
+        OV_EXPECT_OK(ov_model_const_outputs(model, &output_ports));
     }
     EXPECT_NE(nullptr, output_ports.output_ports);
     EXPECT_NE(0, output_ports.size);
@@ -34,7 +34,7 @@ inline void get_tensor_info(ov_model_t* model,
     OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_ports, idx, &p_shape));
     ov_partial_shape_free(&p_shape);
 
-    ov_output_node_list_free(&output_ports);
+    ov_output_const_node_list_free(&output_ports);
 }
 
 class ov_infer_request : public ::testing::TestWithParam<std::string> {
