@@ -224,33 +224,6 @@ float getError<half_t>() {
     return 0.2;
 }
 
-std::string toString(const format::type format) {
-    switch(format) {
-        case format::bfyx:
-            return "bfyx";
-        case format::b_fs_yx_fsv16:
-            return "b_fs_yx_fsv16";
-        case format::b_fs_yx_fsv32:
-            return "b_fs_yx_fsv32";
-        case format::bs_fs_yx_bsv16_fsv16:
-            return "bs_fs_yx_bsv16_fsv16";
-        case format::bs_fs_yx_bsv32_fsv16:
-            return "bs_fs_yx_bsv32_fsv16";
-        case format::bs_fs_yx_bsv32_fsv32:
-            return "bs_fs_yx_bsv32_fsv32";
-        case format::bfzyx:
-            return "bfzyx";
-        case format::b_fs_zyx_fsv16:
-            return "b_fs_zyx_fsv16";
-        case format::bs_fs_zyx_bsv16_fsv16:
-            return "bs_fs_zyx_bsv16_fsv16";
-        case format::bfwzyx:
-            return "bfwzyx";
-        default:
-            return std::to_string(format);
-    }
-}
-
 struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ScatterElementsUpdateParamsWithFormat<T> > &param) {
@@ -262,8 +235,8 @@ struct PrintToStringParamName {
         buf << "_axis=" << p.axis
             << "_data=" << p.data_tensor.to_string()
             << "_indices=" << p.indices_tensor.to_string()
-            << "_plainFormat=" << toString(plain_format)
-            << "_targetFormat=" << toString(target_format);
+            << "_plainFormat=" << fmt_to_str(plain_format)
+            << "_targetFormat=" << fmt_to_str(target_format);
         return buf.str();
     }
 };
@@ -317,7 +290,7 @@ public:
         ASSERT_EQ(params.expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
             EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
-                << "format=" << toString(target_format) << ", i=" << i;
+                << "format=" << fmt_to_str(target_format) << ", i=" << i;
         }
     }
 };
