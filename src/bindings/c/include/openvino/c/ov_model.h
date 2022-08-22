@@ -53,7 +53,7 @@ OPENVINO_C_API(ov_status_e) ov_model_inputs(const ov_model_t* model, ov_output_n
  * @brief Get the outputs of ov_model_t.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param tensor_name input tensor name (char *).
+ * @param tensor_name The name of input tensor.
  * @param input_node A pointer to the ov_output_const_node_t.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -82,7 +82,7 @@ OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
  * @brief Do reshape in model with a list of <name, partial shape>.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param tensor_names input tensor name (char *) list.
+ * @param tensor_names The list of input tensor names.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
  * @return Status code of the operation: OK(0) for success.
@@ -90,14 +90,14 @@ OPENVINO_C_API(bool) ov_model_is_dynamic(const ov_model_t* model);
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape(const ov_model_t* model,
                  const char** tensor_names,
-                 const ov_partial_shape_t** partial_shapes,
+                 const ov_partial_shape_t* partial_shapes,
                  size_t size);
 
 /**
  * @brief Do reshape in model with partial shape for a specified name.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param tensor_name input tensor name (char *).
+ * @param tensor_name The name of input tensor.
  * @param partialShape A PartialShape.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -120,15 +120,15 @@ ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t*
  * @brief Do reshape in model with a list of <port id, partial shape>.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param ports The port list.
+ * @param ports The array of port indexes.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_ports(const ov_model_t* model,
-                          size_t* ports,
-                          const ov_partial_shape_t** partial_shape,
+                          size_t* port_idexes,
+                          const ov_partial_shape_t* partial_shape,
                           size_t size);
 
 /**
