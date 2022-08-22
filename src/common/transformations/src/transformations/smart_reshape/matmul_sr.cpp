@@ -56,8 +56,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
 }  // namespace
 
 ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
-    // TODO: enable conditional compile
-    // MATCHER_SCOPE(ReshapeAMatMul);
+    MATCHER_SCOPE(ReshapeAMatMul);
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
@@ -73,13 +72,12 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
                                                    reshape_pattern_label,
                                                    true);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label /*, matcher_name */);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }
 
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
-    // TODO: enable conditional compile
-    // MATCHER_SCOPE(ReshapeBMatMul);
+    MATCHER_SCOPE(ReshapeBMatMul);
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
@@ -95,13 +93,12 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
                                                    reshape_pattern_label,
                                                    false);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label /*, matcher_name */);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }
 
 ngraph::pass::TransposeMatMul::TransposeMatMul() {
-    // TODO: enable conditional compile
-    // MATCHER_SCOPE(TransposeMatMul);
+    MATCHER_SCOPE(TransposeMatMul);
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
@@ -156,6 +153,6 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label /*, matcher_name */);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
     register_matcher(m, callback);
 }

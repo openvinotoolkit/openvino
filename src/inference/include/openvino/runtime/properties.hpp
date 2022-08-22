@@ -18,7 +18,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ie_precision.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
@@ -456,18 +455,6 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
  * @endcode
  */
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
-
-/**
- * @brief The name for setting how to handle denormals.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<bool> denormals_optimization{"DENORMALS_OPTIMIZATION"};
-
-/**
- * @brief The name for experimental setting for CPU plugin.
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<std::string> cpu_experimental{"CPU_EXPERIMENTAL"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.

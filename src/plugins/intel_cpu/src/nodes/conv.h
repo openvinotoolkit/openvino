@@ -102,6 +102,7 @@ private:
     MemoryPtr getOutputMemory() const;
 
     void appendZeroPointsArgs();
+    void initTryBrgconvFlag();
 
     bool withBiases;
     bool withSum;
@@ -136,6 +137,9 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
+    bool shouldTryBrgconv = false;
+    // cache attr for later usage. [0] - depthwise, quantize, [1] - binary
+    AttrPtr pInitAttrs[2];
     AttrPtr pAttr;
     bool autoPadding = false;
     FusedSubgraphPtr subgraph;

@@ -26,7 +26,7 @@ class typed_primitive_inst<scatter_nd_update> : public typed_primitive_inst_base
     using parent = typed_primitive_inst_base<scatter_nd_update>;
 
 public:
-    static layout calc_output_layout(scatter_nd_update_node const& node);
+    static layout calc_output_layout(scatter_nd_update_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(scatter_nd_update_node const& node);
 
 public:

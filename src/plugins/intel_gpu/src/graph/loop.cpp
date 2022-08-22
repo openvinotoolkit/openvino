@@ -38,7 +38,7 @@ static bool check_if_axis_is_set_properly(loop_node const & node) {
         });
         assert(found != dependencies.end());
         const layout input_layout = (*found)->get_output_layout();
-        const auto shape = input_layout.size.sizes(input_layout.format);
+        const auto shape = input_layout.get_tensor().sizes(input_layout.format);
         const size_t iteration_axis = node.convert_to_raw_axis(pm.get().axis, static_cast<int32_t>(shape.size()));
         if (iteration_size < 0) {
             iteration_size = shape[iteration_axis];
@@ -78,7 +78,7 @@ static void validate_backedges(loop_node const & node) {
     }
 }
 
-layout loop_inst::calc_output_layout(loop_node const & node) {
+layout loop_inst::calc_output_layout(loop_node const & node, kernel_impl_params const& impl_param) {
     // body program should be built here to calculate body input layout
     // from outputs of loop's dependency and calculate loop output layout
     // from the outputs of body program
@@ -106,7 +106,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
         return output->id() == output_internal_id;
     });
     if (target == body_outputs.end()) {
-        CLDNN_ERROR_MESSAGE(node.id(), "output not found");
+        CLDNN_ERROR_MESSAGE(impl_param.desc->id, "output not found");
     }
 
     // set body output layout
@@ -116,7 +116,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
         const size_t ndim = loop_output_layout.get_rank();
         auto shape = loop_output_layout.get_dims();
         shape[axis_to_iterate_throgh] = static_cast<int32_t>(node.get_max_iteration());
-        loop_output_layout.size = tensor(format::get_default_format(ndim), shape);
+        loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
     }
     return loop_output_layout;
 }

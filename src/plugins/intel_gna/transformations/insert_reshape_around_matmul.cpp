@@ -13,7 +13,7 @@
 
 #include "gna_plugin_log.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna::pass;
 
 static bool InsertReshape(
     ngraph::pattern::Matcher &matcher,
@@ -183,7 +183,7 @@ InsertReshapeAroundMatmul::InsertReshapeAroundMatmul() {
         return InsertReshape(matcher, input, matmul1, matmul2);
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(matmul, "InsertReshapeAroundMatmul");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -216,7 +216,7 @@ InsertReshapeAroundMatmulWithAdd::InsertReshapeAroundMatmulWithAdd() {
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2);
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(add, "InsertReshapeAroundMatmulWithAdd");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -249,7 +249,7 @@ InsertReshapeAroundMatmulWithFq::InsertReshapeAroundMatmulWithFq() {
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2, fake_quantize2);
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(fake_quantize2, "InsertReshapeAroundMatmulWithFq");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(fake_quantize2, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
@@ -273,7 +273,6 @@ InsertReshapeAroundMatmulWithTranspose::InsertReshapeAroundMatmulWithTranspose()
         return InsertReshape(matcher, input, matmul1, matmul2, add1, add2, fake_quantize2, transpose);
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, "InsertReshapeAroundMatmulWithTranspose");
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, matcher_name);
     this->register_matcher(matcher, callback);
 }
-} // namespace GNAPluginNS

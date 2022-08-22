@@ -69,7 +69,13 @@ INSTANTIATE_TEST_SUITE_P(
 // IE Class SetConfig
 //
 
-using IEClassSetConfigTestHETERO = BehaviorTestsUtils::IEClassNetworkTest;
+class IEClassSetConfigTestHETERO : public BehaviorTestsUtils::IEClassNetworkTest,
+                                   public BehaviorTestsUtils::IEPluginTestBase {
+    void SetUp() override {
+        IEClassNetworkTest::SetUp();
+        IEPluginTestBase::SetUp();
+    }
+};
 
 TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     {
@@ -115,7 +121,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest,
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
-using IEClassGetConfigTestTEMPLATE = BehaviorTestsUtils::IEClassNetworkTest;
+class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTest,
+                                     public BehaviorTestsUtils::IEPluginTestBase {
+    void SetUp() override {
+        IEClassNetworkTest::SetUp();
+        IEPluginTestBase::SetUp();
+    }
+};
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();

@@ -17,16 +17,33 @@ primitive_type_id reduce::type_id() {
     return &instance;
 }
 
-layout reduce_inst::calc_output_layout(reduce_node const& node) {
-    auto desc = node.get_primitive();
+static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+    std::vector<uint16_t> converted_axes;
+    for (auto axis : axes) {
+        if (axis == 0 || axis == 1) {
+            converted_axes.push_back(axis);
+            continue;
+        }
 
-    auto input_layout = node.input(0).get_output_layout();
+        if (axis < 0)
+            axis = axis + rank;
+
+        converted_axes.push_back(rank + 1 - axis);
+    }
+
+    return converted_axes;
+}
+
+layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<reduce>();
+
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
     auto format_dim = input_format.dimension();
     auto output_type = input_layout.data_type;
     auto mode = desc->mode;
-    auto reduce_axes = desc->axes;
-    auto in_dims = input_layout.size.sizes();
+    auto reduce_axes = convert_axes(desc->axes, input_layout.get_rank());
+    auto in_dims = input_layout.get_tensor().sizes();
 
     for (size_t a = 0; a < reduce_axes.size(); a++) {
         in_dims[reduce_axes[a]] = 1;
@@ -67,8 +84,8 @@ layout reduce_inst::calc_output_layout(reduce_node const& node) {
     if (desc->output_data_type)
         output_type = *desc->output_data_type;
 
-    if (node.has_fused_primitives())
-        output_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives())
+        output_type = impl_param.get_fused_output_layout().data_type;
 
     if (format_dim == 6)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};

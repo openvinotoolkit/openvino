@@ -330,7 +330,6 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         const auto& R = pattern_map.at(R_m);                      // const in the body
         const auto& B = pattern_map.at(B_m);                      // const in the body
 
-        MATCHER_SCOPE_ENABLE(ConvertRNNSequenceToTensorIterator);
         return convert_sequence_to_ti(sequence,
                                       X,
                                       H_t,
@@ -374,7 +373,6 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         const auto& R = pattern_map.at(R_m);                      // const in the body
         const auto& B = pattern_map.at(B_m);                      // const in the body
 
-        MATCHER_SCOPE_ENABLE(ConvertGRUSequenceToTensorIterator);
         return convert_sequence_to_ti(sequence,
                                       X,
                                       H_t,
@@ -420,7 +418,6 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         const auto& R = pattern_map.at(R_m);                      // const in the body
         const auto& B = pattern_map.at(B_m);                      // const in the body
 
-        MATCHER_SCOPE_ENABLE(ConvertLSTMSequenceToTensorIterator);
         return convert_sequence_to_ti(sequence, X, H_t, C_t, seq_lengths, W, R, B, sequence->get_direction());
     };
 
