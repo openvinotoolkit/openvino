@@ -214,6 +214,8 @@ static format to_weights_format(format f, bool is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
             return format::goizyx;
         }
+        case format::b_fs_yx_fsv16:
+            return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
         default:
