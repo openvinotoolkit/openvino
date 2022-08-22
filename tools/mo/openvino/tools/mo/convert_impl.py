@@ -278,6 +278,18 @@ def arguments_post_parsing(argv: argparse.Namespace):
     argv.mean_scale_values = mean_scale
     argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
 
+    if not os.path.exists(argv.output_dir):
+        try:
+            os.makedirs(argv.output_dir)
+        except PermissionError as e:
+            raise Error("Failed to create directory {}. Permission denied! " +
+                        refer_to_faq_msg(22),
+                        argv.output_dir) from e
+    else:
+        if not os.access(argv.output_dir, os.W_OK):
+            raise Error("Output directory {} is not writable for current user. " +
+                        refer_to_faq_msg(22), argv.output_dir)
+
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
