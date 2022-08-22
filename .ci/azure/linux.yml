@@ -30,18 +30,21 @@ jobs:
       #   PYTHON_STATIC_ARGS:
       #   CMAKE_CPACK_GENERATOR:
       #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
       #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
       # Debian:
       #   CMAKE_BUILD_SHARED_LIBS: 'ON'
       #   PYTHON_STATIC_ARGS:
       #   CMAKE_CPACK_GENERATOR: 'DEB'
       #   SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples/python
       #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
         RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
     maxParallel: 2
 
@@ -413,7 +416,9 @@ jobs:
         -S $(REPO_DIR)/tests/samples_tests
         -B $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
+  - script: |
+      cmake -DCOMPONENT=python_samples -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
+      cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
   - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
@@ -424,7 +429,7 @@ jobs:
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      export IE_APP_PYTHON_PATH=$(SAMPLES_INSTALL_DIR)/python/
+      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
       $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
