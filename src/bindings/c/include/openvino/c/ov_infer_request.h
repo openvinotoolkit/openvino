@@ -74,7 +74,7 @@ ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tenso
  * @brief Sets an input/output tensor to infer on by the port of input/output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Port of the input or output tensor.
+ * @param port Port of the input or output tensor, which can be got by call interface from ov_model_t/ov_compiled_model_t.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -82,10 +82,10 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request, const ov_output_node_t* port, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input/output tensor to infer onby the const port of input/output tensor.
+ * @brief Sets an input/output tensor to infer on by the const port of input/output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Const port of the input or output tensor.
+ * @param port Const port of the input or output tensor, which can be got by call interface from ov_model_t/ov_compiled_model_t.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -94,6 +94,9 @@ ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request, con
 
 /**
  * @brief Sets a batch of tensors for input data to infer by tensor name.
+ * Model input must have batch dimension, and the number of @p tensors must match the batch size.
+ * The current version supports setting tensors to model inputs only. If @p tensor_name is associated
+ * with output (or any other non-input node), an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor_name Name of the input tensor.
@@ -105,7 +108,10 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensors(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_list_t* tensors);
 
 /**
- * @brief Sets a batch of tensors for input data to infer by the const port of input tensor.
+ * @brief Sets a batch of tensors for input data to infer by input port.
+ * Model input must have batch dimension, and the number of @p tensors must match the batch size.
+ * The current version supports setting tensors to model inputs only. If @p port is associated
+ * with output (or any other non-input node), an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param port Const port of the input tensor.
@@ -129,6 +135,7 @@ ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request, si
 
 /**
  * @brief Sets an input tensor for the model with single input to infer on.
+ * @note If model has several inputs, an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
@@ -139,6 +146,7 @@ ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_te
 
 /**
  * @brief Sets a batch of tensors for the model with single input to infer on.
+ * Model input must have batch dimension, and the number of @p tensors must match the batch size.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
@@ -150,6 +158,7 @@ ov_infer_request_set_input_tensors(ov_infer_request_t* infer_request, const ov_t
 
 /**
  * @brief Sets a batch of tensors for input data by index.
+ * Model input must have batch dimension, and the number of @p tensors must match the batch size.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the input tensor. If @p idx is greater than the number of model inputs, an exception is thrown.
@@ -162,6 +171,7 @@ ov_infer_request_set_input_tensors_by_index(ov_infer_request_t* infer_request, s
 
 /**
  * @brief Sets an output tensor to infer by the index of output tensor.
+ * @note Index of the output preserved accross ov_model_t, ov_compiled_model_t.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the output tensor.
@@ -173,6 +183,7 @@ ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request, s
 
 /**
  * @brief Sets an output tensor to infer models with single output.
+ * @note If model has several outputs, an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
@@ -183,9 +194,10 @@ ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_t
 
 /**
  * @brief Gets an input/output tensor by the name of tensor.
+ * @note If model has several outputs, an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param tensor_name Name of the input or output tensor.
+ * @param tensor_name Name of the input or output tensor to get.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -196,7 +208,7 @@ ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char*
  * @brief Gets an input/output tensor by const port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Port of the tensor to get.
+ * @param port Port of the tensor to get. @p port is not found, an exception is thrown.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -207,7 +219,7 @@ ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_reques
  * @brief Gets an input/output tensor by port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port Port of the tensor to get.
+ * @param port Port of the tensor to get. @p port is not found, an exception is thrown.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -218,7 +230,7 @@ ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request, con
  * @brief Gets an input tensor by the index of input tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param idx Index of the tensor to get.
+ * @param idx Index of the tensor to get. @p idx. If the tensor with the specified @p idx is not found, an exception
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -228,6 +240,7 @@ ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_reque
 /**
  * @brief Gets an input tensor from the model with only one input tensor.
  * @ingroup infer_request
+ * @note If model has several inputs, an exception is thrown.
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
@@ -239,7 +252,7 @@ ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request, ov_te
  * @brief Gets an output tensor by the index of output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param idx Index of the tensor to get.
+ * @param idx Index of the tensor to get. @p idx. If the tensor with the specified @p idx is not found, an exception
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -248,6 +261,7 @@ ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_requ
 
 /**
  * @brief Gets an output tensor from the model with only one output tensor.
+ * @note f model has several outputs, an exception is thrown.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
