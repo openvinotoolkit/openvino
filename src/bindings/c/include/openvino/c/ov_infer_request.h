@@ -60,7 +60,7 @@ typedef struct {
  */
 
 /**
- * @brief Sets an input/output tensor to infer on.
+ * @brief Sets an input/output tensor to infer on by the name of tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor_name  Name of the input or output tensor.
@@ -71,32 +71,32 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input/output tensor to infer on.
+ * @brief Sets an input/output tensor to infer on by the port of input/output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port  Port of the input or output tensor.
+ * @param port Port of the input or output tensor.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensor_by_node(ov_infer_request_t* infer_request, const ov_output_node_t* port, const ov_tensor_t* tensor);
+ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request, const ov_output_node_t* port, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input/output tensor to infer on.
+ * @brief Sets an input/output tensor to infer onby the const port of input/output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port  Port of the input or output tensor.
+ * @param port Const port of the input or output tensor.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensor_by_const_node(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_t* tensor);
+ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_t* tensor);
 
 /**
  * @brief Sets a batch of tensors for input data to infer by tensor name.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param tensor_name  Name of the input tensor.
+ * @param tensor_name Name of the input tensor.
  * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
  * input element type and shape (except batch dimension). Total size of tensors must match the input size.
  * @return Status code of the operation: OK(0) for success.
@@ -105,19 +105,19 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_tensors(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_list_t* tensors);
 
 /**
- * @brief Sets a batch of tensors for input data to infer by input port.
+ * @brief Sets a batch of tensors for input data to infer by the const port of input tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param port  Port of the input tensor.
+ * @param port Const port of the input tensor.
  * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
  * input element type and shape (except batch dimension). Total size of tensors must match the input size.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensors_by_const_node(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_list_t* tensors);
+ov_infer_request_set_tensors_by_const_port(ov_infer_request_t* infer_request, const ov_output_const_node_t* port, const ov_tensor_list_t* tensors);
 
 /**
- * @brief Sets an input tensor to infer on.
+ * @brief Sets an input tensor to infer on by the index of tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the input port. If @p idx is greater than the number of model inputs, an exception is thrown.
@@ -128,7 +128,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request, size_t idx, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets an input tensor for model with single input to infer on.
+ * @brief Sets an input tensor for the model with single input to infer on.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
@@ -138,7 +138,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor);
 
 /**
- * @brief Sets a batch of tensors for single input data.
+ * @brief Sets a batch of tensors for the model with single input to infer on.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
@@ -161,7 +161,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_input_tensors_by_index(ov_infer_request_t* infer_request, size_t idx, const ov_tensor_list_t* tensors);
 
 /**
- * @brief Sets an output tensor to infer.
+ * @brief Sets an output tensor to infer by the index of output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the output tensor.
@@ -182,10 +182,10 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor);
 
 /**
- * @brief Gets an input/output tensor to infer on.
+ * @brief Gets an input/output tensor by the name of tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
- * @param tensor_name  Name of the input or output tensor.
+ * @param tensor_name Name of the input or output tensor.
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -193,7 +193,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char* tensor_name, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an input/output tensor for inference.
+ * @brief Gets an input/output tensor by const port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param port Port of the tensor to get.
@@ -201,10 +201,10 @@ ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char*
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_tensor_by_const_node(const ov_infer_request_t* infer_request, const ov_output_const_node_t* port, ov_tensor_t** tensor);
+ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_request, const ov_output_const_node_t* port, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an input/output tensor for inference.
+ * @brief Gets an input/output tensor by port.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param port Port of the tensor to get.
@@ -212,10 +212,10 @@ ov_infer_request_get_tensor_by_const_node(const ov_infer_request_t* infer_reques
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_tensor_by_node(const ov_infer_request_t* infer_request, const ov_output_node_t* port, ov_tensor_t** tensor);
+ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request, const ov_output_node_t* port, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an input tensor to infer on.
+ * @brief Gets an input tensor by the index of input tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the tensor to get.
@@ -226,7 +226,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an input tensor to infer on from single input model.
+ * @brief Gets an input tensor from the model with only one input tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.
@@ -236,7 +236,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an output tensor to infer on.
+ * @brief Gets an output tensor by the index of output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param idx Index of the tensor to get.
@@ -247,7 +247,7 @@ OPENVINO_C_API(ov_status_e)
 ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request, size_t idx, ov_tensor_t** tensor);
 
 /**
- * @brief Gets an output tensor to infer on from single input model.
+ * @brief Gets an output tensor from the model with only one output tensor.
  * @ingroup infer_request
  * @param infer_request A pointer to the ov_infer_request_t.
  * @param tensor Reference to the tensor.

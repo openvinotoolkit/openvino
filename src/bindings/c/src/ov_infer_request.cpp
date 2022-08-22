@@ -25,7 +25,7 @@ ov_status_e ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_tensor_by_node(ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
                                                 const ov_output_node_t* port,
                                                 const ov_tensor_t* tensor) {
     if (!infer_request || !port || !tensor) {
@@ -40,7 +40,7 @@ ov_status_e ov_infer_request_set_tensor_by_node(ov_infer_request_t* infer_reques
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_tensor_by_const_node(ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request,
                                                       const ov_output_const_node_t* port,
                                                       const ov_tensor_t* tensor) {
     if (!infer_request || !port || !tensor) {
@@ -70,7 +70,7 @@ ov_status_e ov_infer_request_set_tensors(ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_set_tensors_by_const_node(ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_set_tensors_by_const_port(ov_infer_request_t* infer_request,
                                                        const ov_output_const_node_t* port,
                                                        const ov_tensor_list_t* tensors) {
     if (!infer_request || !port || !tensors) {
@@ -187,7 +187,7 @@ ov_status_e ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_tensor_by_const_node(const ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_request,
                                                       const ov_output_const_node_t* port,
                                                       ov_tensor_t** tensor) {
     if (!infer_request || !port || !tensor) {
@@ -205,7 +205,7 @@ ov_status_e ov_infer_request_get_tensor_by_const_node(const ov_infer_request_t* 
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_get_tensor_by_node(const ov_infer_request_t* infer_request,
+ov_status_e ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request,
                                                 const ov_output_node_t* port,
                                                 ov_tensor_t** tensor) {
     if (!infer_request || !port || !tensor) {
@@ -343,7 +343,7 @@ ov_status_e ov_infer_request_wait(ov_infer_request_t* infer_request) {
     return ov_status_e::OK;
 }
 
-ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const int timeout) {
+ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const int64_t timeout) {
     if (!infer_request) {
         return ov_status_e::INVALID_C_PARAM;
     }
