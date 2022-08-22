@@ -108,11 +108,15 @@ try:
                 if hasattr(self.pt_module, 'blocks'):
                     for node in self.get_subgraphs()[index].nodes():
                         #print('inside 1')
+                        #print('visit node/block')
+                        #print(node, flush=True)
                         decoder = TorchScriptPythonDecoder(node)
                         node_visitor(decoder)
                 else:
                     for node in self.pt_module.nodes():
                         #print('inside 2')
+                        #print('visit node/block')
+                        #print(node, flush=True)
                         decoder = TorchScriptPythonDecoder(node)
                         node_visitor(decoder)
             else:

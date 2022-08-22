@@ -308,11 +308,13 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
     using namespace ngraph;
     using std::make_shared;
 
-    //std::cerr << "---\nAttempting to convert " << qnode->kind().toQualString() << "\n";
+    //std::cerr << "---\nAttempting to convert " << node->kind().toQualString() << "\n";
     //node->dump();
 
 
     auto context = NodeContext(decoder, tensor_map);
+
+    //std::cerr << "[ DEBUG ] Attempting to convert " << context.get_op_type() << "\n";
 
         
     auto relu = [&]() -> OutputVector {
@@ -698,7 +700,7 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
             auto shape_node = context.get_input(1).get_node();
             auto shape_node_fw_node = dynamic_cast<PtFrameworkNode*>(shape_node);
             std::shared_ptr<ov::Node> reshape;
-            if (shape_node_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct") {
+            if (shape_node_fw_node && shape_node_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct") {
                 // TODO: maybe use pt shape instead of whole shape subgraph, because it may be more efficent
                 OutputVector inputs;
                 auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
@@ -794,7 +796,9 @@ OutputVector convert_node(const std::shared_ptr<Decoder> decoder, const TensorMa
     
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     // Pay attention to subgraphs that may appear in the node
+    //std::cerr << "[ DEBUG ] Before PtFramewokNode creation\n";
     auto fw_node = make_shared<PtFrameworkNode>(decoder, context.inputs());
+    //std::cerr << "[ DEBUG ] After PtFramewokNode creation\n";
 
     for(size_t i = 0; i < decoder->get_subgraph_size(); ++i) {
         //std::cout << "Start converting subgraph\n";
