@@ -30,6 +30,9 @@ class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
 
 public:
     static layout calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(tile_node const& /*node*/, const kernel_impl_params& impl_param);
+
     static std::string to_string(tile_node const& node);
 
 public:
