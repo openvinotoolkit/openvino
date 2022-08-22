@@ -1506,10 +1506,18 @@ using activation_random_test_params = std::tuple<data_types,
                                                  activation_additional_params,  // additional_params
                                                  padding>;
 
-
-template <typename T> static bool compare_output(const T& x, const T& y){return x==y;}
-template <> bool compare_output<FLOAT16>(const FLOAT16& x, const FLOAT16& y){return std::abs(double(x-y))<1e-4;}
-template <> bool compare_output<float>(const float& x, const float& y){return std::abs(double(x-y))<1e-5;}
+template <typename T>
+static bool compare_output(const T& x, const T& y) {
+    return x == y;
+}
+template <>
+bool compare_output<FLOAT16>(const FLOAT16& x, const FLOAT16& y) {
+    return x == y || std::abs(double(x - y)) < 1e-3;
+}
+template <>
+bool compare_output<float>(const float& x, const float& y) {
+    return x == y || std::abs(double(x - y)) < 1e-5;
+}
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
