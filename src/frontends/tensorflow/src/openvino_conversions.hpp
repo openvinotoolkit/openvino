@@ -6,15 +6,11 @@
 
 #include <string>
 
-#include "graph.pb.h"
 #include "openvino/opsets/opset8.hpp"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-
-using ::tensorflow::DataType;
 
 std::shared_ptr<ov::opset8::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
                                                       const ov::AxisVector& input_order);
