@@ -11,6 +11,9 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
+
+class TENSORFLOW_API EmptyList {};
+
 class TENSORFLOW_API DecoderBase {
 public:
     /// \brief Get attribute value by name

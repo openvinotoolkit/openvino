@@ -52,6 +52,14 @@ public:
     }
 
 private:
+    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override {
+        if (data.is<EmptyList>() && type_info == typeid(std::vector<int64_t>)) {
+            return std::vector<int64_t>();
+        }
+        // no conversion rules found
+        return data;
+    }
+
     const DecoderBase& m_decoder;
     const OutputVector& m_inputs;
 };

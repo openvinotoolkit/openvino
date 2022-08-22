@@ -158,7 +158,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 "' attribute is not supported.");
 
         // If we got to this point it must mean we have empty list attribute
-        return {};
+        return EmptyList();
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
