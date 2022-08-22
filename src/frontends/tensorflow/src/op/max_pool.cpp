@@ -19,7 +19,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
                                      size_t spatial_dims_num,
                                      const std::vector<int64_t>& tf_kernel_sizes,
                                      const std::vector<int64_t>& tf_strides) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "MaxPool operation must have at least one input.");
+    default_op_checks(node, 1, {"MaxPool2D", "MaxPool3D"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
                              "Only MaxPool2D and MaxPool3D are supported.");

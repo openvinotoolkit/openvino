@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 1, "DepthwiseConv2dNative must have at least two inputs.");
+    default_op_checks(node, 2, {"DepthwiseConv2dNative"});
     auto input = node.get_input(0);
     auto filter = node.get_input(1);
 

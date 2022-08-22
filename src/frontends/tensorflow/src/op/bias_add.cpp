@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_bias_add_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 1, "BiasAdd must have at least two inputs.");
+    default_op_checks(node, 2, {"BiasAdd"});
     auto value = node.get_input(0);
     auto bias = node.get_input(1);
 

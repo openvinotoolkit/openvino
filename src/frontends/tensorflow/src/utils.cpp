@@ -183,6 +183,18 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     return {conv};
 }
 
+void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow::NodeContext& node,
+                                                 int min_input_size,
+                                                 const std::vector<std::string>& supported_ops) {
+    auto op_type = node.get_op_type();
+    TENSORFLOW_OP_VALIDATION(node,
+                             std::find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                             op_type + " is not supported for conversion.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             node.get_input_size() >= min_input_size,
+                             op_type + " must have at least " + std::to_string(min_input_size) + " inputs.");
+}
+
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
     return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
 }

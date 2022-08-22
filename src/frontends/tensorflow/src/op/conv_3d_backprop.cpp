@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_3d_backprop_input_v2_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() >= 3, "Conv3DBackpropInput must have at least three inputs.");
+    default_op_checks(node, 3, {"Conv3DBackpropInput"});
     auto input_sizes = node.get_input(0);
     auto filter = node.get_input(1);
     auto out_backprop = node.get_input(2);

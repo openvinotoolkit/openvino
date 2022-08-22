@@ -15,6 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
+    default_op_checks(node, 5, {"FusedBatchNorm", "FusedBatchNormV2", "FusedBatchNormV3"});
     auto ng_input = node.get_input(0);
     auto ng_scale = node.get_input(1);
     auto ng_offset = node.get_input(2);
