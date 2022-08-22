@@ -227,7 +227,7 @@ namespace {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
-    manager.register_pass<GNAPluginNS::DecomposeMVN>();
+    manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
