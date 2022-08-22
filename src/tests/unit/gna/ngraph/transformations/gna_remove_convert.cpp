@@ -83,14 +83,14 @@ void RemoveInputConvertTest::SetUp() {
 void RemoveInputConvertTest::Validate() {
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<GNAPluginNS::RemoveInputConvert>();
+    m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
     m.run_passes(func_);
     ASSERT_NO_THROW(check_rt_info(func_));
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     FunctionsComparator::Result result;
-    if (std::count(GNAPluginNS::kSupportedInputConverts.begin(),
-                   GNAPluginNS::kSupportedInputConverts.end(),
+    if (std::count(ov::intel_gna::pass::kSupportedInputConverts.begin(),
+                   ov::intel_gna::pass::kSupportedInputConverts.end(),
                    std::make_pair(target_precision_, net_precision_)) == 0) {
         result = func_comparator(func_, ref_func_convert_);
     } else {
@@ -135,14 +135,14 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::RemoveOutputConvert>();
+        m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);
         ASSERT_NO_THROW(check_rt_info(func_));
 
         const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
             FunctionsComparator::Result result;
-        if (std::count(GNAPluginNS::kSupportedOutputConverts.begin(),
-                       GNAPluginNS::kSupportedOutputConverts.end(),
+        if (std::count(ov::intel_gna::pass::kSupportedOutputConverts.begin(),
+                       ov::intel_gna::pass::kSupportedOutputConverts.end(),
                        std::make_pair(net_precision_, target_precision_)) == 0) {
             result = func_comparator(func_, ref_func_convert_);
         } else {
@@ -177,8 +177,8 @@ public:
     void Validate() override {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::RemoveInputConvert>();
-        m.register_pass<GNAPluginNS::RemoveOutputConvert>();
+        m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
+        m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);
         ASSERT_NO_THROW(check_rt_info(func_));
 

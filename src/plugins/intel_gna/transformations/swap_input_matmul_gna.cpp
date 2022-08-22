@@ -18,7 +18,7 @@
 
 #include "gna_plugin_log.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna::pass;
 
 static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
@@ -364,4 +364,3 @@ SwapInputMatMulWithTrailingTranspose::SwapInputMatMulWithTrailingTranspose() {
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(transpose, matcher_name);
     this->register_matcher(matcher, callback);
 }
-} // namespace GNAPluginNS

@@ -114,7 +114,7 @@ void RemoveSingleInputConcatFixture::SetUp() {
 ngraph::pass::Manager createPassManager() {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::RemoveSingleInputConcat>();
+    manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     return manager;
 }
 

@@ -88,11 +88,11 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
 static void Execute(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulWithTrailingTranspose>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulWithAct>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulWithFq>();
-    m.register_pass<GNAPluginNS::SwapInputMatMulWithBias>();
-    m.register_pass<GNAPluginNS::SwapInputMatMul>();
+    m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
+    m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
+    m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
+    m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
+    m.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
     m.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 

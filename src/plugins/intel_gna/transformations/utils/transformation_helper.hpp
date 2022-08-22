@@ -6,7 +6,10 @@
 
 #include <ngraph/opsets/opset7.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+namespace helper {
 
 struct ConvData {
     size_t input_height;
@@ -80,4 +83,7 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  */
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
 
-} // namespace GNAPluginNS
+} // namespace helper
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

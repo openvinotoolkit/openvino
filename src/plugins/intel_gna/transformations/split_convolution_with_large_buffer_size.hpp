@@ -6,8 +6,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
-
+namespace ov {
+namespace intel_gna {
+namespace pass {
 // @brief Splits convolution with large input buffer
 class SplitConvolution : public ngraph::pass::MatcherPass {
 public:
@@ -31,4 +32,7 @@ public:
   SplitConvolutionWithFq();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

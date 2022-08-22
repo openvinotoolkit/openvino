@@ -22,7 +22,8 @@
 
 static constexpr double EXP_BREAK = 0.045;
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna;
+using namespace ov::intel_gna::pass;
 
 NGRAPH_RTTI_DEFINITION(PWLApproximation, "PWLApproximation", 0);
 NGRAPH_RTTI_DEFINITION(PWLApproximationWithFq, "PWLApproximationWithFq", 0);
@@ -539,5 +540,3 @@ PWLApproximationWithFq::PWLApproximationWithFq(double allowed_err_pct) {
     auto m = create_matcher(callback, allowed_err_pct, matcher_name, true);
     register_matcher(m, callback);
 }
-
-} // namespace GNAPluginNS

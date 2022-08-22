@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Inserts Transpose before MatMul or removes it (if it exists)
@@ -68,4 +71,7 @@ public:
   HandleTransposesAroundMatMul();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
+

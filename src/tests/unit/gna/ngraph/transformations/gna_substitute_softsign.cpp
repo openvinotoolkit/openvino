@@ -52,7 +52,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPower) {
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::SubstituteSoftsign>();
+        m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -83,7 +83,7 @@ TEST(TransformationTests, SubstituteSoftSignDivide) {
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::SubstituteSoftsign>();
+        m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -117,7 +117,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidAddConst) {
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::SubstituteSoftsign>();
+        m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -151,7 +151,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidPowerConst) {
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::SubstituteSoftsign>();
+        m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }

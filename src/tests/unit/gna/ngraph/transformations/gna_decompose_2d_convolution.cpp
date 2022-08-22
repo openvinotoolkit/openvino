@@ -736,13 +736,13 @@ void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, s
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<GNAPluginNS::Decompose2DConv>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAdd:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>("", gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>("", gnaPrecision);
         break;
     }
 

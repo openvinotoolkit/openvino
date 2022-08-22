@@ -18,6 +18,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include "ops/pwl.hpp"
 #include "layers/gna_crop_layer.hpp"
+#include "backend/gna_limitations.hpp"
 
 namespace GNAPluginNS {
 
@@ -317,29 +318,8 @@ class LayerInfo {
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
-        // cases when all permutations happened either between 1 and X shape where no other dims in between
-        auto permuteSequence = genPermutations(layerOrder.begin(), layerOrder.end());
-        auto inputsOrderTransformed = inputsOrder;
-        for (auto && permute : permuteSequence) {
-            // check dims of permuted
-            if (inputsOrderTransformed[permute.first] == 1 &&
-                inputsOrderTransformed[permute.second] == 1) {
-                return true;
-            }
-            if (inputsOrderTransformed[permute.first] != 1 &&
-                inputsOrderTransformed[permute.second] != 1) {
-                return false;
-            }
-            // check dims in between
-            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
-                if (inputsOrderTransformed[j] != 1) {
-                    return false;
-                }
-            }
-            // apply permutation
-            std::swap(inputsOrderTransformed[permute.first], inputsOrderTransformed[permute.second]);
-        }
-        return true;
+        return GNAPluginNS::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
+            inputsOrder);
     }
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
@@ -361,13 +341,9 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
-            // currently crop layer only supports 2 bytes in int16 and int8 mode.
-            // In fp32 mode this is not necessary but is useful for testing
-            auto bytesPerCropElement = 2;
             size_t offset;
             std::tie(offset, std::ignore, std::ignore) = GetCropParams(cropLayer);
-            size_t bytesOffset = offset * bytesPerCropElement;
-            return (ALIGN64(bytesOffset) != bytesOffset);
+            return GNAPluginNS::GNALimitations::isCropAffinedOffset(offset);
         }
         return false;
     }

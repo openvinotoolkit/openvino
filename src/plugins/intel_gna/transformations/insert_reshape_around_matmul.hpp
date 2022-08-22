@@ -7,7 +7,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 // @brief Insert Reshapes from 3d/4d to 2d before MatMul and from 2d to 3d/4d after MatMul
 class InsertReshapeAroundMatmul : public ngraph::pass::MatcherPass {
@@ -34,6 +37,8 @@ public:
     InsertReshapeAroundMatmulWithTranspose();
 };
 
-} // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
 
 #endif // INSERT_RESHAPE_AROUND_MATMUL_HPP

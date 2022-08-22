@@ -7,7 +7,9 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 /* @brief Swaps and transposes inputs of MatMul and transposes its output if
  * 1. its first input is const and its batch size isn't supported by GNA
  * 2. its first input is non-const and its batch size isn't supported by GNA
@@ -25,7 +27,7 @@ namespace GNAPluginNS {
  *            [Activation]
  *                 |
  *            [Transpose]
- * 
+ *
  * The existed Transposes will be removed instead of inserting new ones during transposition.
  * Separate matchers are required for different last nodes. They should be registered in the order from the longest
  * to the shortest pattern.
@@ -59,6 +61,7 @@ public:
     OPENVINO_RTTI("SwapInputMatMulWithTrailingTranspose", "0");
     SwapInputMatMulWithTrailingTranspose();
 };
-} // namespace GNAPluginNS
-
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov
 #endif // SWAP_INPUT_MATMUL_GNA_HPP

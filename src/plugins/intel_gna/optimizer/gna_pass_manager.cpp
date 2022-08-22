@@ -1331,8 +1331,7 @@ void ReorderConcatInputsPass::run() {
 
 void InsertSplitAligningFilterPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertSplitAligningFilterPass");
-    // currently split layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this is not necessary but is useful for testing
-    const int bytesPerSplitElement = 2;
+
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
     int numOfFilterLayers = 0;
@@ -1390,13 +1389,13 @@ void InsertSplitAligningFilterPass::run() {
                     IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
-                    filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
+                    filterLayer->params["offset"] = std::to_string(aligned64_offset / GNALimitations::bytesPerSplitElement);
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
-                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / GNALimitations::bytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros (additionalPaddingOfFilter)
                     const auto numberOfFilters = GNALimitations::convMinFiltersNum;
                     const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, GNALimitations::convFilterSizeDivider);
@@ -1455,7 +1454,7 @@ void InsertSplitAligningFilterPass::run() {
             }
 
             // search data that starts from unaligned location
-            currentOffset += outputSize * bytesPerSplitElement;
+            currentOffset += outputSize * GNALimitations::bytesPerSplitElement;
             splitOutIndex++;
         }
     }

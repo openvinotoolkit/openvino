@@ -420,7 +420,7 @@ std::shared_ptr<ngraph::Function> ConvertPaddedToValidConvTestFixture::get_refer
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::ConvertPaddedToValidConv>();
+    manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);

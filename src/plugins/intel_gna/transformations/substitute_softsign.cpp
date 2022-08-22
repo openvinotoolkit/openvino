@@ -15,7 +15,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/rt_info.hpp>
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 using Node = std::shared_ptr<ngraph::Node>;
 
