@@ -4,29 +4,24 @@
 
 #include "ngraph_ops/augru_sequence.hpp"
 
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "itt.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::AUGRUSequence);
+BWDCMP_RTTI_DEFINITION(ov::op::internal::AUGRUSequence);
 
-op::internal::AUGRUSequence::AUGRUSequence()
+ov::op::internal::AUGRUSequence::AUGRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
       m_linear_before_reset(false) {}
 
-op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
-                                           const Output<Node>& H_t,
-                                           const Output<Node>& sequence_lengths,
-                                           const Output<Node>& W,
-                                           const Output<Node>& R,
-                                           const Output<Node>& B,
-                                           const Output<Node>& A,
-                                           std::size_t hidden_size)
+ov::op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
+                                               const Output<Node>& H_t,
+                                               const Output<Node>& sequence_lengths,
+                                               const Output<Node>& W,
+                                               const Output<Node>& R,
+                                               const Output<Node>& B,
+                                               const Output<Node>& A,
+                                               std::size_t hidden_size)
     : RNNCellBase({X, H_t, sequence_lengths, W, R, B, A},
                   hidden_size,
                   0.f,
@@ -38,12 +33,12 @@ op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-void op::internal::AUGRUSequence::validate_and_infer_types() {
+void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_AUGRUSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(4));
-            set_output_type(1, get_input_element_type(0), ov::PartialShape::dynamic(3));
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(4));
+            set_output_type(1, get_input_element_type(0), PartialShape::dynamic(3));
             return;
         }
     }
@@ -162,22 +157,22 @@ void op::internal::AUGRUSequence::validate_and_infer_types() {
     set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }
 
-bool op::internal::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::internal::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(internal_AUGRUSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::internal::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::internal::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_AUGRUSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::internal::AUGRUSequence>(new_args.at(0),
-                                                    new_args.at(1),
-                                                    new_args.at(2),
-                                                    new_args.at(3),
-                                                    new_args.at(4),
-                                                    new_args.at(5),
-                                                    new_args.at(6),
-                                                    get_hidden_size());
+    return make_shared<ov::op::internal::AUGRUSequence>(new_args.at(0),
+                                                        new_args.at(1),
+                                                        new_args.at(2),
+                                                        new_args.at(3),
+                                                        new_args.at(4),
+                                                        new_args.at(5),
+                                                        new_args.at(6),
+                                                        get_hidden_size());
 }

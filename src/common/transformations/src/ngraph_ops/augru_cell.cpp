@@ -7,28 +7,24 @@
 #include <cmath>
 
 #include "itt.hpp"
-#include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
 
 using namespace std;
-using namespace ov;
 
-BWDCMP_RTTI_DEFINITION(op::internal::AUGRUCell);
+BWDCMP_RTTI_DEFINITION(ov::op::internal::AUGRUCell);
 
-op::internal::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
+ov::op::internal::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
 }
 
-op::internal::AUGRUCell::AUGRUCell(const Output<Node>& X,
-                                   const Output<Node>& H_t,
-                                   const Output<Node>& W,
-                                   const Output<Node>& R,
-                                   const Output<Node>& B,
-                                   const Output<Node>& A,
-                                   size_t hidden_size)
+ov::op::internal::AUGRUCell::AUGRUCell(const Output<Node>& X,
+                                       const Output<Node>& H_t,
+                                       const Output<Node>& W,
+                                       const Output<Node>& R,
+                                       const Output<Node>& B,
+                                       const Output<Node>& A,
+                                       size_t hidden_size)
     : RNNCellBase({X, H_t, W, R, B, A}, hidden_size, 0.f, std::vector<std::string>{"sigmoid", "tanh"}, {}, {}),
       m_activation_f{get_activation_function(0)},
       m_activation_g{get_activation_function(1)},
@@ -36,17 +32,17 @@ op::internal::AUGRUCell::AUGRUCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool op::internal::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::internal::AUGRUCell::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(internal_AUGRUCell_visit_attributes);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::internal::AUGRUCell::validate_and_infer_types() {
+void ov::op::internal::AUGRUCell::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_AUGRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(2));
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(2));
             return;
         }
     }
@@ -136,7 +132,7 @@ void op::internal::AUGRUCell::validate_and_infer_types() {
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-shared_ptr<Node> op::internal::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::internal::AUGRUCell::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_AUGRUCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<AUGRUCell>(new_args.at(0),
