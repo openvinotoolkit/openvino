@@ -31,7 +31,7 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
         auto length = sizeof(mask) * CHAR_BIT;
         vector<int64_t> vec(length, 0);
         if (mask == 0) {
-            return vector<int64_t>({0});
+            return vec;
         }
         for (auto i = 0; i < length; ++i) {
             if (static_cast<unsigned char>(mask >> i & 0x1) == 1) {
