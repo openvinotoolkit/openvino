@@ -60,6 +60,10 @@ const int64_t& ov::op::util::GatherBase::get_batch_dims() const {
     return m_batch_dims;
 }
 
+void ov::op::util::GatherBase::set_batch_dims(int64_t batch_dims) {
+    m_batch_dims = batch_dims;
+}
+
 namespace gather {
 namespace {
 template <ov::element::Type_t ET>

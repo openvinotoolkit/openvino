@@ -155,22 +155,19 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
     for (size_t b = 0; b < binaryBatchSize; ++b) {
         size_t inputIndex = (inputId + b) % files.size();
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
-        if (!binaryFile) {
-            IE_THROW() << "Cannot open " << files[inputIndex];
-        }
+        OPENVINO_ASSERT(binaryFile, "Cannot open ", files[inputIndex]);
 
         auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
         binaryFile.seekg(0, std::ios_base::beg);
-        if (!binaryFile.good()) {
-            IE_THROW() << "Can not read " << files[inputIndex];
-        }
+        OPENVINO_ASSERT(binaryFile.good(), "Can not read ", files[inputIndex]);
         auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
-        if (fileSize != inputSize) {
-            IE_THROW() << "File " << files[inputIndex] << " contains " << std::to_string(fileSize)
-                       << " bytes "
-                          "but the network expects "
-                       << std::to_string(inputSize);
-        }
+        OPENVINO_ASSERT(fileSize == inputSize,
+                        "File ",
+                        files[inputIndex],
+                        " contains ",
+                        fileSize,
+                        " bytes, but the network expects ",
+                        inputSize);
 
         if (inputInfo.layout != "CN") {
             binaryFile.read(&data[b * inputSize], inputSize);
@@ -250,7 +247,7 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                  inputInfo.first,
                                                  filenames_used);
     } else {
-        IE_THROW() << "Input type is not supported for " << inputInfo.first;
+        throw ov::Exception("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -267,7 +264,7 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
     } else if (type == ov::element::i64) {
         return create_tensor_im_info<int64_t>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else {
-        IE_THROW() << "Input type is not supported for " << inputInfo.first;
+        throw ov::Exception("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -313,7 +310,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                   inputInfo.first,
                                                   filenames_used);
     } else {
-        IE_THROW() << "Input type is not supported for " << inputInfo.first;
+        throw ov::Exception("Input type is not supported for " + inputInfo.first);
     }
 }
 
@@ -342,7 +339,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
     } else {
-        IE_THROW() << "Input type is not supported for " << inputInfo.first;
+        throw ov::Exception("Input type is not supported for " + inputInfo.first);
     }
 }
 

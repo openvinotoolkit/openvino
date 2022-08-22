@@ -360,15 +360,15 @@ def test_result():
 def test_node_friendly_name():
     dummy_node = ops.parameter(shape=[1], name="dummy_name")
 
-    assert(dummy_node.friendly_name == "dummy_name")
+    assert (dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")
 
-    assert(dummy_node.get_friendly_name() == "changed_name")
+    assert (dummy_node.get_friendly_name() == "changed_name")
 
     dummy_node.friendly_name = "new_name"
 
-    assert(dummy_node.get_friendly_name() == "new_name")
+    assert (dummy_node.get_friendly_name() == "new_name")
 
 
 def test_node_output():
@@ -448,8 +448,8 @@ def test_node_input_tensor():
     input_tensor1 = node.get_input_tensor(0)
     input_tensor2 = node.get_input_tensor(1)
 
-    assert(isinstance(input_tensor1, DescriptorTensor))
-    assert(isinstance(input_tensor2, DescriptorTensor))
+    assert (isinstance(input_tensor1, DescriptorTensor))
+    assert (isinstance(input_tensor2, DescriptorTensor))
     assert np.equal(input_tensor1.get_shape(), data1.shape).all()
     assert np.equal(input_tensor2.get_shape(), data2.shape).all()
 
@@ -692,18 +692,18 @@ def test_layout():
     assert scalar2 != layout2
 
     assert str(scalar) == str(scalar2)
-    assert not(scalar.has_name("N"))
-    assert not(scalar.has_name("C"))
-    assert not(scalar.has_name("W"))
-    assert not(scalar.has_name("H"))
-    assert not(scalar.has_name("D"))
+    assert not (scalar.has_name("N"))
+    assert not (scalar.has_name("C"))
+    assert not (scalar.has_name("W"))
+    assert not (scalar.has_name("H"))
+    assert not (scalar.has_name("D"))
 
     assert layout.to_string() == layout2.to_string()
     assert layout.has_name("N")
     assert layout.has_name("C")
     assert layout.has_name("W")
     assert layout.has_name("H")
-    assert not(layout.has_name("D"))
+    assert not (layout.has_name("D"))
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
     assert layout.get_index_by_name("W") == 2
@@ -715,25 +715,25 @@ def test_layout():
     assert str(layout) != str(layout2)
     assert layout.has_name("N")
     assert layout.has_name("C")
-    assert not(layout.has_name("W"))
-    assert not(layout.has_name("H"))
-    assert not(layout.has_name("D"))
+    assert not (layout.has_name("W"))
+    assert not (layout.has_name("H"))
+    assert not (layout.has_name("D"))
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
 
     layout = ov.Layout("N...C")
     assert layout.has_name("N")
-    assert not(layout.has_name("W"))
-    assert not(layout.has_name("H"))
-    assert not(layout.has_name("D"))
+    assert not (layout.has_name("W"))
+    assert not (layout.has_name("H"))
+    assert not (layout.has_name("D"))
     assert layout.has_name("C")
     assert layout.get_index_by_name("C") == -1
 
     layout = ov.Layout()
-    assert not(layout.has_name("W"))
-    assert not(layout.has_name("H"))
-    assert not(layout.has_name("D"))
-    assert not(layout.has_name("C"))
+    assert not (layout.has_name("W"))
+    assert not (layout.has_name("H"))
+    assert not (layout.has_name("D"))
+    assert not (layout.has_name("C"))
 
     layout = ov.Layout("N...C")
     assert layout == "N...C"
@@ -742,11 +742,11 @@ def test_layout():
 
 def test_layout_helpers():
     layout = ov.Layout("NCHWD")
-    assert(layout_helpers.has_batch(layout))
-    assert(layout_helpers.has_channels(layout))
-    assert(layout_helpers.has_depth(layout))
-    assert(layout_helpers.has_height(layout))
-    assert(layout_helpers.has_width(layout))
+    assert (layout_helpers.has_batch(layout))
+    assert (layout_helpers.has_channels(layout))
+    assert (layout_helpers.has_depth(layout))
+    assert (layout_helpers.has_height(layout))
+    assert (layout_helpers.has_width(layout))
 
     assert layout_helpers.batch_idx(layout) == 0
     assert layout_helpers.channels_idx(layout) == 1
@@ -755,10 +755,10 @@ def test_layout_helpers():
     assert layout_helpers.depth_idx(layout) == 4
 
     layout = ov.Layout("N...C")
-    assert(layout_helpers.has_batch(layout))
-    assert(layout_helpers.has_channels(layout))
-    assert not(layout_helpers.has_depth(layout))
-    assert not(layout_helpers.has_height(layout))
+    assert (layout_helpers.has_batch(layout))
+    assert (layout_helpers.has_channels(layout))
+    assert not (layout_helpers.has_depth(layout))
+    assert not (layout_helpers.has_height(layout))
     assert not (layout_helpers.has_width(layout))
 
     assert layout_helpers.batch_idx(layout) == 0
@@ -774,10 +774,10 @@ def test_layout_helpers():
         layout_helpers.depth_idx(layout)
 
     layout = ov.Layout("NC?")
-    assert(layout_helpers.has_batch(layout))
-    assert(layout_helpers.has_channels(layout))
-    assert not(layout_helpers.has_depth(layout))
-    assert not(layout_helpers.has_height(layout))
+    assert (layout_helpers.has_batch(layout))
+    assert (layout_helpers.has_channels(layout))
+    assert not (layout_helpers.has_depth(layout))
+    assert not (layout_helpers.has_height(layout))
     assert not (layout_helpers.has_width(layout))
 
     assert layout_helpers.batch_idx(layout) == 0
