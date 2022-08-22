@@ -192,6 +192,10 @@ int main(int argc, char* argv[]) {
         };
 
         std::string device_name = FLAGS_d;
+        if(device_name == "DEFAULT_AUTO") {
+            slog::warn << "No target device specified in command line. Use 'AUTO' as the default target device." << slog::endl;
+            device_name = "AUTO";
+        }
 
         // Parse devices
         auto devices = parse_devices(device_name);

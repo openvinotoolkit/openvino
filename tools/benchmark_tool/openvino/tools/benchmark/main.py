@@ -45,7 +45,9 @@ def run(args):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
 
         device_name = args.target_device
-
+        if device_name == "DEFAULT_AUTO":
+            logger.warning(f"No target device specified in command line. Use 'AUTO' as the default target device.")
+            device_name = "AUTO"
         devices = parse_devices(device_name)
         device_number_streams = parse_value_per_device(devices, args.number_streams, "nstreams")
         device_infer_precision = parse_value_per_device(devices, args.infer_precision, "infer_precision")
@@ -64,7 +66,7 @@ def run(args):
         # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
         next_step(step_id=2)
 
-        benchmark = Benchmark(args.target_device, args.number_infer_requests,
+        benchmark = Benchmark(device_name, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
         ## CPU (OneDNN) extensions

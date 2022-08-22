@@ -251,7 +251,7 @@ DEFINE_string(hint, "", hint_message);
 DEFINE_string(api, "async", api_message);
 
 /// @brief device the target device to infer on <br>
-DEFINE_string(d, "AUTO", target_device_message);
+DEFINE_string(d, "DEFAULT_AUTO", target_device_message);
 
 /// @brief Absolute path to extensions library with user layers <br>
 /// It is a required parameter
