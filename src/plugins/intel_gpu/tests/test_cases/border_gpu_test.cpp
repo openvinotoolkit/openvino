@@ -39,7 +39,7 @@ static int mult(T arr) {
 }
 
 #define PAD_MODES \
-    border_type::constant, border_type::edge, border_type::mirror, border_type::mirror_101  //,border_type::zero
+    ov::op::PadMode::CONSTANT, ov::op::PadMode::EDGE, ov::op::PadMode::SYMMETRIC, ov::op::PadMode::REFLECT
 #define FORMATS                                                                                                   \
     format::type::bfyx, format::type::yxfb, format::type::b_fs_yx_fsv4, format::type::b_fs_yx_fsv16,              \
         format::type::b_fs_yx_fsv32, format::type::bs_fs_yx_bsv4_fsv2, format::type::bs_fs_yx_bsv16_fsv16,        \
@@ -47,7 +47,7 @@ static int mult(T arr) {
         format::type::bs_fs_yx_bsv8_fsv2, format::type::bs_fs_yx_bsv8_fsv4
 
 template <class T>
-using border_test_param = std::tuple<border_type,          // pad mode
+using border_test_param = std::tuple<ov::op::PadMode,      // pad mode
                                      T,                    // pad value
                                      format::type,         // format
                                      std::array<int, 4>,   // shape in
@@ -57,7 +57,7 @@ using border_test_param = std::tuple<border_type,          // pad mode
 template <class T, data_types T_dt>
 class border_test : public ::testing::TestWithParam<border_test_param<T>> {
 public:
-    border_type pad_mode;
+    ov::op::PadMode pad_mode;
     T pad_value;
     format::type fmt;
     std::array<int, 4> sh_in, cd_lt, cd_rb, sh_out;
@@ -78,8 +78,8 @@ public:
         target_topology.add(reorder("border_input", "input", fmt, T_dt),
                             border("border",
                                    "border_input",
-                                   tensor(format::bfyx,std::vector<tensor::value_type>(cd_lt.begin(),cd_lt.end()),0),
-                                   tensor(format::bfyx,std::vector<tensor::value_type>(cd_rb.begin(),cd_rb.end()),0),
+                                   ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                                   ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                                    pad_mode,
                                    pad_value),
                             reorder("output", "border", cldnn::format::bfyx, T_dt));
@@ -92,8 +92,8 @@ public:
         base_topology.add(input_layout("input", input->get_layout()));
         base_topology.add(border("border",
                                  "input",
-                                 tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
-                                 tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                                 ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                                 ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                                  pad_mode,
                                  pad_value));
 
@@ -119,7 +119,7 @@ using border_test_u8 = border_test<char, data_types::u8>;
 TEST_P(border_test_u8, border_test_u8) {}
 INSTANTIATE_TEST_SUITE_P(border_test_u8,
                          border_test_u8,
-                         testing::Combine(testing::Values(border_type::edge),
+                         testing::Combine(testing::Values(ov::op::PadMode::EDGE),
                                           testing::Values(99),
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
@@ -129,7 +129,7 @@ using border_test_i32 = border_test<int, data_types::i32>;
 TEST_P(border_test_i32, border_test_i32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i32,
                          border_test_i32,
-                         testing::Combine(testing::Values(border_type::mirror),
+                         testing::Combine(testing::Values(ov::op::PadMode::SYMMETRIC),
                                           testing::Values(11),
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
@@ -139,7 +139,7 @@ using border_test_f16 = border_test<FLOAT16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
                          border_test_f16,
-                         testing::Combine(testing::Values(border_type::mirror_101),
+                         testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
                                           testing::Values(FLOAT16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
@@ -149,7 +149,7 @@ using border_test_f32 = border_test<float, data_types::f32>;
 TEST_P(border_test_f32, border_test_f32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f32,
                          border_test_f32,
-                         testing::Combine(testing::Values(border_type::edge),
+                         testing::Combine(testing::Values(ov::op::PadMode::EDGE),
                                           testing::Values(12.34),
                                           testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
@@ -158,7 +158,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_f32,
 
 INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
                          border_test_i32,
-                         testing::Combine(testing::Values(border_type::mirror),
+                         testing::Combine(testing::Values(ov::op::PadMode::SYMMETRIC),
                                           testing::Values(99),
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
 TEST(border_gpu, bsv16fsv16_without_reorder) {
     using T = int;
     data_types T_dt = data_types::i32;
-    border_type pad_mode = border_type::constant;
+    ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT;
     T pad_value = 0;
     std::array<int, 4> sh_in = {16, 16, 2, 3}, cd_lt = {0, 0, 1, 1}, cd_rb = {0, 0, 1, 1}, sh_out;
     sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
@@ -208,8 +208,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     target_topology.add(input_layout("input", input_b16f16->get_layout()));
     target_topology.add(border("border",
                                "input",
-                               tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
-                               tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                               ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                               ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                                pad_mode,
                                pad_value));
     cldnn::network target_network(engine, target_topology);
@@ -221,8 +221,8 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     base_topology.add(input_layout("input", input->get_layout()));
     base_topology.add(border("border",
                              "input",
-                             tensor(format::bfyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
-                             tensor(format::bfyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                             ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                             ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                              pad_mode,
                              pad_value));
     cldnn::network base_network(engine, base_topology);
@@ -244,7 +244,7 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
 TEST(border_gpu, zyx_bsv16fsv16) {
     using T = int;
     data_types T_dt = data_types::i32;
-    border_type pad_mode = border_type::mirror_101;
+    ov::op::PadMode pad_mode = ov::op::PadMode::REFLECT;
     T pad_value = 0;
     std::array<int, 5> sh_in = {16, 16, 4, 5, 6}, cd_lt = {0, 0, 1, 1, 1}, cd_rb = {0, 0, 2, 3, 4}, sh_out;
     sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
@@ -262,8 +262,8 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     target_topology.add(reorder("border_input", "input", format::bs_fs_zyx_bsv16_fsv16, T_dt),
                         border("border",
                                "border_input",
-                               tensor(format::bfzyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
-                               tensor(format::bfzyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                               ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                               ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                                pad_mode,
                                pad_value),
                         reorder("output", "border", cldnn::format::bfzyx, T_dt));
@@ -276,8 +276,8 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     base_topology.add(input_layout("input", input->get_layout()));
     base_topology.add(border("border",
                              "input",
-                             tensor(format::bfzyx, std::vector<tensor::value_type>(cd_lt.begin(), cd_lt.end()), 0),
-                             tensor(format::bfzyx, std::vector<tensor::value_type>(cd_rb.begin(), cd_rb.end()), 0),
+                             ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
+                             ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
                              pad_mode,
                              pad_value));
     cldnn::network base_network(engine, base_topology);
@@ -319,9 +319,9 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         0.0f));
 
     std::vector<float> input_data = {
@@ -394,9 +394,9 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     topology.add(reorder("border_input", "input", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
                  border("border",
                         "border_input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         0.0f),
                  reorder("output", "border", cldnn::format::yxfb, cldnn::data_types::f32));
 
@@ -471,9 +471,9 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         0.0f));
 
     std::vector<float> input_data = {
@@ -578,9 +578,9 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         0.0f));
 
     std::vector<float> input_data = {
@@ -680,9 +680,9 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         1.0f));
 
     std::vector<float> input_data = {
@@ -754,9 +754,9 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::SYMMETRIC));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,
@@ -829,9 +829,9 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
+                        ov::op::PadMode::SYMMETRIC));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
@@ -907,9 +907,9 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     topology.add(
         border("output",
                "input",
-               tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
-               tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
-               border_type::mirror));
+               ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
+               ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
+               ov::op::PadMode::SYMMETRIC));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
@@ -981,9 +981,9 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror_101));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::REFLECT));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,  4,
@@ -1057,9 +1057,9 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfzyx, {blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfzyx, {brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror_101));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
+                        ov::op::PadMode::REFLECT));
 
     std::vector<float> input_data = {
         1, -2,  3,  -4,  4,
@@ -1141,9 +1141,9 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     topology.add(
         border("output",
                "input",
-               tensor(format::bfwzyx, {blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x}, 0),
-               tensor(format::bfwzyx, {brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x}, 0),
-               border_type::mirror_101));
+               ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
+               ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
+               ov::op::PadMode::REFLECT));
 
     std::vector<float> input_data = {
         1, -2,  3,  -4,
@@ -1230,9 +1230,9 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::edge));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::EDGE));
 
     std::vector<float> input_data = {
           1, -2,  3,  -4,  4,
@@ -1302,9 +1302,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::constant,
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::CONSTANT,
                         0.0f));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
@@ -1371,9 +1371,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::SYMMETRIC));
 
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                      static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
@@ -1435,9 +1435,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::mirror_101));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::REFLECT));
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
@@ -1498,9 +1498,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
                         "input",
-                        tensor(format::bfyx, {blt_size_b, blt_size_f, blt_size_y, blt_size_x}, 0),
-                        tensor(format::bfyx, {brb_size_b, brb_size_f, brb_size_y, brb_size_x}, 0),
-                        border_type::edge));
+                        ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
+                        ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
+                        ov::op::PadMode::EDGE));
     const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
