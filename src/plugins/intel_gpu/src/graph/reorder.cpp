@@ -152,18 +152,18 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
+    if ((ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
-        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
+        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) && input_layout.is_static()) {
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.get_tensor(), op);
+        return layout(input_layout.get_partial_shape(), odt, ofmt, op);
     }
 }
 
@@ -189,21 +189,21 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, !node.can_be_optimized()) {
+    : parent(network, node, !node.can_be_optimized() && !node.is_dynamic()) {
     if (node.can_be_optimized())
         reuse_input();
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Input dimension size",
-                          input_layout.get_tensor().raw.size(),
-                          "ouput dimension size",
-                          output_layout.get_tensor().raw.size(),
-                          "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
-                          "(reorder) or when input > output (flatten).");
-
+    if (input_layout.is_static() && output_layout.is_static()) {
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Input dimension size",
+                              input_layout.get_tensor().raw.size(),
+                              "ouput dimension size",
+                              output_layout.get_tensor().raw.size(),
+                              "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
+                              "(reorder) or when input > output (flatten).");
+    }
     if (!argument.subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
