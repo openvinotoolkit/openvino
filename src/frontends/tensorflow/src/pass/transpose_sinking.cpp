@@ -373,7 +373,7 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
             if (auto transpose = as_type_ptr<opset8::Transpose>(n)) {
                 sink_transpose(transpose, reorders, transposes_to_delete);
             } else if (ov::op::util::is_unary_elementwise_arithmetic(n) || as_type_ptr<Clamp>(n) ||
-                       as_type_ptr<Elu>(n) || as_type_ptr<SoftPlus>(n)) {
+                       as_type_ptr<Elu>(n) || as_type_ptr<SoftPlus>(n) || as_type_ptr<LogicalNot>(n)) {
                 // Some unary operations are inherrited from Op class
                 // so we need explicitly to check them
                 sink_unary(n, reorders, transposes_to_delete);
