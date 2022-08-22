@@ -13,11 +13,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: releases/2021/4
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2021/4
 
 jobs:
 - job: Mac
@@ -45,11 +47,11 @@ jobs:
   - script: |
       whoami
       uname -a
-      which python3
-      python3 --version
-      which java
-      java -version
-      gcc --version
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       xcrun --sdk macosx --show-sdk-version
       env
       sysctl -a
@@ -98,20 +100,26 @@ jobs:
       # Disable errors with Ninja
       export CXXFLAGS="-Wno-error=unused-command-line-argument"
       export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
+      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DBUILD_cuda_plugin=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
+
+  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
+    displayName: 'List temp SDKs'
 
   - script: ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Mac'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
 
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'

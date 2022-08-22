@@ -67,8 +67,9 @@ struct border : public primitive_base<border> {
            const tensor& right_bottom_sizes = {0, 0, 0, 0},
            const border_type type = border_type::constant,
            const float border_value = 0.0f,
+           const primitive_id& ext_prim_id = "",
            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           left_top_sizes(left_top_sizes),
           right_bottom_sizes(right_bottom_sizes),
           type(type),
@@ -90,7 +91,7 @@ struct border : public primitive_base<border> {
            const tensor& x_y_sizes,
            const border_type type = border_type::constant,
            const padding& output_padding = padding())
-        : border(id, input, x_y_sizes, x_y_sizes, type, 0.0f, output_padding) {}
+        : border(id, input, x_y_sizes, x_y_sizes, type, 0.0f, ext_prim_id, output_padding) {}
 
     /// @brief Sizes of border that needs to be added from left (in X dimension) and from top (in Y dimension).
     tensor left_top_sizes;

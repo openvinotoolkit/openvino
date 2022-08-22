@@ -37,8 +37,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& bias,
                   tensor stride = {1, 1, 1, 1},
                   tensor input_offset = {0, 0, 0, 0},
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(false),
@@ -64,8 +65,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   uint32_t groups,
                   tensor stride = {1, 1, 1, 1},
                   tensor input_offset = {0, 0, 0, 0},
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(false),
@@ -88,8 +90,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   tensor stride = {1, 1, 1, 1},
                   tensor input_offset = {0, 0, 0, 0},
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(false),
@@ -114,8 +117,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   uint32_t groups,
                   tensor stride = {1, 1, 1, 1},
                   tensor input_offset = {0, 0, 0, 0},
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(false),
@@ -142,8 +146,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor stride,
                   tensor input_offset,
                   tensor output_size,
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(true),
@@ -174,8 +179,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor input_offset,
                   tensor output_size,
                   bool grouped_weights_shape,
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(true),
@@ -201,8 +207,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor stride,
                   tensor input_offset,
                   tensor output_size,
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           with_output_size(true),
@@ -231,6 +238,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  tensor output_size,
                                                  tensor stride = {1, 1, 1, 1},
                                                  tensor input_offset = {0, 0, 0, 0},
+                                                 const primitive_id& ext_prim_id = "",
                                                  const padding& output_padding = padding()) {
         return deconvolution(id,
                              input,
@@ -239,6 +247,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                              stride,
                              input_offset,
                              output_size,
+                             ext_prim_id,
                              output_padding);
     }
 
@@ -259,6 +268,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  tensor output_size,
                                                  tensor stride = {1, 1, 1, 1},
                                                  tensor input_offset = {0, 0, 0, 0},
+                                                 const primitive_id& ext_prim_id = "",
                                                  const padding& output_padding = padding()) {
         return deconvolution(id,
                              input,
@@ -266,6 +276,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                              stride,
                              input_offset,
                              output_size,
+                             ext_prim_id,
                              output_padding);
     }
 

@@ -75,7 +75,8 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
                                     inputPrimitives[0],
                                     mode,
                                     axes,
-                                    static_cast<int32_t>(keep_dims));
+                                    static_cast<int32_t>(keep_dims),
+                                    op->get_friendly_name());
 
     p.AddPrimitive(reducePrim);
 
@@ -96,7 +97,7 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
                 outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
                                           1, TensorValue(out_shape[2]));
         }
-        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor);
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
         p.AddPrimitive(reshape_prim);
         p.AddPrimitiveToProfiler(op, resultLayerName);
     }
@@ -112,7 +113,13 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         else if (rank - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName, resultLayerName, out_format, out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName,
+                                           resultLayerName,
+                                           out_format,
+                                           out_dt,
+                                           std::vector<float>(),
+                                           cldnn::reorder_mean_mode::subtract,
+                                           op->get_friendly_name());
         p.AddPrimitive(reorder_prim);
         p.AddPrimitiveToProfiler(op, reorderLayerName);
     } else {

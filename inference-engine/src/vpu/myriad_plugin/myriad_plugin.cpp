@@ -37,7 +37,9 @@ IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
+    return executableNetwork;
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {

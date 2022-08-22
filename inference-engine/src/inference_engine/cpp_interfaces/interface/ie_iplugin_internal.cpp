@@ -64,6 +64,9 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
+IInferencePlugin::IInferencePlugin()
+    : _executorManager(InferenceEngine::executorManager()) {}
+
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
     _buildNumber = v.buildNumber;
@@ -187,6 +190,10 @@ void IInferencePlugin::SetCore(ICore* core) {
 
 ICore* IInferencePlugin::GetCore() const noexcept {
     return _core;
+}
+
+const std::shared_ptr<ExecutorManager> & IInferencePlugin::executorManager() const {
+    return _executorManager;
 }
 
 QueryNetworkResult IInferencePlugin::QueryNetwork(const CNNNetwork& network,

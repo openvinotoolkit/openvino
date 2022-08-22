@@ -18,7 +18,8 @@ void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

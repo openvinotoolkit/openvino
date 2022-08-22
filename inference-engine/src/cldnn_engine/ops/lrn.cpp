@@ -38,7 +38,8 @@ void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& op) {
                               static_cast<float>(op->get_bias()),
                               static_cast<float>(op->get_alpha()),
                               static_cast<float>(op->get_beta()),
-                              GetNormRegion(axis_value));
+                              GetNormRegion(axis_value),
+                              op->get_friendly_name());
 
     p.AddPrimitive(lrnPrim);
     p.AddPrimitiveToProfiler(op);

@@ -119,14 +119,14 @@ namespace BehaviorTestsDefinitions {
         }
 
         if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_KEEMBAY) ||
                    (targetDevice == CommonTestUtils::DEVICE_MYRIAD)) {
-            ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+            ASSERT_EQ(2u, InferenceEngine::executorManager()->getExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_MULTI) ||
                    (targetDevice == CommonTestUtils::DEVICE_AUTO)) {
         } else {
-            ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+            ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
         }
     }
 
@@ -151,19 +151,19 @@ namespace BehaviorTestsDefinitions {
 
         if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
-            ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+            ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
         } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) ||
                    (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
         } else {
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
         }
     }
 
     TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+        ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+        ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
 
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
@@ -184,20 +184,20 @@ namespace BehaviorTestsDefinitions {
 
             if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                 (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
-                ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-                ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+                ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
+                ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
             } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) ||
                        (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
             } else {
-                ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-                ASSERT_GE(2u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+                ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+                ASSERT_GE(2u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
             }
         }
         if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-            ASSERT_NE(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_NE(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
             ASSERT_NO_THROW(ie->UnregisterPlugin("CPU"));
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-            ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
+            ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
         }
     }
 }  // namespace BehaviorTestsDefinitions

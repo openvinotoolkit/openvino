@@ -126,6 +126,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                                    input_offset,
                                                                    tensor{ 1, 1, 1, 1 },
                                                                    grouped_weights_shape,
+                                                                   "",
                                                                    output_padding);
                     p.get_or_create(conv_prim);
                 } else {
@@ -137,6 +138,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                                    input_offset,
                                                                    tensor{ 1, 1, 1, 1 },
                                                                    grouped_weights_shape,
+                                                                   "",
                                                                    output_padding);
                     p.get_or_create(conv_prim);
                 }
@@ -296,13 +298,14 @@ void pre_replace_deconv::run(program_impl& p) {
 
                 // create convolution primitive
                 auto conv_prim = std::make_shared<convolution>(deconv_id_conv,
-                    input_id,
-                    std::vector<primitive_id>{ weights_vec[0] + "_conv_rpl" },
-                    stride,
-                    input_offset,
-                    tensor{ 1, 1, 1, 1 },
-                    grouped_weights_shape,
-                    output_padding);
+                                                               input_id,
+                                                               std::vector<primitive_id>{ weights_vec[0] + "_conv_rpl" },
+                                                               stride,
+                                                               input_offset,
+                                                               tensor{ 1, 1, 1, 1 },
+                                                               grouped_weights_shape,
+                                                               "",
+                                                               output_padding);
                 p.get_or_create(conv_prim);
 
                 auto conv_node_itr = p.nodes_map.find(deconv_id_conv);

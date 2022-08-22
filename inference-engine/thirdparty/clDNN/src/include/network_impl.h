@@ -62,6 +62,7 @@ public:
     std::vector<primitive_id> get_all_primitive_org_ids() const;
     const program_impl::primitives_info& get_primitives_info() const;
     const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
+    std::map<primitive_id, primitive_id> get_ext_id_mapping() const;
     void execute(const std::vector<event_impl::ptr>& events);
     void validate_primitives();
     void set_arguments();

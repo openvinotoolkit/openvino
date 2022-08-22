@@ -17,7 +17,7 @@
 #include <cpp/ie_cnn_network.h>
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 
-#include "threading/ie_itask_executor.hpp"
+#include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
 
@@ -28,12 +28,6 @@ namespace InferenceEngine {
  */
 class ICore {
 public:
-    /**
-     * @brief Returns global to Inference Engine class task executor
-     * @return Reference to task executor
-     */
-    virtual std::shared_ptr<ITaskExecutor> GetTaskExecutor() const = 0;
-
     /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR

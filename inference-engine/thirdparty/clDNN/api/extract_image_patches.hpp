@@ -43,8 +43,9 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
                           const std::vector<unsigned int>& rates,
                           const std::string& auto_pad,
                           const tensor& output_shape,
+                          const primitive_id& ext_prim_id = "",
                           const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           sizes(sizes),
           strides(strides),
           rates(rates),

@@ -63,7 +63,8 @@ void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& o
                                     inputPrimitives[0],
                                     GetCumSumAxis(axis, rank),
                                     exclusive,
-                                    reverse);
+                                    reverse,
+                                    op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

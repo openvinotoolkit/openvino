@@ -89,8 +89,9 @@ struct activation : public primitive_base<activation> {
                const primitive_id& input,
                activation_func activation_function,
                activation_additional_params additional_params = {0.f, 0.f},
+               const primitive_id& ext_prim_id = "",
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           activation_function(activation_function),
           additional_params(additional_params),
           additional_params_input("") {}
@@ -105,8 +106,9 @@ struct activation : public primitive_base<activation> {
                const primitive_id& input,
                const primitive_id& additional_params_input,
                activation_func activation_function,
+               const primitive_id& ext_prim_id = "",
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           activation_function(activation_function),
           additional_params({0, 0}),
           additional_params_input(additional_params_input) {}

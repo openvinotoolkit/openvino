@@ -36,7 +36,8 @@ void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::S
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputPrimitives[0],
                                                        group,
-                                                       axis);
+                                                       axis,
+                                                       op->get_friendly_name());
 
     p.AddPrimitive(shuffleChannelsPrim);
     p.AddPrimitiveToProfiler(op);

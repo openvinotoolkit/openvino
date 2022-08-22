@@ -42,8 +42,10 @@ struct gather : public primitive_base<gather> {
            const format& output_format,
            const tensor& output_shape,
            const int64_t batch_dim = 0,
+           const primitive_id& ext_prim_id = "",
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_format(output_format), output_shape(output_shape), batch_dim(batch_dim) {}
+        : primitive_base(id, {dict, idx}, ext_prim_id, output_padding), axis(axis), output_format(output_format),
+                         output_shape(output_shape), batch_dim(batch_dim) {}
 
     /// @brief Gathering axis
     gather_axis axis;

@@ -48,6 +48,12 @@ Optimized for these processors:
    - [PyPi package](https://pypi.org/project/openvino/)
    - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
+**Software**
+
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 4.8 (for CentOS 7.6), GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
+
 ## Overview
 
 This guide provides step-by-step instructions on how to install the Intel® Distribution of OpenVINO™ toolkit. Links are provided for each type of compatible hardware including downloads, initialization and configuration steps. The following steps will be covered:

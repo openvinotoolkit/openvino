@@ -45,12 +45,12 @@ if(NOT ENABLE_DOCKER)
 endif()
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
+set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
-set(GITHUB_API_TOKEN "" CACHE PATH "Path to file containing github api token.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
 
 function(build_docs)
@@ -127,11 +127,11 @@ function(build_docs)
 
     # include additional repositories
 
-    # openvino notebooks dir
-    if(GITHUB_API_TOKEN)
+    # build with openvino notebooks
+    if(ENABLE_OPENVINO_NOTEBOOKS)
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
         list(APPEND commands
-            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${GITHUB_API_TOKEN}" "${RST_OUTPUT}/notebooks"
+            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${RST_OUTPUT}/notebooks"
         )
     endif()
 
@@ -140,6 +140,19 @@ function(build_docs)
     list(APPEND commands
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
     )
+    endif()
+
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy ${API_DOCS_IN}/api_reference.rst ${API_DOCS_OUT}/api_reference.rst
+    )
+
+    if(ENABLE_PYTHON)
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
+        )
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ngraph_python_api ${API_DOCS_OUT}/ngraph_python_api
+        )
     endif()
 
     # omz doc files
@@ -216,7 +229,6 @@ function(build_docs)
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN} ${API_DOCS_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}

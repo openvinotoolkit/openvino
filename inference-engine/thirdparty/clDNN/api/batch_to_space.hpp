@@ -59,8 +59,9 @@ struct batch_to_space : public primitive_base<batch_to_space> {
                    const tensor& crops_begin,
                    const tensor& crops_end,
                    const tensor& out_size,
+                   const primitive_id& ext_prim_id = "",
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           block_shape(block_shape),
           crops_begin(crops_begin),
           crops_end(crops_end),

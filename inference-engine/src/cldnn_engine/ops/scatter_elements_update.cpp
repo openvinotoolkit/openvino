@@ -54,10 +54,11 @@ void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op:
     int32_t axis = axes_constant->cast_vector<int32_t>()[0];
 
     auto primitive = cldnn::scatter_elements_update(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           inputPrimitives[2],
-                                           GetScatterElementsUpdateAxis(axis, rank));
+                                                    inputPrimitives[0],
+                                                    inputPrimitives[1],
+                                                    inputPrimitives[2],
+                                                    GetScatterElementsUpdateAxis(axis, rank),
+                                                    op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

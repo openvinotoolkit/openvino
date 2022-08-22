@@ -35,13 +35,15 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr,
-                                     NumaNodesWeights &numaNodesWeights) :
+                                     NumaNodesWeights &numaNodesWeights,
+                                     const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
     _numaNodesWeights(numaNodesWeights),
-        _network(network) {
+    _network(network) {
+    SetPointerToPlugin(plugin);
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
@@ -57,14 +59,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
+        _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+        _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-        _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _callbackExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
     } else {
         _callbackExecutor = _taskExecutor;

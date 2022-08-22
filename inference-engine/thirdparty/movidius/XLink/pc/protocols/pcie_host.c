@@ -394,6 +394,7 @@ int pci_count_devices(uint16_t vid, uint16_t pid)
             deviceCnt++;
         }
     }
+    SetupDiDestroyDeviceInfoList(hDevInfo);
     return deviceCnt;
 }
 #endif  // (defined(_WIN32) || defined(_WIN64))

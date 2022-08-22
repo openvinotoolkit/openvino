@@ -89,8 +89,7 @@ ExecutableNetwork::ExecutableNetwork(
     const auto& networkName = network.getName();
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
     if (_config.exclusiveAsyncRequests()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
@@ -136,8 +135,7 @@ void ExecutableNetwork::Import(std::istream& strm,
     }
 
     if (_config.exclusiveAsyncRequests()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("MYRIAD");
+        _taskExecutor = executorManager()->getExecutor("MYRIAD");
     }
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
