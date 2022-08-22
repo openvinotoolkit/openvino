@@ -12,7 +12,7 @@ on:
       - 'samples/python/**'
 jobs:
   linters:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Code checkout
         uses: actions/checkout@v2
