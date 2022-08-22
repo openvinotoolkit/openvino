@@ -12,7 +12,7 @@ def convert(**args):
     """
     Converts the model from original framework to OpenVino Model.
 
-    Run convert() to list available parameters.
+    Run convert(help=true) to list available parameters.
 
     Returns:
         openvino.runtime.Model

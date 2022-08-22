@@ -507,7 +507,7 @@ def show_mo_convert_help():
 
 
 def _convert(**args):
-    if len(args.items()) == 0:
+    if 'help' in args and args['help']:
         show_mo_convert_help()
         return
 
