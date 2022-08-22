@@ -4,6 +4,7 @@
 import inspect
 import os
 import sys
+import logging as log
 from pathlib import Path
 
 import pytest
@@ -33,17 +34,17 @@ def rename_tf_fe_libs(request):
         tf_fe_lib_names = ['libopenvino_tensorflow_fe.so', 'libopenvino_tensorflow_frontend.so']
 
     if request.config.getoption('use_new_frontend'):
-        print('Using new frontend...')
+        log.info('Using new frontend...')
 
         if tf_fe_lib_names[1] in os.listdir(openvino_lib_path):
-            print('TF FE library is already has new name, no renaming will be done')
+            log.info('TF FE library is already has new name, no renaming will be done')
         else:
             rename_ov_lib(tf_fe_lib_names[0], tf_fe_lib_names[1], openvino_lib_path)
 
         yield
 
         if tf_fe_lib_names[0] in os.listdir(openvino_lib_path):
-            print('TF FE library is already has old name, no renaming will be done')
+            log.info('TF FE library is already has old name, no renaming will be done')
         else:
             rename_ov_lib(tf_fe_lib_names[1], tf_fe_lib_names[0], openvino_lib_path)
     else:
