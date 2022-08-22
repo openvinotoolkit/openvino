@@ -15,10 +15,22 @@ public:
     MHAFusion();
 };
 
+class MHAFusion2: public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MHAFusion2", "0");
+    MHAFusion2();
+};
+
 class MHAQuantFusion: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MHAQuantFusion", "0");
     MHAQuantFusion();
+};
+
+class MHAQuantFusion2: public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MHAQuantFusion2", "0");
+    MHAQuantFusion2();
 };
 
 }   // namespace intel_cpu

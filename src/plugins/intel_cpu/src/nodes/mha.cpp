@@ -53,8 +53,7 @@ private:
         this->preamble();
 
 #define GET_OFF(field) offsetof(jit_mul_add_softmax_call_args, field)
-        mov(reg_mul_in0, ptr[reg_params + GET_OFF(p_mul_in0)]);
-        mov(reg_mul_in1, ptr[reg_params + GET_OFF(p_mul_in1)]);
+        mov(reg_in0, ptr[reg_params + GET_OFF(p_in0)]);
         mov(reg_add_in1, ptr[reg_params + GET_OFF(p_add_in1)]);
         mov(reg_out, ptr[reg_params + GET_OFF(p_out)]);
         mov(reg_buffer, ptr[reg_params + GET_OFF(p_buffer)]);
@@ -74,8 +73,11 @@ private:
         uni_vpxor(get_vmm_max(0), get_vmm_max(0), get_vmm_max(0));
 
         // mul1 input is const and always float
-        uni_vmovss(Xmm(get_vmm_in(1).getIdx()), ptr[reg_mul_in1]);
-        uni_vbroadcastss(get_vmm_in(1), Xmm(get_vmm_in(1).getIdx()));
+        if (jcp_.with_mul_scales) {
+            mov(reg_mul_in1, ptr[reg_params + GET_OFF(p_mul_in1)]);
+            uni_vmovss(Xmm(get_vmm_in(1).getIdx()), ptr[reg_mul_in1]);
+            uni_vbroadcastss(get_vmm_in(1), Xmm(get_vmm_in(1).getIdx()));
+        }
 
         if (jcp_.with_scales0) {
             mov(reg_scales, ptr[reg_params + GET_OFF(p_scales0)]);
@@ -191,33 +193,37 @@ private:
     void mul_add_max(size_t step) {
         bool is_tail = step < vec_size;
 
-        load(get_vmm_in(0), reg_mul_in0, jcp_.src_prc, step, is_tail);
+        load(get_vmm_in(0), reg_in0, jcp_.src_prc, step, is_tail);
         load(get_vmm_in(2), reg_add_in1, Precision::FP32, step, is_tail);
 
-        if (jcp_.src_prc == Precision::I32) {
-            if (jcp_.with_scales0) {
-                if (!jcp_.broadcast_scales0) {
-                    load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
-                    add(reg_scales,  sizeof(float) * step);
-                }
-                uni_vmulps(get_vmm_in(0), get_vmm_in(0), vmm_scales);
-                uni_vmaxps(get_vmm_in(0), get_vmm_in(0), vmm_crop_low);
-                uni_vminps(get_vmm_in(0), get_vmm_in(0), vmm_crop_high);
+        if (jcp_.with_scales0) {
+            if (!jcp_.broadcast_scales0) {
+                load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                add(reg_scales,  sizeof(float) * step);
             }
-
-            uni_vaddps(get_vmm_aux(0), get_vmm_in(0), get_vmm_in(2));
-            uni_vmulps(get_vmm_aux(0), get_vmm_aux(0), get_vmm_in(1));
-        } else {
-            uni_vmulps(get_vmm_aux(0), get_vmm_in(0), get_vmm_in(1));
-            uni_vaddps(get_vmm_aux(0), get_vmm_aux(0), get_vmm_in(2));
+            uni_vmulps(get_vmm_in(0), get_vmm_in(0), vmm_scales);
+            uni_vmaxps(get_vmm_in(0), get_vmm_in(0), vmm_crop_low);
+            uni_vminps(get_vmm_in(0), get_vmm_in(0), vmm_crop_high);
         }
 
-        uni_vmaxps(get_vmm_max(0), get_vmm_max(0), get_vmm_aux(0));
+        if (jcp_.with_mul_scales) {
+            if (jcp_.is_mul_first) {
+                uni_vmulps(get_vmm_in(0), get_vmm_in(0), get_vmm_in(1));
+                uni_vaddps(get_vmm_in(0), get_vmm_in(0), get_vmm_in(2));
+            } else {
+                uni_vaddps(get_vmm_in(0), get_vmm_in(0), get_vmm_in(2));
+                uni_vmulps(get_vmm_in(0), get_vmm_in(0), get_vmm_in(1));
+            }
+        } else {
+            uni_vaddps(get_vmm_in(0), get_vmm_in(0), get_vmm_in(2));
+        }
 
-        store(reg_buffer_aux, get_vmm_aux(0), Precision::FP32, step);
+        uni_vmaxps(get_vmm_max(0), get_vmm_max(0), get_vmm_in(0));
+
+        store(reg_buffer_aux, get_vmm_in(0), Precision::FP32, step);
 
         if (!is_tail) {
-            add(reg_mul_in0, jcp_.src_prc.size() * step);
+            add(reg_in0, jcp_.src_prc.size() * step);
             add(reg_add_in1, sizeof(float) * step);
             add(reg_buffer_aux, sizeof(float) * step);
         }
@@ -231,7 +237,7 @@ private:
         uni_vsubps(get_vmm_in(0), get_vmm_in(0), get_vmm_max(0));
 
         auto vmm_exp_idx = static_cast<size_t>(get_vmm_in(0).getIdx());
-        exp_emitter->emit_code({vmm_exp_idx}, {vmm_exp_idx}, {}, {});
+        exp_emitter->emit_code({vmm_exp_idx}, {vmm_exp_idx}, pool_aux_vmm_idxs, pool_aux_gpr_idxs);
 
         uni_vaddps(get_vmm_denom(0), get_vmm_denom(0), get_vmm_in(0));
 
@@ -306,13 +312,12 @@ private:
     }
 
     Xmm xmm_tmp = Xmm(0);
-    Xmm vmm_ones = Vmm(0);
 
     Vmm vmm_scales = Vmm(0);
     Vmm vmm_crop_low = Vmm(14);
     Vmm vmm_crop_high = Vmm(15);
 
-    Reg64 reg_mul_in0 = r8;
+    Reg64 reg_in0 = r8;
     Reg64 reg_mul_in1 = r9;
     Reg64 reg_add_in1 = r10;
     Reg64 reg_out = r11;
@@ -328,7 +333,7 @@ private:
     Reg64 reg_params = abi_param1;
 
     const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
-    const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
+    const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()), 13, 14, 15};
 
     std::shared_ptr<jit_dnnl_aux_emitter> exp_emitter;
 
@@ -427,14 +432,12 @@ private:
 
         load(vmm_in, reg_in_aux, jcp_.src_prc, step, is_tail);
 
-        if (jcp_.src_prc == Precision::I32) {
-            if (jcp_.with_scales) {
-                if (!jcp_.broadcast_scales) {
-                    load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
-                    add(reg_scales,  sizeof(float) * step);
-                }
-                uni_vmulps(vmm_in, vmm_in, vmm_scales);
+        if (jcp_.with_scales) {
+            if (!jcp_.broadcast_scales) {
+                load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                add(reg_scales,  sizeof(float) * step);
             }
+            uni_vmulps(vmm_in, vmm_in, vmm_scales);
         }
 
         store(reg_out_aux, vmm_in, jcp_.dst_prc, step);
@@ -459,7 +462,7 @@ private:
 
     size_t vec_size;
 
-    Xmm xmm_tmp = Xmm(0);
+    Xmm xmm_tmp = Xmm(2);
     Vmm vmm_scales = Vmm(0);
     Vmm vmm_in = Vmm(1);
 
@@ -507,28 +510,43 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
     }
 
     const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
-    if (mha->with_fq_scales()) {
-        fqScales0 = mha->get_fq_scales(0);
-        fqScales1 = mha->get_fq_scales(1);
-        fqScales2 = mha->get_fq_scales(2);
-    }
+    mulScales = mha->get_mul_scales();
+    isMulFirst = mha->get_is_mul_first();
+    fqScales0 = mha->get_fq_scales0();
+    fqScales1 = mha->get_fq_scales1();
+    fqScales2 = mha->get_fq_scales2();
+    fqScales3 = mha->get_fq_scales3();
 }
 
 void MHA::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    dataPrecision = getOriginalInputPrecisionAtPort(0);
+    for (auto idx : {0, 1, 2, 3}) {
+        inputPrecisions.push_back(getOriginalInputPrecisionAtPort(idx));
+        if (!one_of(inputPrecisions[idx], Precision::FP32, Precision::BF16, Precision::I8))
+            THROW_ERROR << "doesn't support " << inputPrecisions[idx].name() << " precision on " << idx <<  " input port";
+    }
 
-    if (!one_of(dataPrecision, Precision::FP32, Precision::BF16, Precision::I8))
-        THROW_ERROR << "doesn't support " << dataPrecision.name() << " precision";
+    if ((inputPrecisions[0] != inputPrecisions[1]) &&
+        !(inputPrecisions[0] == Precision::I8 && inputPrecisions[1] == Precision::FP32 && !fqScales0.empty())) {
+            inputPrecisions[0] = inputPrecisions[1] = Precision::FP32;
+        }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, dataPrecision},
+    inputPrecisions[2] = Precision::FP32;
+
+    if (inputPrecisions[3] == Precision::I8 && fqScales2.empty())
+        inputPrecisions[3] = Precision::FP32;
+
+
+    if (!one_of(getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16, Precision::I8, Precision::U8))
+        THROW_ERROR << "doesn't support " << getOriginalOutputPrecisionAtPort(0).name() << " precision on output port";
+
+    addSupportedPrimDesc({{LayoutType::ncsp, inputPrecisions[0]},
+                          {LayoutType::ncsp, inputPrecisions[1]},
                           {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, dataPrecision}},
-                         {{LayoutType::ncsp, dataPrecision}},
+                          {LayoutType::ncsp, inputPrecisions[3]}},
+                         {{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0)}},
                          ref_any,
                          isDynamicNode());
 }
@@ -536,6 +554,10 @@ void MHA::initSupportedPrimitiveDescriptors() {
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
     brgemm_t brgDesc;
     brgemm_strides_t strides {ctx.M * ctx.K, ctx.K * ctx.N};
+
+    if (ctx.dt_in0 != ctx.dt_in1) {
+        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+    }
 
     auto isa = use_amx ? isa_any
                        : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
@@ -551,7 +573,7 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
         amx_tile_configure(ctx.palette);
     }
 
-    ctx.is_with_comp = dataPrecision == Precision::I8 && !ctx.is_with_amx;
+    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
 
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
@@ -623,21 +645,18 @@ void MHA::prepareParams() {
 
     const auto memDescTranspose0In0 = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
     const auto memDescTranspose1In0 = getParentEdgeAt(1)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescMulIn1 = getParentEdgeAt(2)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescAddIn1 = getParentEdgeAt(3)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescTranspose2In0 = getParentEdgeAt(4)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
+    const auto memDescAddIn1 = getParentEdgeAt(2)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose2In0 = getParentEdgeAt(3)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
     const auto memDescOut = getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
 
     dimsTranspose0In0 = memDescTranspose0In0->getBlockDims();
     dimsTranspose1In0 = memDescTranspose1In0->getBlockDims();
-    dimsMulIn1 = memDescMulIn1->getBlockDims();
     dimsAddIn1 = memDescAddIn1->getBlockDims();
     dimsTranspose2In0 = memDescTranspose2In0->getBlockDims();
     dimsOut = memDescOut->getBlockDims();
 
     strTranspose0In0 = memDescTranspose0In0->getStrides();
     strTranspose1In0 = memDescTranspose1In0->getStrides();
-    strMulIn1 = memDescMulIn1->getStrides();
     strAddIn1 = memDescAddIn1->getStrides();
     strTranspose2In0 = memDescTranspose2In0->getStrides();
     strOut = memDescOut->getStrides();
@@ -658,8 +677,6 @@ void MHA::prepareParams() {
     size_t numThreads = parallel_get_max_threads();
 
     size_t matmulOptimalM = 32;
-    size_t matmulOptimalN = dataPrecision == Precision::I8 ? 64 : 32;
-    size_t matmulOptimalK = dataPrecision == Precision::I8 ? 64 : 32;
 
     batch0 = dimsMatMul0Out[0];
     batch1 = dimsMatMul0Out[1];
@@ -671,13 +688,18 @@ void MHA::prepareParams() {
     N0 = dimsMatMul0In1[3];
     K0 = dimsMatMul0In0[3];
 
-    brg0VnniFactor = 4 / dataPrecision.size();
-    bool brg0WithAMX = isAMXSupported && dataPrecision != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
+    auto brg0Prc = inputPrecisions[0];
+    brg0VnniFactor = 4 / brg0Prc.size();
+    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
 
-    N0_blk = dataPrecision == Precision::FP32 ? N0 : matmulOptimalN;
+    N0_blk = brg0Prc == Precision::FP32 ? N0 :
+             brg0Prc == Precision::BF16 ? 32 : 64;
     N0_tail = N0 % N0_blk;
-    K0_blk = brg0WithAMX ? matmulOptimalK : K0;
+    K0_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+                         : K0;
     K0_tail = K0 % K0_blk;
+
+    accPrecision0 = brg0Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
 
     size_t brg0BaseIdx = -1;
     for (size_t m = 0; m < 2; m++) {
@@ -697,8 +719,8 @@ void MHA::prepareParams() {
                 brgemmCtx.LDA = batch1 * K0;
                 brgemmCtx.LDB = rnd_up(N0, N0_blk);
                 brgemmCtx.LDC = N0;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision));
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -718,7 +740,7 @@ void MHA::prepareParams() {
     //     init_brgemm_copy_a(brgCopyAKernel0, K0, K0_blk, K0_tail, brgemmCtx0.LDA, brgemmCtx0.dt_in0);
     // }
 
-    if (brgemmCtx0.is_with_amx || dataPrecision == Precision::I8 || dataPrecision == Precision::BF16) {
+    if (brgemmCtx0.is_with_amx || brg0Prc == Precision::I8 || brg0Prc == Precision::BF16) {
         init_brgemm_copy_b(brgCopyBKernel0, N0, N0_blk, N0_tail, brgemmCtx0.LDB, brgemmCtx0.K,
             brgemmCtx0.is_with_amx, brgemmCtx0.dt_in0, brgemmCtx0.dt_in1);
     }
@@ -728,13 +750,18 @@ void MHA::prepareParams() {
     N1 = dimsMatMul1Out[3];
     K1 = dimsMatMul0Out[3];
 
-    brg1VnniFactor = 4 / dataPrecision.size();
-    bool brg1WithAMX = isAMXSupported && dataPrecision != Precision::FP32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
+    auto brg1Prc = inputPrecisions[3];
+    brg1VnniFactor = 4 / brg1Prc.size();
+    bool brg1WithAMX = isAMXSupported && brg1Prc != Precision::FP32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
 
-    N1_blk = dataPrecision == Precision::FP32 ? N1 : matmulOptimalN;
+    N1_blk = brg1Prc == Precision::FP32 ? N1 :
+             brg1Prc == Precision::BF16 ? 32 : 64;
     N1_tail = N1 % N1_blk;
-    K1_blk = brg1WithAMX ? matmulOptimalK : K1;
+    K1_blk = brg1WithAMX ? brg1Prc == Precision::BF16 ? 32 : 64
+                         : K1;
     K1_tail = K1 % K1_blk;
+
+    accPrecision1 = brg1Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
 
     size_t brg1BaseIdx = -1;
     for (size_t m = 0; m < 2; m++) {
@@ -752,10 +779,10 @@ void MHA::prepareParams() {
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = K1;
-                brgemmCtx.LDB = dataPrecision == Precision::FP32 ? batch1 * N1 : rnd_up(N1, N1_blk);
-                brgemmCtx.LDC = dataPrecision == Precision::FP32 ? batch1 * N1 : N1;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision));
+                brgemmCtx.LDB = brg1Prc == Precision::FP32 ? batch1 * N1 : rnd_up(N1, N1_blk);
+                brgemmCtx.LDC = accPrecision1 == getOriginalOutputPrecisionAtPort(0) ? batch1 * N1 : N1;
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -770,18 +797,16 @@ void MHA::prepareParams() {
     }
 
     auto& brgemmCtx1 = brgCtxs1[brg1BaseIdx];
-    if (brgemmCtx1.is_with_amx || dataPrecision == Precision::I8 || dataPrecision == Precision::BF16) {
+    if (brgemmCtx1.is_with_amx || brg1Prc == Precision::I8 || brg1Prc == Precision::BF16) {
         init_brgemm_copy_b(brgCopyBKernel1, batch1 * N1, N1_blk, N1_tail, brgemmCtx1.LDB, brgemmCtx1.K,
             brgemmCtx1.is_with_amx, brgemmCtx1.dt_in0, brgemmCtx1.dt_in1);
     }
 
-    Precision accPrecision = dataPrecision == Precision::I8 ? Precision::I32 : Precision::FP32;
-
-    bufferMatMul0In0Size = M_blk * rnd_up(K0, K0_blk) * dataPrecision.size();
-    bufferMatMul0In1Size = rnd_up(K0, brg0VnniFactor) * rnd_up(N0, N0_blk) * dataPrecision.size();
-    bufferMatMul0OutSize = brgemmCtx0.M * N0 * accPrecision.size();
-    bufferMatMul1In1Size = rnd_up(K1, brg1VnniFactor) * rnd_up(N1, N1_blk) * dataPrecision.size();
-    bufferMatMul1OutSize = brgemmCtx1.M * N1 * accPrecision.size();
+    bufferMatMul0In0Size = M_blk * rnd_up(K0, K0_blk) * brg0Prc.size();
+    bufferMatMul0In1Size = rnd_up(K0, brg0VnniFactor) * rnd_up(N0, N0_blk) * brg0Prc.size();
+    bufferMatMul0OutSize = brgemmCtx0.M * N0 * accPrecision0.size();
+    bufferMatMul1In1Size = rnd_up(K1, brg1VnniFactor) * rnd_up(N1, N1_blk) * std::max(brg0Prc.size(), brg1Prc.size());
+    bufferMatMul1OutSize = brgemmCtx1.M * N1 * accPrecision1.size();
     bufferCompensation0Size = rnd_up(N0, N0_blk);
     bufferCompensation1Size = rnd_up(N1, N1_blk);
 
@@ -804,13 +829,15 @@ void MHA::prepareParams() {
     }
 
     jit_mul_add_softmax_compile_params jcp;
-    jcp.src_prc = dataPrecision == Precision::I8 ? Precision::I32 : Precision::FP32;
-    jcp.dst_prc = dataPrecision;
+    jcp.src_prc = accPrecision0;
+    jcp.dst_prc = brg1Prc;
     jcp.work_amount = N0;
-    jcp.with_scales0 = !fqScales0.empty();
-    jcp.broadcast_scales0 = fqScales0.size() == 1;
-    jcp.with_scales1 = !fqScales1.empty();
-    jcp.broadcast_scales1 = fqScales1.size() == 1;
+    jcp.with_mul_scales = !mulScales.empty();
+    jcp.is_mul_first = isMulFirst;
+    jcp.with_scales0 = !fqScales1.empty();
+    jcp.broadcast_scales0 = fqScales1.size() == 1;
+    jcp.with_scales1 = !fqScales2.empty();
+    jcp.broadcast_scales1 = fqScales2.size() == 1;
 
     if (mayiuse(cpu_isa_t::avx512_core)) {
         mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
@@ -822,13 +849,13 @@ void MHA::prepareParams() {
         THROW_ERROR << "cannot create jit eltwise kernel";
     }
 
-    if (dataPrecision != Precision::FP32) {
+    if (accPrecision1 != getOriginalOutputPrecisionAtPort(0)) {
         jit_convert_reorder_compile_params jcp;
-        jcp.src_prc = dataPrecision == Precision::I8 ? Precision::I32 : Precision::FP32;
-        jcp.dst_prc = dataPrecision;
+        jcp.src_prc = accPrecision1;
+        jcp.dst_prc = getOriginalOutputPrecisionAtPort(0);
         jcp.inner_work_amount = N1;
-        jcp.with_scales = !fqScales2.empty();
-        jcp.broadcast_scales = fqScales2.size() == 1;
+        jcp.with_scales = !fqScales3.empty();
+        jcp.broadcast_scales = fqScales3.size() == 1;
         jcp.src_stride = N1;
         jcp.dst_stride = batch1 * N1;
 
@@ -848,14 +875,39 @@ void MHA::prepareParams() {
 
     if (convertReorderKernel)
         convertReorderKernel->create_ker();
+
+    const auto& selectedPD = getSelectedPrimitiveDescriptor();
+    if (brgemmCtx0.is_with_amx || brgemmCtx1.is_with_amx) {
+        selectedPD->setImplementationType(jit_avx512_amx);
+    } else {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            selectedPD->setImplementationType(jit_avx512);
+        } else if (mayiuse(cpu_isa_t::avx2)) {
+            selectedPD->setImplementationType(jit_avx2);
+        } else if (mayiuse(cpu_isa_t::sse41)) {
+            selectedPD->setImplementationType(jit_sse42);
+        }
+    }
 }
 
-template<typename T>
-static void reorder2D(const T* pin, T* pout, const std::vector<size_t>& dimsOut,
+template<typename srcT, typename dstT>
+static void reorder2D(const srcT* pin, dstT* pout, const std::vector<size_t>& dimsOut,
                const std::vector<size_t>& stridesOut, const std::vector<size_t>& stridesIn) {
     for (int i0 = 0; i0 < dimsOut[0]; i0++) {
         for (int i1 = 0; i1 < dimsOut[1]; i1++) {
-            pout[i0 * stridesOut[0] + i1 * stridesOut[1]] = pin[i0 * stridesIn[0] + i1 * stridesIn[1]];
+            pout[i0 * stridesOut[0] + i1 * stridesOut[1]] = static_cast<dstT>(pin[i0 * stridesIn[0] + i1 * stridesIn[1]]);
+        }
+    }
+}
+
+template<typename srcT, typename dstT>
+static void reorder2DWithScale(const srcT* pin, dstT* pout, const std::vector<size_t>& dimsOut,
+               const std::vector<size_t>& stridesOut, const std::vector<size_t>& stridesIn, float scale) {
+    for (int i0 = 0; i0 < dimsOut[0]; i0++) {
+        for (int i1 = 0; i1 < dimsOut[1]; i1++) {
+            auto in_orig = scale * pin[i0 * stridesIn[0] + i1 * stridesIn[1]];
+            auto in_tr = static_cast<dstT>(std::min(127.f, std::max(-128.f, roundf(in_orig))));
+            pout[i0 * stridesOut[0] + i1 * stridesOut[1]] = static_cast<dstT>(in_tr);
         }
     }
 }
@@ -871,34 +923,40 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
     }
 }
 
-template<typename data_type, typename acc_type>
-void MHA::mhaImpl(dnnl::stream strm) {
-    const data_type* pTranspose0In0 = reinterpret_cast<const data_type*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const data_type* pTranspose1In0 = reinterpret_cast<const data_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const float* pMulIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    const data_type* pTranspose2In0 = reinterpret_cast<const data_type*>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr());
-    data_type* pout = reinterpret_cast<data_type*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+template<typename in1_type, typename brg_in1_type>
+void MHA::mhaImpl() {
+    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const in1_type* pTranspose1In0 = reinterpret_cast<const in1_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
+    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
+    auto outPrcSize = getOriginalOutputPrecisionAtPort(0).size();
 
     parallel_for2d(dimsMatMul0Out[0], dimsMatMul0Out[1], [&](size_t i0, size_t i1) {
         size_t threadNum = parallel_get_thread_num();
 
-        auto pTranspose0In0_aux = pTranspose0In0 + i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]; // order 0213
+        auto pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) * inputPrecisions[0].size(); // order 0213
         auto pTranspose1In0_aux = pTranspose1In0 + i0 * strTranspose1In0[0] + i1 * strTranspose1In0[2]; // order 0231
 
         auto pAddIn1_aux = pAddIn1 + i0 * strAddIn1[0]; // order 0231
 
-        auto bufferMatMul0In1_local = reinterpret_cast<void*>(bufferMatMul0In1.data() + threadNum * bufferMatMul0In1Size);
-        auto bufferMatMul0Out_local = reinterpret_cast<void*>(bufferMatMul0Out.data() + threadNum * bufferMatMul0OutSize);
-        auto bufferMatMul1In1_local = reinterpret_cast<void*>(bufferMatMul1In1.data() + threadNum * bufferMatMul1In1Size);
-        auto bufferMatMul1Out_local = reinterpret_cast<void*>(bufferMatMul1Out.data() + threadNum * bufferMatMul1OutSize);
+        auto bufferMatMul0In1_local = reinterpret_cast<uint8_t*>(bufferMatMul0In1.data() + threadNum * bufferMatMul0In1Size);
+        auto bufferMatMul0Out_local = reinterpret_cast<uint8_t*>(bufferMatMul0Out.data() + threadNum * bufferMatMul0OutSize);
+        auto bufferMatMul1In1_local = reinterpret_cast<uint8_t*>(bufferMatMul1In1.data() + threadNum * bufferMatMul1In1Size);
+        auto bufferMatMul1Out_local = reinterpret_cast<uint8_t*>(bufferMatMul1Out.data() + threadNum * bufferMatMul1OutSize);
 
-        auto pTranspose1Out_aux = brgCopyBKernel0 ? reinterpret_cast<data_type*>(bufferMatMul1In1_local)
-                                                    : reinterpret_cast<data_type*>(bufferMatMul0In1_local);
-        auto pTranspose2In0_aux = pTranspose2In0 + i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]; // order 0213
+        auto pTranspose1Out_aux = brgCopyBKernel0 ? bufferMatMul1In1_local
+                                                  : bufferMatMul0In1_local;
+        auto pTranspose2In0_aux = pTranspose2In0 + (i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]) * inputPrecisions[3].size(); // order 0213
 
-        reorder2D(pTranspose1In0_aux, reinterpret_cast<data_type*>(pTranspose1Out_aux), {K0, N0}, {N0, 1},
-                                                                    {strTranspose1In0[3], strTranspose1In0[1]});
+        if (!fqScales0.empty()) {
+            reorder2DWithScale(pTranspose1In0_aux, reinterpret_cast<brg_in1_type*>(pTranspose1Out_aux), {K0, N0}, {N0, 1},
+                               {strTranspose1In0[3], strTranspose1In0[1]}, fqScales0[0]);
+        } else {
+            reorder2D(pTranspose1In0_aux, reinterpret_cast<brg_in1_type*>(pTranspose1Out_aux), {K0, N0}, {N0, 1},
+                      {strTranspose1In0[3], strTranspose1In0[1]});
+        }
 
         auto bufferCompensation0_aux = !bufferCompensation0.empty()
             ? bufferCompensation0.data() + threadNum * bufferCompensation0Size
@@ -909,11 +967,11 @@ void MHA::mhaImpl(dnnl::stream strm) {
 
         auto wsp_local = !wsp.empty() ? wsp.data() + threadNum * wsp_size_per_thread : nullptr;
 
-        auto pMatMul0In1 = reinterpret_cast<const data_type*>(pTranspose1Out_aux);
+        auto pMatMul0In1 = reinterpret_cast<uint8_t*>(pTranspose1Out_aux);
         if (brgCopyBKernel0) {
             for (size_t nb = 0; nb < div_up(N0, N0_blk); nb++) {
-                auto pCopyKernel0In = pMatMul0In1 + nb * N0_blk;
-                auto pCopyKernel0Out = reinterpret_cast<data_type*>(bufferMatMul0In1_local) + nb * N0_blk * brg0VnniFactor;
+                auto pCopyKernel0In = pMatMul0In1 + nb * N0_blk * inputPrecisions[0].size();
+                auto pCopyKernel0Out = bufferMatMul0In1_local + nb * N0_blk * brg0VnniFactor * inputPrecisions[0].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -930,14 +988,14 @@ void MHA::mhaImpl(dnnl::stream strm) {
                 (*brgCopyBKernel0)(&ctx);
             }
 
-            pMatMul0In1 = reinterpret_cast<data_type*>(bufferMatMul0In1_local);
+            pMatMul0In1 = bufferMatMul0In1_local;
         }
 
-        auto pMatMul1In1 = reinterpret_cast<const data_type*>(pTranspose2In0_aux);
+        auto pMatMul1In1 = pTranspose2In0_aux;
         if (brgCopyBKernel1) {
             for (size_t nb = 0; nb < div_up(N1, N1_blk); nb++) {
-                auto pCopyKernel1In = pMatMul1In1 + nb * N1_blk;
-                auto pCopyKernel1Out = reinterpret_cast<data_type*>(bufferMatMul1In1_local) + nb * N1_blk * brg1VnniFactor;
+                auto pCopyKernel1In = pMatMul1In1 + nb * N1_blk * inputPrecisions[3].size();
+                auto pCopyKernel1Out = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local) + nb * N1_blk * brg1VnniFactor * inputPrecisions[3].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -954,14 +1012,14 @@ void MHA::mhaImpl(dnnl::stream strm) {
                 (*brgCopyBKernel1)(&ctx);
             }
 
-            pMatMul1In1 = reinterpret_cast<const data_type*>(bufferMatMul1In1_local);
+            pMatMul1In1 = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local);
         }
 
         for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
             const bool is_M_tail = (M - mb * M_blk < M_blk);
             auto cur_M_blk = is_M_tail ? M_tail : M_blk;
 
-            auto pMatMul0In0 = reinterpret_cast<const data_type*>(pTranspose0In0_aux) + mb * M_blk * batch1 * K0;
+            auto pMatMul0In0 = pTranspose0In0_aux + (mb * M_blk * batch1 * K0) * inputPrecisions[0].size();
 
             // TODO: matrix A copy should be performed to enable AMX matmuls for arbitrary shapes
             // if (brgCopyAKernel0) {
@@ -987,7 +1045,7 @@ void MHA::mhaImpl(dnnl::stream strm) {
             //     pMatMul0In0 = reinterpret_cast<const data_type*>(bufferMatMul0In0_local);
             // }
 
-            auto pMatMul0Out = reinterpret_cast<acc_type*>(bufferMatMul0Out_local);
+            auto pMatMul0Out = bufferMatMul0Out_local;
 
             size_t brgIdx0 = getBrgIdx(0, 0, 0);
             size_t K0_step0 = brgCtxs0[brgIdx0].K;
@@ -1005,30 +1063,32 @@ void MHA::mhaImpl(dnnl::stream strm) {
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx, brgKernels0[getBrgIdx(mIdx, k, n)],
-                            pMatMul0In0 + k * K0_step0, pMatMul0In1 + k * K0_step1 + n * N0_step0, pMatMul0Out + n * N0_step1, wsp);
+                            pMatMul0In0 + (k * K0_step0) * inputPrecisions[0].size(), pMatMul0In1 + (k * K0_step1 + n * N0_step0) * inputPrecisions[0].size(),
+                            pMatMul0Out + (n * N0_step1) * accPrecision0.size(), wsp);
                     }
                 }
             }
 
+            auto pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
             for (size_t m = 0; m < cur_M_blk; m++) {
                 jit_mul_add_softmax_call_args call_args;
-                call_args.p_mul_in0 = reinterpret_cast<acc_type*>(pMatMul0Out) + m * N0;
-                call_args.p_mul_in1 = std::is_same<data_type, int8_t>::value ? pMulIn1 : pMulIn1 + i1;
+                call_args.p_in0 = pMatMul0Out + m * N0 * accPrecision0.size();
+                call_args.p_mul_in1 = mulScales.size() > 1 ? pMulIn1 + i1 : pMulIn1;
                 call_args.p_add_in1 = pAddIn1_aux;
-                call_args.p_out = reinterpret_cast<data_type*>(pMatMul0Out) + m * N0;
-                call_args.p_buffer = reinterpret_cast<float*>(pMatMul0Out) + m * N0;
-                call_args.p_scales0 = fqScales0.data();
-                call_args.p_scales1 = fqScales1.data();
+                call_args.p_out = pMatMul0Out + m * N0 * inputPrecisions[3].size();
+                call_args.p_buffer = pMatMul0Out + m * N0 * accPrecision0.size();
+                call_args.p_scales0 = fqScales1.data();
+                call_args.p_scales1 = fqScales2.data();
 
                 (*mulAddSoftmaxKernel)(&call_args);
             }
 
-            auto pMatMul1In0 = reinterpret_cast<const data_type*>(bufferMatMul0Out_local);
-            auto pOut_aux = pout + i0 * strOut[0] + i1 * strOut[2];
+            auto pMatMul1In0 = bufferMatMul0Out_local;
+            auto pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
 
-            auto pMatMul1Out = std::is_same<data_type, acc_type>::value
-                ? reinterpret_cast<acc_type*>(pOut_aux) + mb * M_blk * batch1 * N1
-                : reinterpret_cast<acc_type*>(bufferMatMul1Out_local);
+            auto pMatMul1Out = getOriginalOutputPrecisionAtPort(0) == Precision::FP32
+                ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
+                : bufferMatMul1Out_local;
 
             size_t brgIdx1 = getBrgIdx(0, 0, 0);
             size_t K1_step0 = brgCtxs1[brgIdx1].K;
@@ -1046,7 +1106,8 @@ void MHA::mhaImpl(dnnl::stream strm) {
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx, brgKernels1[getBrgIdx(mIdx, k, n)],
-                            pMatMul1In0 + k * K1_step0, pMatMul1In1 + k * K1_step1 + n * N1_step0, pMatMul1Out + n * N1_step1, wsp);
+                            pMatMul1In0 + (k * K1_step0) * inputPrecisions[3].size(), pMatMul1In1 + (k * K1_step1 + n * N1_step0) * inputPrecisions[3].size(),
+                            pMatMul1Out + (n * N1_step1) * accPrecision1.size(), wsp);
                     }
                 }
             }
@@ -1054,8 +1115,8 @@ void MHA::mhaImpl(dnnl::stream strm) {
             if (convertReorderKernel) {
                 jit_convert_reorder_call_args call_args;
                 call_args.p_in = pMatMul1Out;
-                call_args.p_out = reinterpret_cast<data_type*>(pOut_aux) + mb * M_blk * batch1 * N1;
-                call_args.p_scales = fqScales2.data();
+                call_args.p_out = pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize;
+                call_args.p_scales = fqScales3.data();
                 call_args.outter_work_amount = cur_M_blk;
 
                 (*convertReorderKernel)(&call_args);
@@ -1065,11 +1126,16 @@ void MHA::mhaImpl(dnnl::stream strm) {
 }
 
 void MHA::execute(dnnl::stream strm) {
-    switch (dataPrecision) {
-        case Precision::FP32: mhaImpl<float, float>(strm); break;
-        case Precision::BF16: mhaImpl<bfloat16_t, float>(strm); break;
-        case Precision::I8:   mhaImpl<int8_t, int32_t>(strm); break;
-        default: THROW_ERROR << "doesn't support precision: " << dataPrecision;
+    if (inputPrecisions[1] == Precision::FP32 && inputPrecisions[0] == Precision::FP32) {
+        mhaImpl<float, float>();
+    } else if (inputPrecisions[1] == Precision::BF16 && inputPrecisions[0] == Precision::BF16) {
+        mhaImpl<bfloat16_t, bfloat16_t>();
+    } else if (inputPrecisions[1] == Precision::I8 && inputPrecisions[0] == Precision::I8) {
+        mhaImpl<int8_t, int8_t>();
+    } else if (inputPrecisions[1] == Precision::FP32 && inputPrecisions[0] == Precision::I8) {
+        mhaImpl<float, int8_t>();
+    } else {
+        THROW_ERROR << "doesn't support provided input precisions";
     }
 }
 

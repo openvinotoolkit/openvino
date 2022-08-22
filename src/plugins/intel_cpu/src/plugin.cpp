@@ -606,8 +606,20 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             // TODO: add precision checks
             return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
         });
+    postLPTPassManager.register_pass<MHAFusion2>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAFusion2>(
+        [](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // TODO: add precision checks
+            return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        });
     postLPTPassManager.register_pass<MHAQuantFusion>();
     postLPTPassManager.get_pass_config()->set_callback<MHAQuantFusion>(
+        [](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // TODO: add precision checks
+            return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        });
+    postLPTPassManager.register_pass<MHAQuantFusion2>();
+    postLPTPassManager.get_pass_config()->set_callback<MHAQuantFusion2>(
         [](const std::shared_ptr<const ov::Node>& n) -> bool {
             // TODO: add precision checks
             return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);

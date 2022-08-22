@@ -19,19 +19,21 @@ public:
             const ngraph::Output<ngraph::Node> &in1,
             const ngraph::Output<ngraph::Node> &in2,
             const ngraph::Output<ngraph::Node> &in3,
-            const ngraph::Output<ngraph::Node> &in4,
+            const std::vector<float> &mul_scales,
+            bool is_mul_first,
             const ngraph::element::Type output_type);
 
     MHANode(const ngraph::Output<ngraph::Node> &in0,
             const ngraph::Output<ngraph::Node> &in1,
             const ngraph::Output<ngraph::Node> &in2,
             const ngraph::Output<ngraph::Node> &in3,
-            const ngraph::Output<ngraph::Node> &in4,
+            const std::vector<float> &mul_scales,
+            bool is_mul_first,
             const std::vector<float> &fq_scales0,
             const std::vector<float> &fq_scales1,
             const std::vector<float> &fq_scales2,
+            const std::vector<float> &fq_scales3,
             const ngraph::element::Type output_type);
-
 
     void validate_and_infer_types() override;
 
@@ -41,22 +43,35 @@ public:
 
     ngraph::element::Type get_output_type() const { return m_output_type; }
 
-    bool with_fq_scales() const {
-        return !fq_scales.empty();
+    const std::vector<float>& get_mul_scales() const {
+        return mul_scales;
     }
 
-    const std::vector<float>& get_fq_scales(size_t idx) const {
-        NODE_VALIDATION_CHECK(this,
-                        fq_scales.size() > idx,
-                        "Accessing quantization scales by invalid index: ",
-                        idx);
+    const std::vector<float>& get_fq_scales0() const {
+        return fq_scales0;
+    }
+    const std::vector<float>& get_fq_scales1() const {
+        return fq_scales1;
+    }
+    const std::vector<float>& get_fq_scales2() const {
+        return fq_scales2;
+    }
+    const std::vector<float>& get_fq_scales3() const {
+        return fq_scales3;
+    }
 
-        return fq_scales[idx];
+    bool get_is_mul_first() const {
+        return is_mul_first;
     }
 
 private:
     ngraph::element::Type m_output_type;
-    std::vector<std::vector<float>> fq_scales;
+    std::vector<float> mul_scales;
+    bool is_mul_first;
+    std::vector<float> fq_scales0;
+    std::vector<float> fq_scales1;
+    std::vector<float> fq_scales2;
+    std::vector<float> fq_scales3;
 };
 
 }   // namespace intel_cpu

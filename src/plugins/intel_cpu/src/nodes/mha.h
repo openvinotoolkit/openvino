@@ -22,6 +22,8 @@ struct jit_mul_add_softmax_compile_params {
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision dst_prc;
     size_t work_amount;
+    bool with_mul_scales;
+    bool is_mul_first;
     bool with_scales0;
     bool broadcast_scales0;
     bool with_scales1;
@@ -29,7 +31,7 @@ struct jit_mul_add_softmax_compile_params {
 };
 
 struct jit_mul_add_softmax_call_args {
-    const void *p_mul_in0;
+    const void *p_in0;
     const void *p_mul_in1;
     const void *p_add_in1;
     void *p_out;
@@ -114,8 +116,8 @@ private:
         float beta;
     };
 
-    template<typename data_type, typename acc_type>
-    void mhaImpl(dnnl::stream strm);
+    template<typename in1_type, typename brg_in1_type>
+    void mhaImpl();
 
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
@@ -130,7 +132,9 @@ private:
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
 
-    InferenceEngine::Precision dataPrecision;
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    InferenceEngine::Precision accPrecision0;
+    InferenceEngine::Precision accPrecision1;
 
     VectorDims dimsTranspose0In0;
     VectorDims dimsTranspose1In0;
@@ -175,9 +179,13 @@ private:
     std::vector<int32_t> bufferCompensation1;
     std::vector<size_t> wsp;
 
+    bool isMulFirst;
+
+    std::vector<float> mulScales;
     std::vector<float> fqScales0;
     std::vector<float> fqScales1;
     std::vector<float> fqScales2;
+    std::vector<float> fqScales3;
 
     size_t brg0VnniFactor;
     brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
