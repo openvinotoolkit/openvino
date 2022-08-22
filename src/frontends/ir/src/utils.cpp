@@ -23,7 +23,7 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
     return true;
 }
 
-bool check_all_digits(const std::string& value) {
+inline bool check_all_digits(const std::string& value) {
     auto val = ov::util::trim(value);
     for (const auto& c : val) {
         if (!std::isdigit(c) || c == '-')

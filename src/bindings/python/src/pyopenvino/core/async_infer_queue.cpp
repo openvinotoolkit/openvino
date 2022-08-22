@@ -112,7 +112,7 @@ public:
                 py::gil_scoped_acquire acquire;
                 try {
                     f_callback(_requests[handle], _user_ids[handle]);
-                } catch (py::error_already_set py_error) {
+                } catch (const py::error_already_set& py_error) {
                     // This should behave the same as assert(!PyErr_Occurred())
                     // since constructor for pybind11's error_already_set is
                     // performing PyErr_Fetch which clears error indicator and

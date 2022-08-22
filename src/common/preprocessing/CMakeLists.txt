@@ -140,6 +140,13 @@ if(ENABLE_GAPI_PREPROCESSING)
 
     if(BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+        # make plugin to depend on preprocessing library
+        foreach(plugin IN LISTS PLUGIN_FILES)
+            string(REPLACE ":" ";" plugin "${plugin}")
+            list(REMOVE_AT plugin 0)
+            add_dependencies(${plugin} openvino_gapi_preproc)
+        endforeach()
+        add_dependencies(ov_plugins openvino_gapi_preproc)
     else()
         # for static linkage the dependencies are in opposite order
         target_link_libraries(openvino PRIVATE ${TARGET_NAME})
@@ -156,9 +163,9 @@ if(ENABLE_GAPI_PREPROCESSING)
     endif()
 
     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-    
+
     ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "Inference Engine Preprocessing plugin")
+                           FILEDESCRIPTION "OpenVINO Preprocessing plugin")
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -202,7 +209,7 @@ openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS ${TARGET_NAME}
-            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}/ COMPONENT ${OV_CPACK_COMP_CORE})
+            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE})
 else()
     ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 endif()

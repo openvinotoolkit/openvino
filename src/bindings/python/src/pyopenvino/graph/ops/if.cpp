@@ -9,6 +9,7 @@
 #include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;
