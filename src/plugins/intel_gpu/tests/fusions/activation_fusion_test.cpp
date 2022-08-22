@@ -201,26 +201,26 @@ TEST_P(activation_eltwise_activation_quantize_u8, per_channel) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
     // InputDataType = FP32
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 5, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 5, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 5, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 5, "activation_opt" },
 
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_2, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_3, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_4, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_5, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_6, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_7, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 5, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_2, 2, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_2, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_3, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_4, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_5, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_6, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_7, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 5, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_2, 3, 5, "activation_ref" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation_quantize_u8, ::testing::ValuesIn(std::vector<activation_test_params>{
-    activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref" },  // FIXME - accuracy bug
+    activation_test_params{ CASE_ACTIVATION_3D_F32_5, 3, 5, "activation_ref" },  // FIXME - accuracy bug
 }));
 
 class activation_eltwise_activation : public ActivationFusingTest {};
@@ -241,78 +241,57 @@ TEST_P(activation_eltwise_activation, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     // InputDataType = FP32
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 4, "activation_opt" },
 
-    activation_test_params{ CASE_ACTIVATION_F32_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_4, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_5, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_6, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F32_7, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F32_2, 2, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_3, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_4, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_5, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_6, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F32_7, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_2, 3, 4, "activation_ref" },
 
     // InputDataType = FP16
-    activation_test_params{ CASE_ACTIVATION_F16_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_F16_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F16_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_F16_1, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 3, 4, "activation_opt" },
 
-    activation_test_params{ CASE_ACTIVATION_F16_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_4, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_5, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_6, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_F16_7, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_3, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_F16_4, 2, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_3, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_4, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_5, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_6, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_F16_7, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_0, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_3, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_F16_4, 3, 4, "activation_ref" },
 
     // InputDataType = UINT8
-    activation_test_params{ CASE_ACTIVATION_U8_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_U8_2, 2, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_U8_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_U8_2, 3, 4, "activation_ref" },
 
     // InputDataType = INT8
-    activation_test_params{ CASE_ACTIVATION_I8_1, 2, 4, "activation_opt" },
-    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_I8_1, 3, 4, "activation_opt" },
+    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 3, 4, "activation_opt" },
 
-    activation_test_params{ CASE_ACTIVATION_I8_1, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_I8_2, 2, 4, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_ref" }
+    activation_test_params{ CASE_ACTIVATION_I8_1, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_I8_2, 3, 4, "activation_ref" },
+    activation_test_params{ CASE_ACTIVATION_3D_I8_1, 3, 4, "activation_ref" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
-}));
-
-class activation_eltwise : public ActivationFusingTest {};
-TEST_P(activation_eltwise, basic) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        activation("act", "input", activation_func::abs),
-        data("eltwise_data", get_mem(get_single_element_layout(p), 10.0f)),
-        eltwise("eltwise", { "act", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
-    );
-    tolerance = 1e-05f;
-    execute(p);
-}
-
-#define CASE_ACTIVATION_4D_F32_0 { 1, 2, 3, 2, 3, 2 }, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise, ::testing::ValuesIn(std::vector<activation_test_params>{
-    // InputDataType = FP32
-    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_ref" },
-    activation_test_params{ CASE_ACTIVATION_4D_F32_0, 2, 3, "activation_opt" }
 }));

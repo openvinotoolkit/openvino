@@ -28,7 +28,7 @@ class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm> {
     using parent = typed_primitive_inst_base<gemm>;
 
 public:
-    static layout calc_output_layout(gemm_node const& node);
+    static layout calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gemm_node const& node);
 
 public:

@@ -62,14 +62,14 @@ protected:
         auto in1_l = input1.get_output_layout();
         auto out_l = arg.get_output_layout();
 
-        size_t in0_batched_size = in0_l.count() / (in0_l.size.spatial[0] * in0_l.size.spatial[1]);
-        size_t in1_batched_size = in1_l.count() / (in1_l.size.spatial[0] * in1_l.size.spatial[1]);
-        size_t out_batched_size = out_l.count() / (out_l.size.spatial[0] * out_l.size.spatial[1]);
+        size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
+        size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
+        size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
 
         auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
         if (gemm_with_bias) {
             auto bias_l = arg.get_dependency(2).get_output_layout();
-            size_t bias_batched_size = bias_l.count() / (bias_l.size.spatial[0] * bias_l.size.spatial[1]);
+            size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
             batched_dims_can_be_removed &= bias_batched_size == 1;
         }
 
@@ -79,9 +79,9 @@ protected:
         dnnl::memory::data_type in1_dt = onednn::convert_data_type(in1_l.data_type);
         dnnl::memory::data_type out_dt = onednn::convert_data_type(out_l.data_type);
 
-        dnnl::memory::dims in0_dims = onednn::convert_gemm_tensor(in0_l.size, rank, batched_dims_can_be_removed);
-        dnnl::memory::dims in1_dims = onednn::convert_gemm_tensor(in1_l.size, rank, batched_dims_can_be_removed);
-        dnnl::memory::dims out_dims = onednn::convert_gemm_tensor(out_l.size, rank, batched_dims_can_be_removed);
+        dnnl::memory::dims in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
+        dnnl::memory::dims in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
+        dnnl::memory::dims out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
 
         dnnl::memory::format_tag in0_fmt = onednn::convert_gemm_data_format(in0_dims);
         dnnl::memory::format_tag in1_fmt = onednn::convert_gemm_data_format(in1_dims);
@@ -105,7 +105,7 @@ protected:
             auto bias_l = arg.get_dependency(2).get_output_layout();
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             dnnl::memory::data_type bias_dt = onednn::convert_data_type(bias_l.data_type);
-            dnnl::memory::dims bias_dims = onednn::convert_gemm_tensor(bias_l.size, bias_rank, batched_dims_can_be_removed);
+            dnnl::memory::dims bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
             dnnl::memory::format_tag bias_fmt = onednn::convert_gemm_data_format(bias_dims);
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
@@ -123,7 +123,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg) {
+    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params&) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_gemm_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();

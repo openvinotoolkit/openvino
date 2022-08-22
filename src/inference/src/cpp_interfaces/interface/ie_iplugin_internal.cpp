@@ -77,7 +77,7 @@ OutputsDataMap copyInfo(const OutputsDataMap& networkOutputs) {
     return _networkOutputs;
 }
 
-IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()) {}
+IInferencePlugin::IInferencePlugin() : _executorManager(InferenceEngine::executorManager()), _isNewAPI(true) {}
 
 void IInferencePlugin::VersionStore::copyFrom(const Version& v) {
     _dsc = v.description;
@@ -147,8 +147,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                                                orig_function->get_friendly_name());
         function->get_rt_info() = orig_function->get_rt_info();
     }
-    const auto& core = GetCore();
-    if (function && core && !core->isNewAPI()) {
+    if (function && !IsNewAPI()) {
         auto& rt_info = function->get_rt_info();
         if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = int64_t(10);
@@ -161,9 +160,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
                 std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
             OPENVINO_ASSERT(orig_impl != nullptr,
                             "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
-                                                                            orig_impl->getExtensions(),
-                                                                            GetCore()->isNewAPI());
+            auto new_impl =
+                std::make_shared<details::CNNNetworkNGraphImpl>(function, orig_impl->getExtensions(), IsNewAPI());
             network = CNNNetwork(new_impl);
             for (const auto& inputInfo : orig_network.getInputsInfo()) {
                 auto toInfo = network.getInputsInfo().at(inputInfo.first);
@@ -253,10 +251,17 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
     IE_ASSERT(!core.expired());
     _core = core;
+    auto locked_core = _core.lock();
+    if (locked_core)
+        _isNewAPI = locked_core->isNewAPI();
 }
 
 std::shared_ptr<ICore> IInferencePlugin::GetCore() const noexcept {
     return _core.lock();
+}
+
+bool IInferencePlugin::IsNewAPI() const noexcept {
+    return _isNewAPI;
 }
 
 const std::shared_ptr<ExecutorManager>& IInferencePlugin::executorManager() const {
@@ -295,8 +300,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<const ov::Model>& function) {
-    const auto& core = GetCore();
-    bool newAPI = core && core->isNewAPI();
+    bool newAPI = IsNewAPI();
     InferenceEngine::SetExeNetworkInfo(exeNetwork, function, newAPI);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }

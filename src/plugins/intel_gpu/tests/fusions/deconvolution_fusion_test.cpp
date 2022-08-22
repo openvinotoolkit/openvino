@@ -372,7 +372,7 @@ TEST_P(deconv_scale, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
-        scale("scale", "deconv", "scale_data"),
+        eltwise("scale", { "deconv", "scale_data" }, eltwise_mode::prod),
         reorder("out", "scale", p.default_format, data_types::f32)
     );
 
@@ -387,7 +387,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
         data("weights", get_mem(get_weights_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
         deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
-        scale("scale", "deconv", "scale_data", optional_data_type{ data_types::f16 }),
+        eltwise("scale", { "deconv", "scale_data" }, eltwise_mode::prod, data_types::f16),
         reorder("out", "scale", p.default_format, data_types::f32)
     );
 
@@ -541,11 +541,15 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
-        scale("scale", "deconv", "scale_data"),
+        eltwise("scale", { "deconv", "scale_data" }, eltwise_mode::prod),
         activation("actv", "scale", activation_func::softsign),
         quantize("quant", "actv", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("out", "quant", p.default_format, data_types::f32)
     );
+
+    //Activation won't be fused because onednn doesn't support softsign activation
+    if(engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1.f;
     execute(p);
@@ -647,11 +651,11 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         data("out2_lo", get_mem(get_single_element_layout(p), -127)),
         data("out2_hi", get_mem(get_single_element_layout(p), 127)),
         deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
-        scale("scale1", "deconv", "scale1_data"),
+        eltwise("scale1", { "deconv", "scale1_data" }, eltwise_mode::prod),
         activation("actv1", "scale1", activation_func::relu),
         quantize("quant1", "actv1", "in1_lo", "in1_hi", "out1_lo", "out1_hi", 256, data_types::u8),
         eltwise("eltw", { "quant1", "eltw_data" }, eltwise_mode::sum, p.default_type),
-        scale("scale2", "eltw", "scale2_data"),
+        eltwise("scale2", { "eltw", "scale2_data" }, eltwise_mode::prod),
         activation("actv2", "scale2", activation_func::relu),
         quantize("quant2", "actv2", "in2_lo", "in2_hi", "out2_lo", "out2_hi", 255, data_types::i8),
         reorder("out", "quant2", p.default_format, data_types::f32)
@@ -746,7 +750,7 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         deconvolution("deconv_prim", "input", { "weights" }, p.groups, p.stride, p.pad),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
-        scale("scale", "deconv_prim", "scale_data"),
+        eltwise("scale", { "deconv_prim", "scale_data" }, eltwise_mode::prod),
         activation("activation", "scale", activation_func::relu),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
@@ -772,7 +776,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwis
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_2, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_3, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_4, 2, 7 },
-    //deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 7 },
+    deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_5, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_6, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_7, 2, 7 },
     deconv_eltw_test_params{ CASE_DECONV_ELTW_FP32_8, 2, 7 },
