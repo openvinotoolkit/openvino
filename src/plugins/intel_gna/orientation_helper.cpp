@@ -8,7 +8,8 @@
 
 #include <gna_graph_tools.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intela_gna {
 namespace helpers {
 
 void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLayer& inputLayer,
@@ -32,14 +33,19 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
         return;
     }
 
-    std::vector<intel_dnn_orientation_t> suggestedOrientations;
-
     auto dims = input->dims;
-    auto raws = dims[0];
-    auto rest = InferenceEngine::details::product(std::next(std::begin(dims)), std::end(dims));
-    if (rest == 0) {
-        rest = 1;
+    auto rowsNum = dims[0];
+    auto columnProduct = std::accumulate(std::next(std::begin(dims)), std::end(dims), 1, std::multiplies<int>());
+
+    // does not make sense to check if further if any of sizes is equal to 1
+    // intput will be set to kDnnNonInterleavedOrientation
+    if (rowsNum == 1 || columnProduct == 1) {
+        input->orientation = kDnnNonInterleavedOrientation;
+        return;
     }
+
+    intel_dnn_orientation_t suggestedOrientation = kDnnUnknownOrientation;
+    bool orientationIsSet = false;
 
     for (auto& nextLayer : nextLayers) {
         auto dnnLayer = components.findComponent(nextLayer);
@@ -47,27 +53,27 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
         if (!dnnLayer) {
             THROW_GNA_LAYER_EXCEPTION(nextLayer) << " gna mapped layer search connection failed";
         }
+        // Do not take Transposition operation intu consideration.
+        if (dnnLayer->operation == kDnnInterleaveOp || dnnLayer->operation == kDnnDeinterleaveOp) {
+            continue;
+        }
 
-        if (dnnLayer->operation != kDnnInterleaveOp && dnnLayer->operation != kDnnDeinterleaveOp && raws > 1 &&
-            rest > 1) {
-            suggestedOrientations.push_back(dnnLayer->orientation_in);
+        if (!orientationIsSet) {
+            suggestedOrientation = dnnLayer->orientation_in;
+            orientationIsSet = true;
+        } else if (suggestedOrientation != dnnLayer->orientation_in) {
+            // unsupported case: orientations are different and they are important for these components
+            THROW_GNA_EXCEPTION << "Input layer[" << inputLayer.name
+                                << "] is used as input by multiple layers with different orientation!";
         }
     }
 
-    if (suggestedOrientations.empty()) {
+    if (!orientationIsSet) {
         input->orientation = kDnnNonInterleavedOrientation;
         return;
     }
 
-    if (std::adjacent_find(suggestedOrientations.begin(),
-                           suggestedOrientations.end(),
-                           std::not_equal_to<intel_dnn_orientation_t>()) != suggestedOrientations.end()) {
-        // unsupported case: orientations are different and they are important for these components
-        THROW_GNA_EXCEPTION << "Input layer[" << inputLayer.name
-                            << "] is used as input by multiple layers with different orientation!";
-    }
-
-    input->orientation = suggestedOrientations.front();
+    input->orientation = suggestedOrientation;
     return;
 }
 
@@ -88,4 +94,5 @@ void updateModelOutputOrientation(const std::string& outputName,
     }
 }
 }  // namespace helpers
-}  // namespace GNAPluginNS
+}  // namespace intela_gna
+}  // namespace ov

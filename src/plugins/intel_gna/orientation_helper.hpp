@@ -12,7 +12,8 @@
 #include "backend/dnn_components.hpp"
 #include "descriptions/gna_desc.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intela_gna {
 /**
  * @namespace helpers contains helpers tools for gna plugin.
  */
@@ -24,11 +25,11 @@ namespace helpers {
  *
  * @note Function check following parameters if:
  *  - there is at least one dnn input layer for given cnn layer
- *  - corespoding dnn layers operation are not kDnnInterleaveOp and not kDnnDeinterleaveOp
- *  - corespoding input layer first dimenions and product of rest of dimensions is greater than 1
+ *  - corresponding dnn layers operation are not kDnnInterleaveOp and not kDnnDeinterleaveOp
+ *  - corresponding input layer first dimenions and product of rest of dimensions is greater than 1
  *
  * If any of conditions is not met kDnnNonInterleavedOrientation is set.
- * If all of condtions above will be met kDnnInterleavedOrientation is set.
+ * If all of conditions above will be met kDnnInterleavedOrientation is set.
  *
  * @param inputLayer model input layer
  * @param components layers transformed to form consumable by GNA
@@ -45,10 +46,10 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
  * transposition for output data of output layer is needed.
  *
  * @note Function checks following parameters if:
- *  - corespoding dnn layer operation is kDnnInterleaveOp or kDnnDeinterleaveOp
- *  - corespoding dnn layer is present and columns and rows numbes are bigger than 1
+ *  - corresponding dnn layer operation is kDnnInterleaveOp or kDnnDeinterleaveOp
+ *  - corresponding dnn layer is present and columns and rows numbes are bigger than 1
  *
- * If any of condtion above will be not met orientation is set to kDnnNonInterleavedOrientation.
+ * If any of conditions above will be not met orientation is set to kDnnNonInterleavedOrientation.
  * If there is no corespnding dnn layer orientation is untouched.
  *
  * @param outputName name of the model output
@@ -63,4 +64,5 @@ void updateModelOutputOrientation(const std::string& outputName,
                                   GNAPluginNS::GnaOutputs& outputs);
 
 }  // namespace helpers
-}  // namespace GNAPluginNS
+}  // namespace intela_gna
+}  // namespace ov
