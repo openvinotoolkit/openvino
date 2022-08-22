@@ -61,8 +61,6 @@ def new_extensions_used(argv: argparse.Namespace):
                 if path.is_file() and (path.suffix == '.so' or path.suffix == '.dll'):
                     new_ext_counter += 1
             else:
-                # non-string object is treated as Extension object
-                # The exact type will be checked by frontend.add_extension() method
                 new_ext_counter += 1
         if new_ext_counter == len(extensions):
             return True # provided only new extensions
@@ -110,8 +108,6 @@ def new_transformations_config_used(argv: argparse.Namespace):
 
     if hasattr(argv, 'transformations_config') \
             and argv.transformations_config is not None and not isinstance(argv.transformations_config, str):
-        # Unknown non-string object is treated as new extension object,
-        # the exact type is checked by frontend.add_extension()
         return True
 
     return False
