@@ -5,34 +5,36 @@
 
 #include "ov_test.hpp"
 
+<<<<<<< HEAD
 inline void get_tensor_info(ov_model_t* model,
                             bool input,
                             size_t idx,
                             char** name,
                             ov_shape_t* shape,
                             ov_element_type_e* type) {
-    ov_output_node_list_t output_nodes;
-    output_nodes.size = 0;
-    output_nodes.output_ports = nullptr;
-    if (input) {
-        OV_EXPECT_OK(ov_model_inputs(model, &output_nodes));
-    } else {
-        OV_EXPECT_OK(ov_model_outputs(model, &output_nodes));
-    }
-    EXPECT_NE(nullptr, output_nodes.output_ports);
-    EXPECT_NE(0, output_nodes.size);
+    ov_output_const_node_list_t output_ports;
+    output_ports.size = 0;
+    output_ports.output_ports = nullptr;
 
-    OV_EXPECT_OK(ov_node_list_get_any_name_by_index(&output_nodes, idx, name));
+    if (input) {
+        OV_EXPECT_OK(ov_model_inputs(model, &output_ports));
+    } else {
+        OV_EXPECT_OK(ov_model_outputs(model, &output_ports));
+    }
+    EXPECT_NE(nullptr, output_ports.output_ports);
+    EXPECT_NE(0, output_ports.size);
+
+    OV_EXPECT_OK(ov_node_list_get_any_name_by_index(&output_ports, idx, name));
     EXPECT_NE(nullptr, *name);
 
-    OV_EXPECT_OK(ov_node_list_get_shape_by_index(&output_nodes, idx, shape));
-    OV_EXPECT_OK(ov_node_list_get_element_type_by_index(&output_nodes, idx, type));
+    OV_EXPECT_OK(ov_node_list_get_shape_by_index(&output_ports, idx, shape));
+    OV_EXPECT_OK(ov_node_list_get_element_type_by_index(&output_ports, idx, type));
 
     ov_partial_shape_t p_shape;
-    OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
+    OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_ports, idx, &p_shape));
     ov_partial_shape_free(&p_shape);
 
-    ov_output_node_list_free(&output_nodes);
+    ov_output_node_list_free(&output_ports);
 }
 
 class ov_infer_request : public ::testing::TestWithParam<std::string> {

@@ -67,14 +67,14 @@ TEST_P(ov_compiled_model, get_inputs) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_const_node_list_t input_nodes;
-    input_nodes.output_ports = nullptr;
-    input_nodes.size = 0;
-    OV_EXPECT_OK(ov_compiled_model_inputs(compiled_model, &input_nodes));
-    EXPECT_NE(nullptr, input_nodes.output_ports);
-    EXPECT_NE(0, input_nodes.size);
+    ov_output_const_node_list_t input_ports;
+    input_ports.output_ports = nullptr;
+    input_ports.size = 0;
+    OV_EXPECT_OK(ov_compiled_model_inputs(compiled_model, &input_ports));
+    EXPECT_NE(nullptr, input_ports.output_ports);
+    EXPECT_NE(0, input_ports.size);
 
-    ov_output_node_list_free(&input_nodes);
+    ov_output_node_list_free(&input_ports);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
@@ -94,13 +94,13 @@ TEST_P(ov_compiled_model, get_inputs_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_const_node_list_t input_nodes;
-    input_nodes.output_ports = nullptr;
-    input_nodes.size = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(nullptr, &input_nodes));
+    ov_output_const_node_list_t input_ports;
+    input_ports.output_ports = nullptr;
+    input_ports.size = 0;
+    OV_EXPECT_NOT_OK(ov_compiled_model_inputs(nullptr, &input_ports));
     OV_EXPECT_NOT_OK(ov_compiled_model_inputs(compiled_model, nullptr));
 
-    ov_output_node_list_free(&input_nodes);
+    ov_output_node_list_free(&input_ports);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
@@ -120,14 +120,14 @@ TEST_P(ov_compiled_model, get_outputs) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_const_node_list_t output_nodes;
-    output_nodes.output_ports = nullptr;
-    output_nodes.size = 0;
-    OV_EXPECT_OK(ov_compiled_model_outputs(compiled_model, &output_nodes));
-    EXPECT_NE(nullptr, output_nodes.output_ports);
-    EXPECT_NE(0, output_nodes.size);
+    ov_output_const_node_list_t output_ports;
+    output_ports.output_ports = nullptr;
+    output_ports.size = 0;
+    OV_EXPECT_OK(ov_compiled_model_outputs(compiled_model, &output_ports));
+    EXPECT_NE(nullptr, output_ports.output_ports);
+    EXPECT_NE(0, output_ports.size);
 
-    ov_output_node_list_free(&output_nodes);
+    ov_output_node_list_free(&output_ports);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
@@ -147,13 +147,13 @@ TEST_P(ov_compiled_model, get_outputs_error_handling) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), nullptr, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    ov_output_const_node_list_t output_nodes;
-    output_nodes.output_ports = nullptr;
-    output_nodes.size = 0;
-    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(nullptr, &output_nodes));
+    ov_output_const_node_list_t output_ports;
+    output_ports.output_ports = nullptr;
+    output_ports.size = 0;
+    OV_EXPECT_NOT_OK(ov_compiled_model_outputs(nullptr, &output_ports));
     OV_EXPECT_NOT_OK(ov_compiled_model_outputs(compiled_model, nullptr));
 
-    ov_output_node_list_free(&output_nodes);
+    ov_output_node_list_free(&output_ports);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
