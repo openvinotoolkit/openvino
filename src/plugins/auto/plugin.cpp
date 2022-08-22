@@ -83,16 +83,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     std::vector<DeviceInformation> metaDevices;
 
     // parsing the string and splitting to tokens
-    std::vector<std::string> devicesWithRequests;
-    // parsing the string and splitting the comma-separated tokens
-    std::string::size_type i = 0;
-    std::string::size_type idelimeter;
-    while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
-        devicesWithRequests.push_back(priorities.substr(i, idelimeter - i));
-        i = idelimeter + 1;
-    }
-    // last token in the string (which has no comma after that)
-    devicesWithRequests.push_back(priorities.substr(i, priorities.length() - i));
+    std::vector<std::string> devicesWithRequests = _pluginConfig.ParsePrioritiesDevices(priorities);
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
@@ -764,17 +755,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
         }
     } else {
-        // parsing the string and splitting the comma-separated tokens
-        std::string::size_type i = 0;
-        std::string::size_type idelimeter;
-        std::vector<std::string> deviceVec;
         auto priorities = deviceListConfig->second;
-        while ((idelimeter = priorities.find(',', i)) != std::string::npos) {
-            deviceVec.push_back(priorities.substr(i, idelimeter - i));
-            i = idelimeter + 1;
-        }
-        // last token in the string (which has no comma after that)
-        deviceVec.push_back(priorities.substr(i, priorities.length() - i));
+        // parsing the string and splitting the comma-separated tokens
+        std::vector<std::string> deviceVec = _pluginConfig.ParsePrioritiesDevices(priorities);
         std::vector<std::string> devicesToBeDeleted;
         auto updateDeviceVec = [&](const std::string& delPattern = "") {
             auto iter = deviceVec.begin();

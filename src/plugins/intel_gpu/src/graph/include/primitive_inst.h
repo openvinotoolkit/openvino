@@ -55,6 +55,9 @@ struct primitive_impl {
         return {};
     }
 
+    // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
+    bool can_reuse_memory = true;
+
 protected:
     std::string _kernel_name;
 };

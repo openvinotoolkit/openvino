@@ -51,6 +51,9 @@
 #include <utility>
 #include <deque>
 #include "intel_gpu/runtime/error_handler.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <impls/onednn/utils.hpp>
+#endif
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
@@ -67,6 +70,25 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            for (auto prev : node.get_dependencies()) {
+                if (!prev->is_type<reshape>())
+                    return;
+                if (prev->get_users().size() > 1)
+                    return;
+                if (prev->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
+                    p.add_optimized_primitive_info(prev->id());
+                    p.add_optimized_primitive_info(node.id());
+                    p.extract_and_remove(*prev);
+                    p.extract_and_remove(node);
+                }
+            }
+        });
+    }
+
+    node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             auto input_lay = node.input().get_output_layout();
             auto output_lay = node.get_output_layout();
 
@@ -74,6 +96,29 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
                 return;
 
             if (input_lay.identical(output_lay)) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
+
+    node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
+            auto& input_node = node.input();
+            if (input_node.get_users().size() > 1 || node.get_users().size() > 1 || node.is_endpoint() || input_node.is_input())
+                return;
+            auto input_lay = input_node.get_output_layout();
+            auto output_lay = node.get_output_layout();
+            auto user_node = *node.get_users().begin();
+            if (input_lay.identical(output_lay)) {
+                if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                    return;
+                }
+                if (!node.get_users().empty() && user_node->is_type<reshape>()) {
+                    return;
+                }
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }
@@ -246,8 +291,18 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                     return;
             }
 
-            if (input.is_type<reshape>() && use_onednn_impls)
-                return;
+            if (use_onednn_impls) {
+                if (input.is_type<reshape>())
+                    return;
+                #ifdef ENABLE_ONEDNN_FOR_GPU
+                // Activation should not fused if it isn't supported in onednn
+                try {
+                    onednn::convert_activation_func(node.get_primitive()->activation_function);
+                } catch (...) {
+                    return;
+                }
+                #endif
+            }
 
             if (input.get_fused_primitives().empty()) {
                 input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
@@ -705,6 +760,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (!input_data_supports_fusings(input_data, activation_node.id()) || input_data.get_dependencies().empty())
                 return;
+
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
+                #ifdef ENABLE_ONEDNN_FOR_GPU
+                // Activation should not fused if it isn't supported in onednn
+                try {
+                    onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
+                } catch (...) {
+                    return;
+                }
+                #endif
+            }
 
             bool should_fuse = input_data.is_type<binary_convolution>();
 
