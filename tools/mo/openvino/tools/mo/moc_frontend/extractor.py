@@ -226,32 +226,8 @@ def fe_input_user_data_repack(
         _input_shapes.append({"node": model_inputs[0], "shape": input_user_shapes})
     else:
         assert input_user_shapes is None
-    # TODO: implement freeze_placeholder (issue 58560)
-    # At the moment set_tensor_value is implemented only for onnx
-    if framework == 'onnx' and freeze_placeholder is not None:
-        for name, value in freeze_placeholder.items():
-            node = decode_name_with_port(input_model, name, framework, IOType.Input)
-            # Only input layer
-            if not node.is_input():
-                raise Error(f"{name} is not an input node. Only input nodes can be freezed!")
-            if isinstance(input_user_shapes, dict):
-                # check if user provided new shape
-                if input_user_shapes.get(name) is not None:
-                    shape = [int(val) for val in input_user_shapes[name]]
-                    # set input shape
-                    input_model.set_partial_shape(node, PartialShape(shape))
-            # check if user provided data type
-            if input_user_data_types.get(name) is not None:
-                dtype = input_user_data_types[name]
-                value = np.array(value, dtype=dtype)
-                # set input data type
-                input_model.set_element_type(node, Type(dtype))
-            else:
-                # if user did not provide data type
-                # we assign a default data type which will be later overwritted by
-                # the data type specified in the model
-                value = np.array(value, dtype=np.float32)
-            input_model.set_tensor_value(node, value)
+    
+    if freeze_placeholder:
         return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 

@@ -224,45 +224,10 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ie = Core()
             exec_net = ie.compile_model(model, "CPU")
             req = exec_net.create_infer_request()
+            print(inputs)
             results = req.infer(inputs)
             values = list(results.values())[0]
             if dtype is not None:
                 assert values.dtype == dtype
+            print(values.shape)
             assert np.allclose(values, expected)
-
-    @generate(
-        *[
-            (
-                "mul_out->[1.0 15.0 1.0]",
-                True,
-            ),
-        ],
-    )
-    def test_freeze_placeholder_not_input_node_error(self, input_freezing_value, use_new_fe):
-        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_new_fe=use_new_fe)
-            args.input_model = "test_model_2.onnx"
-            args.freeze_placeholder_with_value = input_freezing_value
-
-            with pytest.raises(Error) as e:
-                _, model = prepare_ir(args)
-            assert "is not an input node. Only input nodes can be freezed!" in str(e.value)
-
-    @generate(
-        *[
-            (
-                "test_node->[1.0 15.0 1.0]",
-                True,
-            ),
-        ],
-    )
-    def test_freeze_placeholder_wrong_node_name(self, input_freezing_value, use_new_fe):
-        with patch("openvino.tools.mo.main.get_default_frontends") as default_fe:
-            default_fe.return_value = get_test_default_frontends()
-            args = base_args_config(use_new_fe=use_new_fe)
-            args.input_model = "test_model_2.onnx"
-            args.freeze_placeholder_with_value = input_freezing_value
-            with pytest.raises(Error) as e:
-                _, model = prepare_ir(args)
-            assert "No node with name" in str(e.value)
