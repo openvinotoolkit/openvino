@@ -15,7 +15,6 @@ add_subdirectory(frontends)
 if(ENABLE_TESTS)
     add_subdirectory(core/tests)
 endif()
-add_subdirectory(bindings)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
@@ -27,6 +26,7 @@ add_subdirectory(inference)
 include(cmake/openvino.cmake)
 # preprocessing has dependency on `openvino` for static build
 add_subdirectory(common/preprocessing)
+add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
