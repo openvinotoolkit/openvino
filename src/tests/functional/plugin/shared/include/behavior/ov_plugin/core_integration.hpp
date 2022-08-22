@@ -594,7 +594,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ASSERT_LT(0, res.size());
 }
 
-TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
+TEST_P(OVClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     ov::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
 }

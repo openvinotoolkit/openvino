@@ -531,7 +531,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ASSERT_LT(0, res.supportedLayersMap.size());
 }
 
-TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
+TEST_P(IEClassNetworkTestP, DISABLED_QueryNetworkMultiThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI), InferenceEngine::Exception);
 }
