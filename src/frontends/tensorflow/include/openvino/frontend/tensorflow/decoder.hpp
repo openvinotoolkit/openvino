@@ -11,7 +11,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-
 class TENSORFLOW_API EmptyList {};
 
 class TENSORFLOW_API DecoderBase {
