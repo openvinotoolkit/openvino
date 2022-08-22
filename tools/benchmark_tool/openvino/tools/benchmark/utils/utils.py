@@ -320,21 +320,20 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
         for pi in perf_counts:
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        # total_time = round(total_time.total_seconds()*1000,3)
-        # total_time_cpu = round(total_time_cpu.total_seconds()*1000,3)
+
         total_time = total_time.microseconds
         total_time_cpu = total_time_cpu.microseconds
         total_real_time_proportion = 0
         total_detail_data=[]
         for pi in perf_counts:
             node_name = pi.node_name
-            layerStatu = pi.status
+            layerStatus = pi.status
             layerType = pi.node_type
             real_time = pi.real_time.microseconds
             cpu_time = pi.cpu_time.microseconds
             real_proportion = round(real_time/total_time,4)
             execType = pi.exec_type
-            tmp_data=[node_name,layerStatu,layerType,real_time,cpu_time,real_proportion,execType]
+            tmp_data=[node_name,layerStatus,layerType,real_time,cpu_time,real_proportion,execType]
             total_detail_data.append(tmp_data)
             total_real_time_proportion += real_proportion
         total_detail_data = np.array(total_detail_data)
@@ -357,7 +356,7 @@ def print_detail_result(result_list):
     max_layer_name = 30
     for tmp_result in result_list:
         node_name = tmp_result[0]
-        layerStatu = tmp_result[1]
+        layerStatus = tmp_result[1]
         layerType = tmp_result[2]
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
@@ -366,7 +365,7 @@ def print_detail_result(result_list):
             real_proportion = "-nan"
         execType = tmp_result[6]
         print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatu):<20}"
+            f"{str(layerStatus):<20}"
             f"{'layerType: ' + layerType:<30}"
             f"{'realTime: ' + str(real_time):<20}"
             f"{'cpu: ' +  str(cpu_time):<15}"
