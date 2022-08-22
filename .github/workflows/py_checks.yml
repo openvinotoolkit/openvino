@@ -122,5 +122,3 @@ jobs:
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
-
-      
