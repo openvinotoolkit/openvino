@@ -24,7 +24,7 @@ from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 # pylint: disable=R0912
 class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
-        output_to_node_names = {}
+        node_to_result_names = {}
         nodes_names_map = {m['model'].name: {} for m in model.models}
         if stat_aliases is None:
             for node_name in stats_layout.keys():
@@ -38,11 +38,11 @@ class StatisticGraphBuilder:
                     nodes_names_map[model_graph.name][node_name] = convert_to_outputs_name(node_name)
                 else:
                     result_name = self.add_subgraph_output(model_graph, node_name)
-                    output_to_node_names[result_name] = node_name
-            for result_name, node_name in output_to_node_names.items():
+                    node_to_result_names[node_name] = result_name
+            for node_name, result_name in node_to_result_names.items():
                 stats_layout[result_name] = stats_layout.pop(node_name)
+            return model, nodes_names_map, node_to_result_names
 
-            return model, nodes_names_map, output_to_node_names
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
@@ -87,20 +87,19 @@ class StatisticGraphBuilder:
                 # add output if node in subgraph
                 if model_graph != node.graph:
                     # Don't need adding extra output to the same node, but for another algo
-                    if node_name in output_to_node_names.values():
-                        result_name = next((result for result, node in output_to_node_names.items()
-                                            if node == node_name))
+                    if node_name in node_to_result_names:
+                        result_name = node_to_result_names[node_name]
                     else:
                         result_name = self.add_subgraph_output(model_graph, node_name)
-                        output_to_node_names[result_name] = node_name
+                        node_to_result_names[node_name] = result_name
 
-        for result_name, node_name in output_to_node_names.items():
+        for node_name, result_name in node_to_result_names.items():
             stats_layout[result_name] = stats_layout.pop(node_name)
             for algo_name in copy_stat_aliases:
                 if node_name in stat_aliases[algo_name]:
                     stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
 
-        return model, nodes_names_map, output_to_node_names
+        return model, nodes_names_map, node_to_result_names
 
     def insert_reduce(self, model_graph, insert_op, node, granularity, type_stat, node_name, axis=1):
         axis_const = self.find_axis(node, granularity, axis)
