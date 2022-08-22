@@ -61,7 +61,7 @@ const auto layerSpeficParams = ::testing::Combine(
     ::testing::ValuesIn(variances)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic_GPU, PriorBoxClusteredLayerTest,
                         ::testing::Combine(
                             layerSpeficParams,
                             ::testing::ValuesIn(netPrecisions),

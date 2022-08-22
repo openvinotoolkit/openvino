@@ -234,6 +234,7 @@ REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
 REGISTER_FACTORY(v8, Softmax);
+REGISTER_FACTORY(v8, PriorBox);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, SoftSign)

@@ -108,12 +108,6 @@ struct implementation_key<input_layout> {
 };
 
 template <>
-struct implementation_key<prior_box> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
 struct implementation_key<loop> {
     typedef int32_t type;
     type operator()(const layout&) { return -1; }

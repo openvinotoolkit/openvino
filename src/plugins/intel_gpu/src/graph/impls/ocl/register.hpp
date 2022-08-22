@@ -129,6 +129,7 @@ REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
 REGISTER_OCL(pooling);
+REGISTER_OCL(prior_box);
 REGISTER_OCL(pyramid_roi_align);
 REGISTER_OCL(quantize);
 REGISTER_OCL(random_uniform);
