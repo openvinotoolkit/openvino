@@ -226,7 +226,7 @@ TEST_P(MHATest, CompareWithRefs) {
     if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
 
-    if (!InferenceEngine::with_cpu_x86_avx512_core_vnni())
+    if (!InferenceEngine::with_cpu_x86_avx512_core())
         GTEST_SKIP();
 
     run();
@@ -236,7 +236,6 @@ TEST_P(MHATest, CompareWithRefs) {
 namespace {
 
 std::vector<std::vector<ngraph::Shape>> inputShapes = {
-    {{2, 7, 16, 9}, {2, 7, 16, 9}, {2, 1, 1, 7}, {2, 7, 16, 9}},
     {{2, 8, 16, 64}, {2, 8, 16, 64}, {2, 1, 1, 8}, {2, 8, 16, 64}},
     {{1, 384, 16, 64}, {1, 384, 16, 64}, {1, 1, 1, 384}, {1, 384, 16, 64}},
     {{2, 64, 16, 80}, {2, 64, 16, 80}, {2, 1, 1, 64}, {2, 64, 16, 80}},
@@ -244,7 +243,6 @@ std::vector<std::vector<ngraph::Shape>> inputShapes = {
     {{2, 192, 16, 160}, {2, 192, 16, 160}, {2, 1, 1, 192}, {2, 192, 16, 160}},
     {{2, 4, 16, 8}, {2, 4, 16, 8}, {2, 1, 1, 4}, {2, 4, 16, 8}},
     {{1, 204, 13, 212},  {1, 204, 13, 212},  {1, 1, 1, 204}, {1, 204, 13, 212}},
-    {{1, 207, 13, 211},  {1, 207, 13, 211},  {1, 1, 1, 207}, {1, 207, 13, 211}},
 };
 
 std::vector<std::vector<ElementType>> inputPrecisions = {

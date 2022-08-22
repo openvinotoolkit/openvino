@@ -89,6 +89,40 @@ struct jit_uni_convert_reorder_kernel {
     jit_convert_reorder_compile_params jcp_;
 };
 
+struct jit_convert_transpose_compile_params {
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    size_t inner_work_amount;
+    size_t outter_work_amount;
+    bool with_scales;
+    bool broadcast_scales;
+    size_t inner_src_stride;
+    size_t outter_src_stride;
+    size_t outter_dst_stride;
+};
+
+struct jit_convert_transpose_call_args {
+    const void *p_in;
+    void *p_out;
+    const void *p_scales;
+};
+
+struct jit_uni_convert_transpose_kernel {
+    void (*ker_)(const jit_convert_transpose_call_args*);
+
+    void operator()(const jit_convert_transpose_call_args* call_args) {
+        assert(ker_);
+        ker_(call_args);
+    }
+
+    explicit jit_uni_convert_transpose_kernel(const jit_convert_transpose_compile_params& jcp) : ker_(nullptr), jcp_(jcp) {}
+    virtual ~jit_uni_convert_transpose_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_convert_transpose_compile_params jcp_;
+};
+
 #define MHA_BRGEMM_KERNELS_NUM 8
 
 class MHA : public Node {
@@ -116,7 +150,7 @@ private:
         float beta;
     };
 
-    template<typename in1_type, typename brg_in1_type>
+    template <typename in1_type>
     void mhaImpl();
 
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
@@ -200,6 +234,7 @@ private:
 
     std::unique_ptr<jit_uni_mul_add_softmax_kernel> mulAddSoftmaxKernel;
     std::unique_ptr<jit_uni_convert_reorder_kernel> convertReorderKernel;
+    std::unique_ptr<jit_uni_convert_transpose_kernel> convertTransposeKernel;
 };
 
 }   // namespace node
