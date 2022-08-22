@@ -85,6 +85,7 @@ OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(strided_slice);
+OP_CONVERTER(sum);
 OP_CONVERTER(swish);
 OP_CONVERTER(tanh);
 OP_CONVERTER(top_k_v2);
@@ -180,6 +181,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"squeeze2", op::squeeze},
             {"stack", op::stack},
             {"strided_slice", op::strided_slice},
+            {"sum", op::sum},
             {"swish", op::swish},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
