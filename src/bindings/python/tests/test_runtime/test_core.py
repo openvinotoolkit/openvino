@@ -435,64 +435,64 @@ def test_read_model_node_names_with_spaces():
     bytes_model = bytes(
         b"""<?xml version="1.0" ?>
             <net name="graph" version="11">
-	        <layers>
-	        	<layer id="1" name="input1" type="Parameter" version="opset1">
-	        		<data shape="1,4,512" element_type="f32"/>
-	        		<output>
-	        			<port id="0" precision="FP32" names="input1">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        		</output>
-	        	</layer>
-	        	<layer id="0" name="input2" type="Parameter" version="opset1">
-	        		<data shape="1,4,512" element_type="f32"/>
-	        		<output>
-	        			<port id="0" precision="FP32" names="input2">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        		</output>
-	        	</layer>
-	        	<layer id="2" name="output 0([1 4 512])" type="Add" version="opset1">
-	        		<data auto_broadcast="numpy"/>
-	        		<input>
-	        			<port id="0" precision="FP32">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        			<port id="1" precision="FP32">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        		</input>
-	        		<output>
-	        			<port id="2" precision="FP32" names="output 0([1 4 512])">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        		</output>
-	        	</layer>
-	        	<layer id="3" name="output 0([1 4 512])/sink_port_0" type="Result" version="opset1">
-	        		<input>
-	        			<port id="0" precision="FP32">
-	        				<dim>1</dim>
-	        				<dim>4</dim>
-	        				<dim>512</dim>
-	        			</port>
-	        		</input>
-	        	</layer>
-	        </layers>
-	        <edges>
-	        	<edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
-	        	<edge from-layer="1" from-port="0" to-layer="2" to-port="0"/>
-	        	<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-	        </edges>
+            <layers>
+                <layer id="1" name="input1" type="Parameter" version="opset1">
+                    <data shape="1,4,512" element_type="f32"/>
+                    <output>
+                        <port id="0" precision="FP32" names="input1">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="0" name="input2" type="Parameter" version="opset1">
+                    <data shape="1,4,512" element_type="f32"/>
+                    <output>
+                        <port id="0" precision="FP32" names="input2">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="2" name="output 0([1 4 512])" type="Add" version="opset1">
+                    <data auto_broadcast="numpy"/>
+                    <input>
+                        <port id="0" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                        <port id="1" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="2" precision="FP32" names="output 0([1 4 512])">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="3" name="output 0([1 4 512])/sink_port_0" type="Result" version="opset1">
+                    <input>
+                        <port id="0" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </input>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
+                <edge from-layer="1" from-port="0" to-layer="2" to-port="0"/>
+                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+            </edges>
         </net>""")
     core = Core()
     model = core.read_model(bytes_model)
