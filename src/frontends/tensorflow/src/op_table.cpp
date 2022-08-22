@@ -41,6 +41,7 @@ OP_CONVERTER(translate_depth_to_space_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
 OP_CONVERTER(translate_elu_op);
 OP_CONVERTER(translate_expand_dims_op);
+OP_CONVERTER(translate_extract_image_patches_op);
 OP_CONVERTER(translate_fake_quant_op);
 OP_CONVERTER(translate_fill_op);
 OP_CONVERTER(translate_floor_div_op);
@@ -58,10 +59,12 @@ OP_CONVERTER(translate_log_softmax_op);
 OP_CONVERTER(translate_log_1p_op);
 OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
+OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_placeholder_op);
+OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
 OP_CONVERTER(translate_pack_op);
@@ -72,6 +75,7 @@ OP_CONVERTER(translate_random_uniform_int_op);
 OP_CONVERTER(translate_relu_6_op);
 OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
+OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -180,6 +184,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
         {"Elu", translate_elu_op},
         {"ExpandDims", translate_expand_dims_op},
+        {"ExtractImagePatches", translate_extract_image_patches_op},
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
         {"Fill", translate_fill_op},
         {"FloorDiv", translate_floor_div_op},
@@ -199,6 +204,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Log1p", translate_log_1p_op},
         {"LRN", translate_lrn_op},
         {"MatMul", translate_mat_mul_op},
+        {"MatrixDiag", translate_matrix_diag_op},
         {"MaxPool", translate_max_pool_op},
         {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
@@ -214,6 +220,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pad", translate_pad_op},
         {"PadV2", translate_pad_op},
         {"Placeholder", translate_placeholder_op},
+        {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
         {"Range", translate_range_op},
         {"Rank", translate_rank_op},
@@ -226,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ReverseV2", translate_reverse_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
+        {"ResourceGather", translate_resource_gather_op},
         {"Roll", translate_roll_op},
         {"Round", translate_round_op},
         {"Rsqrt", translate_rsqrt_op},
