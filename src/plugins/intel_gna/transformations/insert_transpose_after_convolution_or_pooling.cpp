@@ -12,7 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include "gna_plugin_log.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InsertTransposeAfterConvOrPool);
