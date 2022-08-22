@@ -16,8 +16,7 @@
 #include "itt.hpp"
 
 bool ngraph::pass::SmartReshape::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    // TODO: enable conditional compile
-    // RUN_ON_FUNCTION_SCOPE(SmartReshape);
+    RUN_ON_FUNCTION_SCOPE(SmartReshape);
     ngraph::pass::Manager static_manager;
     // This pass must be called first in pipeline
     static_manager.register_pass<ngraph::pass::InitNodeInfo>();

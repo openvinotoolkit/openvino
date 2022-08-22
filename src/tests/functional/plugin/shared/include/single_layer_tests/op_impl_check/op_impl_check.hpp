@@ -9,7 +9,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
@@ -24,7 +24,7 @@ using OpImplParams = std::tuple<
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public CommonTestUtils::TestsCommon {
 protected:
-    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
+    ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Model> function;
     std::string targetDevice;
