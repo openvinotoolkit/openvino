@@ -25,52 +25,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-template <typename T>
-class ElemTypesTests : public ::testing::Test {};
-TYPED_TEST_SUITE_P(ElemTypesTests);
-
-TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission) {
-    using DataType = TypeParam;
-    const element::Type ng_type = element::from<DataType>();
-
-    ov::onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
-
-    editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
-
-    const auto function = editor.get_function();
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3});
-    test_case.add_input<DataType>(std::vector<DataType>{4, 5, 6});
-    test_case.add_input<DataType>(std::vector<DataType>{7, 8, 9});
-    test_case.add_expected_output<DataType>(Shape{3}, std::vector<DataType>{12, 15, 18});
-    test_case.run();
-}
-
-TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
-    using DataType = TypeParam;
-    const element::Type ng_type = element::from<DataType>();
-
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                 SERIALIZED_ZOO,
-                                                                 "onnx/split_equal_parts_default.onnx")};
-
-    editor.set_input_types({{"input", ng_type}});
-
-    const auto function = editor.get_function();
-    auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<DataType>(std::vector<DataType>{1, 2, 3, 4, 5, 6});
-    test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{1, 2});
-    test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{3, 4});
-    test_case.add_expected_output<DataType>(Shape{2}, std::vector<DataType>{5, 6});
-    test_case.run();
-}
-
-REGISTER_TYPED_TEST_SUITE_P(ElemTypesTests,
-                            onnx_test_add_abc_set_precission,
-                            onnx_test_split_multioutput_set_precission);
-typedef ::testing::Types<int8_t, int16_t, int32_t, uint8_t, float> ElemTypes;
-INSTANTIATE_TYPED_TEST_SUITE_P(${BACKEND_NAME}, ElemTypesTests, ElemTypes);
+// is there any benefit of running below tests on different backends?
+// why are these here anyway?
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
     const auto ir_xml =
