@@ -46,7 +46,7 @@ jobs:
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
-    PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples/python/
+    PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python/
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
