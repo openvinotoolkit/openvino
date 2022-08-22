@@ -74,20 +74,6 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
     if argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update:
         return func
 
-    # TODO: use ngraph preprocessing (Mean/Scale/ReverseInputChannels) for legacy frontends
-    reverse_input_channels = False
-    if 'reverse_input_channels' in argv:
-        reverse_input_channels = argv.reverse_input_channels
-        argv.reverse_input_channels = False
-    mean_scale_values = {}
-    if 'mean_scale_values' in argv:
-        mean_scale_values = argv.mean_scale_values
-        argv.mean_scale_values = {}
-    scale = None
-    if 'scale' in argv:
-        scale = argv.scale
-        argv.scale = None
-
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
 
