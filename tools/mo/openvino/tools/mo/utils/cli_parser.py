@@ -183,7 +183,7 @@ def value_to_str(value, separator):
 def single_input_to_str(input):
     if isinstance(input, str):
         return input
-    if isinstance(input, openvino.tools.mo.InputCutInfo):
+    if isinstance(input, openvino.convert.InputCutInfo):
         if not isinstance(input.name, str):
             raise Exception("Input name should be string, got {}".format(input.name))
         input_str = input.name
@@ -267,7 +267,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.tools.mo.LayoutMap):
+    if isinstance(value, openvino.convert.LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
