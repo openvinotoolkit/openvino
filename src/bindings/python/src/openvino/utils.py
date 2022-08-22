@@ -35,7 +35,7 @@ def add_openvino_libs_to_path() -> None:
 
 
 def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
-    """Prints deprecation warning and runs the function.
+    """Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}" and runs the function.
 
     :param version: The version in which the code will be removed.
     :param message: A message explaining why the function is deprecated and/or what to use instead.
@@ -46,12 +46,4 @@ def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
             deprecation_warning(wrapped.__name__, version, message)
             return wrapped(*args, **kwargs)
         return wrapper
-
-    # decorated function is assigned to version if there are no arguments passed
-    arg1 = version
-    if callable(arg1):
-        fun = arg1
-        version = ""
-        return decorator(fun)
-
     return decorator

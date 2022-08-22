@@ -78,10 +78,10 @@ void regmodule_graph_util(py::module m) {
             Common::utils::deprecation_warning(function_name, version, message);
         },
         py::arg("function_name"),
-        py::arg("version") = std::string(),
-        py::arg("message") = std::string(),
+        py::arg("version") = "",
+        py::arg("message") = "",
         R"(
-            Prints deprecation warning.
+            Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}".
 
             :param function_name: The name of the deprecated function.
             :param version: The version in which the code will be removed.
