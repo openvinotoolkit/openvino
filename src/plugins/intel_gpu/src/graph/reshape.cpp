@@ -74,7 +74,6 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         pattern_shape,
     };
 
-
     if (!memory_deps.empty()) {
         auto pattern_mem = memory_deps.at(1);
 
