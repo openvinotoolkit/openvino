@@ -872,31 +872,6 @@ float getError<half_t>() {
     return 0.2;
 }
 
-std::string toString(const format::type format) {
-    switch(format) {
-        case format::bfyx:
-            return "bfyx";
-        case format::b_fs_yx_fsv16:
-            return "b_fs_yx_fsv16";
-        case format::b_fs_yx_fsv32:
-            return "b_fs_yx_fsv32";
-        case format::bs_fs_yx_bsv16_fsv16:
-            return "bs_fs_yx_bsv16_fsv16";
-        case format::bs_fs_yx_bsv32_fsv16:
-            return "bs_fs_yx_bsv32_fsv16";
-        case format::bs_fs_yx_bsv32_fsv32:
-            return "bs_fs_yx_bsv32_fsv32";
-        case format::bfzyx:
-            return "bfzyx";
-        case format::b_fs_zyx_fsv16:
-            return "b_fs_zyx_fsv16";
-        case format::bs_fs_zyx_bsv16_fsv16:
-            return "bs_fs_zyx_bsv16_fsv16";
-        default:
-            return std::to_string(format);
-    }
-}
-
 struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<SoftmaxParamsWithFormat<T> > &param) {
@@ -907,8 +882,8 @@ struct PrintToStringParamName {
         std::tie(p, plain_format, target_format) = param.param;
         buf << "_inputTensor=" << p.input_tensor.to_string()
             << "_axis=" << p.axis
-            << "_plainFormat=" << toString(plain_format)
-            << "_targetFormat=" << toString(target_format);
+            << "_plainFormat=" << fmt_to_str(plain_format)
+            << "_targetFormat=" << fmt_to_str(target_format);
         return buf.str();
     }
 };

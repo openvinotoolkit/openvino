@@ -87,13 +87,7 @@ attach_softmax_impl::attach_softmax_impl() {
             format::bs_fs_zyx_bsv32_fsv16
     };
 
-    std::set<std::tuple<data_types, format::type>> keys;
-    for (const auto& t : types) {
-        for (const auto& f : formats) {
-            keys.emplace(t, f);
-        }
-    }
-    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, keys);
+    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, types, formats);
 }
 
 }  // namespace detail
