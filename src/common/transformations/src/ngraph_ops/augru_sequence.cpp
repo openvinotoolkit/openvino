@@ -11,7 +11,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::internal::AUGRUSequence);
 
@@ -39,7 +39,7 @@ op::internal::AUGRUSequence::AUGRUSequence(const Output<Node>& X,
 }
 
 void op::internal::AUGRUSequence::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(v0_AUGRUSequence_validate_and_infer_types);
+    INTERNAL_OP_SCOPE(internal_AUGRUSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(4));
@@ -163,14 +163,14 @@ void op::internal::AUGRUSequence::validate_and_infer_types() {
 }
 
 bool op::internal::AUGRUSequence::visit_attributes(AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(v0_AUGRUSequence_visit_attributes);
+    INTERNAL_OP_SCOPE(internal_AUGRUSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::internal::AUGRUSequence::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(v0_AUGRUSequence_clone_with_new_inputs);
+    INTERNAL_OP_SCOPE(internal_AUGRUSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::internal::AUGRUSequence>(new_args.at(0),
                                                     new_args.at(1),

@@ -107,8 +107,8 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
         NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
         NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
-        NGRAPH_OP(AUGRUCell, ngraph::op::internal)
-        NGRAPH_OP(AUGRUSequence, ngraph::op::internal)
+        NGRAPH_OP(AUGRUCell, ov::op::internal)
+        NGRAPH_OP(AUGRUSequence, ov::op::internal)
         NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
 #undef NGRAPH_OP
 

@@ -9,11 +9,10 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/activation_functions.hpp"
-#include "ngraph/op/util/rnn_cell_base.hpp"
+#include "openvino/op/util/activation_functions.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 ///
@@ -63,4 +62,4 @@ private:
 };
 }  // namespace internal
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov
