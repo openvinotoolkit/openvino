@@ -81,7 +81,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
-set(rel_path "src/tests/unit/frontends/onnx_import/models")
+set(rel_path "src/frontends/onnx/tests/onnxImporterUnitTests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)

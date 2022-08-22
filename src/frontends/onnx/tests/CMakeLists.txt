@@ -159,3 +159,4 @@ add_subdirectory(standalone_build)
 add_dependencies(onnx_tests onnx_fe_standalone_build_test)
 
 add_subdirectory(onnx_frontend_tests)
+add_subdirectory(onnxImporterUnitTests)

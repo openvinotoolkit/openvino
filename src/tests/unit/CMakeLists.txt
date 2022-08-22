@@ -24,10 +24,6 @@ if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif ()
 
-if(ENABLE_OV_ONNX_FRONTEND)
-    add_subdirectory(frontends/onnx_import)
-endif()
-
 if (ENABLE_AUTO OR ENABLE_MULTI)
     add_subdirectory(auto)
 endif()
