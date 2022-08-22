@@ -28,7 +28,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
     input_model = moc_front_end.load(argv.input_model)
-    
+
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
