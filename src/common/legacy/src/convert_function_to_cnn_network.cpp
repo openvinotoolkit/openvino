@@ -1914,13 +1914,14 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         // Copy runtime info attributes from Nodes to CNNLayers if they have std::string type
         for (const auto &rt : rt_info) {
-            if (rt.second.is<std::string>()) {
+            try {
                 auto str_attr = rt.second.as<std::string>();
                 if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
                     cnnLayer->affinity = str_attr;
                 } else {
                     cnnLayer->params[rt.first] = str_attr;
                 }
+            } catch (...) {
             }
         }
 

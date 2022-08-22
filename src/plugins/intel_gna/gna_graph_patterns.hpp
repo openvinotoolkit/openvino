@@ -218,8 +218,7 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
     }
 
     // Check if the found layer is NCHW to NWHC permute
-    if (!LayerInfo(next).isPermute() || next->input()->getLayout() != InferenceEngine::Layout::NCHW ||
-        next->GetParamAsInts("order") != std::vector<int>{0, 3, 2, 1}) {
+    if (!LayerInfo(next).isPermuteFusable() || next->input()->getLayout() != InferenceEngine::Layout::NCHW) {
         return nullptr;
     }
 
