@@ -88,15 +88,8 @@ def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
         scale = argv.scale
         argv.scale = None
 
-    # Apply preprocessing for layouts only
+    # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
-
-    if 'reverse_input_channels' in argv:
-        argv.reverse_input_channels = reverse_input_channels
-    if 'mean_scale_values' in argv:
-        argv.mean_scale_values = mean_scale_values
-    if 'scale' in argv:
-        argv.scale = scale
 
     apply_moc_transformations(func)
 
