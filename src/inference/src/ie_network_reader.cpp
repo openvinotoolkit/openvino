@@ -24,6 +24,7 @@
 #endif
 #include "ie_itt.hpp"
 #include "legacy/ie_reader.hpp"
+#include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"

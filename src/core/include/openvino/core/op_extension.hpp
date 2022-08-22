@@ -100,6 +100,4 @@ public:
     }
 };
 
-/** @brief Class to distinguish legacy extension. */
-class LegacyOpExtension : public BaseOpExtension {};
 }  // namespace ov

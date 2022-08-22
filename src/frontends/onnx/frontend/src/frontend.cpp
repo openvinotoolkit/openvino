@@ -14,6 +14,7 @@
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
+#include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
