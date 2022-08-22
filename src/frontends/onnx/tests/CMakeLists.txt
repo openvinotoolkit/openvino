@@ -16,8 +16,6 @@ add_compile_definitions(
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}/core/models"
     TEST_FILES="${TEST_MODEL_ZOO}/core/files")
 
-add_subdirectory(test_util)
-
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
@@ -80,6 +78,7 @@ set(SRC
     onnx_import_exceptions.cpp
     onnx_import_library.cpp
     onnx_tensor_names.cpp
+    onnx_test_util.cpp
     onnx_transformations.cpp
     onnx_editor.cpp)
 
@@ -122,8 +121,8 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(onnx_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(onnx_tests PRIVATE commonTestUtils engines_test_util onnx_test_util openvino::runtime::dev
-    openvino_onnx_frontend)
+target_link_libraries(onnx_tests PRIVATE commonTestUtils engines_test_util openvino::runtime::dev
+    openvino_onnx_frontend onnx_common)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
