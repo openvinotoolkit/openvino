@@ -13,8 +13,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    # TODO: return back to 'master' as soon as the CUDA plugin building issues are solved
-    ref: c72d162fe80ef6d8369b3c881e1e27c850e30e30
+    ref: master
 
 jobs:
 - job: android_arm64
@@ -115,6 +114,7 @@ jobs:
         -DENABLE_SAMPLES=ON
         -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
+        -DBUILD_cuda_plugin=OFF
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache

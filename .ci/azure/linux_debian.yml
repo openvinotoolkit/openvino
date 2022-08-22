@@ -13,8 +13,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    # TODO: return back to 'master' as soon as the CUDA plugin building issues are solved
-    ref: c72d162fe80ef6d8369b3c881e1e27c850e30e30
+    ref: master
 
   - repository: testdata
     type: github
@@ -154,6 +153,7 @@ jobs:
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=DEB
+        -DBUILD_cuda_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
