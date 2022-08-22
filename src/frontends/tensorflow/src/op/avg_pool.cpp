@@ -14,10 +14,14 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_avg_pool_op(const NodeContext& node) {
+    auto op_type = node.get_op_type();
+    TENSORFLOW_OP_VALIDATION(node,
+                             op_type == "AvgPool" || op_type == "AvgPool3D",
+                             "Only AvgPool and AvgPool3D are supported.");
     TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "AvgPool and AvgPool3D must have at least one input.");
     auto input = node.get_input(0);
 
-    auto spatial_dim = (node.get_op_type() == "AvgPool") ? 2 : 3;
+    auto spatial_dim = (op_type == "AvgPool") ? 2 : 3;
 
     // retrieve attributes for AvgPool operation
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
