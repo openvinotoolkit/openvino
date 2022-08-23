@@ -1506,19 +1506,9 @@ using activation_random_test_params = std::tuple<data_types,
                                                  activation_additional_params,  // additional_params
                                                  padding>;
 
-template <typename T>
-static bool compare_output(const T& x, const T& y) {
-    return x == y;
-}
-template <>
-bool compare_output<FLOAT16>(const FLOAT16& x, const FLOAT16& y) {
-    return x == y || std::abs(double(x - y)) < 1e-3;
-}
-template <>
-bool compare_output<float>(const float& x, const float& y) {
-    return x == y || std::abs(double(x - y)) < 1e-5;
-}
-
+template <typename T> double get_tolerance(){return 0;}
+template <> double get_tolerance<float>(){return 1e-5;}
+template <> double get_tolerance<FLOAT16>(){return 1e-4;}
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
     bool enable_profiling = false;
@@ -1597,7 +1587,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        EXPECT_TRUE(compare_output(ref_out_val, opt_out_val));
+                        if(ref_out_val!=opt_out_val) // this condition required because of value=inf case
+                            EXPECT_NEAR(ref_out_val, opt_out_val, get_tolerance<T>());
                     }
                 }
             }
