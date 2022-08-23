@@ -612,11 +612,10 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
             const Dim OC = dims[1];
             auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
-            /*if (!scale.empty())
-                printf("conv simplifyToScale success\n");
+            if (!scale.empty())
+                printf("conv: %s fq:%s simplify fq success\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
             else
-                printf("conv simplifyToScale fail\n");
-                */
+                printf("conv: %s fq:%s simplify fq fail\n", getName().c_str(), fakeQuantizeNode->getName().c_str());
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;

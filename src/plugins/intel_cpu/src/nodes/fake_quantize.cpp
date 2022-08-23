@@ -1270,6 +1270,14 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                        levels,
                        std::max(inputLowAxisSize,
                                 std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
+            } else {
+                printf("---------------------------------------------------------------------------\n");
+                printf("name=%s precision=%s levels=%zu channel_num=%zu\n",
+                       getName().c_str(),
+                       getOriginalOutputPrecisionAtPort(0).name(),
+                       levels,
+                       std::max(inputLowAxisSize,
+                                std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))));
             }
             levelNot256 = (levels != 256);
             perTensorShift = true;
@@ -1309,14 +1317,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 // Having shift. Not standard POT input.
                 // shift is per-tensor
                 perTensorShift = perTensorShift && (!inputIsSymmetricS8 && !inputIsSymmetricU8) &&
-                                 (abs(inputShift[i] - inputShift[0]) < 0.1);
+                                (abs(inputShift[i] - inputShift[0]) < 0.1);
                 // shift is per channel;
                 perChannelShift = !perTensorShift && !inputIsSymmetricU8 && !inputIsSymmetricS8;
 
                 if (i < 4 &&
                     (perTensorShift || perChannelShift || levelNot256 ||
                      (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::U8) ||
-                     (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::I8)))
+                     (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::I8) ||
+                     getOriginalOutputPrecisionAtPort(0) == InferenceEngine::Precision::FP32))
                     printf("%-15d%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f%-15.6f\n",
                            i,
                            inputShift[i],
@@ -1402,7 +1411,7 @@ void FakeQuantize::init() {
             (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8) ||
             (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8) ||
             (inputIsSymmetricU8 && getOriginalOutputPrecisionAtPort(0) == Precision::I8) || levelNot256) {
-            printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s %s %s %s %s\n",
+            printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>%s %s %s %s %s %s %s %s %zu\n",
                 getName().c_str(),
                 (inputIsSymmetricS8 && getOriginalOutputPrecisionAtPort(0) == Precision::U8)
                     ? "LPT_I2U_symmetric_to_asymmetric=true"
@@ -1414,7 +1423,8 @@ void FakeQuantize::init() {
                     : "",
                 perTensorShift ? "LPT_perTensorShift=true" : "",
                 perChannelShift ? "LPT_perChannelShift=true" : "",
-                levelNot256 ? "levelNot256" : "");
+                levelNot256 ? "levelNot256" : "",
+                inputShift.size());
         }
     }
     if ((inputIsSymmetricS8 && outputPrecision == Precision::U8) ||
