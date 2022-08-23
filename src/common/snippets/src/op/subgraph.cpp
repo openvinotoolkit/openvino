@@ -335,42 +335,45 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     // Then we are going to support variadic Load/Store with different element count
     const size_t count = m_generator->get_target_machine()->get_lanes();
     const auto & params = m_body->get_parameters();
-    bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
+
+    bool inputs_has_dynamic_dims = std::any_of(params.begin(), params.end(),
                                           [](const shared_ptr<ngraph::op::Parameter>& p){
-                                                 return p->get_partial_shape().rbegin()->is_dynamic();
+                                                 return p->get_output_partial_shape(0).is_dynamic();
                                              });
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
-    // todo: figure out how to broadcast for dynamic shapes
-    if (!inputs_has_dynamic_last_dims) {
+    // todo: presently dynamic pipeline is activated even if the last two dimension are static
+    //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for ex)
+    //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
+    if (!inputs_has_dynamic_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
-    }
-    manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
-    // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
-    // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
-    // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the the output does
-    // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
-    // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
-    // Parameter_0    Parameter_1        Parameter_2
-    // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
-    //   Load        BroadcastLoad         Load*       Scalar
-    //          Add                             Subtract
-    //            \___________     ___________BroadcastMove
-    //                        \   /
-    //                       Multiply
-    //                         Store
-    //                        Result
-    // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
-    if (master_shape.size() != 0 && !inputs_has_dynamic_last_dims && master_shape[master_shape.size() - 1] != 1) {
-        manager.register_pass<snippets::pass::SetScalarCountForLoad>();
-        manager.register_pass<snippets::pass::SetScalarCountForStore>();
-        manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
-        manager.get_pass_config()->
-        set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
+        manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
+        // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
+        // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
+        // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the the output does
+        // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
+        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
+        // Parameter_0    Parameter_1        Parameter_2
+        // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
+        //   Load        BroadcastLoad         Load*       Scalar
+        //          Add                             Subtract
+        //            \___________     ___________BroadcastMove
+        //                        \   /
+        //                       Multiply
+        //                         Store
+        //                        Result
+        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
+        if (master_shape.size() != 0 && master_shape[master_shape.size() - 1] != 1) {
+            manager.register_pass<snippets::pass::SetScalarCountForLoad>();
+            manager.register_pass<snippets::pass::SetScalarCountForStore>();
+            manager.get_pass_config()->
+                    set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
+            manager.get_pass_config()->
+                    set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
+        }
     }
     manager.run_passes(m_body);
 }
