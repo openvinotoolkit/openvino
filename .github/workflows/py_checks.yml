@@ -6,13 +6,15 @@ on:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
   pull_request:
     paths:
       - 'src/bindings/python/**'
       - 'samples/python/**'
+      - '.github/workflows/py_checks.yml'
 jobs:
   linters:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Code checkout
         uses: actions/checkout@v2
@@ -120,5 +122,3 @@ jobs:
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
         working-directory: src/bindings/python/src/compatibility/openvino
-
-      

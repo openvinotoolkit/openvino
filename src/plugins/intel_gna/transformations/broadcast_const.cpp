@@ -19,7 +19,7 @@
 #include <functional>
 #include <numeric>
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
 
 using Node = std::shared_ptr<ngraph::Node>;
 using Nodes = std::vector<Node>;
