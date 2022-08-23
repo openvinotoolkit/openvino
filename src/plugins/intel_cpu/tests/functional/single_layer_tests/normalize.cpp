@@ -80,10 +80,6 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
-
-        if (inType == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512_core()) {
-            rel_threshold = 0.05f;
-        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
