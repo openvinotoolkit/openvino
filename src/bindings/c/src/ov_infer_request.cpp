@@ -64,7 +64,7 @@ ov_status_e ov_infer_request_set_tensors(ov_infer_request_t* infer_request,
 
     try {
         std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i ++)
+        for (int i = 0; i < tensors->size; i++)
             _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
         infer_request->object->set_tensors(tensor_name, _tmp_tensors);
     }
@@ -82,7 +82,7 @@ ov_status_e ov_infer_request_set_tensors_by_const_port(ov_infer_request_t* infer
 
     try {
         std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i ++)
+        for (int i = 0; i < tensors->size; i++)
             _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
         infer_request->object->set_tensors(*port->object, _tmp_tensors);
     }
@@ -126,7 +126,7 @@ ov_status_e ov_infer_request_set_input_tensors(ov_infer_request_t* infer_request
 
     try {
         std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i ++)
+        for (int i = 0; i < tensors->size; i++)
             _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
         infer_request->object->set_input_tensors(_tmp_tensors);
     }
@@ -144,7 +144,7 @@ ov_status_e ov_infer_request_set_input_tensors_by_index(ov_infer_request_t* infe
 
     try {
         std::vector<ov::Tensor> _tmp_tensors;
-        for (int i = 0; i < tensors->size; i ++)
+        for (int i = 0; i < tensors->size; i++)
             _tmp_tensors.emplace_back(*(tensors->tensors[i]->object));
         infer_request->object->set_input_tensors(idx, _tmp_tensors);
     }
