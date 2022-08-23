@@ -65,10 +65,7 @@ public:
             result << "KeepDims=true_";
         else
             result << "KeepDims=false_";
-        if (netPrecision == ov::element::bf16)
-            result << "Prc=BFloat16_";  // to avoid skipping by skip_tests_config
-        else
-            result << "Prc=" << netPrecision << "_";
+        result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
 

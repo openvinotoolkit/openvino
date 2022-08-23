@@ -44,10 +44,7 @@ public:
         for (const auto& item : shapes.second) {
             results << CommonTestUtils::vec2str(item) << "_";
         }
-        if (inType == element::bf16)
-            results << "Prc=BFloat16_";  // to avoid skipping by skip_tests_config
-        else
-            results << "Prc=" << inType << "_";
+        results << "Prc=" << inType << "_";
         results << "axes=" << CommonTestUtils::vec2str(axes) << "_";
         results << "eps=" << eps << "_";
         results << "epsMode=" << epsMode << "_";

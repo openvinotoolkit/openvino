@@ -269,9 +269,14 @@ struct jit_variable_load_store_test_kernel {
     };
 
     template<size_t N>
-    void test() {
-        kernel_impl<N> kernel;
-        kernel.init();
+    void test(bool is_src = false) {
+        std::unique_ptr<jit_test_kernel<Params>> kernel = nullptr;
+        if (is_src) {
+            kernel.reset(new kernel_src_impl<N>());
+        } else {
+            kernel.reset(new kernel_dst_impl<N>());
+        }
+        kernel->init();
 
         const size_t size = 3;
 
@@ -285,7 +290,7 @@ struct jit_variable_load_store_test_kernel {
             src[i] = static_cast<SrcT>(i);
         }
 
-        kernel(args);
+        (*kernel)(args);
 
         std::array<DstT, N> expected_result {};
 
@@ -298,7 +303,26 @@ struct jit_variable_load_store_test_kernel {
 
 private:
     template<size_t N>
-    class kernel_impl : public jit_test_kernel<Params> {
+    class kernel_src_impl : public jit_test_kernel<Params> {
+    public:
+        void generate() override {
+            jit_kernel::preamble();
+
+            auto src_ptr = jit_kernel::arg(&Params::src);
+            auto dst_ptr = jit_kernel::arg(&Params::dst);
+            auto size = jit_kernel::arg(&Params::size);
+
+            auto src = jit_kernel::var<SrcT[N]>();
+
+            jit_kernel::load(src, src_ptr, size);
+            jit_kernel::store(dst_ptr, src, size);
+
+            jit_kernel::postamble();
+        }
+    };
+
+    template<size_t N>
+    class kernel_dst_impl : public jit_test_kernel<Params> {
     public:
         void generate() override {
             jit_kernel::preamble();
@@ -341,6 +365,19 @@ TEST(JitKernel, variable_load_and_store) {
         }
         if (mayiuse(cpu_isa_t::sse41)) {
             kernel.test<4>();
+        }
+    }
+
+    {
+        jit_variable_load_store_test_kernel<float, bfloat16_t> kernel;
+        if (mayiuse(cpu_isa_t::avx512_core)) {
+            kernel.test<16>(true);
+        }
+        if (mayiuse(cpu_isa_t::avx2)) {
+            kernel.test<8>(true);
+        }
+        if (mayiuse(cpu_isa_t::sse41)) {
+            kernel.test<4>(true);
         }
     }
 }

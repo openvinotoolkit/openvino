@@ -52,7 +52,8 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
-        } else if (one_of(host_isa_, dnnl::impl::cpu::x64::cpu_isa_t::avx2, dnnl::impl::cpu::x64::cpu_isa_t::sse41)) {  // round_to_nearest_even emulation
+        } else if (one_of(host_isa_, dnnl::impl::cpu::x64::cpu_isa_t::avx2,
+                                     dnnl::impl::cpu::x64::cpu_isa_t::sse41)) {  // round_to_nearest_even emulation
             Xmm out = Xmm(out_vec_idxs[0]);
             h->vpandd(aux, in, table_val("rounding"));
             h->uni_vpsrld(aux, aux, 1);
