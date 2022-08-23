@@ -38,7 +38,9 @@ endif()
 
 add_subdirectory(thirdparty)
 add_subdirectory(tests/unit_tests)
-add_subdirectory(tests/func_tests)
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests/func_tests)
+endif()
 
 # create plugin
 
