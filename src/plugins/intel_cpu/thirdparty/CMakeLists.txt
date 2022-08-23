@@ -48,7 +48,7 @@ function(ie_add_onednn)
         # xbyak compilation fails
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
-    if(ENABLE_MAC_X86_EMULATION)
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
         ie_add_compiler_flags(-Wno-undef)
         set(DNNL_TARGET_ARCH "X64")
     endif()
