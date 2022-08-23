@@ -151,7 +151,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
                 auto out_tensor = subgraph->output(i).get_tensor_ptr();
                 NGRAPH_SUPPRESS_DEPRECATED_START
                 if (out_tensor->get_name().empty()) {
-                    const auto& body_result = subgraph->get_body()->get_output_op(i);
+                    const auto& body_result = subgraph->body().get_output_op(i);
                     const auto& body_result_input = body_result->get_input_source_output(0);
                     // Note that create_ie_output_name() checks only deprecated output.get_tensor().get_name()
                     // However output.get_tensor().get_names() should also be updated
@@ -314,8 +314,8 @@ TokenizeSnippets::TokenizeSnippets() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ov::clone_model(*subgraph->get_body().get());
-                    f->set_friendly_name(subgraph->get_body()->get_friendly_name());
+                    auto f = ov::clone_model(subgraph->body());
+                    f->set_friendly_name(subgraph->body().get_friendly_name());
                     clones[input_node] = f;
                 }
             }
@@ -490,9 +490,9 @@ TokenizeSnippets::TokenizeSnippets() {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         auto subgraph = op::build_subgraph(node, external_inputs, body);
-        auto act_body = subgraph->get_body();
-        for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
-            act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        const auto & act_body = subgraph->body();
+        for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
+            act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
@@ -511,9 +511,9 @@ TokenizeSnippets::TokenizeSnippets() {
 
         subgraph->validate_and_infer_types();
 
-        auto act_body1 = subgraph->get_body();
-        for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
-            act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        const auto & act_body1 = subgraph->body();
+        for (size_t i = 0; i < act_body1.get_parameters().size(); i++) {
+            act_body1.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
 
@@ -521,7 +521,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << subgraph->get_friendly_name()
                     << " with " << subgraph->inputs().size()
                     << " inputs and " << subgraph->outputs().size()
-                    << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
+                    << " outputs and " << subgraph->body().get_ops().size() << " ops total\n";
 
         return true;
     };

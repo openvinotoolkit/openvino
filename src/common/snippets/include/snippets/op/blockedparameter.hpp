@@ -19,6 +19,7 @@ namespace op {
 class BlockedParameter : public ngraph::op::Parameter {
 public:
     OPENVINO_OP("BlockedParameter", "SnippetsOpset", ngraph::op::Parameter);
+    BWDCMP_RTTI_DECLARATION;
 
     BlockedParameter() = default;
     BlockedParameter(const ngraph::element::Type& element_type, const PartialShape& pshape)

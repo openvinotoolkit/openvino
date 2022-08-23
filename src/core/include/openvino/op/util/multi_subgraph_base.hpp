@@ -295,6 +295,14 @@ public:
         return m_output_descriptions.size();
     }
 
+    bool transformations_allowed() const {
+        return m_transformations_allowed;
+    }
+
+    void allow_transformations(bool b = true) {
+        m_transformations_allowed = b;
+    }
+
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
 
@@ -313,6 +321,7 @@ protected:
     std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
+    bool m_transformations_allowed = true;
 };
 }  // namespace util
 }  // namespace op

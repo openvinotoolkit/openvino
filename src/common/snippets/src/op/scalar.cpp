@@ -6,6 +6,8 @@
 
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(snippets::op::Scalar);
+
 std::shared_ptr<Node> snippets::op::Scalar::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<Scalar>(*this);

@@ -17,6 +17,7 @@ snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, Shape shape)
 }
 
 bool snippets::op::BroadcastLoad::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("broadcast_info", broadcast_info);
     return true;
 }
 

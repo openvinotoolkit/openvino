@@ -19,6 +19,9 @@ namespace op {
 class Scalar  : public ov::op::v0::Constant {
 public:
     OPENVINO_OP("Scalar", "SnippetsOpset", ov::op::v0::Constant);
+    BWDCMP_RTTI_DECLARATION;
+
+    Scalar() = default;
 
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
     Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {
