@@ -314,9 +314,10 @@ IInferPtr MultiSchedule::CreateInferRequest() {
         if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
             syncRequestImpl->setPointerToSo(_passthroughExeNet._so);
         } else {
+            auto so = _passthroughExeNet._ptr->GetPointerToSo();
             // Get the _so from passthrough executable network when batch plugin is disable.
-            auto so = _passthroughExeNet._ptr->GetPointerToSo() ? _passthroughExeNet._ptr->GetPointerToSo()
-                                                                : _passthroughExeNet._so;
+            if (!so)
+                so = _passthroughExeNet._so;
             syncRequestImpl->setPointerToSo(so);
         }
     }
