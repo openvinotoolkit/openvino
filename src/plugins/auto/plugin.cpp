@@ -471,7 +471,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         _LogTag = "AUTO";
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMACE_HINT set to THROUGHPUT");
     }
-    if (priorities == fullConfig.end() || priorities->second.empty()) {
+    if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
@@ -574,7 +574,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.UpdateFromMap(config, GetName());
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (priorities == fullConfig.end()) {
+    if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
     }
     auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
@@ -749,7 +749,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (deviceListConfig == config.end() || deviceListConfig->second.empty()) {
+    if (deviceListConfig->second.empty()) {
         for (auto&& device : deviceList) {
             allDevices += device;
             allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
