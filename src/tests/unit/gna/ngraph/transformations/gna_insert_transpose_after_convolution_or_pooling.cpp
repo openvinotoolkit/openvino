@@ -47,7 +47,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestStartConvolution) {
                                                   ngraph::ParameterVector{input_params_convolution});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeAfterConvOrPool>();
+        m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -123,7 +123,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestStartMaxPool) {
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeAfterConvOrPool>();
+        m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -200,7 +200,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTestInputRank3) {
                                                   ngraph::ParameterVector{input_params_convolution});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<GNAPluginNS::InsertTransposeAfterConvOrPool>();
+        m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
     }
@@ -276,7 +276,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTest1dOutput) {
 
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<GNAPluginNS::InsertTransposeAfterConvOrPool>();
+    m.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
     m.run_passes(func);
     ASSERT_NO_THROW(check_rt_info(func));
 

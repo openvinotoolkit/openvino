@@ -8,10 +8,13 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::frontend::tensorflow;
 using namespace opset8;
 
 using TransposeMap = unordered_map<string, shared_ptr<Transpose>>;
@@ -56,15 +59,8 @@ static string describe(shared_ptr<Node> node) {
     return ss.str();
 }
 
-static shared_ptr<Transpose> make_transpose(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
-    auto transpose = make_shared<Transpose>(arg, order);
-    OPENVINO_DEBUG << "Make Transpose " << describe<Transpose>(transpose);
-    return transpose;
-}
-
 static shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{input_order.size()}, input_order);
     auto transpose = make_shared<Reshape>(arg, order, false);
     OPENVINO_DEBUG << "Make Reshape " << describe<Reshape>(transpose);
     return transpose;
@@ -132,7 +128,7 @@ static void mark_transpose_for_deletion(const shared_ptr<Node>& transpose,
 
 static shared_ptr<Transpose> create_default_transpose(const Output<Node>& n) {
     auto default_order = get_default_order(n.get_shape().size());
-    auto order = std::make_shared<Constant>(element::u64, Shape{default_order.size()}, default_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{default_order.size()}, default_order);
     return make_shared<Transpose>(n, order);
 }
 
@@ -160,7 +156,6 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
         left_shape.insert(left_shape.begin(), perm_to_def.size() - left_shape.size(), 1);
 
         auto new_shape = apply_permutation(left_shape, perm_to_def);
-
         new_node = make_reshape(left, new_shape);
     } else if (left_shape.size() == perm_to_def.size()) {
         new_node = make_transpose(left, perm_to_def);

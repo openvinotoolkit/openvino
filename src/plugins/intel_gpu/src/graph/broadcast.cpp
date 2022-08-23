@@ -17,11 +17,11 @@ primitive_type_id broadcast::type_id() {
     return &instance;
 }
 
-layout broadcast_inst::calc_output_layout(broadcast_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for broadcast_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<broadcast>();
 
     return {input_layout.data_type, input_layout.format, desc->broadcast_sizes};
 }
@@ -56,7 +56,6 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     auto input_layout = node.input().get_output_layout();
 
     const auto& output_sizes = argument.broadcast_sizes;
-    const auto format = input_layout.format;
 
     std::vector<tensor::value_type> input_dims = input_layout.get_dims();
     size_t max_axes_num = input_layout.get_rank();
@@ -69,15 +68,8 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     size_t index = 0;
     size_t input_index = broadcast_axes_size;
 
-    if (format == format::bfzyx) {
-        if (broadcast_axes_size > 5) {
-            CLDNN_ERROR_MESSAGE(node.id(),
-                                "Incorrect parameters configuration: broadcast_axes size should be less or equal 5.");
-        }
-    } else if (broadcast_axes_size > 4) {
-        CLDNN_ERROR_MESSAGE(node.id(),
-                            "Incorrect parameters configuration: broadcast_axes size should be less or equal 4.");
-    }
+    OPENVINO_ASSERT(broadcast_axes_size >= 0 && broadcast_axes_size <= max_axes_num,
+                    "Incorrect parameters configuration: broadcast_axes size should be less or equal ", std::to_string(max_axes_num), ".");
     for (size_t i = 0; i < broadcast_axes_size; ++i) {
         if (broadcast_axes.at(i) >= max_axes_num) {
             CLDNN_ERROR_MESSAGE(

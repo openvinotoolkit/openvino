@@ -6,6 +6,10 @@
 # Build common part
 #
 
+if (NOT ENABLE_INTEL_MYRIAD_COMMON)
+    return()
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()

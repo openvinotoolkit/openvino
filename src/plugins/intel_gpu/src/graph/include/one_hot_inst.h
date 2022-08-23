@@ -32,7 +32,9 @@ class typed_primitive_inst<one_hot> : public typed_primitive_inst_base<one_hot> 
     using parent = typed_primitive_inst_base<one_hot>;
 
 public:
-    static layout calc_output_layout(one_hot_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const one_hot_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(one_hot_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(one_hot_node const& node);
     typed_primitive_inst(network& network, one_hot_node const& node);
 };

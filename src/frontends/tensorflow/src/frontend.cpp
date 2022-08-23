@@ -4,12 +4,14 @@
 
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
+#include "graph_iterator_proto.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
@@ -122,6 +124,13 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                 producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
                                 '\n');
             }
+
+            // skip conditional edges that must be resolved before operation translation
+            // now we can meet them because we still work with TensorFlow protobuf
+            if (is_conditional_edge(producer_name)) {
+                continue;
+            }
+
             // TODO: re-implement the logic below once Place graph structure is implemented
             // Using Place graph structure (OpPlace, In/OutPortPlace places and their connections) can give
             // names of ports and operations that can be used for further check about existence in ng_op_map
@@ -205,14 +214,18 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
         if (port_type == "none") {
             for (const auto& node_output : ng_op_map[operation_name]) {
-                results.push_back(std::make_shared<ov::opset8::Result>(node_output));
+                auto result_node = std::make_shared<ov::opset8::Result>(node_output);
+                result_node->set_friendly_name(model_output_name);
+                results.push_back(result_node);
             }
         } else if (port_type == "out") {
             const auto& node_outputs = ng_op_map[operation_name];
             FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
                                     "Output port with index " + std::to_string(port_index) + " of " + operation_name +
                                         "node specified as custom output does not exist");
-            results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[port_index]));
+            auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
+            result_node->set_friendly_name(model_output_name);
+            results.push_back(result_node);
         } else if (port_type == "in") {
             // TODO: avoid this traversing by having a map for OpPlace objects, for example
             std::shared_ptr<OpPlace> operation_place = nullptr;
@@ -242,16 +255,23 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
             FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                     "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                         producer_name + "node specified as custom output does not exist");
-            results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]));
+            auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
+            result_node->set_friendly_name(model_output_name);
+            results.push_back(result_node);
         }
     }
     // find all terminal nodes in OV graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
-            for (const auto& output : node_output_vector.second) {
+            for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
+                auto output = node_output_vector.second[output_ind];
                 if (output.get_target_inputs().empty() &&
                     !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
-                    results.push_back(std::make_shared<ov::opset8::Result>(output));
+                    auto model_output_name =
+                        output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
+                    auto result_node = std::make_shared<ov::opset8::Result>(output);
+                    result_node->set_friendly_name(model_output_name);
+                    results.push_back(result_node);
                 }
             }
         }
@@ -261,7 +281,6 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // create the OV Model
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
-    OPENVINO_DEBUG << "Done with translations";
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
@@ -342,7 +361,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     }
 
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
     normalize(f);
     // TODO: check that OV function does not contain operations which are not in the opset
 
@@ -366,7 +385,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     }
 
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, false, f);
     normalize(f);
     return f;
 }
@@ -374,7 +393,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
+    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, true, f);
     return f;
 }
 
@@ -393,7 +412,9 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
+    // and preserve tensor names in case of sinking
+    // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
 }
 
