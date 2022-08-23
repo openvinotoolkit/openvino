@@ -353,7 +353,7 @@ TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
     // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
@@ -376,7 +376,12 @@ protected:
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 
-
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        APIBaseTest::TearDown();
+    }
 
     InferenceEngine::ExecutableNetwork execNet;
     InferenceEngine::CNNNetwork cnnNet;

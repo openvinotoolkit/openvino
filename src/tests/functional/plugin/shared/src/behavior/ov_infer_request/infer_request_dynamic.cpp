@@ -281,7 +281,7 @@ TEST_P(OVInferRequestDynamicTests, InferUpperBoundNetworkAfterIOTensorsReshaping
     shapes[tensor_name] = {ov::Dimension(0, 19), 4, 20, 20};
     OV_ASSERT_NO_THROW(function->reshape(shapes));
     // Load ov::Model to target plugins
-    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    auto execNet = ie->compile_model(function, target_device, configuration);
     // Create InferRequest
     ov::InferRequest req;
     ov::Tensor tensor, otensor;
