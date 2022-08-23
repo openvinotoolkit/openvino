@@ -65,7 +65,10 @@ public:
             result << "KeepDims=true_";
         else
             result << "KeepDims=false_";
-        result << "netPRC=" << netPrecision << "_";
+        if (netPrecision == ov::element::bf16)
+            result << "Prc=BFloat16_";  // to avoid skipping by skip_tests_config
+        else
+            result << "Prc=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
 
@@ -144,6 +147,10 @@ protected:
         }
 
         function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
+
+        if (netPrecision == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512_core()) {
+            rel_threshold = 1e-2f;
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {

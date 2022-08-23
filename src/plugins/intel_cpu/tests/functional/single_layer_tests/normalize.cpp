@@ -44,7 +44,10 @@ public:
         for (const auto& item : shapes.second) {
             results << CommonTestUtils::vec2str(item) << "_";
         }
-        results << "Prc=" << inType << "_";
+        if (inType == element::bf16)
+            results << "Prc=BFloat16_";  // to avoid skipping by skip_tests_config
+        else
+            results << "Prc=" << inType << "_";
         results << "axes=" << CommonTestUtils::vec2str(axes) << "_";
         results << "eps=" << eps << "_";
         results << "epsMode=" << epsMode << "_";
@@ -77,6 +80,10 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
+
+        if (inType == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512_core()) {
+            rel_threshold = 1e-2f;
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {

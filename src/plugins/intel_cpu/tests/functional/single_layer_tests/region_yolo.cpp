@@ -53,8 +53,14 @@ public:
         result << "doSoftmax=" << attributes.do_softmax << "_";
         result << "axis=" << attributes.start_axis << "_";
         result << "endAxis=" << attributes.end_axis << "_";
-        result << "inpPRC=" << inpPrecision << "_";
-        result << "outPRC=" << outPrecision << "_";
+        if (inpPrecision == ov::element::bf16)
+            result << "inpPRC=BFloat16_";  // to avoid skipping by skip_tests_config
+        else
+            result << "inpPRC=" << inpPrecision << "_";
+        if (outPrecision == ov::element::bf16)
+            result << "outPRC=BFloat16_";  // to avoid skipping by skip_tests_config
+        else
+            result << "outPRC=" << outPrecision << "_";
         result << "targetDevice=" << targetName << "_";
         return result.str();
     }
