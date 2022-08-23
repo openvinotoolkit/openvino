@@ -194,6 +194,9 @@ inline FilePath to_file_path(const std::string& path) {
     return string_to_wstring(path);
 }
 
+std::wstring get_directory(const std::wstring& path);
+std::wstring path_join(const std::vector<std::wstring>& paths);
+
 #else
 
 using FilePath = std::string;
