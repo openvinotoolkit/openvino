@@ -325,8 +325,8 @@ def find_fqs_to_unify(model, config):
     def _get_unified_scales_ops(hw_ops_):
         unified_scales_ops_ = []
         for hw_op in hw_ops_:
-            if 'attributes' in hw_op and 'scales' in hw_op['attributes']:
-                del hw_op['attributes']['scales']
+            if 'attributes' in hw_op and hw_op['attributes'].get('unified_scales', False) == True:
+                del hw_op['attributes']['unified_scales']
                 if not hw_op['attributes']:
                     del hw_op['attributes']
                 unified_scales_ops_.append(hw_op)
