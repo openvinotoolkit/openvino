@@ -45,14 +45,20 @@ macro(ov_cpack_settings)
     unset(CPACK_COMPONENTS_ALL)
     foreach(item IN LISTS cpack_components_all)
         # filter out some components, which are not needed to be wrapped to .deb package
-        if(# NOT ${item} MATCHES ".*(python).*" AND
+        if(# skip OpenVINO Pyhon API and samples
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           NOT item STREQUAL OV_CPACK_COMP_PYTHON_SAMPLES AND
            # python wheels are not needed to be wrapped by debian packages
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
+           # see ticket # 82605
+           NOT item STREQUAL "gna" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml" AND
+           # TF component is not released
+           NOT item STREQUAL "tensorflow" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # not appropriate components
@@ -86,26 +92,22 @@ macro(ov_cpack_settings)
         # - 2022.1.1 does not have debian packages enabled, distributed only as archives
         2022.1.0)
 
+    #
+    # core: base dependency for each component
+    #
+
     # core
     set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C / C++ Runtime libraries")
     set(CPACK_DEBIAN_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
     # we need triggers to run ldconfig for openvino
     set(CPACK_DEBIAN_CORE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+    # use lintian to check packages in post-build step
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian_post_build.cmake")
 
     # We currently don't have versioning for openvino core library
     ov_debian_add_lintian_suppression(core
-        "shlib-without-versioned-soname"
+        # package-name-doesnt-match-sonames libopenvino202230 libopenvino-c20223
         "package-name-doesnt-match-sonames")
-
-    # core_dev
-    set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
-    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
-    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
-    ov_debian_generate_conflicts(core_dev ${conflicting_versions})
-
-    ov_debian_add_lintian_suppression(core_dev
-        # CVS-79409: create man page for compile_tool
-        "binary-without-manpage")
 
     #
     # Plugins
@@ -182,7 +184,7 @@ macro(ov_cpack_settings)
     endif()
 
     # intel-gna
-    if(ENABLE_INTEL_GNA)
+    if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator")
         set(CPACK_COMPONENT_GNA_DEPENDS "core")
         set(CPACK_DEBIAN_GNA_PACKAGE_NAME "libopenvino-intel-gna-${cpack_name_ver}")
@@ -203,6 +205,72 @@ macro(ov_cpack_settings)
         # we suppose that pseudo plugins are needed for core
         set(CPACK_DEBIAN_CORE_PACKAGE_RECOMMENDS "${pseudo_plugins_recommends}")
     endif()
+
+    #
+    # Frontends
+    #
+
+    if(ENABLE_OV_IR_FRONTEND)
+        set(CPACK_COMPONENT_IR_DESCRIPTION "OpenVINO IR Frontend")
+        set(CPACK_COMPONENT_IR_DEPENDS "core")
+        set(CPACK_DEBIAN_IR_PACKAGE_NAME "libopenvino-ir-frontend-${cpack_name_ver}")
+        set(CPACK_DEBIAN_IR_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        ov_debian_add_lintian_suppression(ir
+            # we have different package name strategy; it suggests libopenvino-ir-frontend202230
+            "package-name-doesnt-match-sonames"
+            # IR FE should not linked directly by end users
+            "package-must-activate-ldconfig-trigger")
+        list(APPEND frontends ir)
+    endif()
+
+    if(ENABLE_OV_ONNX_FRONTEND)
+        set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
+        set(CPACK_COMPONENT_ONNX_DEPENDS "core")
+        set(CPACK_DEBIAN_ONNX_PACKAGE_NAME "libopenvino-onnx-frontend-${cpack_name_ver}")
+        # since we ONNX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_ONNX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(onnx
+            # we have different package name strategy; it suggests libopenvino-onnx-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends onnx)
+    endif()
+
+    if(ENABLE_OV_TF_FRONTEND AND "tensorflow" IN_LIST CPACK_COMPONENTS_ALL)
+        set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
+        set(CPACK_COMPONENT_TENSORFLOW_DEPENDS "core")
+        set(CPACK_DEBIAN_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
+        # since we TF FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_TENSORFLOW_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(tensorflow
+            # we have different package name strategy; it suggests libopenvino-tensorflow-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends tensorflow)
+    endif()
+
+    if(ENABLE_OV_PADDLE_FRONTEND)
+        set(CPACK_COMPONENT_PADDLE_DESCRIPTION "OpenVINO Paddle Frontend")
+        set(CPACK_COMPONENT_PADDLE_DEPENDS "core")
+        set(CPACK_DEBIAN_PADDLE_PACKAGE_NAME "libopenvino-paddle-frontend-${cpack_name_ver}")
+        # since we PADDLE FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_PADDLE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(paddle
+            # we have different package name strategy; it suggests libopenvino-paddle-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends paddle)
+    endif()
+
+    #
+    # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
+    #
+
+    set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
+    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core;${frontends}")
+    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
+    ov_debian_generate_conflicts(core_dev ${conflicting_versions})
+
+    ov_debian_add_lintian_suppression(core_dev
+        # CVS-79409: create man page for compile_tool
+        "binary-without-manpage")
 
     #
     # Python bindings
@@ -263,28 +331,21 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
-    # ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
+    ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_debian_add_lintian_suppression(libraries_dev
         # it's umbrella package
         "empty-binary-package")
 
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
-    set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples;python_samples")
+    set(CPACK_COMPONENT_OPENVINO_DEPENDS "libraries_dev;samples")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
+    ov_debian_generate_conflicts(openvino ${conflicting_versions})
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
         "empty-binary-package")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
-
-    #
-    # install debian common files
-    #
-
-    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
-        ov_debian_add_changelog_and_copyright("${comp}")
-    endforeach()
 
     #
     # Install latest symlink packages
@@ -301,4 +362,12 @@ macro(ov_cpack_settings)
     # users can manually install specific version of package
     # e.g. sudo apt-get install openvino=2022.1.0
     # even if we have latest package version 2022.2.0
+
+    #
+    # install debian common files
+    #
+
+    foreach(comp IN LISTS CPACK_COMPONENTS_ALL)
+        ov_debian_add_changelog_and_copyright("${comp}")
+    endforeach()
 endmacro()

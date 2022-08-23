@@ -45,7 +45,8 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
+    SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
+    PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -108,6 +109,7 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
@@ -142,7 +144,6 @@ jobs:
         -DENABLE_PYTHON=ON
         -DENABLE_OPENCV=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -150,7 +151,10 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCPACK_GENERATOR=DEB
+        -DBUILD_cuda_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
@@ -190,6 +194,12 @@ jobs:
 
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
+
+  - script: cmake -DCOMPONENT=python_samples -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install Python Samples'
+
+  - script: cmake -DCOMPONENT=gna -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install GNA plugin'
 
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
@@ -245,7 +255,7 @@ jobs:
       sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # sudo apt-get install openvino -y
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -298,6 +308,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
@@ -337,7 +348,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      # because of IR reader v7 
+      # because of IR reader v7
       export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
@@ -386,7 +397,9 @@ jobs:
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      export IE_APP_PYTHON_PATH=$(SAMPLES_INSTALL_DIR)/python/
+      # for gna plugin
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(INSTALL_DIR)/lib/x86_64-linux-gnu:$(INSTALL_DIR)/lib/x86_64-linux-gnu/openvino-2022.3.0
+      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml

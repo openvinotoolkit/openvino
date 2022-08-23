@@ -36,7 +36,7 @@ elif machine == "X86":
     ARCH = "ia32"
 elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
-elif machine == "aarch64":
+elif machine == "aarch64" or machine == "arm64":
     ARCH = "arm64"
 
 # The following variables can be defined in environment or .env file
@@ -95,6 +95,30 @@ LIB_INSTALL_CFG = {
         "prefix": "libs.pugixml",
         "install_dir": PUGIXML_LIBS_DIR,
     },
+    "ir_libs": {
+        "name": "ir",
+        "prefix": "libs.core",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+    },
+    "paddle_libs": {
+        "name": "paddle",
+        "prefix": "libs.core",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+    },
+    "onnx_libs": {
+        "name": "onnx",
+        "prefix": "libs.core",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+    },
+    # uncomment once TF FE will be used in MO
+    # "tensorflow_libs": {                      # noqa: E800
+    #     "name": "tensorflow",                 # noqa: E800
+    #     "prefix": "libs.core",                # noqa: E800
+    #     "install_dir": OV_RUNTIME_LIBS_DIR,   # noqa: E800
+    # },                                        # noqa: E800
 }
 
 PY_INSTALL_CFG = {
