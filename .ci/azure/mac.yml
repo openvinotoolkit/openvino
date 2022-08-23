@@ -116,6 +116,7 @@ jobs:
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
         -DCMAKE_C_LINKER_LAUNCHER=ccache \
+        -DBUILD_cuda_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
     displayName: 'CMake'

@@ -117,6 +117,7 @@ jobs:
         -DENABLE_SAMPLES=ON
         -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
+        -DBUILD_cuda_plugin=OFF
         -DTHREADING=SEQ
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
