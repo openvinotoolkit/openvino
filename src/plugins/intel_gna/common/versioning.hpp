@@ -4,9 +4,11 @@
 
 #pragma once
 #include <string>
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace common {
 // Returns string representing current version of OpenVINO
-std::string GetVersionOfOv();
+std::string get_openvino_version_string();
 } // namespace common
-} // namespace GNAPluginNS
+} // namespace intel_gna
+} // namespace ov

@@ -9,13 +9,15 @@
 
 #include "openvino/core/version.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace common {
 
-std::string GetVersionOfOv() {
+std::string get_openvino_version_string() {
     std::stringstream s;
     s << ov::get_openvino_version();
     return s.str();
 }
 } // namespace common
-} // namespace GNAPluginNS
+} // namespace intel_gna
+} // namespace ov

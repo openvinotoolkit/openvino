@@ -262,7 +262,7 @@ void ExportTlvModel(uint32_t modelId,
         auto metadata = WriteAllEndpoints(outStream, allInputs, Gna2TlvTypeOVInputScaleFactor, allAllocations.Get(Gna2MemoryTagInput));
         metadata += WriteAllEndpoints(outStream, allOutputs, Gna2TlvTypeOVOutputScaleFactor, allAllocations.Get(Gna2MemoryTagOutput));
         WriteStringToTlv(outStream, Gna2TlvTypeOVString, metadata);
-        const auto& ovVersionString = GNAPluginNS::common::GetVersionOfOv();
+        const auto& ovVersionString = ov::intel_gna::common::get_openvino_version_string();
         WriteStringToTlv(outStream, Gna2TlvTypeOVVersion, ovVersionString);
     }
 
