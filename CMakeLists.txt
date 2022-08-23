@@ -12,6 +12,7 @@ else()
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
         cmake_minimum_required(VERSION 3.20)
     else()
+        # default choice
         cmake_minimum_required(VERSION 3.13)
     endif()
 endif()

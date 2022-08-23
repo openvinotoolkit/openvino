@@ -863,8 +863,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
                                                 InferenceEngine::CNNNetwork network) {
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
-    } else if (metaDevices.size() == 1) {
-        return metaDevices;
     }
 
     std::vector<DeviceInformation> filterDevice;
@@ -879,17 +877,20 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
         }
         return false;
     };
-    if (model->is_dynamic() || isStateful()) {
-        for (auto& iter : metaDevices) {
-            if (iter.deviceName.find("CPU") != std::string::npos) {
-                filterDevice.push_back(iter);
-                break;
-            }
-        }
-        if (filterDevice.size() == 0)
-            IE_THROW(NotFound) << "No available device for dynamic shape network !";
+
+    // Check if CPU is in candidate list
+    auto cpuiter = std::find_if(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& deviceInfo) {
+        return deviceInfo.deviceName.find("CPU") != std::string::npos;
+    });
+
+    // If CPU is in candidate list, load dynamic network to CPU first
+    if ((model->is_dynamic() || isStateful()) && cpuiter != metaDevices.end()) {
+        filterDevice.push_back(*cpuiter);
         return filterDevice;
     }
+
+    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input network is a
+    // dynamic network or not
     return metaDevices;
 }
 std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
