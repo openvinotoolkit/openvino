@@ -82,7 +82,7 @@ protected:
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
 
         if (inType == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512_core()) {
-            rel_threshold = 1e-2f;
+            rel_threshold = 0.05f;
         }
     }
 
