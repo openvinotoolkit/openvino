@@ -7,8 +7,7 @@ import logging as log
 import os
 import platform
 import sys
-import traceback
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from copy import deepcopy
 
 try:
@@ -33,12 +32,11 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
     get_all_cli_parser, mo_convert_params, get_model_name_from_args
 
-from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
-from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
 from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
@@ -495,7 +493,7 @@ def pack_params_to_args_namespace(**kwargs):
     cli_parser = get_all_cli_parser(fe_manager)
     argv = cli_parser.parse_args([])
     for key, value in kwargs.items():
-        if key not in argv:
+        if key not in argv and key not in mo_convert_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
@@ -522,7 +520,7 @@ def show_mo_convert_help():
 def _convert(**args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
-        return
+        return None
 
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')

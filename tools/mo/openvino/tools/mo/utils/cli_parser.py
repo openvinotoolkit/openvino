@@ -25,6 +25,7 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
 
+
 def extension_path_to_str_or_extensions_class(extension):
     if isinstance(extension, str):
         return extension
@@ -185,7 +186,7 @@ def value_to_str(value, separator):
 def single_input_to_str(input):
     if isinstance(input, str):
         return input
-    if isinstance(input, openvino.convert.InputCutInfo):
+    if isinstance(input, openvino.tools.mo.InputCutInfo):
         if not isinstance(input.name, str):
             raise Exception("Input name should be string, got {}".format(input.name))
         input_str = input.name
@@ -269,7 +270,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.convert.LayoutMap):
+    if isinstance(value, openvino.tools.mo.LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
@@ -626,7 +627,9 @@ mo_convert_params = {
         "Removes the SoftMax layer that is the output layer", '', '', None),
     'remove_memory': ParamDescription(
         "Removes the Memory layer and use additional inputs outputs instead", '', '',
-        None)
+        None),
+    'help': ParamDescription(
+        'Print available parameters.', '', '', None),
 }
 
 
