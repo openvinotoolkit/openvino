@@ -1843,6 +1843,9 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv16) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    //Activation won't be fused because onednn doesn't support negative activation
+    if(engine.get_device_info().supports_immad)
+        p.expected_fused_primitives+=2;
 
     tolerance = 1.f;
     execute(p);
@@ -1873,6 +1876,9 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    //Activation won't be fused because onednn doesn't support negative activation
+    if(engine.get_device_info().supports_immad)
+        p.expected_fused_primitives+=2;
 
     tolerance = 1.f;
     execute(p);
@@ -1914,6 +1920,9 @@ TEST_P(conv_int8_activation_eltwise, fsv16) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    //Activation won't be fused because onednn doesn't support negative activation
+    if(engine.get_device_info().supports_immad)
+        p.expected_fused_primitives+=2;
 
     tolerance = 1e-5f;
     execute(p);
@@ -1939,6 +1948,9 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
+    //Activation won't be fused because onednn doesn't support negative activation
+    if(engine.get_device_info().supports_immad)
+        p.expected_fused_primitives+=2;
 
     tolerance = 1e-5f;
     execute(p);
