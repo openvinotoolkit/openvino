@@ -13,6 +13,7 @@ endif()
 message(STATUS "ONNX frontend tests enabled")
 
 add_compile_definitions(
+    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx_import"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}/core/models"
     TEST_FILES="${TEST_MODEL_ZOO}/core/files")
 
@@ -77,6 +78,7 @@ set(MULTI_TEST_SRC
 set(SRC
     onnx_import_exceptions.cpp
     onnx_import_library.cpp
+    onnx_importer_test.cpp # from merged target onnxImporterUnitTests
     onnx_tensor_names.cpp
     onnx_test_util.cpp
     onnx_transformations.cpp
@@ -158,4 +160,3 @@ add_subdirectory(standalone_build)
 add_dependencies(onnx_tests onnx_fe_standalone_build_test)
 
 add_subdirectory(onnx_frontend_tests)
-add_subdirectory(onnxImporterUnitTests)
