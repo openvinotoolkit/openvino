@@ -55,18 +55,6 @@ struct jit_refine_anchors_call_args {
 
 using jit_refine_anchors_kernel = jit_kernel_base<jit_refine_anchors_conf, jit_refine_anchors_call_args>;
 
-template <x64::cpu_isa_t isa2, ov::element::Type_t type>
-struct jit_traits {
-    using Vmm = Xbyak::Ymm;
-    static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<isa2>::vlen / sizeof(typename ov::element_type_traits<type>::value_type);
-};
-
-template <ov::element::Type_t type>
-struct jit_traits<x64::sse41, type> {
-    using Vmm = Xbyak::Xmm;
-    static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<x64::sse41>::vlen / sizeof(typename ov::element_type_traits<type>::value_type);
-};
-
 template <x64::cpu_isa_t isa>
 class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
  public:
