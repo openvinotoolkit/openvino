@@ -1,5 +1,6 @@
 from __future__ import print_function
 import sys
+import random
 import paddle
 import paddle.fluid as fluid
 
