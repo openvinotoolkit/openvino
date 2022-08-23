@@ -192,7 +192,9 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 results.push_back(result);
             } else {
                 auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
-                if (param && operation_decoder->get_op_type() != "Identity") {
+                // avoid duplicating Parameter nodes if they are already in the Parameters vector
+                if (param && operation_decoder->get_op_type() != "Identity" &&
+                    std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
