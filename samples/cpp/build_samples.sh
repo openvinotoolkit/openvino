@@ -65,7 +65,7 @@ if [ -z "$INTEL_OPENVINO_DIR" ]; then
     fi
     source "$setvars_path" || true
 else
-    # case for run with `sudo -E` 
+    # case for run with `sudo -E`
     source "$INTEL_OPENVINO_DIR/setupvars.sh" || true
 fi
 
