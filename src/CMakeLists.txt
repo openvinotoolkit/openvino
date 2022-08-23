@@ -26,10 +26,6 @@ add_subdirectory(inference)
 include(cmake/openvino.cmake)
 # preprocessing has dependency on `openvino` for static build
 add_subdirectory(common/preprocessing)
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wsign-compare)
-endif()
 add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
