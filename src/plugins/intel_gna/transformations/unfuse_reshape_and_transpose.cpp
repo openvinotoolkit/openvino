@@ -13,7 +13,8 @@
 #include <ngraph/pattern/op/or.hpp>
 
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::pass::helper;
 
 Unfuse2dto4dReshapeAndTranspose::Unfuse2dto4dReshapeAndTranspose() {
     MATCHER_SCOPE(Unfuse2dto4dReshapeAndTranspose);
