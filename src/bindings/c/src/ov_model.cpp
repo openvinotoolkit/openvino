@@ -17,7 +17,7 @@ ov_status_e ov_model_const_outputs(const ov_model_t* model, ov_output_const_node
         for (size_t i = 0; i < output_ports->size; i++) {
             tmp_output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
-        output_ports->output_ports = tmp_output_ports.release();
+        output_ports->ports = tmp_output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -35,7 +35,7 @@ ov_status_e ov_model_const_inputs(const ov_model_t* model, ov_output_const_node_
         for (size_t i = 0; i < input_ports->size; i++) {
             tmp_output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(results[i]));
         }
-        input_ports->output_ports = tmp_output_ports.release();
+        input_ports->ports = tmp_output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -53,7 +53,7 @@ ov_status_e ov_model_outputs(const ov_model_t* model, ov_output_node_list_t* out
         for (size_t i = 0; i < output_ports->size; i++) {
             tmp_output_ports[i].object = std::make_shared<ov::Output<ov::Node>>(std::move(results[i]));
         }
-        output_ports->output_ports = tmp_output_ports.release();
+        output_ports->ports = tmp_output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -71,7 +71,7 @@ ov_status_e ov_model_inputs(const ov_model_t* model, ov_output_node_list_t* inpu
         for (size_t i = 0; i < input_ports->size; i++) {
             tmp_output_ports[i].object = std::make_shared<ov::Output<ov::Node>>(std::move(results[i]));
         }
-        input_ports->output_ports = tmp_output_ports.release();
+        input_ports->ports = tmp_output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;

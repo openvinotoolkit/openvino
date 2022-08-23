@@ -43,7 +43,7 @@ ov_status_e ov_node_list_get_shape_by_index(const ov_output_const_node_list_t* p
     }
 
     try {
-        auto shape = port_list->output_ports[idx].object->get_shape();
+        auto shape = port_list->ports[idx].object->get_shape();
         ov_shape_create(shape.size(), nullptr, tensor_shape);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
@@ -58,7 +58,7 @@ ov_status_e ov_node_list_get_any_name_by_index(const ov_output_const_node_list_t
     }
 
     try {
-        *tensor_name = str_to_char_array(port_list->output_ports[idx].object->get_any_name());
+        *tensor_name = str_to_char_array(port_list->ports[idx].object->get_any_name());
     }
     CATCH_OV_EXCEPTIONS
 
@@ -73,7 +73,7 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
     }
 
     try {
-        auto pshape = port_list->output_ports[idx].object->get_partial_shape();
+        auto pshape = port_list->ports[idx].object->get_partial_shape();
         auto rank = pshape.rank();
 
         partial_shape->rank.min = rank.get_min_length();
@@ -107,7 +107,7 @@ ov_status_e ov_node_list_get_element_type_by_index(const ov_output_node_list_t* 
     }
 
     try {
-        auto type = (ov::element::Type_t)port_list->output_ports[idx].object->get_element_type();
+        auto type = (ov::element::Type_t)port_list->ports[idx].object->get_element_type();
         *tensor_type = (ov_element_type_e)type;
     }
     CATCH_OV_EXCEPTIONS
@@ -117,17 +117,17 @@ ov_status_e ov_node_list_get_element_type_by_index(const ov_output_node_list_t* 
 
 void ov_output_node_list_free(ov_output_node_list_t* output_ports) {
     if (output_ports) {
-        if (output_ports->output_ports)
-            delete[] output_ports->output_ports;
-        output_ports->output_ports = nullptr;
+        if (output_ports->ports)
+            delete[] output_ports->ports;
+        output_ports->ports = nullptr;
     }
 }
 
 void ov_output_const_node_list_free(ov_output_const_node_list_t* output_ports) {
     if (output_ports) {
-        if (output_ports->output_ports)
-            delete[] output_ports->output_ports;
-        output_ports->output_ports = nullptr;
+        if (output_ports->ports)
+            delete[] output_ports->ports;
+        output_ports->ports = nullptr;
     }
 }
 

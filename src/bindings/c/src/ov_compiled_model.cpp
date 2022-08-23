@@ -38,7 +38,7 @@ ov_status_e ov_compiled_model_inputs(const ov_compiled_model_t* compiled_model,
         for (size_t i = 0; i < num; i++) {
             _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(inputs[i]));
         }
-        input_ports->output_ports = _output_ports.release();
+        input_ports->ports = _output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
 
@@ -59,7 +59,7 @@ ov_status_e ov_compiled_model_outputs(const ov_compiled_model_t* compiled_model,
         for (size_t i = 0; i < num; i++) {
             _output_ports[i].object = std::make_shared<ov::Output<const ov::Node>>(std::move(outputs[i]));
         }
-        output_ports->output_ports = _output_ports.release();
+        output_ports->ports = _output_ports.release();
     }
     CATCH_OV_EXCEPTIONS
 

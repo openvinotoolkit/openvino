@@ -22,7 +22,7 @@ typedef struct ov_output_node ov_output_node_t;
  * @brief Represents an array of const ov_output_nodes.
  */
 typedef struct {
-    ov_output_const_node_t* output_ports;
+    ov_output_const_node_t* ports;
     size_t size;
 } ov_output_const_node_list_t;
 
@@ -31,7 +31,7 @@ typedef struct {
  * @brief Represents an array of ov_output_nodes.
  */
 typedef struct {
-    ov_output_node_t* output_ports;
+    ov_output_node_t* ports;
     size_t size;
 } ov_output_node_list_t;
 

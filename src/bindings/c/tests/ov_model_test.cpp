@@ -13,9 +13,9 @@ TEST(ov_model, ov_model_const_outputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t output_ports;
-    output_ports.output_ports = nullptr;
+    output_ports.ports = nullptr;
     OV_ASSERT_OK(ov_model_const_outputs(model, &output_ports));
-    ASSERT_NE(nullptr, output_ports.output_ports);
+    ASSERT_NE(nullptr, output_ports.ports);
 
     ov_output_const_node_list_free(&output_ports);
     ov_model_free(model);
@@ -32,9 +32,9 @@ TEST(ov_model, ov_model_const_inputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t input_ports;
-    input_ports.output_ports = nullptr;
+    input_ports.ports = nullptr;
     OV_ASSERT_OK(ov_model_const_inputs(model, &input_ports));
-    ASSERT_NE(nullptr, input_ports.output_ports);
+    ASSERT_NE(nullptr, input_ports.ports);
 
     ov_output_const_node_list_free(&input_ports);
     ov_model_free(model);
@@ -51,9 +51,9 @@ TEST(ov_model, ov_model_outputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_node_list_t output_ports;
-    output_ports.output_ports = nullptr;
+    output_ports.ports = nullptr;
     OV_ASSERT_OK(ov_model_outputs(model, &output_ports));
-    ASSERT_NE(nullptr, output_ports.output_ports);
+    ASSERT_NE(nullptr, output_ports.ports);
 
     ov_output_node_list_free(&output_ports);
     ov_model_free(model);
@@ -70,9 +70,9 @@ TEST(ov_model, ov_model_inputs) {
     ASSERT_NE(nullptr, model);
 
     ov_output_node_list_t input_ports;
-    input_ports.output_ports = nullptr;
+    input_ports.ports = nullptr;
     OV_ASSERT_OK(ov_model_inputs(model, &input_ports));
-    ASSERT_NE(nullptr, input_ports.output_ports);
+    ASSERT_NE(nullptr, input_ports.ports);
 
     ov_output_node_list_free(&input_ports);
     ov_model_free(model);
@@ -352,9 +352,9 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     ASSERT_NE(nullptr, model);
 
     ov_output_const_node_list_t input_ports_1;
-    input_ports_1.output_ports = nullptr;
+    input_ports_1.ports = nullptr;
     OV_ASSERT_OK(ov_model_const_inputs(model, &input_ports_1));
-    ASSERT_NE(nullptr, input_ports_1.output_ports);
+    ASSERT_NE(nullptr, input_ports_1.ports);
 
     char* tensor_name = nullptr;
     OV_ASSERT_OK(ov_node_list_get_any_name_by_index(&input_ports_1, 0, &tensor_name));
@@ -368,11 +368,11 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
     OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
 
     ov_output_const_node_list_t input_ports_2;
-    input_ports_2.output_ports = nullptr;
+    input_ports_2.ports = nullptr;
     OV_ASSERT_OK(ov_model_const_inputs(model, &input_ports_2));
-    ASSERT_NE(nullptr, input_ports_2.output_ports);
+    ASSERT_NE(nullptr, input_ports_2.ports);
 
-    EXPECT_NE(input_ports_1.output_ports, input_ports_2.output_ports);
+    EXPECT_NE(input_ports_1.ports, input_ports_2.ports);
 
     ov_shape_free(&shape);
     ov_partial_shape_free(&partial_shape);
