@@ -5,11 +5,10 @@
 # flake8: noqa
 
 from openvino.utils import add_openvino_libs_to_path
-from openvino.pyopenvino import get_version
-
-__version__ = get_version()
-
 add_openvino_libs_to_path()
+
+from openvino.pyopenvino import get_version
+__version__ = get_version()
 
 from openvino.pyopenvino.offline_transformations import apply_moc_transformations
 from openvino.pyopenvino.offline_transformations import apply_moc_legacy_transformations
