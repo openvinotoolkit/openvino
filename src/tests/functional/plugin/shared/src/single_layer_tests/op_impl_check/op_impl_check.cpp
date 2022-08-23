@@ -36,7 +36,7 @@ void OpImplCheckTest::run() {
             summary.updateOPsImplStatus(function, true);
         } catch (...) {
             summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the LoadNetwork!";
+            GTEST_FAIL() << "Error in the Core::compile_model() method call!";
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);
