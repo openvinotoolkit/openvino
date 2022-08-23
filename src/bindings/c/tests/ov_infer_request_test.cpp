@@ -5,12 +5,12 @@
 
 #include "ov_test.hpp"
 
-void get_tensor_info(ov_model_t* model,
-                     bool input,
-                     size_t idx,
-                     char** name,
-                     ov_shape_t* shape,
-                     ov_element_type_e* type) {
+inline void get_tensor_info(ov_model_t* model,
+                            bool input,
+                            size_t idx,
+                            char** name,
+                            ov_shape_t* shape,
+                            ov_element_type_e* type) {
     ov_output_node_list_t output_nodes;
     output_nodes.size = 0;
     output_nodes.output_nodes = nullptr;
@@ -284,7 +284,7 @@ TEST_P(ov_infer_request_ppp, infer_async_ppp) {
     }
 }
 
-void infer_request_callback(void* args) {
+inline void infer_request_callback(void* args) {
     ov_infer_request_t* infer_request = (ov_infer_request_t*)args;
     ov_tensor_t* out_tensor = nullptr;
 

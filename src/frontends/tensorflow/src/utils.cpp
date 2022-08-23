@@ -33,7 +33,10 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
                                            "MaxPool",
                                            "MaxPoolV2",
                                            "MaxPool3D",
-                                           "ExtractImagePatches"};
+                                           "ExtractImagePatches",
+                                           "DepthwiseConv2dNative",
+                                           "AvgPool",
+                                           "AvgPool3D"};
     auto op_type = node.get_op_type();
 
     TENSORFLOW_OP_VALIDATION(node,
@@ -55,7 +58,8 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
             return ov::op::PadType::SAME_LOWER;
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-               op_type == "MaxPool3D" || op_type == "ExtractImagePatches") {
+               op_type == "MaxPool3D" || op_type == "ExtractImagePatches" || op_type == "DepthwiseConv2dNative" ||
+               op_type == "AvgPool" || op_type == "AvgPool3D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
@@ -166,7 +170,7 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     }
 
     // prepare inputs to Convolution
-    ov::frontend::tensorflow::convert_nhwc_to_nchw(is_nhwc, input);
+    ov::frontend::tensorflow::convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(spatial_dims_num + 2));
     ov::AxisVector permutation_2d = {3, 2, 0, 1};
     ov::AxisVector permutation_3d = {4, 3, 0, 1, 2};
     filter = ov::frontend::tensorflow::make_transpose(filter, spatial_dims_num == 2 ? permutation_2d : permutation_3d);
@@ -174,9 +178,21 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     ov::Output<ov::Node> conv =
         std::make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, conv);
+    ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, conv, ov::Rank(spatial_dims_num + 2));
     ov::frontend::tensorflow::set_node_name(node.get_name(), conv.get_node_shared_ptr());
     return {conv};
+}
+
+void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow::NodeContext& node,
+                                                 int min_input_size,
+                                                 const std::vector<std::string>& supported_ops) {
+    auto op_type = node.get_op_type();
+    TENSORFLOW_OP_VALIDATION(node,
+                             std::find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                             op_type + " is not supported for conversion.");
+    TENSORFLOW_OP_VALIDATION(node,
+                             node.get_input_size() >= min_input_size,
+                             op_type + " must have at least " + std::to_string(min_input_size) + " inputs.");
 }
 
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {

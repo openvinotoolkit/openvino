@@ -19,7 +19,7 @@ endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
-ov_install_static_lib(xbyak openvino_common)
+ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 
 #
 # zlib
@@ -92,7 +92,7 @@ if(NOT TARGET openvino::pugixml)
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pugixml)
-        ov_install_static_lib(pugixml-static openvino_common)
+        ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
     ie_build_pugixml()
@@ -115,8 +115,8 @@ endif()
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
-ov_install_static_lib(ade openvino_common)
-ov_install_static_lib(fluid openvino_common)
+ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 
 #
 # Gflags
@@ -206,8 +206,8 @@ add_subdirectory(json)
 openvino_developer_export_targets(COMPONENT openvino_common
                                   TARGETS nlohmann_json nlohmann_json_schema_validator)
 
-ov_install_static_lib(nlohmann_json openvino_common)
-ov_install_static_lib(nlohmann_json_schema_validator openvino_common)
+ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 
 #
 # Install

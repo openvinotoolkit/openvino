@@ -482,7 +482,7 @@ ov_status_e ov_core_get_available_devices(const ov_core_t* core, ov_available_de
         auto available_devices = core->object->get_available_devices();
         devices->size = available_devices.size();
         std::unique_ptr<char*[]> tmp_devices(new char*[available_devices.size()]);
-        for (int i = 0; i < available_devices.size(); i++) {
+        for (size_t i = 0; i < available_devices.size(); i++) {
             tmp_devices[i] = str_to_char_array(available_devices[i]);
         }
         devices->devices = tmp_devices.release();
@@ -495,7 +495,7 @@ void ov_available_devices_free(ov_available_devices_t* devices) {
     if (!devices) {
         return;
     }
-    for (int i = 0; i < devices->size; i++) {
+    for (size_t i = 0; i < devices->size; i++) {
         if (devices->devices[i]) {
             delete[] devices->devices[i];
         }
@@ -539,7 +539,7 @@ ov_status_e ov_core_get_versions_by_device_name(const ov_core_t* core,
         versions->size = object.size();
         auto tmp_versions(new ov_core_version_t[object.size()]);
         auto iter = object.cbegin();
-        for (int i = 0; i < object.size(); i++, iter++) {
+        for (size_t i = 0; i < object.size(); i++, iter++) {
             const auto& tmp_version_name = iter->first;
             tmp_versions[i].device_name = str_to_char_array(tmp_version_name);
 
@@ -559,7 +559,7 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
     if (!versions) {
         return;
     }
-    for (int i = 0; i < versions->size; i++) {
+    for (size_t i = 0; i < versions->size; i++) {
         if (versions->versions[i].device_name)
             delete[] versions->versions[i].device_name;
         if (versions->versions[i].version.buildNumber)

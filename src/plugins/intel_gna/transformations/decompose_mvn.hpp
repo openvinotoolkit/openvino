@@ -6,7 +6,10 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace pass {
+
 
 /**
  * @brief Decompose MVN operation
@@ -21,4 +24,6 @@ public:
     DecomposeMVN();
 };
 
-}  // namespace GNAPluginNS
+} // namespace pass
+} // namespace intel_gna
+} // namespace ov

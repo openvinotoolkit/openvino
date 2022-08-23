@@ -135,7 +135,7 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
         std::map<std::string, ov::PartialShape> in_shapes;
         std::vector<ov::Dimension> dims;
         ov_status_e ret = ov_status_e::OK;
-        for (auto i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             auto name = tensor_names[i];
             auto pshape = &partial_shapes[i];
             dims.clear();
@@ -163,7 +163,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
         std::map<size_t, ov::PartialShape> in_shapes;
         std::vector<ov::Dimension> dims;
         ov_status_e ret = ov_status_e::OK;
-        for (auto i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             auto port_id = ports[i];
             auto pshape = &partial_shapes[i];
             dims.clear();
@@ -196,7 +196,7 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
         std::map<ov::Output<ov::Node>, ov::PartialShape> in_shapes;
         std::vector<ov::Dimension> dims;
         ov_status_e ret = ov_status_e::OK;
-        for (auto i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             auto node = *output_nodes[i]->object;
             auto pshape = &partial_shapes[i];
             dims.clear();

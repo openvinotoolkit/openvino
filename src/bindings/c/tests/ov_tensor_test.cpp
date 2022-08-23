@@ -3,7 +3,7 @@
 //
 #include "ov_test.hpp"
 
-void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
+inline void setup_4d_shape(ov_shape_t* shape, int64_t d0, int64_t d1, int64_t d2, int64_t d3) {
     int64_t dims[4] = {d0, d1, d2, d3};
     ov_shape_init(shape, 4, dims);
 }
@@ -99,13 +99,13 @@ static size_t product(const std::vector<size_t>& dims) {
     return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
 }
 
-size_t calculate_size(ov_shape_t shape) {
+inline size_t calculate_size(ov_shape_t shape) {
     std::vector<size_t> tmp_shape;
     std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
     return product(tmp_shape);
 }
 
-size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
+inline size_t calculate_byteSize(ov_shape_t shape, ov_element_type_e type) {
     return (calculate_size(shape) * GET_ELEMENT_TYPE_SIZE(type) + 7) >> 3;
 }
 
