@@ -172,6 +172,10 @@ if (NOT _lib_exists AND TBB_FIND_REQUIRED AND TBB_FIND_REQUIRED_${_tbb_component
     message(FATAL_ERROR "Missed required Intel TBB component: ${_tbb_component}")
 endif()
 
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(TBB
+    REQUIRED_VARS _lib_exists)
+
 unset(_tbb_x32_subdir)
 unset(_tbb_x64_subdir)
 unset(_tbb_arch_subdir)
