@@ -14,6 +14,9 @@ PlaceStat PlaceMockPy::m_stat = {};
 using namespace ngraph;
 using namespace ov::frontend;
 
+extern "C" MOCK_API FrontEndVersion GetAPIVersion();
+extern "C" MOCK_API void* GetFrontEndData();
+
 extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }

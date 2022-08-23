@@ -16,7 +16,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() >= 3, "Conv2DBackpropInput must have at least three inputs.");
+    default_op_checks(node, 3, {"Conv2DBackpropInput"});
     auto input_sizes = node.get_input(0);
     auto filter = node.get_input(1);
     auto out_backprop = node.get_input(2);
@@ -24,7 +24,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     // retrieve attributes for Conv2DBackpropInput
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
-    ov::op::PadType auto_pad = convert_conv_tf_padding(node, tf_padding_type);
+    ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);
 
     // retrieve optional attributes
     auto tf_dilations = node.get_attribute<std::vector<int64_t>>("dilations", {1, 1, 1, 1});
@@ -73,7 +73,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
 
     // prepare inputs to ConvolutionBackpropData
     filter = make_transpose(filter, {3, 2, 0, 1});
-    convert_nhwc_to_nchw(is_nhwc, out_backprop);
+    convert_nhwc_to_nchw(is_nhwc, out_backprop, ov::Rank(4));
 
     // initially think that output shape defined for NCHW layout
     auto ss_begin = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{2});
@@ -104,7 +104,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
 
     // insert Transpose only if original Conv2DBackpropInput is in NHWC layout
     auto conv_backprop_output = conv_backprop->output(0);
-    convert_nchw_to_nhwc(is_nhwc, conv_backprop_output);
+    convert_nchw_to_nhwc(is_nhwc, conv_backprop_output, ov::Rank(4));
 
     // move the original name to new ConvolutionBackpropData if original layout is NCHW
     // move the original name to Transpose if original layout is NHWC

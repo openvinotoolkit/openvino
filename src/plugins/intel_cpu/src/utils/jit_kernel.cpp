@@ -133,6 +133,11 @@ InferenceEngine::Precision type2precision<uint8_t>() {
     return InferenceEngine::Precision::U8;
 }
 
+template<>
+InferenceEngine::Precision type2precision<int8_t>() {
+    return InferenceEngine::Precision::I8;
+}
+
 cpu_isa_t get_current_isa() {
     if (mayiuse(cpu_isa_t::avx512_core))
         return cpu_isa_t::avx512_core;
@@ -212,9 +217,7 @@ const void * consts_table::store(const void *data, size_t size) {
 }   // namespace internal
 
 jit_kernel::jit_kernel()
-    : jit_generator()
-    , _load_emitter(this, internal::get_current_isa())
-    , _store_emitter(this, internal::get_current_isa()) {
+    : jit_generator() {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
@@ -297,10 +300,10 @@ void jit_kernel::free<Zmm>(const Zmm & reg) {
 
 void jit_kernel::postamble() {
     jit_generator::postamble();
-    if (_is_load_emitter_used)
-        _load_emitter.emit_data();
-    if (_is_store_emitter_used)
-        _store_emitter.emit_data();
+    for (const auto& emitter : _emitters) {
+        if (emitter.second)
+            emitter.second->emit_data();
+    }
 }
 
 const AddressFrame & jit_kernel::address_frame(size_t size) const {

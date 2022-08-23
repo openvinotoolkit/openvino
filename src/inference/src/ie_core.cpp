@@ -104,9 +104,20 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
     auto pluginPath = ov::util::to_file_path(pluginName.c_str());
 
     // 0. user can provide a full path
+
+#ifndef _WIN32
+    try {
+        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
+        pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
+    } catch (const std::runtime_error&) {
+        // failed to resolve absolute path; not critical
+    }
+#endif  // _WIN32
+
     if (FileUtils::fileExist(pluginPath))
         return pluginPath;
 
+    // ov::Core::register_plugin(plugin_name, device_name) case
     if (needAddSuffixes)
         pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
 
@@ -717,6 +728,12 @@ public:
             // as the result is being checked by the user
             strictly_check_dims = false;
         } else {
+            // check if Auto-Batch plugin registered
+            try {
+                GetCPPPluginByName("BATCH");
+            } catch (const std::runtime_error&) {
+                return;
+            }
             // check whether the Auto-Batching is disabled explicitly
             const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
             if (batch_mode != config.end()) {

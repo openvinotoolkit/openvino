@@ -23,7 +23,7 @@ void shape_infer(const ov::opset1::Reshape* op, const std::vector<T> &input_shap
     output_shape.resize(output_pattern.size());
 
     auto output_rank = input_shapes[1].size() == 0 ? 0 : input_shapes[1][0];
-    if (output_rank == 0 && !output_shape.empty()) {
+    if (output_rank == 0 && output_shape.size() != 0) {
         output_pattern.clear();
         OPENVINO_ASSERT(output_pattern.size() == 1);
         NODE_VALIDATION_CHECK(op,
@@ -56,7 +56,7 @@ void shape_infer(const ov::opset1::Reshape* op, const std::vector<T> &input_shap
     }
     size_t input_product(1);
     for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (i < static_cast<int64_t>(output_pattern.size()) && output_pattern[i] == 0)
+        if (i < static_cast<size_t>(output_pattern.size()) && output_pattern[i] == 0)
             continue;
         input_product = input_shape[i].get_length() * input_product;
     }
@@ -93,13 +93,6 @@ void shape_infer(const ov::opset1::Reshape* op, const std::vector<T> &input_shap
                           input_shape);
 }
 
-
-template<>
-void shape_infer<ov::PartialShape>(const ov::opset1::Reshape* op, const std::vector<ov::PartialShape> &input_shapes, std::vector<ov::PartialShape> &output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    OPENVINO_UNREACHABLE("Reshape shape inference is not yet unified for use with PartialShapes");
-}
-
 template<class T>
 void shape_infer(const ov::opset1::Squeeze* op, const std::vector<T> &input_shapes, std::vector<T> &output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
@@ -111,7 +104,7 @@ void shape_infer(const ov::opset1::Squeeze* op, const std::vector<T> &input_shap
     auto& input_shape = input_shapes[0];
     OPENVINO_ASSERT(input_shape.is_static());
     auto& output_shape = output_shapes[0];
-    output_shape.clear();
+    output_shape = T{};
 
     ov::normalize_axes(op, input_shape.rank().get_length(), axes);
 
@@ -122,14 +115,6 @@ void shape_infer(const ov::opset1::Squeeze* op, const std::vector<T> &input_shap
             NODE_VALIDATION_CHECK(op, input_shape[idx] == 1, "provided axis value is invalid. Only axes of size 1 may be removed.");
         }
     }
-}
-
-
-template<>
-void shape_infer<ov::PartialShape>(const ov::opset1::Squeeze* op,
-                                   const std::vector<ov::PartialShape> &input_shapes, std::vector<ov::PartialShape> &output_shapes,
-                                   const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    OPENVINO_UNREACHABLE("Squeeze shape inference is not yet unified for use with PartialShapes");
 }
 
 template<class T>
@@ -148,24 +133,15 @@ void shape_infer(const ov::opset1::Unsqueeze* op,
 
     NODE_VALIDATION_CHECK(op, !axes.empty(), "'axes' input is mandatory");
 
-    auto expanded_rank = input_shape.size() + axes.size();
+    int64_t expanded_rank = input_shape.size() + axes.size();
     ov::normalize_axes(op, static_cast<int64_t>(expanded_rank), axes);
 
     std::set<int64_t> unique_sorted_axes(axes.begin(), axes.end());
     for (const auto& axis : unique_sorted_axes) {
         NODE_VALIDATION_CHECK(op, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
-        output_shape.insert(next(begin(output_shape), axis), 1);
+        output_shape.insert(next(output_shape.begin(), axis), 1);
     }
 }
-
-
-template<>
-void shape_infer<ov::PartialShape>(const ov::opset1::Unsqueeze* op,
-                                   const std::vector<ov::PartialShape> &input_shapes, std::vector<ov::PartialShape> &output_shapes,
-                                   const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    OPENVINO_UNREACHABLE("Unsqueeze shape inference is not yet unified for use with PartialShapes");
-}
-
 
 template <class T>
 inline void dynamic_shape(T& output_shape) {
@@ -209,4 +185,3 @@ void shape_infer(const ov::opset3::ShapeOf* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
     shape_of_shape_infer(input_shapes[0], output_shapes[0]);
 }
-
