@@ -147,10 +147,6 @@ protected:
         }
 
         function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
-
-        if (netPrecision == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512f()) {
-            rel_threshold = 0.05f;
-        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
