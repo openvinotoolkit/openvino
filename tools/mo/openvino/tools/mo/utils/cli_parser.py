@@ -127,7 +127,7 @@ def shape_to_str(shape, separator):
         return partial_shape_to_str(shape, separator)
     if isinstance(shape, Shape):
         return partial_shape_to_str(PartialShape(shape), separator)
-    if isinstance(shape, list):
+    if isinstance(shape, list) or isinstance(shape, tuple):
         dims = []
         for dim in shape:
             if isinstance(dim, Dimension):
@@ -177,6 +177,8 @@ def value_to_str(value, separator):
         for x in value:
             values.append(str(x))
         return "[" + separator.join(values) + "]"
+    if isinstance(value, bool):
+        return "True" if value else "False"
     raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
 
 
@@ -1990,6 +1992,23 @@ def get_model_name(path_input_model: str) -> str:
     """
     parsed_name, extension = os.path.splitext(os.path.basename(path_input_model))
     return 'model' if parsed_name.startswith('.') or len(parsed_name) == 0 else parsed_name
+
+
+def get_model_name_from_args(argv: argparse.Namespace):
+    model_name = "<UNKNOWN_NAME>"
+    if hasattr(argv, 'model_name'):
+        if argv.model_name:
+            model_name = argv.model_name
+        elif argv.input_model:
+            model_name = get_model_name(argv.input_model)
+        elif argv.saved_model_dir:
+            model_name = "saved_model"
+        elif argv.input_meta_graph:
+            model_name = get_model_name(argv.input_meta_graph)
+        elif argv.input_symbol:
+            model_name = get_model_name(argv.input_symbol)
+        argv.model_name = model_name
+    return model_name
 
 
 def get_absolute_path(path_to_file: str) -> str:

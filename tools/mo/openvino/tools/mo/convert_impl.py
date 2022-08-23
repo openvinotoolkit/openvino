@@ -31,8 +31,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, \
-    mo_convert_params
+    get_all_cli_parser, mo_convert_params, get_model_name_from_args
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -496,6 +495,8 @@ def pack_params_to_args_namespace(**kwargs):
     cli_parser = get_all_cli_parser(fe_manager)
     argv = cli_parser.parse_args([])
     for key, value in kwargs.items():
+        if key not in argv:
+            raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
     send_params_info(argv, cli_parser)
@@ -528,6 +529,10 @@ def _convert(**args):
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
+
+    if argv.model_name is None:
+        argv.model_name = get_model_name_from_args(argv)
+
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user

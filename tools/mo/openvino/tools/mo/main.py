@@ -13,7 +13,7 @@ except ImportError:
 
 from openvino.tools.mo.convert import convert
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name, get_meta_info
+from openvino.tools.mo.utils.cli_parser import get_model_name_from_args, get_meta_info
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
@@ -23,23 +23,6 @@ from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
 from openvino.runtime import serialize
-
-
-def get_model_name_from_args(argv: argparse.Namespace):
-    model_name = "<UNKNOWN_NAME>"
-    if hasattr(argv, 'model_name'):
-        if argv.model_name:
-            model_name = argv.model_name
-        elif argv.input_model:
-            model_name = get_model_name(argv.input_model)
-        elif argv.saved_model_dir:
-            model_name = "saved_model"
-        elif argv.input_meta_graph:
-            model_name = get_model_name(argv.input_meta_graph)
-        elif argv.input_symbol:
-            model_name = get_model_name(argv.input_symbol)
-        argv.model_name = model_name
-    return model_name
 
 
 def main(cli_parser: argparse.ArgumentParser, framework=None):

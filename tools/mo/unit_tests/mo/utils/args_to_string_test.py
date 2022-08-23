@@ -36,6 +36,9 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         inp8 = InputCutInfo("data2", [4, 5, 6], np.int64, [5, 4, 3, 2, 1])
         self.assertTrue(input_to_str(inp8) == "data2[4 5 6]{i64}->[5 4 3 2 1]")
 
+        inp9 = InputCutInfo("data", [1], np.bool, True)
+        self.assertTrue(input_to_str(inp9) == "data[1]{boolean}->True")
+
         inp = [inp6, inp7, inp8]
         self.assertTrue(input_to_str(inp) == "data:0[2 5 7]->[1 2 3 4 5],"
                                              "0:data1{f64}->[1.6 7.2 5.66],"
