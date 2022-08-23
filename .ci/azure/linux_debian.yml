@@ -45,7 +45,8 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SAMPLES_INSTALL_DIR: /usr/share/openvino-2022.3.0/samples
+    SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
+    PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
@@ -194,6 +195,12 @@ jobs:
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
 
+  - script: cmake -DCOMPONENT=python_samples -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install Python Samples'
+
+  - script: cmake -DCOMPONENT=gna -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install GNA plugin'
+
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
@@ -301,6 +308,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
@@ -389,7 +397,9 @@ jobs:
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      export IE_APP_PYTHON_PATH=$(SAMPLES_INSTALL_DIR)/python/
+      # for gna plugin
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(INSTALL_DIR)/lib/x86_64-linux-gnu:$(INSTALL_DIR)/lib/x86_64-linux-gnu/openvino-2022.3.0
+      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
