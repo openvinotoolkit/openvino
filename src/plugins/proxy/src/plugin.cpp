@@ -316,12 +316,15 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         auto device = *alias_for.begin();
         const std::vector<std::string> real_devices_ids = core->get_property(device, ov::available_devices);
         for (const auto& device_id : real_devices_ids) {
-            const std::string full_device_name = device + '.' + device_id;
+            const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
             std::vector<std::string> devices{full_device_name};
 
             // Add fallback devices use device_id for individual fallback property
-            for (const auto& fallback_dev : split(get_property(ov::device::priorities.name(), device_id))) {
-                devices.emplace_back(fallback_dev);
+            auto fallback = get_property(ov::device::priorities.name(), device_id);
+            if (!fallback.empty()) {
+                for (const auto& fallback_dev : split(fallback)) {
+                    devices.emplace_back(fallback_dev);
+                }
             }
             result.emplace_back(devices);
         }
@@ -343,7 +346,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         for (const auto& device : device_order) {
             const std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
             for (const auto& device_id : supported_device_ids) {
-                const std::string full_device_name = device + '.' + device_id;
+                const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
                 try {
                     ov::device::UUID uuid = core->get_property(full_device_name, ov::device::uuid.name(), {});
                     auto it = unique_devices.find(uuid.uuid);
