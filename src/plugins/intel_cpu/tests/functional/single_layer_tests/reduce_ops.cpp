@@ -148,9 +148,8 @@ protected:
 
         function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 
-        if (netPrecision == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512_core()) {
+        if (netPrecision == ElementType::bf16 && !InferenceEngine::with_cpu_x86_avx512f()) {
             rel_threshold = 0.05f;
-            abs_threshold = 1e-2f;
         }
     }
 
