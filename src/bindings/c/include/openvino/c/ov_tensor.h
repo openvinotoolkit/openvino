@@ -28,26 +28,21 @@ typedef struct ov_tensor ov_tensor_t;
  * @struct ov_tensor_list_t
  * @brief A list of tensors
  */
-typedef struct ov_tensor_list ov_tensor_list_t;
+typedef struct {
+    ov_tensor_t** tensors;
+    size_t size;
+} ov_tensor_list_t;
+
 
 /**
  * @brief Creat a tensor list
  * @ingroup tensor
  * @param tensors A point to ov_tensor_list_t
+ * @param size The size of the tensors in tensor list
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_tensor_list_create(ov_tensor_list_t** tensors);
-
-/**
- * @brief Add a tensor to a list
- * @ingroup tensor
- * @param tensor A point to the tensor will be added to tensor list
- * @param tensors A point to tensor list
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(ov_status_e)
-ov_tensor_list_add(ov_tensor_list_t* tensors, const ov_tensor_t* tensor);
+ov_tensor_list_create(ov_tensor_list_t* tensors, const size_t size);
 
 /**
  * @brief Free ov_tensor_list_t.
