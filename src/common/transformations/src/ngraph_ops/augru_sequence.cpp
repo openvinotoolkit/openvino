@@ -3,9 +3,9 @@
 //
 
 #include "ngraph_ops/augru_sequence.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 #include "itt.hpp"
+#include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
 
@@ -58,7 +58,8 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
     auto b_pshape = get_input_partial_shape(5);
     auto a_pshape = get_input_partial_shape(6);
 
-    ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape});
+    ngraph::op::util::validate_seq_input_rank_dimension(
+        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
