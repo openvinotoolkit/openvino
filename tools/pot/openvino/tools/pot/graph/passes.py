@@ -151,6 +151,10 @@ class InsertFakeQuantize(BackReplacementPattern):
             insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif m_op.type == 'LSTMCell':
             insert_fake_quantize(graph, m_op, [0, 1, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+        elif m_op.type == 'LSTMSequence':
+            insert_fake_quantize(graph, m_op, [0, 1, 4, 5], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+        elif m_op.type == 'GRUSequence':
+            insert_fake_quantize(graph, m_op, [0, 1, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:
