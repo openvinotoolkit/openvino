@@ -16,8 +16,8 @@ target_include_directories(${TARGET_FE_NAME}
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
         PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-set(DEPENDENCIES frontend_common::static)
-set(DEFINITIONS)
+set(DEPENDENCIES openvino::runtime)
+set(DEFINITIONS IMPLEMENT_OPENVINO_API)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)

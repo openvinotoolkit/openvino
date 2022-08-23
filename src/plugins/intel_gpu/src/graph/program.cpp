@@ -110,6 +110,7 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -123,6 +124,7 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
+      _stream(_engine.create_stream()),
       options(options),
       processing_order(),
       tuning_cache(nullptr) {
@@ -130,10 +132,18 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
 }
+
+program::program(engine& engine)
+    : _engine(engine),
+      _stream(_engine.create_stream()),
+      options(build_options()),
+      processing_order(),
+      tuning_cache(nullptr) { }
 
 program::~program() {
 }
@@ -177,6 +187,10 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
 
 kernel::ptr program::get_kernel(kernel_id id) {
     return _kernels_cache->get_kernel(id);
+}
+
+kernels_cache& program::get_kernels_cache() const {
+    return *_kernels_cache;
 }
 
 program::ptr program::build_program(engine& engine,
@@ -1401,6 +1415,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id()) {
             can_use_fsv16 = false;
@@ -1429,6 +1444,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id()) {
@@ -1550,7 +1566,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, 0, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
         }
     }
 
