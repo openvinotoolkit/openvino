@@ -81,7 +81,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const i
             fusingPort = i;
             dataShape = node->get_input_partial_shape(i);
             // only one non-const parent is allowed
-            if (dataShape.is_dynamic() || ++numNonConstInputs != 1)
+            if (++numNonConstInputs != 1)
                 return false;
         } else {
             // every const parent must have exactly one child
@@ -97,8 +97,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const i
             if (i == fusingPort)
                 continue;
             const ov::PartialShape weightShape = node->get_input_partial_shape(i);
-            if (weightShape.is_dynamic() ||
-                !isPerTensorOrPerChannelBroadcastable(dataShape.get_shape(), weightShape.get_shape(), channelAxis, true))
+            if (!isPerTensorOrPerChannelBroadcastable(dataShape.get_max_shape(), weightShape.get_max_shape(), channelAxis, true))
                 return false;
         }
         return true;
