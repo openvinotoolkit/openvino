@@ -22,12 +22,28 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
         const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
         const emitter_context *emit_context) const override {
-        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-            Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
-            Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
-            Xbyak::Zmm aux = Xbyak::Zmm(aux_vec_idxs[0]);
-            Xbyak::Zmm aux1 = Xbyak::Zmm(aux_vec_idxs[1]);
+        if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+            emit_isa<dnnl::impl::cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
+            emit_isa<dnnl::impl::cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
+        } else {
+            assert(!"unsupported isa");
+        }
+    }
 
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+        using namespace Xbyak;
+        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+
+        Vmm in = Vmm(in_vec_idxs[0]);
+        Vmm aux = Vmm(aux_vec_idxs[0]);
+
+        if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+            Vmm aux1 = Vmm(aux_vec_idxs[1]);
+            Ymm out = Ymm(out_vec_idxs[0]);
             h->uni_vpsrld(aux, in, 16);
             h->vpandd(aux, aux, table_val("one"));
             h->uni_vmovups(aux1, table_val("even"));
@@ -36,11 +52,17 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
+        } else if (one_of(host_isa_, dnnl::impl::cpu::x64::cpu_isa_t::avx2, dnnl::impl::cpu::x64::cpu_isa_t::sse41)) {  // round_to_nearest_even emulation
+            Xmm out = Xmm(out_vec_idxs[0]);
+            h->vpandd(aux, in, table_val("rounding"));
+            h->uni_vpsrld(aux, aux, 1);
+            h->uni_vpaddd(aux, in, aux);
+            h->uni_vpsrld(aux, aux, 16);
+            h->vpmovdw(out, aux);
         } else {
             assert(!"unsupported isa");
         }
-    };
-
+    }
 
     inline int encode_fixup_selector(int input, int output) {
         return ((output) << (4 * (input)));
@@ -66,10 +88,11 @@ private:
             encode_fixup_selector(fixup_input_code_pinf_, fixup_output_code_copy_input_);
         push_arg_entry_of("one", 0x00000001, true);
         push_arg_entry_of("even", 0x00007fff, true);
+        push_arg_entry_of("rounding", 0x00010000, true);
         push_arg_entry_of("selector", selector_int32, true);
     }
 
-    size_t aux_vecs_count() const override { return 2; }
+    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1; }
 };
 
 }   // namespace intel_cpu

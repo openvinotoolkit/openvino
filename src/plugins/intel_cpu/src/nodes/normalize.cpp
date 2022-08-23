@@ -229,7 +229,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+        if (!mayiuse(avx512_core_bf16))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
 
         this->preamble();
@@ -255,7 +255,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
+        if (emu_vcvtneps2bf16)
             emu_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
