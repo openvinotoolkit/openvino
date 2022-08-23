@@ -563,7 +563,7 @@ IInferPtr AutoSchedule::CreateInferRequest() {
             // Get the _so from passthrough executable network when batch plugin is disable.
             auto so = _passthroughExeNet._ptr->GetPointerToSo() ? _passthroughExeNet._ptr->GetPointerToSo()
                                                                 : _passthroughExeNet._so;
-            syncRequestImpl->setPointerToSo(_passthroughExeNet._ptr->GetPointerToSo());
+            syncRequestImpl->setPointerToSo(so);
         }
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
