@@ -19,8 +19,6 @@ endif()
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wall)
     ie_add_compiler_flags(-Wmissing-declarations)
-    ie_add_compiler_flags(-Wno-error=sign-compare)
-    ie_add_compiler_flags(-Wno-error=missing-declarations)
 endif()
 
 add_subdirectory(plugins)
@@ -28,6 +26,10 @@ add_subdirectory(inference)
 include(cmake/openvino.cmake)
 # preprocessing has dependency on `openvino` for static build
 add_subdirectory(common/preprocessing)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wsign-compare)
+endif()
 add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
