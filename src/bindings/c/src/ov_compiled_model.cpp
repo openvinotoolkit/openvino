@@ -5,6 +5,9 @@
 
 #include "common.h"
 
+//!<  Read-only property<char *> to get a string list of supported read-only properties.
+const char* ov_property_key_supported_properties_ = "SUPPORTED_PROPERTIES";
+
 ov_status_e ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model) {
     if (!compiled_model || !model) {
         return ov_status_e::INVALID_C_PARAM;
@@ -78,13 +81,27 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
     return ov_status_e::OK;
 }
 
+ov_status_e ov_compiled_model_properies_to_anymap(const ov_properties_t* properties, ov::AnyMap& dest) {
+    if (!properties || properties->size <= 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    return ov_status_e::NOT_IMPLEMENTED;
+}
+
 ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const ov_properties_t* property) {
     if (!compiled_model || !property) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        compiled_model->object->set_property(property->object);
+        ov::AnyMap dest;
+        auto ret = ov_compiled_model_properies_to_anymap(property, dest);
+        if (ret == ov_status_e::OK) {
+            compiled_model->object->set_property(dest);
+        } else {
+            return ret;
+        }
     }
     CATCH_OV_EXCEPTIONS
 
@@ -92,15 +109,15 @@ ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_m
 }
 
 ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
-                                           const ov_property_key_e key,
+                                           const char* key,
                                            ov_any_t* value) {
-    if (!compiled_model || !value) {
+    if (!compiled_model || !value || !key) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
-        switch (key) {
-        case ov_property_key_e::SUPPORTED_PROPERTIES: {
+        std::string _key = std::string(key);
+        if (_key == ov_property_key_supported_properties_) {
             auto supported_properties = compiled_model->object->get_property(ov::supported_properties);
             std::string tmp_s;
             for (const auto& i : supported_properties) {
@@ -111,10 +128,8 @@ ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_m
             value->ptr = static_cast<void*>(temp);
             value->size = tmp_s.length() + 1;
             value->type = ov_any_type_e::CHAR;
-            break;
-        }
-        default:
-            break;
+        } else {
+            return ov_status_e::NOT_IMPLEMENTED;
         }
     }
     CATCH_OV_EXCEPTIONS

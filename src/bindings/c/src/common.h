@@ -71,14 +71,6 @@ struct ov_output_node {
 };
 
 /**
- * @struct ov_properties
- * @brief This is an interface of property
- */
-struct ov_properties {
-    ov::AnyMap object;
-};
-
-/**
  * @struct ov_compiled_model
  * @brief This is an interface of ov::CompiledModel
  */

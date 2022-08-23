@@ -86,9 +86,7 @@ ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, const 
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
-                               const ov_property_key_e key,
-                               ov_any_t* value);
+ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model, const char* key, ov_any_t* value);
 
 /**
  * @brief Exports the current compiled model to an output stream `std::ostream`.
