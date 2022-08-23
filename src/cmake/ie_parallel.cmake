@@ -43,8 +43,9 @@ macro(ov_find_package_tbb)
             endforeach()
         endif()
 
-        if (NOT TBB_FOUND)
-            set(THREADING "SEQ" PARENT_SCOPE)
+        if(NOT TBB_FOUND)
+            set(THREADING "SEQ")
+            set(ENABLE_TBBBIND_2_5 OFF)
             message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
                              SEQ method will be used.")
         else()
@@ -62,11 +63,13 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
         # set variables to parent scope to prevent multiple invocations of find_package(TBB)
         # at the same CMakeLists.txt; invocations in different directories are allowed
+        set(THREADING ${THREADING} PARENT_SCOPE)
         set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
         set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
         set(ENABLE_SYSTEM_TBB ${ENABLE_SYSTEM_TBB} PARENT_SCOPE)
+        set(ENABLE_TBBBIND_2_5 ${ENABLE_TBBBIND_2_5} PARENT_SCOPE)
     endif()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
