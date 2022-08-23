@@ -2448,7 +2448,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 }
 
 int PassManager::run(int index) {
-#if defined PLOT
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
 #ifdef PLOT
@@ -2456,6 +2456,9 @@ int PassManager::run(int index) {
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
+#endif
+#ifdef ENABLE_V7_SERIALIZE
+        network.serialize(name + ".xml", name + ".bin");
 #endif
     };
 #else
