@@ -27,7 +27,7 @@ inline void get_tensor_info(ov_model_t* model,
     EXPECT_NE(nullptr, *name);
 
     OV_EXPECT_OK(ov_node_list_get_shape_by_index(&output_ports, idx, shape));
-    OV_EXPECT_OK(ov_node_list_get_element_type_by_index(&output_ports, idx, type));
+    OV_EXPECT_OK(ov_node_list_get_element_type(&output_ports, idx, type));
 
     ov_partial_shape_t p_shape;
     OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_ports, idx, &p_shape));

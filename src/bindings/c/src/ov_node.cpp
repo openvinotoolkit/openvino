@@ -99,9 +99,9 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
     return ov_status_e::OK;
 }
 
-ov_status_e ov_node_list_get_element_type_by_index(const ov_output_node_list_t* port_list,
-                                                   size_t idx,
-                                                   ov_element_type_e* tensor_type) {
+ov_status_e ov_node_list_get_element_type(const ov_output_const_node_list_t* port_list,
+                                          size_t idx,
+                                          ov_element_type_e* tensor_type) {
     if (!port_list || idx >= port_list->size) {
         return ov_status_e::INVALID_C_PARAM;
     }
