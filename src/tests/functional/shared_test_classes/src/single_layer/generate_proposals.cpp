@@ -159,10 +159,19 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         }
 
         if (expectedNumRois < actualNumRois) {
-            const auto fBuffer = static_cast<const float*>(actual[i].data());
-            for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
-                ASSERT_TRUE(fBuffer[j] == 0.0f)
-                    << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << i;
+            if (outType == element::Type_t::f32) {
+                const auto fBuffer = static_cast<const float*>(actual[i].data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == 0.0f)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << i;
+                }
+            } else {
+                const float16 zero{0};
+                const auto fBuffer = static_cast<const float16*>(actual[i].data());
+                for (size_t j = expectedNumRois * outputSize; j < actualNumRois * outputSize; ++j) {
+                    ASSERT_TRUE(fBuffer[j] == zero)
+                        << "Expected 0.0, actual: " << fBuffer[j] << " at index: " << j << ", output: " << i;
+                }
             }
         }
     }
