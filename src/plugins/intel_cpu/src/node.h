@@ -749,11 +749,11 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getRuntimeCache() {
+    MultiCachePtr getRuntimeCache() const {
         return rtParamsCache;
     }
 
-    ScratchPadPtr getRuntimeScratchPad() {
+    ScratchPadPtr getRuntimeScratchPad() const {
         return rtScratchPad;
     }
 
