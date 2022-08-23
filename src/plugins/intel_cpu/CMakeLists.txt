@@ -37,7 +37,7 @@ if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2018 AND TBB_VERSION VERSION_
 endif()
 
 add_subdirectory(thirdparty)
-# add_subdirectory(tests/unit_tests)
+add_subdirectory(tests/unit_tests)
 add_subdirectory(tests/func_tests)
 
 # create plugin
