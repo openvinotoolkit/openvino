@@ -18,6 +18,7 @@
 #include <samples/slog.hpp>
 
 #include "utils.hpp"
+#include "property_map.hpp"
 // clang-format on
 
 #ifdef USE_OPENCV
@@ -766,6 +767,145 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     }
 }
 #endif
+
+void dump_property(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
+    nlohmann::json jsonConfig;
+    std::map<std::string, PropertyInfo> property_map;
+    std::map<std::string, std::string> enum_map;
+    generate_property_map(property_map, true);
+    generate_enum_map(enum_map);
+    for (const auto& item : config) {
+        std::string deviceName = item.first;
+        for (const auto& option : item.second) {
+            auto key = option.first;
+            std::stringstream strm;
+            option.second.print(strm);
+            auto value = strm.str();
+            auto iter = property_map.find(key);
+            if (iter == property_map.end()) {
+                continue;
+            }
+            std::string property_key = iter->second.property_name;
+            PropertyType property_type = iter->second.property_type;
+            if (property_type == PROPERTY_TYPE_BOOL) {
+                if (value == "YES") {
+                    jsonConfig[deviceName][property_key] = true;
+                } else {
+                    jsonConfig[deviceName][property_key] = false;
+                }
+            } else if (property_type == PROPERTY_TYPE_ENUM) {
+                jsonConfig[deviceName][property_key] = value;
+                for (auto& element : enum_map) {
+                    if (element.second == value) {
+                        jsonConfig[deviceName][property_key] = element.first;
+                        break;
+                    }
+                }
+            } else if (property_type == PROPERTY_TYPE_STRING_FLOAT_MAP) {
+                std::map<std::string, float> out_map;
+                out_map = ov::util::from_string<std::map<std::string, float>>(value);
+                for (auto& out : out_map) {
+                    jsonConfig[deviceName][property_key][out.first] = out.second;
+                }
+            } else if (property_type == PROPERTY_TYPE_FLOAT) {
+                jsonConfig[deviceName][property_key] = ov::util::from_string<float>(value);
+            } else if (property_type == PROPERTY_TYPE_INTER) {
+                jsonConfig[deviceName][property_key] = ov::util::from_string<int32_t>(value);
+            } else if (property_type == PROPERTY_TYPE_UNSIGNED_INTER) {
+                jsonConfig[deviceName][property_key] = ov::util::from_string<uint32_t>(value);
+            } else if (property_type == PROPERTY_TYPE_INTER64) {
+                jsonConfig[deviceName][property_key] = ov::util::from_string<int64_t>(value);
+            } else {
+                jsonConfig[deviceName][property_key] = value;
+            }
+        }
+    }
+
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    ofs << jsonConfig;
+}
+
+void load_property(const std::string& filename, std::map<std::string, ov::AnyMap>& config) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    nlohmann::json jsonConfig;
+    try {
+        ifs >> jsonConfig;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
+    }
+
+    std::map<std::string, PropertyInfo> property_map;
+    std::map<std::string, std::string> enum_map;
+    generate_enum_map(enum_map);
+    generate_property_map(property_map, false);
+    for (const auto& item : jsonConfig.items()) {
+        std::string deviceName = item.key();
+        for (const auto& option : item.value().items()) {
+            std::string key = option.key();
+            auto iter = property_map.find(key);
+            if (iter != property_map.end()) {
+                if (iter->second.property_type == PROPERTY_TYPE_STRING) {
+                    if (option.value().is_string()) {
+                        config[deviceName][iter->second.property_name] = option.value().get<std::string>();
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_BOOL) {
+                    if (option.value().is_boolean()) {
+                        auto value = option.value().get<bool>();
+                        if (value) {
+                            config[deviceName][iter->second.property_name] = "YES";
+                        } else {
+                            config[deviceName][iter->second.property_name] = "NO";
+                        }
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_INTER) {
+                    if (option.value().is_number_integer()) {
+                        config[deviceName][iter->second.property_name] = std::to_string(option.value().get<int32_t>());
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_UNSIGNED_INTER) {
+                    if (option.value().is_number_unsigned()) {
+                        config[deviceName][iter->second.property_name] = std::to_string(option.value().get<uint32_t>());
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_FLOAT) {
+                    if (option.value().is_number_float()) {
+                        config[deviceName][iter->second.property_name] = std::to_string(option.value().get<float>());
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_ENUM) {
+                    if (option.value().is_string()) {
+                        std::string value = option.value().get<std::string>();
+                        auto iter_tmp = enum_map.find(value);
+                        if (iter_tmp != enum_map.end()) {
+                            config[deviceName][iter->second.property_name] = iter_tmp->second;
+                        } else {
+                            config[deviceName][iter->second.property_name] = value;
+                        }
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_STRING_FLOAT_MAP) {
+                    if (option.value().is_object()) {
+                        std::map<std::string, float> map_value;
+                        for (const auto& element : option.value().items()) {
+                            if (element.value().is_number_float()) {
+                                map_value[element.key()] = element.value().get<float>();
+                            }
+                        }
+                        config[deviceName][iter->second.property_name] = ov::util::to_string(map_value);
+                    }
+                } else if (iter->second.property_type == PROPERTY_TYPE_INTER64) {
+                    if (option.value().is_number_integer()) {
+                        config[deviceName][iter->second.property_name] = std::to_string(option.value().get<int64_t>());
+                    }
+                }
+            }
+        }
+    }
+}
 
 #ifdef USE_OPENCV
 const std::vector<std::string> supported_image_extensions =

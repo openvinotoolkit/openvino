@@ -125,6 +125,9 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config);
 void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>& config);
 
+void load_property(const std::string& filename, std::map<std::string, ov::AnyMap>& config);
+void dump_property(const std::string& filename, const std::map<std::string, ov::AnyMap>& config);
+
 extern const std::vector<std::string> supported_image_extensions;
 extern const std::vector<std::string> supported_binary_extensions;
 

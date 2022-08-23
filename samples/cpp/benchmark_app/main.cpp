@@ -81,6 +81,11 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
         throw std::logic_error(err);
     }
+
+    if (!FLAGS_load_config.empty() && !FLAGS_load_property.empty()) {
+        throw std::logic_error("-load_config and -load_property cannot be set at the same time");
+    }
+
     return true;
 }
 
@@ -205,6 +210,10 @@ int main(int argc, char* argv[]) {
         std::map<std::string, ov::AnyMap> config;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
+        }
+        // Load device property file if specified
+        if (!FLAGS_load_property.empty()) {
+            load_property(FLAGS_load_property, config);
         }
 
         /** This vector stores paths to the processed images with input names**/
@@ -1114,6 +1123,11 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
             slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+        }
+
+        if (!FLAGS_dump_property.empty()) {
+            dump_property(FLAGS_dump_property, config);
+            slog::info << "OpenVINO Runtime property settings were dumped to " << FLAGS_dump_property << slog::endl;
         }
 
         if (!FLAGS_exec_graph_path.empty()) {
