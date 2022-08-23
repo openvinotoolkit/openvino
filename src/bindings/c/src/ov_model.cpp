@@ -87,7 +87,8 @@ ov_status_e ov_model_reshape_input_by_name(const ov_model_t* model,
     }
     try {
         std::map<std::string, ov::PartialShape> in_shape;
-        if (partial_shape->rank.is_static() && (partial_shape->rank.get_length() == partial_shape->dims.size())) {
+        if (partial_shape->rank.is_static() &&
+            (static_cast<size_t>(partial_shape->rank.get_length()) == partial_shape->dims.size())) {
             in_shape[tensor_name] = partial_shape->dims;
         } else {
             return ov_status_e::PARAMETER_MISMATCH;
@@ -107,10 +108,10 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     }
     try {
         std::map<std::string, ov::PartialShape> in_shapes;
-        for (auto i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             auto name = tensor_names[i];
             if (partial_shapes[i]->rank.is_static() &&
-                (partial_shapes[i]->rank.get_length() == partial_shapes[i]->dims.size())) {
+                (static_cast<size_t>(partial_shapes[i]->rank.get_length()) == partial_shapes[i]->dims.size())) {
                 in_shapes[name] = partial_shapes[i]->dims;
             } else {
                 return ov_status_e::PARAMETER_MISMATCH;
@@ -131,10 +132,10 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
     }
     try {
         std::map<size_t, ov::PartialShape> in_shapes;
-        for (auto i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             auto port_id = ports[i];
             if (partial_shape[i]->rank.is_static() &&
-                (partial_shape[i]->rank.get_length() == partial_shape[i]->dims.size())) {
+                (static_cast<size_t>(partial_shape[i]->rank.get_length()) == partial_shape[i]->dims.size())) {
                 in_shapes[port_id] = partial_shape[i]->dims;
             } else {
                 return ov_status_e::PARAMETER_MISMATCH;
@@ -160,10 +161,10 @@ ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
     }
     try {
         std::map<ov::Output<ov::Node>, ov::PartialShape> in_shapes;
-        for (auto i = 0; i < cnt; i++) {
+        for (size_t i = 0; i < cnt; i++) {
             auto node = *output_nodes[i]->object;
             if (partial_shapes[i]->rank.is_static() &&
-                (partial_shapes[i]->rank.get_length() == partial_shapes[i]->dims.size())) {
+                (static_cast<size_t>(partial_shapes[i]->rank.get_length()) == partial_shapes[i]->dims.size())) {
                 in_shapes[node] = partial_shapes[i]->dims;
             } else {
                 return ov_status_e::PARAMETER_MISMATCH;

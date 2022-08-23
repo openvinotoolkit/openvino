@@ -175,7 +175,7 @@ void ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos) {
     if (!profiling_infos) {
         return;
     }
-    for (int i = 0; i < profiling_infos->size; i++) {
+    for (size_t i = 0; i < profiling_infos->size; i++) {
         if (profiling_infos->profiling_infos[i].node_name)
             delete[] profiling_infos->profiling_infos[i].node_name;
         if (profiling_infos->profiling_infos[i].exec_type)
