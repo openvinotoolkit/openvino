@@ -14,11 +14,11 @@ namespace cldnn {
 
 std::string debug_configuration::get_device_id() {
     auto inst = get_instance();
-    if (!_device_id && inst)
+    if (std::string(_device_id) == std::string("") && inst)
         _device_id = inst->device_id.c_str();
     return _device_id;
 }
-const char *debug_configuration::_device_id = nullptr;
+const char *debug_configuration::_device_id = "";
 const char *debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.
