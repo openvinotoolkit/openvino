@@ -89,6 +89,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/insert_copy_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -678,48 +679,48 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
         manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
-        manager.register_pass<DecomposeMVN>();
+        manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<RemoveInputConvert>();
-        manager.register_pass<RemoveOutputConvert>();
+        manager.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
+        manager.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertDWSCToScaleShifts>();
-        manager.register_pass<ConvertPaddedToValidConv>();
-        manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
+        manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
+        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
-            manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
-            manager.register_pass<ConvertMatmulWithBiasToPointWiseConvolution>();
-            manager.register_pass<ConvertMatmulToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
+            manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
         }
-        manager.register_pass<SplitConvolutionWithFq>();
-        manager.register_pass<SplitConvolutionWithBias>();
-        manager.register_pass<SplitConvolution>();
-        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
-        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
-        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
-        manager.register_pass<InsertReshapeAroundMatmul>();
-        manager.register_pass<SwapInputMatMulWithTrailingTranspose>();
-        manager.register_pass<SwapInputMatMulWithAct>();
-        manager.register_pass<SwapInputMatMulWithFq>();
-        manager.register_pass<SwapInputMatMulWithBias>();
-        manager.register_pass<SwapInputMatMul>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
-        manager.register_pass<InsertTransposeAfterConvOrPool>();
-        manager.register_pass<Unfuse2dto4dReshapeAndTranspose>();
-        manager.register_pass<Unfuse4dto2dReshapeAndTranspose>();
-        manager.register_pass<RemoveExtraReshapes>();
-        manager.register_pass<ReorderActivationAndPooling>();
-        manager.register_pass<RemoveSingleInputConcat>();
-        manager.register_pass<SubstituteSoftsign>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
+        manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
+        manager.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
+        manager.register_pass<ov::intel_gna::pass::HandleTransposesAroundMatMul>();
+        manager.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
+        manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
+        manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
+        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
+        manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
+        manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
+        manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.register_pass<RemoveExtraReshapes>();
+        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
           ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
@@ -728,13 +729,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
           TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
               transormations
         */
-        manager.register_pass<BroadcastAddMultiplyConst>();
+        manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
-            manager.register_pass<PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
-            manager.register_pass<PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+            manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
-        // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+        manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -822,8 +826,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<InsertCopyLayerPass>();
-
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<InsertCopyLayerPass>();
+        }
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
