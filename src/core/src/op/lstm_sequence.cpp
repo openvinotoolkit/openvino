@@ -9,6 +9,7 @@
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
+#include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
@@ -186,7 +187,7 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     const auto& b_pshape = get_input_partial_shape(6);
     const auto& p_pshape = get_input_partial_shape(7);
 
-    util::RNNCellBase::validate_seq_input_rank_dimension(input_param);
+    ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,
@@ -382,7 +383,7 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     const auto& r_pshape = get_input_partial_shape(5);
     const auto& b_pshape = get_input_partial_shape(6);
 
-    validate_seq_input_rank_dimension(input_param);
+    ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,
