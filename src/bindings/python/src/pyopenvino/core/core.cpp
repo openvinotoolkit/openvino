@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-std::string to_string(py::handle handle) {
+inline std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
 }
