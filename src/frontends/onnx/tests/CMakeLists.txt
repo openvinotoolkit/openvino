@@ -14,6 +14,8 @@ message(STATUS "ONNX frontend tests enabled")
 
 add_compile_definitions(
     ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx_import"
+    TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx/"
+    MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}/core/models"
     TEST_FILES="${TEST_MODEL_ZOO}/core/files")
 
@@ -84,6 +86,14 @@ set(SRC
     onnx_transformations.cpp
     onnx_editor.cpp)
 
+# formerly these were in separate target onnx_frontend_tests
+list(APPEND SRC
+    conversion.cpp
+    json_config_extension.cpp
+    load_from.cpp
+    op_extension.cpp
+    telemetry.cpp)
+
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
         list(APPEND full_src_names ${src})
@@ -123,7 +133,7 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(onnx_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(onnx_tests PRIVATE commonTestUtils engines_test_util openvino::runtime::dev
+target_link_libraries(onnx_tests PRIVATE commonTestUtils engines_test_util gtest_main_manifest openvino::runtime::dev
     openvino_onnx_frontend onnx_common)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
@@ -158,5 +168,3 @@ add_dependencies(onnx_tests test_model_zoo)
 
 add_subdirectory(standalone_build)
 add_dependencies(onnx_tests onnx_fe_standalone_build_test)
-
-add_subdirectory(onnx_frontend_tests)
