@@ -551,7 +551,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, 
 : jit_emitter(host, host_isa, exec_prc, in_out_type), store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), name_("unknown") {
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
-    if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
+    if (!mayiuse(cpu::x64::avx512_core_bf16)) {
         emu_vcvtneps2bf16_.reset(new jit_emu_vcvtneps2bf16(host, host_isa));
     }
 }
