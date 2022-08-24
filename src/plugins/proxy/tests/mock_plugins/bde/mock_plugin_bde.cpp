@@ -132,6 +132,10 @@ Parameter MockPluginBde::GetMetric(const std::string& name,
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {"bde_b", "bde_d", "bde_e"};
         return decltype(ov::available_devices)::value_type(availableDevices);
+    } else if (name == ov::device::capabilities) {
+        std::vector<std::string> capabilities;
+        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        return decltype(ov::device::capabilities)::value_type(capabilities);
     }
 
     IE_THROW(NotImplemented);
