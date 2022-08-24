@@ -47,6 +47,14 @@ class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::gpr_to_vec);
+
+    void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
+
+    void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                    const std::shared_ptr<const emitter_context> &emit_context,
+                    const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) override;
+
     /**
     * load_num values with src_prc precision are loaded from ptr[Reg64(in_idxs[0]) + offset_byte] address to Vmm[out_idxs[0]] as dst_prc.
     * is_fill: when load_num can not fully fit in vector register, whether fill_value should be filled as default values.
