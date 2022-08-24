@@ -43,6 +43,19 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 //    std::shared_ptr<ov::Model> initReference() const override;
 };
+/// The trivial graph, just one Div.
+/// Tokenized simply by starting subgraph.
+// in1   in2
+//    Div
+//   Result
+class DivFunction : public SnippetsFunctionBase {
+public:
+    explicit DivFunction(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32) : SnippetsFunctionBase(inputShapes, precision) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
 // in1   in2
@@ -156,19 +169,6 @@ protected:
 class TwoInputsAndOutputsFunction : public SnippetsFunctionBase {
 public:
     explicit TwoInputsAndOutputsFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initOriginal() const override;
-};
-/// The trivial graph, just one Div.
-/// Tokenized simply by starting subgraph.
-// in1   in2
-//    Div
-//   Result
-class DivFunction : public SnippetsFunctionBase {
-public:
-    explicit DivFunction(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32) : SnippetsFunctionBase(inputShapes, precision) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
