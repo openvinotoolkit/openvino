@@ -91,8 +91,6 @@ function(ov_check_python_build_conditions)
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
     endif()
 
-    set(PYTHONINTERP_FOUND ${PYTHONINTERP_FOUND} PARENT_SCOPE)
-
     # to disable API 1.0
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
 endfunction()
@@ -128,7 +126,7 @@ ov_check_pip_packages(REQUIREMENTS_FILE ${wheel_reqs}
                       WARNING_MESSAGE "install ${wheel_reqs} to build 'openvino' wheel"
                       MESSAGE_MODE ${message_mode})
 
-if(PYTHONINTERP_FOUND AND wheel_req_FOUND AND "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
+if(wheel_req_FOUND AND "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
     set(ENABLE_WHEEL_DEFAULT ON)
 else()
     set(ENABLE_WHEEL_DEFAULT OFF)
