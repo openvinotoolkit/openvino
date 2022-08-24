@@ -10,6 +10,9 @@ from openvino.tools.mo.utils.error import Error
 
 
 def any_extensions_used(argv: argparse.Namespace):
+    # Checks that extensions are provided.
+    # Allowed types are string containing path to legacy extension directory
+    # or path to new extension .so file, or classes inherited from BaseExtension.
     if not hasattr(argv, 'extensions') or argv.extensions is None:
         return False
 
