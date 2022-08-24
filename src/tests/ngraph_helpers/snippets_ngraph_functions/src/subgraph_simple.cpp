@@ -183,9 +183,7 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
 std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
-    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
-    auto add = std::make_shared<op::v1::Add>(sinh0, sinh1);
+    auto add = std::make_shared<op::v1::Add>(data0, data1);
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     auto relu = std::make_shared<op::v0::Relu>(hswish);
 
@@ -204,13 +202,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
 std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
-    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, sinh0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, sinh1->get_shape());
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     auto hswish = std::make_shared<op::v4::HSwish>(add);
-    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{sinh0, sinh1},
+    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
                                         std::make_shared<ov::Model>(NodeVector{add, hswish},
                                                                     ParameterVector{indata0, indata1}));
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
