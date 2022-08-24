@@ -50,6 +50,13 @@ private:
         detectOutParams.conf_padding_y = arg.confidence().get_output_layout().data_padding.lower_size().spatial[1];
     }
 
+protected:
+    bool optimized_out(detection_output_inst& instance) const override {
+        /// purpose: To optimize out detection_output for perf measurement.
+        /// how-to: update nms_threshold to '-100' from ir file.
+        return (instance.argument.nms_threshold < -1);
+    }
+
 public:
     static primitive_impl* create(const detection_output_node& arg) {
         auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
