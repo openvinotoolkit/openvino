@@ -24,6 +24,6 @@ if(ENABLE_PROFILING_ITT)
                      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/include>)
 
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
-        ov_install_static_lib(ittnotify openvino_common)
+        ov_install_static_lib(ittnotify ${OV_CPACK_COMP_CORE})
     endif()
 endif()
