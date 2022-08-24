@@ -119,9 +119,13 @@ ngraph::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         for (size_t i = 0; i < input_rank; ++i) {
             if (i == 0)
                 continue;
-            if (i + 1 == input_rank && output_pattern[i] != O)
-                return false;
-            if (output_pattern[i] != input_pshape[i])
+            if (i + 1 == input_rank) {
+                if (output_pattern[i] != O)
+                    return false;
+                else
+                    continue;
+            }
+            if (input_pshape[i] != output_pattern[i])
                 return false;
         }
 

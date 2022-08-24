@@ -4,7 +4,6 @@
 
 #include <memory>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
@@ -13,8 +12,8 @@
 #include "dimension_tracker.hpp"
 #include "itt.hpp"
 
-std::shared_ptr<ov::Node> get_outer_input_of_ti_by_parameter(const std::shared_ptr<ov::opset9::Parameter>& parameter,
-                                                             const std::shared_ptr<ov::opset9::TensorIterator>& ti) {
+ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const std::shared_ptr<ov::opset9::Parameter>& parameter,
+                                                       const std::shared_ptr<ov::opset9::TensorIterator>& ti) {
     const auto& body = ti->get_body();
     OPENVINO_ASSERT(body != nullptr, "TI returns invalid body graph ", ti);
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
@@ -23,12 +22,9 @@ std::shared_ptr<ov::Node> get_outer_input_of_ti_by_parameter(const std::shared_p
                     parameter,
                     " related to TI body ",
                     ti);
-    for (const auto& input_descriptor : ti->get_input_descriptions()) {
-        if (input_descriptor->m_body_parameter_index == parameter_index) {
-            auto result = ti->get_input_node_shared_ptr(input_descriptor->m_input_index);
-            return result;
-        }
-    }
+    for (const auto& input_descriptor : ti->get_input_descriptions())
+        if (input_descriptor->m_body_parameter_index == parameter_index)
+            return ti->input(input_descriptor->m_input_index);
     OPENVINO_UNREACHABLE("LSTMStatesBroadcast failed to get outer input of TI by its inner Parameter. TI ",
                          ti,
                          " Parameter ",
@@ -95,7 +91,7 @@ std::shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
         return nullptr;
 
     const auto& batched_source = get_outer_input_of_ti_by_parameter(batch_delivering_parameter, ti);
-    const auto& batched_shape = std::make_shared<ov::opset9::ShapeOf>(batched_source);
+    const auto& batched_shape = std::make_shared<ov::opset9::ShapeOf>(batched_source.get_source_output());
     const auto& batch = std::make_shared<ov::opset9::Gather>(
         batched_shape,
         ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {index_of_batch_dim}),
@@ -103,8 +99,11 @@ std::shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
     return batch;
 }
 
-bool broadcast_state_by_batch(const std::shared_ptr<ov::opset9::Constant>& constant_state,
-                              const std::shared_ptr<ov::Node>& batch_delivering_node) {
+bool broadcast_state_by_batch(ov::Input<ov::Node> input, const std::shared_ptr<ov::Node>& batch_delivering_node) {
+    auto constant_state =
+        std::dynamic_pointer_cast<ov::opset9::Constant>(input.get_source_output().get_node_shared_ptr());
+    if (constant_state == nullptr)
+        return false;
     const auto& constant_shape = constant_state->get_shape();
     OPENVINO_ASSERT(constant_shape.size() == 2, "State has unexpected shape ", constant_shape);
     if (constant_shape[0] != 1)
@@ -121,7 +120,7 @@ bool broadcast_state_by_batch(const std::shared_ptr<ov::opset9::Constant>& const
                                    ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
                                    ov::opset9::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
             0));
-    replace_node(constant_state, broadcast_by_batch);
+    input.replace_source_output(broadcast_by_batch->output(0));
     return true;
 }
 
@@ -133,16 +132,13 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const std::shared_ptr<ov::opse
         return rewritten;
     if (auto init_hidden_state =
             std::dynamic_pointer_cast<ov::opset9::Parameter>(lstm_cell->get_input_node_shared_ptr(1))) {
-        auto outer_init_hidden_state = get_outer_input_of_ti_by_parameter(init_hidden_state, ti);
-        if (auto const_outer_init_hidden_state =
-                std::dynamic_pointer_cast<ov::opset9::Constant>(outer_init_hidden_state))
-            rewritten |= broadcast_state_by_batch(const_outer_init_hidden_state, batch_delivering_node);
+        auto outer_init_hidden_state_input = get_outer_input_of_ti_by_parameter(init_hidden_state, ti);
+        rewritten |= broadcast_state_by_batch(outer_init_hidden_state_input, batch_delivering_node);
     }
     if (auto init_cell_state =
             std::dynamic_pointer_cast<ov::opset9::Parameter>(lstm_cell->get_input_node_shared_ptr(2))) {
-        auto outer_init_cell_state = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
-        if (auto const_outer_init_cell_state = std::dynamic_pointer_cast<ov::opset9::Constant>(outer_init_cell_state))
-            rewritten |= broadcast_state_by_batch(const_outer_init_cell_state, batch_delivering_node);
+        auto outer_init_cell_state_input = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
+        rewritten |= broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node);
     }
     return rewritten;
 }
@@ -154,11 +150,8 @@ bool relax_batch_for_initial_states_of_lstm(const std::shared_ptr<ov::opset9::LS
         std::make_shared<ov::opset9::Gather>(batched_shape,
                                              ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
                                              ov::opset9::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    if (auto init_hidden_state =
-            std::dynamic_pointer_cast<ov::opset9::Constant>(lstm_cell->get_input_node_shared_ptr(1)))
-        rewritten |= broadcast_state_by_batch(init_hidden_state, batch_delivering_node);
-    if (auto init_cell_state = std::dynamic_pointer_cast<ov::opset9::Constant>(lstm_cell->get_input_node_shared_ptr(2)))
-        rewritten |= broadcast_state_by_batch(init_cell_state, batch_delivering_node);
+    rewritten |= broadcast_state_by_batch(lstm_cell->input(1), batch_delivering_node);
+    rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
     return rewritten;
 }
 
