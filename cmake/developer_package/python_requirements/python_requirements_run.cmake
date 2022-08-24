@@ -4,6 +4,7 @@
 #
 
 execute_process(
+    COMMAND "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
     COMMAND "${PYTHON_EXECUTABLE}" -m pip install -r "${REQUIREMENTS_FILE}"
     RESULT_VARIABLE result_code
     OUTPUT_VARIABLE output_var
