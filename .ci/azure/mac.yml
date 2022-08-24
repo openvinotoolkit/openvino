@@ -190,11 +190,6 @@ jobs:
     continueOnError: false
     enabled: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
-    continueOnError: false
-    enabled: false
-
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
     continueOnError: false
