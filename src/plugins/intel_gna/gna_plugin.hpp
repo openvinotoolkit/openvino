@@ -157,7 +157,6 @@ protected:
      /**
       * QueryMetrics API
       */
-
      InferenceEngine::Parameter GetAvailableDevices() const;
 
  protected:
