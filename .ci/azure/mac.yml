@@ -27,7 +27,7 @@ jobs:
   timeoutInMinutes: 360
 
   pool:
-    vmImage: 'macOS-10.15'
+    vmImage: 'macOS-11'
 
   variables:
     system.debug: true
@@ -108,6 +108,9 @@ jobs:
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
+        -DCMAKE_C_LINKER_LAUNCHER=ccache \
+        -DBUILD_cuda_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
     displayName: 'CMake'
