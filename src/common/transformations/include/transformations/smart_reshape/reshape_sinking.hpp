@@ -20,8 +20,8 @@ class NGRAPH_API ReshapeSinkingMatMul;
  * @ingroup ie_transformation_common_api
  * @brief ReshapeSinkingMatMul transformation looks for MatMul followed by optional Add
  * surrounded with Reshape operations which are only needed to merge and unmerge dimensions
- * into MatMuls batch. In case of success upscales MatMul to work with multidimensional batch and leaves single
- * Reshape operator after MatMul
+ * into MatMuls batch. In case of success upscales MatMul to work with multidimensional batch and updates
+ * Reshape operators to make batch propagate through freely
  */
 
 class ngraph::pass::ReshapeSinkingMatMul : public ngraph::pass::MatcherPass {

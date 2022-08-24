@@ -19,7 +19,7 @@ std::shared_ptr<ov::Node> get_outer_input_of_ti_by_parameter(const std::shared_p
     OPENVINO_ASSERT(body != nullptr, "TI returns invalid body graph ", ti);
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
     OPENVINO_ASSERT(parameter_index >= 0,
-                    "ZeroStatesBroadcast encountered unregistered parameter ",
+                    "LSTMStatesBroadcast encountered unregistered parameter ",
                     parameter,
                     " related to TI body ",
                     ti);
@@ -29,7 +29,7 @@ std::shared_ptr<ov::Node> get_outer_input_of_ti_by_parameter(const std::shared_p
             return result;
         }
     }
-    OPENVINO_UNREACHABLE("ZeroStatesBroadcast failed to get outer input of TI by its inner Parameter. TI ",
+    OPENVINO_UNREACHABLE("LSTMStatesBroadcast failed to get outer input of TI by its inner Parameter. TI ",
                          ti,
                          " Parameter ",
                          parameter);
@@ -52,7 +52,7 @@ std::shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
             continue;
         for (ngraph::Dimension& n : pshape) {
             OPENVINO_ASSERT(ov::DimensionTracker::get_label(n) == 0,
-                            "ZeroStatesBroadcast encountered TI with previously tracked dimensions");
+                            "LSTMStatesBroadcast encountered TI with previously tracked dimensions");
             n = ov::Dimension::dynamic();
             ov::DimensionTracker::set_label(n, label++);
         }
@@ -108,8 +108,8 @@ bool broadcast_state_by_batch(const std::shared_ptr<ov::opset9::Constant>& const
     const auto& constant_shape = constant_state->get_shape();
     OPENVINO_ASSERT(constant_shape.size() == 2, "State has unexpected shape ", constant_shape);
     if (constant_shape[0] != 1)
-        return false;  // we only expect to broadcast LSTM states prepared for batch 1 -- no tiling of batch > 1 will be
-                       // done
+        // we only expect to broadcast LSTM states prepared for batch 1 -- no tiling of batch > 1 will be done
+        return false;
 
     const auto& constant_copy = constant_state->copy_with_new_inputs({});
     const auto& broadcast_by_batch = std::make_shared<ov::opset9::Broadcast>(

@@ -67,7 +67,7 @@ ngraph::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
 
         // check matmul eligibility: has constant second input in a form of [O, K]
         auto matmul = std::dynamic_pointer_cast<opset9::MatMul>(pattern_to_node.at(matmul_label));
-        if (!matmul)
+        if (!matmul || matmul->get_transpose_a())
             return false;
         int64_t O = -1;
         if (const auto& constant = std::dynamic_pointer_cast<opset9::Constant>(matmul->get_input_node_shared_ptr(1))) {
@@ -121,19 +121,25 @@ ngraph::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
                 continue;
             if (i + 1 == input_rank && output_pattern[i] != O)
                 return false;
-            if (output_pattern[i] != output_pattern[i])
+            if (output_pattern[i] != input_pshape[i])
                 return false;
         }
 
         // this is the pattern we are looking for! performing the transformation
+        auto first_reshape = std::dynamic_pointer_cast<opset9::Reshape>(reshape);
+        if (!first_reshape)
+            return false;
+        first_reshape->set_special_zero(true);
+        auto second_reshape = std::dynamic_pointer_cast<opset9::Reshape>(reshape_1);
+        if (!second_reshape)
+            return false;
+        second_reshape->set_special_zero(true);
+
         std::vector<int64_t> output_pattern_vector(input_rank - 1, 0);
         output_pattern_vector.push_back(K);
         auto new_reshape_constant =
             opset9::Constant::create(ov::element::i64, Shape{input_rank}, output_pattern_vector);
         reshape->input(1).replace_source_output(new_reshape_constant->output(0));
-
-        std::dynamic_pointer_cast<opset9::Reshape>(reshape)->set_special_zero(true);
-        std::dynamic_pointer_cast<opset9::Reshape>(reshape_1)->set_special_zero(true);
 
         output_pattern[0] = 0;
         auto new_reshape_1_constant = opset9::Constant::create(ov::element::i64, Shape{input_rank}, output_pattern);

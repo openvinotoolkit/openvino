@@ -121,6 +121,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
         manager.register_pass<ngraph::pass::LSTMStatesBroadcast>();
         manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ReshapeSinkingMatMul>();
+        manager.register_pass<ngraph::pass::Validate>();
     }
 
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
