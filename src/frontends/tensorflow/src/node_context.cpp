@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/tensorflow/node_context.hpp"
 
+#include "openvino/frontend/tensorflow/special_types.hpp"
+
 using namespace ov::frontend::tensorflow;
 
 ov::Any NodeContext::apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
