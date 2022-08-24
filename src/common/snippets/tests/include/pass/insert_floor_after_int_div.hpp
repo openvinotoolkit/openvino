@@ -19,6 +19,7 @@ namespace snippets {
 
 typedef std::tuple<
         Shape,         // Input shapes
+        bool,          // Python Div
         element::Type  // Input element type
 > insertFloorAfterIntDivParams;
 

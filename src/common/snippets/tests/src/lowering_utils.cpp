@@ -28,6 +28,7 @@ DummyTargetMachine::DummyTargetMachine() {
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = dummy_functor;
 
+    jitters[ngraph::snippets::op::Truncation::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::ConvertTruncation::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = dummy_functor;
 

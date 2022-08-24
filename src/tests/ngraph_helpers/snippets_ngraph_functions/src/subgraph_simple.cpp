@@ -36,7 +36,7 @@ std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
 std::shared_ptr<ov::Model> DivFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto div = std::make_shared<op::v1::Divide>(data0, data1);
+    auto div = std::make_shared<op::v1::Divide>(data0, data1, pythondiv);
     return std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {

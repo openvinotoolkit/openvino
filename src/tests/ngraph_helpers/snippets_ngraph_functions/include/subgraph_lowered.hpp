@@ -51,8 +51,8 @@ private:
 
 class DivFunctionLoweredFunction : public DivFunction {
 public:
-    explicit DivFunctionLoweredFunction(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32) :
-        DivFunction(inputShapes, precision) {}
+    explicit DivFunctionLoweredFunction(const std::vector<Shape>& inputShapes, bool is_pythondiv, ov::element::Type_t precision = element::f32) :
+        DivFunction(inputShapes, is_pythondiv, precision) {}
 
 protected:
     std::shared_ptr<ov::Model> initLowered() const override;

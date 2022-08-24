@@ -91,11 +91,16 @@ std::shared_ptr<ov::Model> DivFunctionLoweredFunction::initLowered() const {
         add_input1 = convert1;
     }
 
-    auto div = std::make_shared<op::v1::Divide>(add_input0, add_input1);
+    auto div = std::make_shared<op::v1::Divide>(add_input0, add_input1, pythondiv);
     std::shared_ptr<Node> output = div;
     if (ov::element::Type(precision).is_integral_number()) {
-        auto floor = std::make_shared<op::v0::Floor>(div);
-        output = floor;
+        if (div->is_pythondiv()) {
+            auto floor = std::make_shared<op::v0::Floor>(div);
+            output = floor;
+        } else {
+            auto trunc = std::make_shared<ngraph::snippets::op::Truncation>(div);
+            output = trunc;
+        }
     }
     if (precision != element::f32) {
         auto convert2 = std::make_shared<ngraph::snippets::op::ConvertSaturation>(output, precision);

@@ -13,10 +13,12 @@ namespace snippets {
 
 std::string InsertFloorAfterIntDivTests::getTestCaseName(testing::TestParamInfo<insertFloorAfterIntDivParams> obj) {
     Shape inputShape;
+    bool is_pythondiv;
     element::Type inputType;
-    std::tie(inputShape, inputType) = obj.param;
+    std::tie(inputShape, is_pythondiv, inputType) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "PythonDiv=" << is_pythondiv << "_";
     result << "IT=" << inputType << "_";
     return result.str();
 }
@@ -24,10 +26,11 @@ std::string InsertFloorAfterIntDivTests::getTestCaseName(testing::TestParamInfo<
 void InsertFloorAfterIntDivTests::SetUp() {
     TransformationTestsF::SetUp();
     Shape inputShape;
+    bool is_pythondiv;
     element::Type inputType;
-    std::tie(inputShape, inputType) = this->GetParam();
+    std::tie(inputShape, is_pythondiv, inputType) = this->GetParam();
     std::vector<Shape> inputShapes = {inputShape, inputShape};
-    snippets_function = std::make_shared<DivFunctionLoweredFunction>(inputShapes, inputType);
+    snippets_function = std::make_shared<DivFunctionLoweredFunction>(inputShapes, is_pythondiv, inputType);
 }
 
 TEST_P(InsertFloorAfterIntDivTests, InsertFloorAfterIntDiv) {
@@ -46,9 +49,12 @@ std::vector<element::Type> inputType {
     element::u8
 };
 
+std::vector<bool> pythondiv = { true, false };
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_InsertFloorAfterIntDivTests, InsertFloorAfterIntDivTests,
                          ::testing::Combine(
                                  ::testing::Values(Shape {3, 2, 16, 16}),
+                                 ::testing::ValuesIn(pythondiv),
                                  ::testing::ValuesIn(inputType)),
                          InsertFloorAfterIntDivTests::getTestCaseName);
 

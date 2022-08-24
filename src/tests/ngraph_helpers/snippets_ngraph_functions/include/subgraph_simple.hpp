@@ -50,11 +50,14 @@ protected:
 //   Result
 class DivFunction : public SnippetsFunctionBase {
 public:
-    explicit DivFunction(const std::vector<Shape>& inputShapes, ov::element::Type_t precision = element::f32) : SnippetsFunctionBase(inputShapes, precision) {
+    explicit DivFunction(const std::vector<Shape>& inputShapes, bool is_pythondiv = false, ov::element::Type_t precision = element::f32)
+    : SnippetsFunctionBase(inputShapes, precision), pythondiv(is_pythondiv) {
         NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+
+    bool pythondiv = false;
 };
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
