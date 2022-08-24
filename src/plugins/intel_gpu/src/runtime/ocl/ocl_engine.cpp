@@ -53,16 +53,20 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
 
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
-#endif
     _program_stream.reset(new ocl_stream(*this));
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::engine& ocl_engine::get_onednn_engine() const {
-    if (!_onednn_engine)
-        IE_THROW() << "[GPU] onednn engine is nullptr";
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
+    if (!_onednn_engine) {
+        auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
+        if (!casted)
+            throw ov::Exception("[GPU] Invalid device type stored in ocl_engine");
+
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+    }
+
     return *_onednn_engine;
 }
 #endif

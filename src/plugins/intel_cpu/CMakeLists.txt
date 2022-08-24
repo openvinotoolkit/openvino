@@ -22,6 +22,16 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
 
 addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
 
+# WA for old TBBConfig.cmake like tbb2019_20180718oss
+# they don't check that imported target is already created
+if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2018 AND TBB_VERSION VERSION_LESS_EQUAL 2019.4)
+    set(Threading_cmake_included ON)
+    set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
+    function(find_package_tbb)
+        # dummy
+    endfunction()
+endif()
+
 add_subdirectory(thirdparty)
 
 # create plugin
