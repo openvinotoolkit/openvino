@@ -986,7 +986,7 @@ int main(int argc, char* argv[]) {
                                               compiledModel,
                                               FLAGS_dump_output,
                                               FLAGS_dump_output_max_num,
-                                              FLAGS_dump_output_binary_size);
+                                              FLAGS_dump_output_binary_max_size);
             }
         }
         /** Start inference & calculate performance **/

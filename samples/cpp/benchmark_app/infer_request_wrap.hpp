@@ -197,7 +197,7 @@ public:
             inferenceException = ptr;
         } else {
             if (_result_dump) {
-                _result_dump->add_result(result.input_images, result.output_tensors);
+                _result_dump->compare_and_save_result(result.input_images, result.output_tensors);
             }
             _latencies.push_back(latency);
             if (enable_lat_groups) {

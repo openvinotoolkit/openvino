@@ -70,7 +70,7 @@ public:
         }
     }
 
-    void add_result(const std::string& input_image, const ov::TensorVector& outputs);
+    void compare_and_save_result(const std::string& input_image, const ov::TensorVector& outputs);
 
 private:
     bool compare_output(const std::string& input_image, const ov::TensorVector& outputs);

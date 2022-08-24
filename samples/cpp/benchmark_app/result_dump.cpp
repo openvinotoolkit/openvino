@@ -8,7 +8,7 @@
 
 #include "samples/slog.hpp"
 
-void ResultDump::add_result(const std::string& input_image, const ov::TensorVector& outputs) {
+void ResultDump::compare_and_save_result(const std::string& input_image, const ov::TensorVector& outputs) {
     // Compare with exist output, if it is different, save it to buffer and write it to binary file.
     if (compare_output(input_image, outputs)) {
         // Check if the number of outputs has reached the maximum value
@@ -38,7 +38,6 @@ bool ResultDump::compare_output(const std::string& input_image, const ov::Tensor
     }
 
     auto output_size = outputs.size();
-    bool different = true;
     for (auto& exist_outputs : iter->second) {
         size_t offset = 0;
         auto old_output = (char*)exist_outputs.buffer;
@@ -61,13 +60,12 @@ bool ResultDump::compare_output(const std::string& input_image, const ov::Tensor
         }
 
         if (same) {
-            different = false;
             exist_outputs.iteration++;
-            break;
+            return false;
         }
     }
 
-    return different;
+    return true;
 }
 
 /**
