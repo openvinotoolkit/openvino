@@ -39,11 +39,12 @@ private:
         using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
-        Vmm aux = Vmm(aux_vec_idxs[0]);
 
         if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-            Vmm aux1 = Vmm(aux_vec_idxs[1]);
+            Zmm aux = Zmm(aux_vec_idxs[0]);
+            Zmm aux1 = Zmm(aux_vec_idxs[1]);
             Ymm out = Ymm(out_vec_idxs[0]);
+
             h->uni_vpsrld(aux, in, 16);
             h->vpandd(aux, aux, table_val("one"));
             h->uni_vmovups(aux1, table_val("even"));
@@ -52,14 +53,32 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
-        } else if (one_of(host_isa_, dnnl::impl::cpu::x64::cpu_isa_t::avx2,
-                                     dnnl::impl::cpu::x64::cpu_isa_t::sse41)) {  // round_to_nearest_even emulation
+        } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {  // round_to_nearest_even emulation
+            Ymm aux = Ymm(aux_vec_idxs[0]);
             Xmm out = Xmm(out_vec_idxs[0]);
-            h->vpandd(aux, in, table_val("rounding"));
+
+            h->uni_vandps(aux, in, table_val("rounding"));
             h->uni_vpsrld(aux, aux, 1);
             h->uni_vpaddd(aux, in, aux);
             h->uni_vpsrld(aux, aux, 16);
-            h->vpmovdw(out, aux);
+
+            // dword to word using truncation
+            h->uni_vandps(aux, aux, table_val("mask_truncation_word"));
+            h->uni_vpackusdw(aux, aux, aux);
+
+            h->vextracti128(out, aux, 0);
+        } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::sse41) {  // round_to_nearest_even emulation
+            Xmm out = Xmm(out_vec_idxs[0]);
+
+            h->uni_vmovups(out, in);
+            h->uni_vandps(out, out, table_val("rounding"));
+            h->uni_vpsrld(out, out, 1);
+            h->uni_vpaddd(out, in, out);
+            h->uni_vpsrld(out, out, 16);
+
+            // dword to word using truncation
+            h->uni_vandps(out, out, table_val("mask_truncation_word"));
+            h->uni_vpackusdw(out, out, out);
         } else {
             assert(!"unsupported isa");
         }
@@ -91,9 +110,18 @@ private:
         push_arg_entry_of("even", 0x00007fff, true);
         push_arg_entry_of("rounding", 0x00010000, true);
         push_arg_entry_of("selector", selector_int32, true);
+        push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }
 
-    size_t aux_vecs_count() const override { return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1; }
+    size_t aux_vecs_count() const override {
+        if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
+            return 2;
+        } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
 };
 
 }   // namespace intel_cpu

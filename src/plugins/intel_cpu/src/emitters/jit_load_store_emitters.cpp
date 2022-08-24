@@ -1023,7 +1023,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Vmm &vmm, const Xbya
         } else {
             emu_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
         }
-        if (store_num == 16) {
+        if (store_num == 16 && mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core)) {
             h->vmovdqu16(ptr[reg + offset], ymm);
         } else {
             store_bytes(ymm, reg, offset, store_num * 2);
