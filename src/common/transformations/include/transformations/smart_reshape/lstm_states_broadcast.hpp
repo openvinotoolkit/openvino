@@ -18,7 +18,8 @@ class NGRAPH_API LSTMStatesBroadcast;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief In case LSTMCell has constant zero initial hidden and cell state we make them broadcast-able by batch
+ * @brief In case LSTMCell has constant initial hidden and cell state with single batch size
+ * we make them broadcast-able by batch
  */
 
 class ngraph::pass::LSTMStatesBroadcast : public ngraph::pass::FunctionPass {
