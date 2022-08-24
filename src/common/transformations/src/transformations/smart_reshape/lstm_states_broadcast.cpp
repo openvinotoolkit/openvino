@@ -69,7 +69,7 @@ std::shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(
 
     // batch label was tracked -- finding parameter that delivered it
     std::shared_ptr<ov::opset9::Parameter> batch_delivering_parameter;
-    size_t index_of_batch_dim;
+    size_t index_of_batch_dim = 0;
 
     size_t batch_label = ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]);
     for (auto& parameter : body->get_parameters()) {
