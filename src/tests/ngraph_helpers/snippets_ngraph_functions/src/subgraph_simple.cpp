@@ -198,11 +198,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     data0->set_friendly_name("data0");
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     data1->set_friendly_name("data1");
-    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
-    sinh0->set_friendly_name("sinh0");
-    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
-    sinh1->set_friendly_name("sinh1");
-    auto add = std::make_shared<op::v1::Add>(sinh0, sinh1);
+    auto add = std::make_shared<op::v1::Add>(data0, data1);
     add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     hswish->set_friendly_name("hswish");
@@ -230,17 +226,14 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     data0->set_friendly_name("data0");
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     data1->set_friendly_name("data1");
-    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
-    sinh0->set_friendly_name("sinh0");
-    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
-    sinh1->set_friendly_name("sinh1");
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, sinh0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, sinh1->get_shape());
+
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     hswish->set_friendly_name("hswish");
-    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{sinh0, sinh1},
+    auto subgraph0 = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
                                         std::make_shared<ov::Model>(NodeVector{add, hswish},
                                                                     ParameterVector{indata0, indata1}));
     subgraph0->set_friendly_name("add");

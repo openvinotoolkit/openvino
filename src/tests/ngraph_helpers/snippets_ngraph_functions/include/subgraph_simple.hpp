@@ -149,7 +149,6 @@ protected:
 /// So we have 2 subgraphs - Snippets don't support subgraphs with many results
 /// Also Output tensors have names to check correct copying output names
 //    in1    in2
-//    Sinh   Sinh
 //        Add
 //  HSwish   Result
 //  Relu
