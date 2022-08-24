@@ -215,6 +215,8 @@ struct PluginConfig {
                                                      "HETERO",
                                                      "CUDA",
                                                      "HPU_GOYA",
+                                                     "MOCK",
+                                                     "FGH",
                                                      "mock"};
 };
 } // namespace MultiDevicePlugin
