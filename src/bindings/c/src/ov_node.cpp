@@ -74,7 +74,6 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
             for (auto i = 0; iter != pshape.end(); iter++, i++) {
                 partial_shape->dims[i].min = iter->get_min_length();
                 partial_shape->dims[i].max = iter->get_max_length();
-
             }
         }
     }

@@ -80,7 +80,7 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
 }
 
 inline ov_status_e partial_shape_convert_to_cpp_object(const ov_partial_shape_t* partial_shape,
-                                                std::vector<ov::Dimension>& dims) {
+                                                       std::vector<ov::Dimension>& dims) {
     if (!partial_shape) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -105,14 +105,14 @@ inline ov_status_e partial_shape_convert_to_cpp_object(const ov_partial_shape_t*
 
 ov_status_e ov_model_reshape_input_by_name(const ov_model_t* model,
                                            const char* tensor_name,
-                                           const ov_partial_shape_t* partial_shape) {
-    if (!model || !tensor_name || !partial_shape) {
+                                           const ov_partial_shape_t partial_shape) {
+    if (!model || !tensor_name) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
         std::map<std::string, ov::PartialShape> in_shape;
         std::vector<ov::Dimension> dims;
-        auto ret = partial_shape_convert_to_cpp_object(partial_shape, dims);
+        auto ret = partial_shape_convert_to_cpp_object(&partial_shape, dims);
         if (ret == ov_status_e::OK) {
             in_shape[tensor_name] = dims;
         } else {
@@ -152,11 +152,11 @@ ov_status_e ov_model_reshape(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
-                                      size_t* ports,
-                                      const ov_partial_shape_t* partial_shapes,
-                                      size_t size) {
-    if (!model || !ports || !partial_shapes || size < 1) {
+ov_status_e ov_model_reshape_by_port_indexes(const ov_model_t* model,
+                                             size_t* port_indexes,
+                                             const ov_partial_shape_t* partial_shapes,
+                                             size_t size) {
+    if (!model || !port_indexes || !partial_shapes || size < 1) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
@@ -164,7 +164,7 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
         std::vector<ov::Dimension> dims;
         ov_status_e ret = ov_status_e::OK;
         for (size_t i = 0; i < size; i++) {
-            auto port_id = ports[i];
+            auto port_id = port_indexes[i];
             auto pshape = &partial_shapes[i];
             dims.clear();
             ret = partial_shape_convert_to_cpp_object(pshape, dims);
@@ -180,12 +180,12 @@ ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t* partial_shape) {
+ov_status_e ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t partial_shape) {
     size_t port = 0;
-    return ov_model_reshape_by_ports(model, &port, partial_shape, 1);
+    return ov_model_reshape_by_port_indexes(model, &port, &partial_shape, 1);
 }
 
-ov_status_e ov_model_reshape_by_nodes(const ov_model_t* model,
+ov_status_e ov_model_reshape_by_ports(const ov_model_t* model,
                                       const ov_output_node_t** output_nodes,
                                       const ov_partial_shape_t* partial_shapes,
                                       size_t size) {

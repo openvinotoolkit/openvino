@@ -104,7 +104,7 @@ ov_model_reshape(const ov_model_t* model,
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_input_by_name(const ov_model_t* model,
                                const char* tensor_name,
-                               const ov_partial_shape_t* partial_shape);
+                               const ov_partial_shape_t partial_shape);
 
 /**
  * @brief Do reshape in model for one node(port 0).
@@ -114,22 +114,22 @@ ov_model_reshape_input_by_name(const ov_model_t* model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t* partial_shape);
+ov_model_reshape_single_input(const ov_model_t* model, const ov_partial_shape_t partial_shape);
 
 /**
  * @brief Do reshape in model with a list of <port id, partial shape>.
  * @ingroup model
  * @param model A pointer to the ov_model_t.
- * @param ports The array of port indexes.
+ * @param port_indexes The array of port indexes.
  * @param partialShape A PartialShape list.
  * @param size The item count in the list.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_reshape_by_ports(const ov_model_t* model,
-                          size_t* port_idexes,
-                          const ov_partial_shape_t* partial_shape,
-                          size_t size);
+ov_model_reshape_by_port_indexes(const ov_model_t* model,
+                                 size_t* port_indexes,
+                                 const ov_partial_shape_t* partial_shape,
+                                 size_t size);
 
 /**
  * @brief Do reshape in model with a list of <ov_output_node_t, partial shape>.
@@ -141,7 +141,7 @@ ov_model_reshape_by_ports(const ov_model_t* model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_reshape_by_nodes(const ov_model_t* model,
+ov_model_reshape_by_ports(const ov_model_t* model,
                           const ov_output_node_t** output_nodes,
                           const ov_partial_shape_t* partial_shapes,
                           size_t size);

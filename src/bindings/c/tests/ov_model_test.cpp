@@ -123,7 +123,7 @@ TEST(ov_model, ov_model_reshape_input_by_name) {
 
     ov_partial_shape_t partial_shape;
     OV_ASSERT_OK(ov_shape_to_partial_shape(&shape, &partial_shape));
-    OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, &partial_shape));
+    OV_ASSERT_OK(ov_model_reshape_input_by_name(model, tensor_name, partial_shape));
 
     ov_output_node_list_t input_node_list2;
     input_node_list2.output_nodes = nullptr;

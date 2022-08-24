@@ -19,7 +19,7 @@ ov_status_e ov_properties_create(ov_properties_t* property, size_t size) {
 }
 
 void ov_properties_free(ov_properties_t* properties) {
-    if (properties && properties->list) {   
+    if (properties && properties->list) {
         delete[] properties->list;
         properties->size = 0;
     }
