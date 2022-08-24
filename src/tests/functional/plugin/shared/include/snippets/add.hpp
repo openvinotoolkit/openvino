@@ -36,13 +36,8 @@ protected:
     void SetUp() override;
 };
 
-class AddSinh : public Add {
-protected:
-    void SetUp() override;
-};
-
-class AddSinhConst : public testing::WithParamInterface<ov::test::snippets::AddConstParams>,
-                     virtual public ov::test::SnippetsTestsCommon {
+class AddConst : public testing::WithParamInterface<ov::test::snippets::AddConstParams>,
+                 virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj);
 protected:

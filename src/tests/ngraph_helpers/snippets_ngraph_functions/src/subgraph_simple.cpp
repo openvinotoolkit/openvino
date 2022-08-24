@@ -26,32 +26,11 @@ std::shared_ptr<ov::Model> AddFunction::initReference() const {
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
 }
-std::shared_ptr<ov::Model> AddSinhFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto sin0 = std::make_shared<ov::op::v0::Sinh>(data0);
-    auto sin1 = std::make_shared<ov::op::v0::Sinh>(data1);
-    auto add = std::make_shared<op::v1::Add>(sin0, sin1);
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
-}
-std::shared_ptr<ov::Model> AddSinhFunction::initReference() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto sin0 = std::make_shared<ov::op::v0::Sinh>(data0);
-    auto sin1 = std::make_shared<ov::op::v0::Sinh>(data1);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, sin0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, sin1->get_shape());
-    auto add = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data0, data1},
-                                          std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Add>(sin0, sin1)},
-                                                                      ParameterVector{indata0, indata1}));
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
-}
-std::shared_ptr<ov::Model> AddSinhConstFunction::initOriginal() const {
+std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[0]), -10., 10.);
     auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shapes[0], const_values);
-    auto sin0 = std::make_shared<ov::op::v0::Sinh>(data0);
-    auto add = std::make_shared<op::v1::Add>(sin0, const_data1);
+    auto add = std::make_shared<op::v1::Add>(data0, const_data1);
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
