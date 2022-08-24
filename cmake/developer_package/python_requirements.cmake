@@ -3,6 +3,19 @@
 #
 
 #
+# _ov_check_pip_installed(<output var>)
+#
+
+function(_ov_check_pip_installed var)
+    find_host_program(python_pip_program
+                      NAMES pip pip3
+                      DOC "python3-pip program")
+    if(python_pip_program)
+        set(${var} ON)
+    endif()
+endfunction()
+
+#
 # ov_check_pip_package(REQUIREMENT <single requirement>
 #                      RESULT_VAR <result var name>
 #                      [WARNING_MESSAGE <message>]

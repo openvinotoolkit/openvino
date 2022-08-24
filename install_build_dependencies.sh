@@ -46,6 +46,7 @@ if [ -f /etc/lsb-release ]; then
             shellcheck \
             patchelf \
             lintian \
+            gzip \
             `# openvino` \
             libtbb-dev \
             libpugixml-dev \
