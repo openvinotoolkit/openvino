@@ -1587,8 +1587,10 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        if(ref_out_val!=opt_out_val) // this condition required because of value=inf case
-                            EXPECT_NEAR(ref_out_val, opt_out_val, get_tolerance<T>());
+                        auto tolerance = get_tolerance<T>();
+                        if (ref_out_val != opt_out_val) {
+                            EXPECT_NEAR(ref_out_val, opt_out_val, tolerance);
+                        }
                     }
                 }
             }
@@ -1687,12 +1689,7 @@ const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_par
 INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
 
 const std::vector<data_types> dataTypes = {data_types::f16, data_types::f32};
-const std::vector<format::type> types = {format::bfyx,
-                                         format::bfzyx,
-                                         format::yxfb,
-                                         format::byxf,
-                                         format::fyxb,
-                                         format::b_fs_yx_fsv2,
+const std::vector<format::type> types = {format::b_fs_yx_fsv2,
                                          format::b_fs_zyx_fsv2,
                                          format::bs_fs_yx_bsv32_fsv32,
                                          format::bs_fs_yx_bsv32_fsv16};
@@ -1751,11 +1748,43 @@ const std::vector<tensor> inputShapes = {
     {16, 16, 5, 5},
 };
 
-const auto fpFunctionsParams = ::testing::Combine(::testing::ValuesIn(dataTypes),
-                                                  ::testing::ValuesIn(types),
-                                                  ::testing::ValuesIn(inputShapes),
-                                                  ::testing::ValuesIn(activationFunctions),
-                                                  ::testing::Values(activation_additional_params{}),
-                                                  ::testing::Values(padding{}));
-
-INSTANTIATE_TEST_SUITE_P(fp_activation_blocked_tests, activation_random_test, fpFunctionsParams);
+INSTANTIATE_TEST_SUITE_P(
+    fp_activation_blocked_tests0,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[0]),
+                       ::testing::Values(types[0]),
+                       ::testing::Values(inputShapes[0]),
+                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*0,
+                                                                        activationFunctions.begin() + activationFunctions.size()/4*1)),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{})));
+INSTANTIATE_TEST_SUITE_P(
+    fp_activation_blocked_tests1,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[1]),
+                       ::testing::Values(types[1]),
+                       ::testing::Values(inputShapes[1]),
+                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*1,
+                                                                        activationFunctions.begin() + activationFunctions.size()/4*2)),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{})));
+INSTANTIATE_TEST_SUITE_P(
+    fp_activation_blocked_tests2,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[0]),
+                       ::testing::Values(types[2]),
+                       ::testing::Values(inputShapes[2]),
+                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*2,
+                                                                        activationFunctions.begin() + activationFunctions.size()/4*3)),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{})));
+INSTANTIATE_TEST_SUITE_P(
+    fp_activation_blocked_tests3,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[1]),
+                       ::testing::Values(types[3]),
+                       ::testing::Values(inputShapes[2]),
+                       ::testing::ValuesIn(std::vector<activation_func>(activationFunctions.begin() + activationFunctions.size()/4*3,
+                                                                        activationFunctions.end())),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{})));
