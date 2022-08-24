@@ -7,7 +7,7 @@ from typing import List
 from openvino.tools.mo.front.extractor import create_params_with_custom_types
 from openvino.tools.mo.utils.cli_parser import parse_transform
 from openvino.tools.mo.utils.error import Error
-
+from openvino.runtime import Model
 
 def get_available_transformations():
     try:
@@ -49,7 +49,7 @@ def compress_model(func: object):
     compress_model_transformation(func)
 
 
-def apply_offline_transformations(func, argv: argparse.Namespace):
+def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
