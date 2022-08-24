@@ -1506,9 +1506,6 @@ using activation_random_test_params = std::tuple<data_types,
                                                  activation_additional_params,  // additional_params
                                                  padding>;
 
-template <typename T> double get_tolerance(){return 0;}
-template <> double get_tolerance<float>(){return 1e-5;}
-template <> double get_tolerance<FLOAT16>(){return 1e-4;}
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
     bool enable_profiling = false;
@@ -1587,10 +1584,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
                     for (size_t xi = 0; xi < x; ++xi) {
                         auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
                         auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
-                        auto tolerance = get_tolerance<T>();
-                        if (ref_out_val != opt_out_val) {
-                            EXPECT_NEAR(ref_out_val, opt_out_val, tolerance);
-                        }
+                        if (ref_out_val != opt_out_val)
+                            EXPECT_NEAR(ref_out_val, opt_out_val, 1e-4);
                     }
                 }
             }
