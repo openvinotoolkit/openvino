@@ -415,6 +415,8 @@ void Graph::InitGraph() {
     ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
+
+    ov::pass::Serialize("compiled.xml", "compiled.bin").run_on_model(this->dump());
 }
 
 void Graph::InitNodes() {

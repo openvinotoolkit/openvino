@@ -404,7 +404,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-
+    ov::pass::Serialize("canonicalized.xml", "canonicalized.bin").run_on_model(m_body);
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
