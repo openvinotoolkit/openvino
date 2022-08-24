@@ -34,16 +34,7 @@ void Add::SetUp() {
     function = f.getOriginal();
 }
 
-void AddSinh::SetUp() {
-    ov::Shape inputShape0, inputShape1;
-    std::tie(inputShape0, inputShape1, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{{}, {inputShape0, }}, {{}, {inputShape1, }}});
-
-    auto f = ov::test::snippets::AddSinhFunction({inputShape0, inputShape1});
-    function = f.getOriginal();
-}
-
-std::string AddSinhConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
+std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
     ov::Shape inputShapes, newInputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -57,12 +48,12 @@ std::string AddSinhConst::getTestCaseName(testing::TestParamInfo<ov::test::snipp
     return result.str();
 }
 
-void AddSinhConst::SetUp() {
+void AddConst::SetUp() {
     ov::Shape inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{{}, {inputShape, }}});
 
-    auto f = ov::test::snippets::AddSinhConstFunction({inputShape});
+    auto f = ov::test::snippets::AddConstFunction({inputShape});
     function = f.getOriginal();
 }
 
@@ -71,12 +62,7 @@ TEST_P(Add, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-TEST_P(AddSinh, CompareWithRefImpl) {
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(AddSinhConst, CompareWithRefImpl) {
+TEST_P(AddConst, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

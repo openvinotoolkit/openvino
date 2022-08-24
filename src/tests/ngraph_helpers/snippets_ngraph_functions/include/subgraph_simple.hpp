@@ -29,32 +29,14 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 };
-/// Add separated from inputs by Sinh to WA CPU-specific disabling after inputs.
-/// Works because Sinh is not supported by tokenization yet.
-/// Tokenized simply by starting subgraph.
-//   in1       in2
-//   Sinh       Sinh
-//        Add
-//      Result
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class AddSinhFunction : public SnippetsFunctionBase {
-public:
-    explicit AddSinhFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initOriginal() const override;
-    std::shared_ptr<ov::Model> initReference() const override;
-};
 /// Like AddSinh but with a constant second input (and no sinh on in)
 //   in1       in2
-//   Sin       Sinh
 //        Add
 //      Result
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class AddSinhConstFunction : public SnippetsFunctionBase {
+class AddConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSinhConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
 protected:
