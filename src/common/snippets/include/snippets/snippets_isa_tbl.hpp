@@ -26,6 +26,9 @@ NGRAPH_OP(Constant, ngraph::op)
 NGRAPH_OP(Parameter, ngraph::op::v0)
 NGRAPH_OP(Result, ngraph::op::v0)
 NGRAPH_OP(Broadcast, ngraph::op::v1)
+
+// internal
+NGRAPH_OP(Truncation, ngraph::snippets::op)
 NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
 NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
 

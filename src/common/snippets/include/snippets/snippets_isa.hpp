@@ -19,6 +19,7 @@
 #include "op/store.hpp"
 #include "op/tile.hpp"
 #include "op/tile_scheduler.hpp"
+#include "op/truncation.hpp"
 
 namespace ngraph {
 namespace snippets {
