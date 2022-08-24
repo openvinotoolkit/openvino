@@ -13,11 +13,11 @@ endif()
 message(STATUS "ONNX frontend tests enabled")
 
 add_compile_definitions(
-    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx_import"
-    TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/core/models/onnx/"
+    TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
+    ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
+    TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
-    SERIALIZED_ZOO="${TEST_MODEL_ZOO}/core/models"
-    TEST_FILES="${TEST_MODEL_ZOO}/core/files")
+    SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)

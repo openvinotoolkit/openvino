@@ -30,7 +30,7 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
     const auto ir_xml =
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/add_abc.xml");
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
     const auto function = test::function_from_ir(ir_xml);
 
     auto test_case = test::TestCase(function, s_device);
@@ -44,9 +44,10 @@ NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir) {
 
 NGRAPH_TEST(${BACKEND_NAME}, add_abc_from_ir_with_bin_path) {
     const auto ir_xml =
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/add_abc.xml");
-    const auto ir_bin =
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "ir/weights/add_abc.bin");
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), TEST_MODEL_ZOO, "core/models/ir/add_abc.xml");
+    const auto ir_bin = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                             TEST_MODEL_ZOO,
+                                             "core/models/ir/weights/add_abc.bin");
     const auto function = test::function_from_ir(ir_xml, ir_bin);
 
     auto test_case = test::TestCase(function, s_device);

@@ -5,7 +5,7 @@
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py)
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
@@ -83,7 +83,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
 
 set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
@@ -112,10 +112,10 @@ if(ENABLE_TESTS)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt")
         add_custom_target(test_pip_prerequisites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
-                          COMMENT "Install requirements_test_onnx.txt"
+                          COMMENT "Install ONNX Frontend tests requirements."
                           VERBATIM
                           SOURCES ${reqs})
     endif()
