@@ -1547,27 +1547,25 @@ void Convolution::initTryBrgconvFlag() {
     // Due to performance issue, brgconv will only be enabled by default:
     // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
     // 2, support amx
-    // 3, int8 without binary postops when avx512
+    // 3, support avx512 except int8 with binary postops
     if (!isDynamicNode()) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
             shouldTryBrgconv = true;
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            shouldTryBrgconv = true;
             // should remove after binary postops performance issue resolved
-            // heuristics: if it's int8 model and it has binary post ops we will not use brgconv
-            if (canBeExecutedInInt8()) {
-                shouldTryBrgconv = true;
-                dnnl::primitive_attr attrs;
-                setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
-                const auto& ops = attrs.get_post_ops();
-                for (int i = 0; i < ops.len(); i++) {
-                    if (ops.kind(i) == dnnl::primitive::kind::binary) {
-                        shouldTryBrgconv = false;
-                        break;
-                    }
+            // heuristics: if model has binary post ops we will not use brgconv
+            dnnl::primitive_attr attrs;
+            setPostOps(attrs, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+            const auto& ops = attrs.get_post_ops();
+            for (int i = 0; i < ops.len(); i++) {
+                if (ops.kind(i) == dnnl::primitive::kind::binary) {
+                    shouldTryBrgconv = false;
+                    break;
                 }
-                if (shouldTryBrgconv)
-                    pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>(std::move(attrs));
             }
+            if (shouldTryBrgconv)
+                pInitAttrs[1] = std::make_shared<dnnl::primitive_attr>(std::move(attrs));
         }
     }
 }
