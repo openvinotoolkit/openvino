@@ -136,15 +136,17 @@ struct PluginConfig {
         };
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
             auto subStr = priorities.substr(pos, endpos - pos);
-            if (isAvailableDevice(subStr)) {
-                devices.push_back(subStr);
-                pos = endpos + 1;
+            if (!isAvailableDevice(subStr)) {
+                IE_THROW() << "Unavailable device name: " << subStr;
             }
+            devices.push_back(subStr);
+            pos = endpos + 1;
         }
         auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (isAvailableDevice(subStr)) {
-            devices.push_back(subStr);
+        if (!isAvailableDevice(subStr)) {
+            IE_THROW() << "Unavailable device name: " << subStr;
         }
+        devices.push_back(subStr);
         return devices;
     }
     void adjustKeyMapValues() {
