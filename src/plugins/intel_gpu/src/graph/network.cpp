@@ -646,18 +646,28 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->verbose >= 1)
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
-    std::vector<memory::ptr> in_out_mem;
-    for (auto& inst : _inputs) {
-        if (inst->output_memory_ptr())
-            in_out_mem.push_back(inst->output_memory_ptr());
-    }
+    std::unique_ptr<cldnn::surfaces_lock> surf_lock;
+    bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
+                                        _in_out_shared_mem_types.end(),
+                                        [](const shared_mem_type& shared_mem_type) {
+                                            return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
+                                                   shared_mem_type == shared_mem_type::shared_mem_dxbuffer;
+                                        });
 
-    for (auto& inst : _outputs) {
-        if (inst->output_memory_ptr())
-            in_out_mem.push_back(inst->output_memory_ptr());
-    }
+    if (shared_mem_found) {
+        std::vector<memory::ptr> in_out_mem;
+        for (auto& inst : _inputs) {
+            if (inst->output_memory_ptr())
+                in_out_mem.push_back(inst->output_memory_ptr());
+        }
 
-    auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+        for (auto& inst : _outputs) {
+            if (inst->output_memory_ptr())
+                in_out_mem.push_back(inst->output_memory_ptr());
+        }
+
+        surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
+    }
 
     set_arguments();
     for (auto& inst : _exec_order) {
@@ -867,9 +877,14 @@ void network::allocate_primitive_instance(program_node const& node) {
     }
 
     _primitives[node.id()] = inst;
-    if (node.is_input())
+    if (node.is_input()) {
+        if (inst->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _inputs.push_back(inst);
+    }
     if (node.is_output()) {
+        if (inst->output_memory_ptr())
+            _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
