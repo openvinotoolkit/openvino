@@ -144,9 +144,6 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     for (size_t i = 0; i < preserved_vec_idxs.size(); ++i) {
         push_vec(h->ptr[h->rsp + i * get_vec_length()], preserved_vec_idxs[i]);
     }
-
-    if (!entry_map_.empty())
-        load_table_addr();
 }
 
 
@@ -204,6 +201,9 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
+    if (!entry_map_.empty())
+        load_table_addr();
+
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
 
     emitter_postamble();
@@ -213,6 +213,9 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::shared_ptr<const emitter_context> &emit_context,
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+
+    if (!entry_map_.empty())
+        load_table_addr();
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
 
