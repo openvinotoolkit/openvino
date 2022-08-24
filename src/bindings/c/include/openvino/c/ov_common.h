@@ -21,6 +21,7 @@
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __VA_ARGS__
+#    define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __VA_ARGS__
 #    define OV_NODISCARD
 #else
 #    if defined(_WIN32)
