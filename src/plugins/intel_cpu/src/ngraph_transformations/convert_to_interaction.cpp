@@ -18,21 +18,29 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     auto dense_feature = any_input(has_static_rank());
     std::vector<std::shared_ptr<Node>> features_m{dense_feature};
     OutputVector features_output{dense_feature};
-    for (size_t i = 0; i < 26; i++) {
-        auto feature = wrap_type<ngraph::opset8::EmbeddingBagOffsetsSum>({any_input(),
-            any_input(), any_input()});
+    const int sparse_feature_num = 26;
+    for (size_t i = 0; i < sparse_feature_num; i++) {
+        auto feature = any_input();
         features_m.push_back(feature);
         features_output.push_back(feature->output(0));
     }
     auto concat_m = wrap_type<ngraph::opset1::Concat>(features_output, has_static_rank());
     auto reshape_m = wrap_type<ngraph::opset1::Reshape>({concat_m->output(0), any_input()->output(0)});
     auto transpose_m = wrap_type<ngraph::opset1::Transpose>({reshape_m->output(0), any_input()->output(0)});
-    auto matmul_m = wrap_type<ngraph::opset1::Transpose>({reshape_m, transpose_m});
+    auto matmul_m = wrap_type<ngraph::opset1::MatMul>({reshape_m, transpose_m});
+    auto transpose2_m = wrap_type<ngraph::opset1::Transpose>({matmul_m->output(0), any_input()->output(0)});
+    auto reshape2_m = wrap_type<ngraph::opset1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
+    auto gather_m = wrap_type<ngraph::opset8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
+    auto reshape3_m = wrap_type<ngraph::opset1::Reshape>({gather_m->output(0), any_input()->output(0)});
+    auto transpose3_m = wrap_type<ngraph::opset1::Transpose>({reshape3_m->output(0), any_input()->output(0)});
+    auto reshape4_m = wrap_type<ngraph::opset1::Reshape>({transpose3_m->output(0), any_input()->output(0)});
+    auto final_concat_m = wrap_type<ngraph::opset1::Concat>({dense_feature, reshape4_m}, has_static_rank());
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto concat_node = pattern_map.at(concat_m).get_node_shared_ptr();
         auto dense_feature_node = concat_node->input_value(0).get_node_shared_ptr();
+        auto final_concat_node = pattern_map.at(final_concat_m).get_node_shared_ptr();
         auto get_consumers = [](std::shared_ptr<Node>& node) {
             auto inputs = node->output(0).get_target_inputs();
             std::vector<std::shared_ptr<Node>> consumers;
@@ -43,15 +51,6 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         };
 
         std::vector<std::shared_ptr<Node>> features_node;
-        auto dense_feature_consumers = get_consumers(dense_feature_node);
-        std::shared_ptr<Node> final_concat = nullptr;
-        // get subgraph output node
-        for (auto& node : dense_feature_consumers) {
-            if (!ov::is_type<ngraph::opset8::Concat>(node) ||
-                node  == concat_node)
-                continue;
-            final_concat = node;
-        }
 
         for (size_t i = 0; i < features_m.size(); i++) {
             auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
@@ -62,11 +61,11 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             }
         }
         auto interaction_node = std::make_shared<InteractionNode>(features_node);
-        replace_node(final_concat, interaction_node);
+        replace_node(final_concat_node, interaction_node);
 
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(concat_m, matcher_name);
+    auto m = std::make_shared<Matcher>(final_concat_m, matcher_name);
     this->register_matcher(m, callback);
 }

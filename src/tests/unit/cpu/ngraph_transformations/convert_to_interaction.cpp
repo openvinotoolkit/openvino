@@ -91,7 +91,8 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
                 1.5, 0.8, -0.7, -0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7};
             std::vector<int32_t> indices_value = {0, 2, 3, 4};
             std::vector<int32_t> offsets = {0, 2, 2};
-            for (size_t i = 0; i < 26; i++) {
+            const size_t sparse_num = 26;
+            for (size_t i = 0; i < sparse_num; i++) {
                 auto emb_table = std::make_shared<opset1::Constant>(element::f32, ov::Shape{5, 4}, emb_table_value);
                 auto indices = std::make_shared<opset1::Constant>(element::i32, ov::Shape{4}, indices_value);
                 auto offset = std::make_shared<opset1::Constant>(element::i32, ov::Shape{3}, offsets);

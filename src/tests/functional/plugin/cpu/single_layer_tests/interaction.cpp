@@ -15,7 +15,7 @@ using namespace ov::test;
 using namespace ngraph;
 
 namespace CPULayerTestsDefinitions {
-using InteractionLayerCPUTestParams = std::tuple<ElementType>;
+using InteractionLayerCPUTestParams = std::tuple<ElementType, InputShape>;
 
 class IntertactionLayerCPUTest : public testing::WithParamInterface<InteractionLayerCPUTestParams>,
                             virtual public SubgraphBaseTest,
@@ -23,10 +23,12 @@ class IntertactionLayerCPUTest : public testing::WithParamInterface<InteractionL
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InteractionLayerCPUTestParams>& obj) {
         ElementType inType;
-        std::tie(inType) = obj.param;
-        std::ostringstream results;
-        results << "Prc=" << inType;
-        return results.str();
+        InputShape inputShape;
+        std::tie(inType, inputShape) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << inputShape << "_";
+        result << "Prc=" << inType;
+        return result.str();
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
@@ -45,26 +47,38 @@ public:
 protected:
     void SetUp() override {
         ElementType inType;
-        std::tie(inType) = GetParam();
+        InputShape inputShape;
+        std::tie(inType, inputShape) = this->GetParam();
         selectedType = std::string("ref_any_") + InferenceEngine::details::convertPrecision(inType).name();
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        targetStaticShapes.push_back({Shape{3, 4}});
-        auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, PartialShape{3, 4});
-        NodeVector features{dense_feature};
-        std::vector<float> emb_table_value = {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1.,
-            1.5, 0.8, -0.7, -0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7};
-        std::vector<int32_t> indices_value = {0, 2, 3, 4};
-        std::vector<int32_t> offsets = {0, 2, 2};
-        for (size_t i = 0; i < 26; i++) {
-            auto emb_table = std::make_shared<opset1::Constant>(element::f32, Shape{5, 4}, emb_table_value);
-            auto indices = std::make_shared<opset1::Constant>(element::i32, Shape{4}, indices_value);
-            auto offset = std::make_shared<opset1::Constant>(element::i32, Shape{3}, offsets);
-            features.push_back(std::make_shared<opset8::EmbeddingBagOffsetsSum>(emb_table, indices, offset));
+        inputDynamicShapes.push_back(inputShape.first);
+        const auto& targetInput = inputShape.second;
+        for (size_t i = 0; i  < targetInput.size(); i++) {
+            targetStaticShapes.push_back(std::vector<ov::Shape>(27, targetInput[i]));
         }
 
+        auto dense_feature = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape.first);
+        NodeVector features{dense_feature};
+        ParameterVector inputs_params{dense_feature};
+        const size_t sparse_feature_num = 26;
+        for (size_t i = 0; i < sparse_feature_num; i++) {
+            auto sparse_feat = std::make_shared<ngraph::opset1::Parameter>(element::f32, inputShape.first);
+            features.push_back(sparse_feat);
+            inputs_params.push_back(sparse_feat);
+        }
+        auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
+        auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, Shape{1}, std::vector<int32_t>{0});
+        auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, Shape{}, 0);
+        auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
+
+        auto gather_feature_indices =  std::make_shared<opset1::Constant>(element::i32, Shape{1}, std::vector<int32_t>{1});
+        auto gather_feature_axis =  std::make_shared<opset1::Constant>(element::i32, Shape{1}, 0);
+        auto gather_feature = std::make_shared<opset8::Gather>(shapeof, gather_feature_indices, gather_feature_axis);
+
+        auto reshape_dim2 = std::make_shared<opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1});
+        auto reshape_shape = std::make_shared<opset1::Concat>(NodeVector{gather_batch, reshape_dim2, gather_feature}, 0);
+
         auto concat1 = std::make_shared<opset1::Concat>(features, 1);
-        std::vector<int32_t> reshape_value = {3, 27, 4};
-        auto reshape_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{3}, reshape_value);
         auto reshape = std::make_shared<opset1::Reshape>(concat1, reshape_shape, true);
         std::vector<int32_t> transpose1_value = {0, 2, 1};
         auto transpose1_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{3}, transpose1_value);
@@ -94,12 +108,12 @@ protected:
         auto transpose3_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{2}, transpose3_value);
         auto transpose3 = std::make_shared<opset1::Transpose>(reshape3, transpose3_shape);
 
-        std::vector<int32_t> reshape4_value = {3, 351};
+        std::vector<int32_t> reshape4_value = {-1, 351};
         auto reshape4_shape =  std::make_shared<opset1::Constant>(element::i32, Shape{2}, reshape4_value);
         auto reshape4 = std::make_shared<opset1::Reshape>(transpose3, reshape4_shape, true);
         auto concat2 = std::make_shared<opset1::Concat>(NodeVector{dense_feature, reshape4}, 1);
         auto relu = std::make_shared<opset1::Relu>(concat2);
-        function = std::make_shared<ov::Model>(relu, ov::ParameterVector{dense_feature}, "interaction");
+        function = std::make_shared<ov::Model>(relu, inputs_params, "interaction");
     }
 };
 
@@ -112,12 +126,32 @@ TEST_P(IntertactionLayerCPUTest, CompareWithRefs) {
 namespace {
 const std::vector<ElementType> inPrecisions = {
         ElementType::f32,
-        ElementType::bf16
+        ElementType::bf16,
+        ElementType::i32
+};
+// the model has 27 inputs with same shape
+const std::vector<InputShape> input_shapes = {
+    //dynamic batch
+    {
+        {-1, 4},
+        {{3, 4}, {5, 4}, {6, 4}}
+    },
+    //dynamic shape
+    {
+        {ov::PartialShape::dynamic(2)},
+        {{3, 4}, {5, 6}, {7, 8}}
+    },
+    //static shape
+    {
+        {3, 4},
+        {{3, 4}}
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interaction, IntertactionLayerCPUTest,
         ::testing::Combine(
-                ::testing::ValuesIn(inPrecisions)),
+                ::testing::ValuesIn(inPrecisions),
+                ::testing::ValuesIn(input_shapes)),
         IntertactionLayerCPUTest::getTestCaseName);
 } // namespace
 

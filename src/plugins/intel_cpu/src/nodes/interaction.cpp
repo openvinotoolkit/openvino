@@ -39,8 +39,9 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     dataPrecision = getOriginalInputPrecisionAtPort(0);
+    // if parent precision is not bf16/fp32, then set it to fp32. Current impl only support FP32 BF16
     if (!one_of(dataPrecision, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32))
-        IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+        dataPrecision = InferenceEngine::Precision::FP32;
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -210,11 +211,6 @@ bool Interaction::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
         const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
         if (!interaction) {
             errorMessage = "Only Interaction operation is supported";
-            return false;
-        }
-        auto elementType = interaction->get_output_type();
-        if (!one_of(elementType, ngraph::element::f32, ngraph::element::bf16)) {
-            errorMessage = "Only support precision fp32 & bf16";
             return false;
         }
     } catch (...) {

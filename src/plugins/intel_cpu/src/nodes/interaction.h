@@ -54,7 +54,6 @@ private:
     InferenceEngine::Blob::Ptr flatPtr;
     MemoryPtr inputMemPtr;
     MemoryPtr outputMemPtr;
-    // std::vector<float> flatBuffer;
     std::vector<uint32_t> featureSizes;
     InferenceEngine::Precision dataPrecision;
 };
