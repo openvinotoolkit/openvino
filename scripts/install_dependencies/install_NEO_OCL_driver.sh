@@ -80,8 +80,7 @@ _install_prerequisites_redhat()
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo ". Verify that you have enough disk space, and run the script again." >&2
@@ -102,8 +101,7 @@ _install_prerequisites_ubuntu()
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
@@ -156,8 +154,7 @@ _install_user_mode_redhat()
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
-        eval "$cmd"
-        if [[ $? -ne 0 ]]; then
+        if ! eval "$cmd"; then
             echo "ERROR: failed to run $cmd" >&2
             echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
@@ -169,8 +166,7 @@ _install_user_mode_redhat()
 
 _install_user_mode_ubuntu()
 {
-    _deploy_deb "intel*.deb"
-    if [[ $? -ne 0 ]]; then
+    if ! _deploy_deb "intel*.deb"; then
         echo "ERROR: failed to install debs $cmd error"  >&2
         echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
         exit $EXIT_FAILURE
@@ -204,12 +200,11 @@ _uninstall_user_mode_redhat()
     for package in "${PACKAGES[@]}"; do      
         echo "rpm -qa | grep $package"
         found_package=$(rpm -qa | grep "$package")
-        if [[ $? -eq 0 ]]; then
+        if [[ "${found_package}" == "" ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="rpm -e --nodeps ${found_package}"
             echo "$cmd"
-            eval "$cmd"
-            if [[ $? -ne 0 ]]; then
+            if ! eval "$cmd"; then
                 echo "ERROR: failed to uninstall existing user-mode driver." >&2
                 echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
@@ -231,12 +226,11 @@ _uninstall_user_mode_ubuntu()
 
     for package in "${PACKAGES[@]}"; do
         found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
-        if [[ $? -eq 0 ]]; then
+        if [[ "${found_package}" == "" ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="apt-get autoremove -y $package"
             echo "$cmd"
-            eval "$cmd"
-            if [[ $? -ne 0 ]]; then
+            if ! eval "$cmd"; then
                 echo "ERROR: failed to uninstall existing user-mode driver." >&2
                 echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
@@ -314,8 +308,7 @@ download_packages()
     else
         _download_packages_ubuntu
     fi
-    verify_checksum
-    if [[ $? -ne 0 ]]; then
+    if ! verify_checksum; then
         echo "ERROR: checksums do not match for the downloaded packages"
         echo "       Please verify your Internet connection and make sure you have enough disk space or fix the problem manually and try again. "
         exit $EXIT_FAILURE
@@ -360,13 +353,11 @@ add_user_to_video_group()
     real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
     echo
     echo "Adding $real_user to the video group..."
-    usermod -a -G video "$real_user"
-    if [[ $? -ne 0 ]]; then
+    if ! usermod -a -G video "$real_user"; then
         echo "WARNING: unable to add $real_user to the video group" >&2
     fi
     echo "Adding $real_user to the render group..."
-    usermod -a -G render "$real_user"
-    if [[ $? -ne 0 ]]; then
+    if ! usermod -a -G render "$real_user"; then
         echo "WARNING: unable to add $real_user to the render group" >&2
     fi
 }
@@ -376,7 +367,7 @@ _check_distro_version()
     if [[ $DISTRO == redhat ]]; then
         RHEL_MINOR_VERSION_SUPPORTED="[3-6]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
-        if [[ $? -ne 0 ]]; then
+        if [[ "${RHEL_VERSION}" == "" ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.6"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
