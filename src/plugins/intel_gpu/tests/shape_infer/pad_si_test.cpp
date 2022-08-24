@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ TEST_P(pad_test_three_input, shape_infer) {
     program_wrapper::add_connection(prog, pads_end_node, border_node);
 
     auto params = border_node.get_kernel_impl_params();
-    params->memory_deps = {{1, pads_begin_mem}, {2, pads_end_mem}}; //mb add pad_value
+    params->memory_deps = {{1, pads_begin_mem}, {2, pads_end_mem}};
     auto res = border_inst::calc_output_layouts<ov::PartialShape>(border_node, *params);
 
     ASSERT_EQ(res.size(), 1);
@@ -77,6 +77,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, pad_test_three_input,
             ov::op::PadMode::CONSTANT, 1.f,
             layout{ov::PartialShape{2, 8, 37, 48}, data_types::f32, format::bfyx}
         },
+        {
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 5, 2, 1},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{1, -1},{5, -1},{5, -1},{8, -1}}, data_types::f32, format::bfyx}
+        }
     }));
 
 class pad_test_single_input : public testing::TestWithParam<pad_test_params> { };
@@ -112,6 +119,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, pad_test_single_input,
             ov::op::PadMode::CONSTANT, 1.f,
             layout{ov::PartialShape{2, 8, 37, 48}, data_types::f32, format::bfyx}
         },
+        {
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {0, 5, 2, 1},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{1, -1},{5, -1},{5, -1},{8, -1}}, data_types::f32, format::bfyx}
+        }
     }));
 
 }  // shape_infer_tests

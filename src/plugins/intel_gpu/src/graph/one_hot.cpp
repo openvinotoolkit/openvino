@@ -48,7 +48,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& node, const kernel_impl_params& impl_param) {
+std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<one_hot>();
     auto input_layout = impl_param.get_input_layout(0);
     auto dt = desc->output_data_type.value_or(input_layout.data_type);

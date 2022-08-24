@@ -35,7 +35,7 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
 }
 
 template<typename ShapeType>
-std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node, const kernel_impl_params& impl_param) {
+std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
     auto input_layout = impl_param.get_input_layout(0);
 
@@ -75,10 +75,10 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node
     ov::op::v4::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
 
     auto pattern_data = desc->output_pattern;
-    if (!memory_deps.empty()) {
+    if (memory_deps.count(1)) {
         auto pattern_mem = memory_deps.at(1);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, node.get_program().get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
 
         auto pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);

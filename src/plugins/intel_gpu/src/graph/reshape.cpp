@@ -49,8 +49,8 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, const kernel_impl_params& impl_param) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
+    assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_type) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto prim = impl_param.typed_desc<reshape>();
     auto input_layout = impl_param.get_input_layout(0);
@@ -77,7 +77,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     if (!memory_deps.empty()) {
         auto pattern_mem = memory_deps.at(1);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, node.get_program().get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
 
         auto pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
