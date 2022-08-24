@@ -85,6 +85,12 @@ public:
     /// @brief Primitive's external id.
     const primitive_id ext_prim_id;
 
+    /// @brief Name of original ov operation.
+    std::string origin_op_name;
+
+    /// @brief Type name of original ov operation.
+    std::string origin_op_type_name;
+
     /// @brief Requested output padding.
     padding output_padding;
 

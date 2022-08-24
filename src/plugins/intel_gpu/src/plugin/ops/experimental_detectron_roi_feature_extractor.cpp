@@ -28,8 +28,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
     cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w,
                                                            shared_memory,
                                                            op->get_friendly_name());
-    p.primitiveIDs[experimental_detectron_mutable_id_w] = experimental_detectron_mutable_id_w;
-    p.AddPrimitive(experimenta_detectron_mutable_prim);
+    p.add_primitive(*op, experimenta_detectron_mutable_prim);
     inputPrimitives.push_back(experimental_detectron_mutable_id_w);
 
     const ov::op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& operation_attributes = op->get_attrs();
@@ -40,17 +39,14 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
                                                                                   operation_attributes.pyramid_scales,
                                                                                   operation_attributes.sampling_ratio,
                                                                                   operation_attributes.aligned);
-    p.AddPrimitive(experimentalDetectronPrim);
+    p.add_primitive(*op, experimentalDetectronPrim);
 
     cldnn::primitive_id experimental_detectron_mutable_id_r = layer_type_name_ID(op) + ".1";
     cldnn::mutable_data experimental_detectron_mutable_prim_r(experimental_detectron_mutable_id_r,
                                                               {layerName},
                                                               shared_memory,
                                                               op->get_friendly_name());
-    p.primitiveIDs[experimental_detectron_mutable_id_r] = experimental_detectron_mutable_id_r;
-    p.AddPrimitive(experimental_detectron_mutable_prim_r);
-
-    p.AddPrimitiveToProfiler(layerName, op);
+    p.add_primitive(*op, experimental_detectron_mutable_prim_r);
 }
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronROIFeatureExtractor);

@@ -51,8 +51,7 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params, op->get_friendly_name());
-    p.AddPrimitive(activationPrimitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, activationPrimitive);
 }
 
 static void CreateTanhOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tanh>& op) {
@@ -73,7 +72,7 @@ static void CreateReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Relu>
 }
 
 static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRelu>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
 
     auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto slope_shape = op->get_input_partial_shape(1);
@@ -92,8 +91,7 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
                                                      inputs[1],
                                                      cldnn::activation_func::relu_negative_slope,
                                                      op->get_friendly_name());
-        p.AddPrimitive(activationPrimitive);
-        p.AddPrimitiveToProfiler(op);
+        p.add_primitive(*op, activationPrimitive);
     }
 }
 
@@ -156,7 +154,7 @@ static void CreateErfOp(Program& p, const std::shared_ptr<ngraph::op::v0::Erf>& 
 }
 
 static void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v0::HardSigmoid>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto beta_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !beta_node) {
@@ -182,7 +180,7 @@ static void CreateNegativeOp(Program& p, const std::shared_ptr<ngraph::op::v0::N
 }
 
 static void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Selu>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto lambda_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !lambda_node) {
@@ -226,7 +224,7 @@ static void CreateCoshOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cosh>
 }
 
 static void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Swish>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     if (op->get_input_size() == 2) {
         auto beta_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (beta_node) {

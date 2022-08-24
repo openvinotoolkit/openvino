@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShuffleChannels>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -26,8 +26,7 @@ static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op
                                                        axis,
                                                        op->get_friendly_name());
 
-    p.AddPrimitive(shuffleChannelsPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, shuffleChannelsPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, ShuffleChannels);

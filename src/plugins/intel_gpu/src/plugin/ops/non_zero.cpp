@@ -13,23 +13,33 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateNonZeroOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto input_primitives = p.GetInputPrimitiveIDs(op);
     std::string layer_name = layer_type_name_ID(op);
 
     cldnn::primitive_id count_prim_id = layer_name + "_count";
-    auto count_prim = cldnn::count_nonzero(count_prim_id,
+    auto count_prim = std::make_shared<cldnn::count_nonzero>(count_prim_id,
                                            input_primitives[0],
                                            op->get_friendly_name());
 
-    auto gather_prim = cldnn::gather_nonzero(layer_name,
+    auto gather_prim = std::make_shared<cldnn::gather_nonzero>(layer_name,
                                              input_primitives[0],
                                              count_prim_id,
                                              op->get_friendly_name());
 
-    p.AddPrimitive(count_prim);
-    p.AddPrimitive(gather_prim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, count_prim);
+    p.add_primitive(*op, gather_prim);
+    // auto count_prim = cldnn::count_nonzero(count_prim_id,
+    //                                        input_primitives[0],
+    //                                        op->get_friendly_name());
+
+    // auto gather_prim = cldnn::gather_nonzero(layer_name,
+    //                                          input_primitives[0],
+    //                                          count_prim_id,
+    //                                          op->get_friendly_name());
+
+    // p.add_primitive(*op, count_prim);
+    // p.add_primitive(*op, gather_prim);
 }
 
 REGISTER_FACTORY_IMPL(v3, NonZero);

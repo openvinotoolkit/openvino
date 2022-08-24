@@ -18,7 +18,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
-    p.ValidateInputs(op, {2, 3, 4, 5, 6});
+    validate_inputs_count(op, {2, 3, 4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
@@ -37,8 +37,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract,
                                                  op->get_friendly_name());
-            p.AddPrimitive(preprocessPrim);
-            p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
+            p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
@@ -79,8 +78,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             auto nms_mutable_prim_second = cldnn::mutable_data(non_max_supression_mutable_id_w_second,
                                                                shared_memory.back(),
                                                                op->get_friendly_name());
-            p.primitiveIDs[non_max_supression_mutable_id_w_second] = non_max_supression_mutable_id_w_second;
-            p.AddPrimitive(nms_mutable_prim_second);
+            p.add_primitive(*op, nms_mutable_prim_second);
             inputPrimitives.push_back(non_max_supression_mutable_id_w_second);
         }
         case 2: {
@@ -99,8 +97,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             auto nms_mutable_prim_first = cldnn::mutable_data(non_max_supression_mutable_id_w_first,
                                                               shared_memory.back(),
                                                               op->get_friendly_name());
-            p.primitiveIDs[non_max_supression_mutable_id_w_first] = non_max_supression_mutable_id_w_first;
-            p.AddPrimitive(nms_mutable_prim_first);
+            p.add_primitive(*op, nms_mutable_prim_first);
             inputPrimitives.push_back(non_max_supression_mutable_id_w_first);
         }
         case 1: break;
@@ -136,7 +133,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         default: break;
     }
 
-    p.AddPrimitive(prim);
+    p.add_primitive(*op, prim);
 
     switch (num_output) {
         case 3: {
@@ -145,8 +142,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                                                                  { nonMaxSupressionLayerName },
                                                                  shared_memory.front(),
                                                                  op->get_friendly_name());
-            p.primitiveIDs[non_max_supression_id_r_second] = non_max_supression_id_r_second;
-            p.AddPrimitive(nms_mutable_prim_r_second);
+            p.add_primitive(*op, nms_mutable_prim_r_second);
         }
         case 2: {
             cldnn::primitive_id non_max_supression_id_r_first = layer_type_name_ID(op) + ".1";
@@ -154,13 +150,10 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                                                                 { nonMaxSupressionLayerName },
                                                                 shared_memory.back(),
                                                                 op->get_friendly_name());
-            p.primitiveIDs[non_max_supression_id_r_first] = non_max_supression_id_r_first;
-            p.AddPrimitive(nms_mutable_prim_r_first);
+            p.add_primitive(*op, nms_mutable_prim_r_first);
         }
         default: break;
     }
-
-    p.AddPrimitiveToProfiler(nonMaxSupressionLayerName, op);
 }
 
 REGISTER_FACTORY_IMPL(internal, NonMaxSuppressionIEInternal);

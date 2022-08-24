@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -32,14 +32,13 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
                                       true,
                                       op->get_friendly_name());
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v5, GatherND);
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::GatherND>& op) {
-    p.ValidateInputs(op, { 2 });
+    validate_inputs_count(op, { 2 });
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -57,8 +56,7 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
                                       false,
                                       op->get_friendly_name());
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v8, GatherND);

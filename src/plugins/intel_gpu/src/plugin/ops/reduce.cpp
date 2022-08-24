@@ -24,7 +24,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -51,7 +51,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
                                     keep_dims,
                                     op->get_friendly_name());
 
-    p.AddPrimitive(reducePrim);
+    p.add_primitive(*op, reducePrim);
 
     auto resultLayerName = layerName;
     auto out_dims = op->get_output_shape(0).size();
@@ -71,8 +71,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
                                           1, TensorValue(out_shape[2]));
         }
         auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
-        p.AddPrimitive(reshape_prim);
-        p.AddPrimitiveToProfiler(op, resultLayerName);
+        p.add_primitive(*op, reshape_prim);
     }
 
     auto reorderLayerName = layerName + "_reorder";
@@ -93,10 +92,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
                                            std::vector<float>(),
                                            cldnn::reorder_mean_mode::subtract,
                                            op->get_friendly_name());
-        p.AddPrimitive(reorder_prim);
-        p.AddPrimitiveToProfiler(op, reorderLayerName);
-    } else {
-        p.AddPrimitiveToProfiler(op);
+        p.add_primitive(*op, reorder_prim);
     }
 }
 

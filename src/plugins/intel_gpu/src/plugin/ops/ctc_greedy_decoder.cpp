@@ -19,7 +19,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::Node>& op, bool ctc_merge_repeated) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
     std::vector<cldnn::primitive_id> reorderedInputs;
@@ -39,8 +39,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                                                  std::vector<float>(),
                                                  cldnn::reorder_mean_mode::subtract,
                                                  op->get_friendly_name());
-            p.AddPrimitive(preprocessPrim);
-            p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
+            p.add_primitive(*op, preprocessPrim);
             reorderedInputs[portIndex] = (reorderPrimName);
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
@@ -85,8 +84,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,
                                                        shared_memory[0],
                                                        op->get_friendly_name());
-        p.primitiveIDs[ctc_gd_mutable_id_w] = ctc_gd_mutable_id_w;
-        p.AddPrimitive(ctc_gd_mutable_prim);
+        p.add_primitive(*op, ctc_gd_mutable_prim);
         reorderedInputs.push_back(ctc_gd_mutable_id_w);
     }
 
@@ -106,7 +104,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
         primitive.second_output = reorderedInputs.back();
     }
 
-    p.AddPrimitive(primitive);
+    p.add_primitive(*op, primitive);
 
     if (num_output == 2) {
         cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".1";
@@ -114,11 +112,8 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                                                          { CTCGreedyDecoderLayerName },
                                                          shared_memory[0],
                                                          op->get_friendly_name());
-        p.primitiveIDs[ctc_gd_mutable_id_r] = ctc_gd_mutable_id_r;
-        p.AddPrimitive(ctc_gd_mutable_prim_r);
+        p.add_primitive(*op, ctc_gd_mutable_prim_r);
     }
-
-    p.AddPrimitiveToProfiler(CTCGreedyDecoderLayerName, op);
 }
 
 static void CreateCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op) {

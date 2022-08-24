@@ -65,9 +65,9 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 
 void Graph::UpdateLayersMaps() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::UpdateLayersMaps");
-    primitiveIDs = m_program->primitiveIDs;
+    primitiveIDs = m_program->primitive_ids;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
-    profilingIDs = m_program->profilingIDs;
+    profilingIDs = m_program->profiling_ids;
     perfMap = m_program->perfMap;
     outputDims = m_program->outputDims;
 }

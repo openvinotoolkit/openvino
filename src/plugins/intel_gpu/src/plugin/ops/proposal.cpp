@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
     auto attrs = op->get_attrs();
@@ -74,8 +74,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
         auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
                                                        shared_memory,
                                                        op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_w] = proposal_mutable_id_w;
-        p.AddPrimitive(argmax_mutable_prim);
+        p.add_primitive(*op, argmax_mutable_prim);
         inputPrimitives.push_back(proposal_mutable_id_w);
 
         std::string proposalLayerName = layer_type_name_ID(op) + ".0";
@@ -106,17 +105,14 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                             normalize,
                                             op->get_friendly_name());
 
-        p.AddPrimitive(proposalPrim);
+        p.add_primitive(*op, proposalPrim);
 
         cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".1";
         auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
                                                          { proposalLayerName },
                                                          shared_memory,
                                                          op->get_friendly_name());
-        p.primitiveIDs[proposal_mutable_id_r] = proposal_mutable_id_r;
-        p.AddPrimitive(argmax_mutable_prim_r);
-
-        p.AddPrimitiveToProfiler(proposalLayerName, op);
+        p.add_primitive(*op, argmax_mutable_prim_r);
         return;
     }
 
@@ -147,8 +143,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
                                         normalize,
                                         op->get_friendly_name());
 
-    p.AddPrimitive(proposalPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, proposalPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Proposal);

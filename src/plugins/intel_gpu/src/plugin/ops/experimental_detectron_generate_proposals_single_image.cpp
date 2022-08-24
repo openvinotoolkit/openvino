@@ -16,7 +16,7 @@ namespace intel_gpu {
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
         Program& p,
         const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
-    p.ValidateInputs(op, {4});
+    validate_inputs_count(op, {4});
     if (op->get_output_size() != 2) {
         IE_THROW() << "ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs";
     }
@@ -39,8 +39,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
 
     const auto mutable_id_w = layer_type_name + "_md_write";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w, shared_memory, op_friendly_name};
-    p.primitiveIDs[mutable_id_w] = mutable_id_w;
-    p.AddPrimitive(mutable_prim_w);
+    p.add_primitive(*op, mutable_prim_w);
     inputs.push_back(mutable_id_w);
 
     const cldnn::experimental_detectron_generate_proposals_single_image prim{layer_name,
@@ -48,14 +47,11 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
                              attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count,
                              op_friendly_name};
 
-    p.AddPrimitive(prim);
+    p.add_primitive(*op, prim);
 
     const auto mutable_id_r = layer_type_name + ".1";
     const cldnn::mutable_data mutable_prim_r{mutable_id_r, {layer_name}, shared_memory, op_friendly_name};
-    p.primitiveIDs[mutable_id_r] = mutable_id_r;
-    p.AddPrimitive(mutable_prim_r);
-
-    p.AddPrimitiveToProfiler(prim, op);
+    p.add_primitive(*op, mutable_prim_r);
 }
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronGenerateProposalsSingleImage);

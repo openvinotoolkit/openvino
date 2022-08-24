@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
-    p.ValidateInputs(op, {3, 4});
+    validate_inputs_count(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -90,8 +90,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                         attrs.nearest_mode,
                                         op->get_friendly_name());
 
-    p.AddPrimitive(resamplePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, resamplePrim);
 }
 
 REGISTER_FACTORY_IMPL(v4, Interpolate);

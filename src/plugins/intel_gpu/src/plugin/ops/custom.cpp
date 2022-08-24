@@ -151,8 +151,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         cldnn::reorder_mean_mode::subtract,
                         op->get_friendly_name());
 
-                    p.AddPrimitive(preprocessPrim);
-                    p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
+                    p.add_primitive(*op, preprocessPrim);
                     reorderedInputs[param.portIndex] = (reorderPrimName);
                 } else {
                     reorderedInputs[param.portIndex] = inputPrimitives[param.portIndex];
@@ -240,20 +239,16 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     if (outputLayout.format != cldnn::format::any) {
         // Handle output reorder
         auto reorderPrimName = genericLayerName + Program::m_postCustomLayerTag;
-        p.AddPrimitive(
-            cldnn::reorder(reorderPrimName,
-                           genericLayerName,
-                           cldnn::format::get_default_format(op->get_output_shape(0).size()),
-                           customPrim.output_layout.data_type,
-                           std::vector<float>(),
-                           cldnn::reorder_mean_mode::subtract,
-                           op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::reorder(reorderPrimName,
+                                            genericLayerName,
+                                            cldnn::format::get_default_format(op->get_output_shape(0).size()),
+                                            customPrim.output_layout.data_type,
+                                            std::vector<float>(),
+                                            cldnn::reorder_mean_mode::subtract,
+                                            op->get_friendly_name()));
         prevLayerName = reorderPrimName;
-        p.AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(op), op);
     }
-    p.AddPrimitive(customPrim);
-    p.AddPrimitiveToProfiler(genericLayerName, op);
-    p.primitiveIDs[genericLayerName] = prevLayerName;
+    p.add_primitive(*op, customPrim);
 }
 
 }  // namespace intel_gpu

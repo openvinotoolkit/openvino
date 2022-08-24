@@ -16,7 +16,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
-    p.ValidateInputs(op, {4});
+    validate_inputs_count(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -197,8 +197,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
             auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
+            p.add_primitive(*op, reshapePrim);
             inPrimitive = reshapeInName;
         }
 
@@ -223,7 +222,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
-        p.AddPrimitive(cropPrim);
+        p.add_primitive(*op, cropPrim);
         auto last_layer_primitive = layerName;
 
         // Reshape in case of deleting of axis
@@ -231,11 +230,9 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             auto targetShape = tensor_from_dims(output_shape);
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
             auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
+            p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }
-        p.AddPrimitiveToProfiler(op, last_layer_primitive);
         return;
     } while (false);
 
@@ -256,8 +253,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                  output_shape,
                                                  op->get_friendly_name());
 
-    p.AddPrimitive(stridedSlicePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, stridedSlicePrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, StridedSlice);

@@ -26,8 +26,7 @@ static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Con
         DataTypeFromPrecision(op->get_output_element_type(0)),
         op->get_friendly_name());
 
-    p.AddPrimitive(concatPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, concatPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Concat);

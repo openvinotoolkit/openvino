@@ -114,23 +114,17 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
     }
     {
         cldnn::data trip_count = CreateScalarData<cldnn::data>(p, trip_count_id, num_iterations, op->get_friendly_name());
-        p.primitiveIDs[trip_count_id] = trip_count_id;
-        p.AddPrimitive(trip_count);
-        p.AddInnerPrimitiveToProfiler(trip_count_id, layerName, op);
+        p.add_primitive(*op, trip_count);
     }
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
         cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1, op->get_friendly_name());
-        p.primitiveIDs[execution_condition_id] = execution_condition_id;
-        p.AddPrimitive(execution_condition);
-        p.AddInnerPrimitiveToProfiler(execution_condition_id, layerName, op);
+        p.add_primitive(*op, execution_condition);
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
         cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0, op->get_friendly_name());
-        p.primitiveIDs[num_iteration_id] = num_iteration_id;
-        p.AddPrimitive(num_iteration);
-        p.AddInnerPrimitiveToProfiler(num_iteration_id, layerName, op);
+        p.add_primitive(*op, num_iteration);
     }
 
     // set output mapping
@@ -144,13 +138,11 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.AddPrimitive(output_data);
-            p.AddInnerPrimitiveToProfiler(layerNameWithIndex, layerName, op);
-            p.primitiveIDs[layerNameWithIndex] = layerNameWithIndex;
+            p.add_primitive(*op, output_data);
             external_id = layerNameWithIndex;
         } else {
-            p.primitiveIDs[layerNameWithIndex] = layerName;
-            p.primitiveIDs[layerName] = layerName;
+            p.primitive_ids[layerNameWithIndex] = layerName;
+            p.primitive_ids[layerName] = layerName;
             external_id = layerName;
         }
         const auto& body_output = body_outputs.at(loop_output_desc->m_body_value_index);
@@ -184,8 +176,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         "",
         op->get_friendly_name());
 
-    p.AddPrimitive(loopPrimitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, loopPrimitive);
 }
 
 REGISTER_FACTORY_IMPL(v0, TensorIterator);

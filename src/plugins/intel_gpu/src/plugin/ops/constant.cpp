@@ -191,6 +191,8 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
+        p.primitive_ids[initialconstPrimID] = constPrimID;
+        p.profiling_ids.push_back(initialconstPrimID);
     } else {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -226,12 +228,10 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         } else {
             std::memcpy(&buf[0], &data[0], bufSize);
         }
-        p.AddPrimitive(cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem, op->get_friendly_name()));
         p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
-
-    p.AddPrimitiveToProfiler(op, constPrimID);
 }
 
 REGISTER_FACTORY_IMPL(v0, Constant);

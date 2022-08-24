@@ -15,7 +15,7 @@ namespace intel_gpu {
 static void CreateExperimentalDetectronDetectionOutputOp(
     Program& p,
     const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronDetectionOutput>& op) {
-    p.ValidateInputs(op, {4});
+    validate_inputs_count(op, {4});
 
     if (op->get_output_size() != 3) {
         IE_THROW() << "ExperimentalDetectronDetectionOutput requires 3 outputs";
@@ -39,8 +39,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
     const auto mutable_id_w1 = layer_type_name + "_md_write.1";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1, op_friendly_name};
-    p.primitiveIDs[mutable_id_w1] = mutable_id_w1;
-    p.AddPrimitive(mutable_prim_w);
+    p.add_primitive(*op, mutable_prim_w);
     inputs.push_back(mutable_id_w1);
 
     const auto mutable_precision2 = op->get_output_element_type(2);
@@ -52,8 +51,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
     const auto mutable_id_w2 = layer_type_name + "_md_write.2";
     const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2, op_friendly_name};
-    p.primitiveIDs[mutable_id_w2] = mutable_id_w2;
-    p.AddPrimitive(mutable_prim_w2);
+    p.add_primitive(*op, mutable_prim_w2);
     inputs.push_back(mutable_id_w2);
 
     const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
@@ -78,19 +76,15 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                               attrs.deltas_weights,
                                                               op_friendly_name};
 
-    p.AddPrimitive(prim);
+    p.add_primitive(*op, prim);
 
     const auto mutable_id_r1 = layer_type_name + ".1";
     const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1, op_friendly_name};
-    p.primitiveIDs[mutable_id_r1] = mutable_id_r1;
-    p.AddPrimitive(mutable_prim_r1);
+    p.add_primitive(*op, mutable_prim_r1);
 
     const auto mutable_id_r2 = layer_type_name + ".2";
     const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2, op_friendly_name};
-    p.primitiveIDs[mutable_id_r2] = mutable_id_r2;
-    p.AddPrimitive(mutable_prim_r2);
-
-    p.AddPrimitiveToProfiler(prim, op);
+    p.add_primitive(*op, mutable_prim_r2);
 }
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronDetectionOutput);

@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op) {
-    p.ValidateInputs(op, {3});
+    validate_inputs_count(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto indices_rank = op->get_input_partial_shape(1).size();
@@ -26,8 +26,7 @@ static void CreateScatterNDUpdateOp(Program& p, const std::shared_ptr<ngraph::op
                                               indices_rank,
                                               op->get_friendly_name());
 
-    p.AddPrimitive(primitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, primitive);
 }
 
 REGISTER_FACTORY_IMPL(v3, ScatterNDUpdate);

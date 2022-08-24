@@ -45,18 +45,6 @@ void Program::ChangeInputBatch(int batch) {
     m_curBatch = batch;
 }
 
-void Program::ValidateInputs(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> validInputsCount) {
-    for (auto ic : validInputsCount) {
-        if (op->get_input_size() == ic) {
-            return;
-        }
-    }
-
-    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
-                       << op->get_friendly_name() << " (" << op->get_type_name()
-                       << " op::v" << op->get_type_info().version << ")";
-}
-
 auto getParamName = [](const std::shared_ptr<ov::Node>& param) -> std::string {
     const auto& names = param->get_output_tensor(0).get_names();
     if (!names.empty())
@@ -175,7 +163,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
             outputDims.clear();
-            primitiveIDs.clear();
+            primitive_ids.clear();
             blobMemCache.clear();
 
             auto new_batch = 1U << static_cast<unsigned>(b);
@@ -434,35 +422,15 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
         }
 
         if (!queryMode) {
-            if (primitiveIDs.find(prevName) == primitiveIDs.end()) {
-                IE_THROW() << "Input " << prevName << " hasn't been found in primitiveIDs map";
+            if (primitive_ids.find(prevName) == primitive_ids.end()) {
+                IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputPrimitives.push_back(primitiveIDs.at(prevName));
+            inputPrimitives.push_back(primitive_ids.at(prevName));
         } else {
             inputPrimitives.push_back(prevName);
         }
     }
     return inputPrimitives;
-}
-
-void Program::AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
-                                     cldnn::primitive_id customOutputId) {
-    auto id = layer_type_name_ID(op);
-    primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
-    profilingIDs.push_back(id);
-}
-
-void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
-                                     cldnn::primitive_id customOutputId) {
-    primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
-    profilingIDs.push_back(id);
-}
-
-void Program::AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
-                                          const std::shared_ptr<ngraph::Node>& op) {
-    InitProfileInfo(id, layer_type_lower(op), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, parentId);
-    primitiveIDs[id] = id;
-    profilingIDs.push_back(id);
 }
 
 void Program::InitProfileInfo(const std::string& layerName,
@@ -495,6 +463,29 @@ void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::
         m_variablesStateInfo.insert({variable_id, { layout }});
 }
 
+void Program::add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases) {
+    OPENVINO_ASSERT(m_topology != nullptr, "[GPU] Invalid Program builder state: topology is nullptr");
+
+    prim->origin_op_name = op.get_friendly_name();
+    prim->origin_op_type_name = op.get_type_name();
+
+    auto id = layer_type_name_ID(&op);
+    primitive_ids[id] = prim->id;
+    if (id != prim->id) {
+        InitProfileInfo(prim->id, prim->type_string(), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, id);
+        primitive_ids[prim->id] = prim->id;
+    }
+
+    for (auto& alias : aliases) {
+        primitive_ids[alias] = prim->id;
+    }
+    if (this->m_config.useProfiling) {
+        profiling_ids.push_back(prim->id);
+    }
+
+    m_topology->add_primitive(prim);
+}
+
 // TODO: Does it make sense to add such method to ngraph core?
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     std::set<std::shared_ptr<ngraph::Node>> nodes_processed = {};
@@ -515,6 +506,18 @@ bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
         return true;
     };
     return is_const_node(node);
+}
+
+void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<size_t> valid_inputs_count) {
+    for (auto ic : valid_inputs_count) {
+        if (op->get_input_size() == ic) {
+            return;
+        }
+    }
+
+    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
+               << op->get_friendly_name() << " (" << op->get_type_name()
+               << " op::v" << op->get_type_info().version << ")";
 }
 
 }  // namespace intel_gpu

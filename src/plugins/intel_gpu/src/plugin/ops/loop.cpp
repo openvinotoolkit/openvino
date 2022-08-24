@@ -142,9 +142,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
         cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0, op->get_friendly_name());
-        p.primitiveIDs[num_iteration_id] = num_iteration_id;
-        p.AddPrimitive(num_iteration);
-        p.AddInnerPrimitiveToProfiler(num_iteration_id, layerName, op);
+        p.add_primitive(*op, num_iteration);
     }
 
     // set output mapping
@@ -158,13 +156,9 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.AddPrimitive(output_data);
-            p.AddInnerPrimitiveToProfiler(layerNameWithIndex, layerName, op);
-            p.primitiveIDs[layerNameWithIndex] = layerNameWithIndex;
+            p.add_primitive(*op, output_data);
             external_id = layerNameWithIndex;
         } else {
-            p.primitiveIDs[layerNameWithIndex] = layerName;
-            p.primitiveIDs[layerName] = layerName;
             external_id = layerName;
         }
         const auto& body_output = body_outputs.at(loop_output_desc->m_body_value_index);
@@ -198,8 +192,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         body_execution_condition_id,
         op->get_friendly_name());
 
-    p.AddPrimitive(loopPrimitive);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, loopPrimitive);
 }
 
 REGISTER_FACTORY_IMPL(v5, Loop);

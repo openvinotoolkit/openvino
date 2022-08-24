@@ -26,7 +26,7 @@ static cldnn::pooling_mode GetPoolingMode(std::string method) {
 }
 
 static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformablePSROIPooling>& op) {
-    p.ValidateInputs(op, {2, 3});
+    validate_inputs_count(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -60,12 +60,11 @@ static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngr
                                                spatial_bins_x,
                                                spatial_bins_y,
                                                op->get_friendly_name());
-    p.AddPrimitive(psROIPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, psROIPoolingPrim);
 }
 
 static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -89,12 +88,11 @@ static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                spatial_bins_x,
                                                spatial_bins_y,
                                                op->get_friendly_name());
-    p.AddPrimitive(psROIPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, psROIPoolingPrim);
 }
 
 static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPooling>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -119,8 +117,7 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
                                              1,
                                              op->get_friendly_name());
 
-    p.AddPrimitive(roiPoolingPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, roiPoolingPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, DeformablePSROIPooling);

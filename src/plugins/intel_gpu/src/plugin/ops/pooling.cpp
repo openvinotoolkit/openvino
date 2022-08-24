@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -40,12 +40,11 @@ static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Av
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
                                    op->get_friendly_name());
     poolPrim.pad_end = pads_end;
-    p.AddPrimitive(poolPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, poolPrim);
 }
 
 static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -70,12 +69,11 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
                                    op->get_friendly_name());
     poolPrim.pad_end = pads_end;
-    p.AddPrimitive(poolPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, poolPrim);
 }
 
 static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::MaxPool>& op) {
-    p.ValidateInputs(op, {1});
+    validate_inputs_count(op, {1});
     if (op->get_output_size() != 2) {
         IE_THROW() << "MaxPool opset 8 requires 2 outputs";
     }
@@ -91,11 +89,10 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
     const auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
     const cldnn::primitive_id maxpool_mutable_id_w = layer_type_name + "_md_write";
     const auto op_friendly_name = op->get_friendly_name();
-    const auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
+    auto indices_mutable_prim = cldnn::mutable_data(maxpool_mutable_id_w,
                                                           shared_memory,
                                                           op_friendly_name);
-    p.primitiveIDs[maxpool_mutable_id_w] = maxpool_mutable_id_w;
-    p.AddPrimitive(indices_mutable_prim);
+    p.add_primitive(*op, indices_mutable_prim);
     inputPrimitives.push_back(maxpool_mutable_id_w);
 
     auto kernel = op->get_kernel();
@@ -124,17 +121,14 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::Ma
                                    tensor_from_dims(op->get_output_shape(0)),
                                    DataTypeFromPrecision(op->get_output_element_type(0)),
                                    op_friendly_name);
-    p.AddPrimitive(poolPrim);
+    p.add_primitive(*op, poolPrim);
 
     const cldnn::primitive_id maxpool_mutable_id_r = layer_type_name + ".1";
-    const auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
+    auto indices_mutable_id_r = cldnn::mutable_data(maxpool_mutable_id_r,
                                                           { layerName },
                                                           shared_memory,
                                                           op_friendly_name);
-    p.primitiveIDs[maxpool_mutable_id_r] = maxpool_mutable_id_r;
-    p.AddPrimitive(indices_mutable_id_r);
-
-    p.AddPrimitiveToProfiler(poolPrim, op);
+    p.add_primitive(*op, indices_mutable_id_r);
 }
 
 

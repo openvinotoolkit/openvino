@@ -44,44 +44,43 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
             new_shape.batch[0] = 1;
             out_layout.set_tensor(new_shape);
 
-            p.AddPrimitive(cldnn::convert_color(batched_prim_id,
-                                                batchedInputPrimitives,
-                                                from_color,
-                                                to_color,
-                                                memory_type,
-                                                out_layout,
-                                                op->get_friendly_name()));
+            p.add_primitive(*op, cldnn::convert_color(batched_prim_id,
+                                                      batchedInputPrimitives,
+                                                      from_color,
+                                                      to_color,
+                                                      memory_type,
+                                                      out_layout,
+                                                      op->get_friendly_name()));
         }
-        p.AddPrimitive(cldnn::concatenation(layerName, convert_color_names, 0, op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::concatenation(layerName, convert_color_names, 0, op->get_friendly_name()));
     } else {
-        p.AddPrimitive(cldnn::convert_color(layerName,
-                                            inputPrimitives,
-                                            from_color,
-                                            to_color,
-                                            memory_type,
-                                            out_layout,
-                                            op->get_friendly_name()));
+        p.add_primitive(*op, cldnn::convert_color(layerName,
+                                                  inputPrimitives,
+                                                  from_color,
+                                                  to_color,
+                                                  memory_type,
+                                                  out_layout,
+                                                  op->get_friendly_name()));
     }
-    p.AddPrimitiveToProfiler(op);
 }
 
 static void CreateNV12toRGBOp(Program& p, const std::shared_ptr<ngraph::op::v8::NV12toRGB>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB);
 }
 
 static void CreateNV12toBGROp(Program& p, const std::shared_ptr<ngraph::op::v8::NV12toBGR>& op) {
-    p.ValidateInputs(op, {1, 2});
+    validate_inputs_count(op, {1, 2});
     CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::BGR);
 }
 
 static void CreateI420toRGBOp(Program& p, const std::shared_ptr<ngraph::op::v8::I420toRGB>& op) {
-    p.ValidateInputs(op, {1, 3});
+    validate_inputs_count(op, {1, 3});
     CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB);
 }
 
 static void CreateI420toBGROp(Program& p, const std::shared_ptr<ngraph::op::v8::I420toBGR>& op) {
-    p.ValidateInputs(op, {1, 3});
+    validate_inputs_count(op, {1, 3});
     CreateCommonConvertColorOp(p, op, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::BGR);
 }
 

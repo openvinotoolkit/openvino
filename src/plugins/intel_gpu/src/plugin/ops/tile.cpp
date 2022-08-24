@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     size_t rank = op->get_input_shape(0).size();
@@ -41,8 +41,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
         auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape, op->get_friendly_name());
 
-        p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+        p.add_primitive(*op, reshapePrim);
 
         inputPrimitives[0] = reshapeName;
     }
@@ -52,8 +51,7 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
                                 repeats,
                                 op->get_friendly_name());
 
-    p.AddPrimitive(tilePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, tilePrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, Tile);
