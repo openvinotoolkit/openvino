@@ -403,7 +403,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
         }
         while (gws[priority_order[i]] % lws_values[lws_idx]) lws_idx++;
 
-        // else statement cannot be intergreted, it causes dg2 perf degradation, so added dg2(1024 lws_max) in if statement
+        // else statement cannot be interpreted, it causes dg2 perf degradation, so added dg2(1024 lws_max) in if statement
         if (lws_max == 256 || lws_max == 1024 || total_lws == total_gws) {
             lws[priority_order[i]] = lws_values[lws_idx];
         } else {
