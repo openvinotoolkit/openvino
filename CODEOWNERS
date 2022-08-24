@@ -74,10 +74,10 @@ CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
 
 # OpenVINO Auto (Batch) plugin:
-/src/plugins/auto_batch/ @openvinotoolkit/openvino-hetero-maintainers
+/src/plugins/auto_batch/ @openvinotoolkit/openvino-auto-batch-maintainers
 
 # OpenVINO Hetero plugin:
-/src/plugins/hetero/ @openvinotoolkit/openvino-auto-batch-maintainers
+/src/plugins/hetero/ @openvinotoolkit/openvino-hetero-maintainers
 
 
 # OpenVINO Frontends:
