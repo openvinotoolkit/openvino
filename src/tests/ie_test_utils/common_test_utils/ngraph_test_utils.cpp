@@ -4,10 +4,7 @@
 
 #include "ngraph_test_utils.hpp"
 
-TransformationTestsF::TransformationTestsF()
-    : model(function),
-      model_ref(function_ref),
-      comparator(FunctionsComparator::no_default()) {
+TransformationTestsF::TransformationTestsF() : comparator(FunctionsComparator::no_default()) {
     m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
