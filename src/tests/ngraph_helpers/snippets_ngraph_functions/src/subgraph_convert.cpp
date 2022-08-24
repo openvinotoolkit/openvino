@@ -114,14 +114,11 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initOriginal(
     auto data0 = std::make_shared<op::v0::Parameter>(inTypes[0], input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(inTypes[1], input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(inTypes[2], input_shapes[2]);
-    auto stub0 = createRollAsStub(data0);
-    auto stub1 = createRollAsStub(data1);
-    auto stub2 = createRollAsStub(data2);
-    auto convert0 = std::make_shared<op::v0::Convert>(stub0, outTypes[0]);
-    auto convert1 = std::make_shared<op::v0::Convert>(stub1, outTypes[0]);
+    auto convert0 = std::make_shared<op::v0::Convert>(data0, outTypes[0]);
+    auto convert1 = std::make_shared<op::v0::Convert>(data1, outTypes[0]);
     auto add = std::make_shared<op::v1::Add>(convert0, convert1);
     auto relu = std::make_shared<op::v0::Relu>(add);
-    auto sub = std::make_shared<op::v1::Subtract>(relu, stub2);
+    auto sub = std::make_shared<op::v1::Subtract>(relu, data2);
     auto stub3 = createRollAsStub(sub);
     auto convert2 = std::make_shared<op::v0::Convert>(relu, outTypes[1]);
     return std::make_shared<ov::Model>(NodeVector{convert2, stub3}, ParameterVector{data0, data1, data2});
@@ -130,12 +127,9 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initReference
     auto data0 = std::make_shared<op::v0::Parameter>(inTypes[0], input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(inTypes[1], input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(inTypes[2], input_shapes[2]);
-    auto stub0 = createRollAsStub(data0);
-    auto stub1 = createRollAsStub(data1);
-    auto stub2 = createRollAsStub(data2);
-    auto indata0 = std::make_shared<op::v0::Parameter>(inTypes[0], stub0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(inTypes[1], stub1->get_shape());
-    auto indata2 = std::make_shared<op::v0::Parameter>(inTypes[2], stub2->get_shape());
+    auto indata0 = std::make_shared<op::v0::Parameter>(inTypes[0], data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(inTypes[1], data1->get_shape());
+    auto indata2 = std::make_shared<op::v0::Parameter>(inTypes[2], data2->get_shape());
     auto convert0 = std::make_shared<ngraph::snippets::op::ConvertTruncation>(indata0, outTypes[0]);
     auto convert1 = std::make_shared<ngraph::snippets::op::ConvertTruncation>(indata1, outTypes[0]);
     auto add = std::make_shared<op::v1::Add>(convert0, convert1);
@@ -143,7 +137,7 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initReference
     auto sub = std::make_shared<op::v1::Subtract>(relu, indata2);
     auto convert2 = std::make_shared<ngraph::snippets::op::ConvertTruncation>(relu, outTypes[1]);
     auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(
-            NodeVector{stub0, stub1, stub2}, std::make_shared<ov::Model>(NodeVector{sub, convert2}, ParameterVector{indata0, indata1, indata2}));
+            NodeVector{data0, data1, data2}, std::make_shared<ov::Model>(NodeVector{sub, convert2}, ParameterVector{indata0, indata1, indata2}));
     auto stub3 = createRollAsStub(subgraph);
     return std::make_shared<ov::Model>(OutputVector{subgraph->output(1), stub3->output(0)},
                                        ParameterVector{data0, data1, data2});
