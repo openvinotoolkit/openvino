@@ -148,7 +148,6 @@ protected:
 /// Two different Input and Outputs.
 /// This function is to check correct Broadcasting
 //        in1       in2
-//        Sin       Sin
 //       HSwish      /
 //  Result      Add
 //              Relu

@@ -34,7 +34,7 @@ const std::vector<std::vector<ov::Shape>> input_shapes = {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputs,
                          ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
-                             ::testing::Values(4),
+                             ::testing::Values(2),
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TwoInputsAndOutputs::getTestCaseName);
