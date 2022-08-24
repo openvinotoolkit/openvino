@@ -72,6 +72,9 @@ void fill_explicit_pads_vectors(const NodeContext& node,
                                 const std::vector<int64_t>& tf_explicit_paddings,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end);
+
+void default_op_checks(const NodeContext& node, int min_input_size, const std::vector<std::string>& supported_ops);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
