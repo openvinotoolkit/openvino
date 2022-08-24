@@ -84,20 +84,6 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsFunction::initOriginal() const {
     return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1, data2});
 }
 
-std::shared_ptr<ov::Model> EltwiseThreeInputsSinhFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-    auto sinh0 = std::make_shared<op::v0::Sinh>(data0);
-    auto sinh1 = std::make_shared<op::v0::Sinh>(data1);
-    auto sinh2 = std::make_shared<op::v0::Sinh>(data2);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
-    auto const_data = std::make_shared<op::v0::Constant>(ov::element::f32, Shape{1}, const_values);
-    auto add = std::make_shared<op::v1::Add>(sinh0, sinh1);
-    auto sub = std::make_shared<op::v1::Subtract>(sinh2, const_data);
-    auto mul = std::make_shared<op::v1::Multiply>(add, sub);
-    return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1, data2});
-}
 std::shared_ptr<ov::Model> EltwiseMaxNumParamsSinhFunction::initOriginal() const {
     ParameterVector params;
     std::vector<std::shared_ptr<Node>> sinh; // 10

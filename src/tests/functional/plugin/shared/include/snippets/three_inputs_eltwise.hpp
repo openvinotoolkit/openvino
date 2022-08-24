@@ -28,11 +28,6 @@ protected:
     void SetUp() override;
 };
 
-class ThreeInputsEltwiseSinh : public ThreeInputsEltwise {
-protected:
-    void SetUp() override;
-};
-
 
 } // namespace snippets
 } // namespace test

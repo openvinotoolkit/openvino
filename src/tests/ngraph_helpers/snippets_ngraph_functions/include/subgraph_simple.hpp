@@ -90,18 +90,6 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
-/// EltwiseFunctionThreeInputs with Sinh after inputs to to WA CPU-specific disabling after inputs
-/// See AddSinh for details.
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class EltwiseThreeInputsSinhFunction : public SnippetsFunctionBase {
-public:
-    explicit EltwiseThreeInputsSinhFunction(const std::vector<Shape>& inputShapes) :
-        SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initOriginal() const override;
-};
 /// Eltwise graph with 10 inputs and 2 outputs.
 /// Needed to test for a max number of inputs+outputs allowed.
 // in1   in2   in3 ... in10
