@@ -67,7 +67,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     op.set_special_zero(prim->special_zero);
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
-                                                           : ShapeType(ov::Shape{ prim->output_pattern.size() });
+                                                                   : ShapeType(ov::Shape{ prim->output_pattern.size() });
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),

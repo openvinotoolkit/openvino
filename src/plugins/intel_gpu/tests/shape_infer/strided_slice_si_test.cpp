@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ struct strided_slice_test_params {
     std::vector<int64_t> end_mask;
     std::vector<int64_t> new_axis_mask;
     std::vector<int64_t> shrink_axis_mask;
+    std::vector<int64_t> ellipsis_mask;
     layout expected_layout;
 };
 
@@ -55,7 +56,7 @@ TEST_P(strided_slice_test, shape_infer) {
                                                               p.end_mask,
                                                               p.new_axis_mask,
                                                               p.shrink_axis_mask,
-                                                              std::vector<int64_t>{},
+                                                              p.ellipsis_mask,
                                                               ov::Shape{});
 
     cldnn::program prog(engine);
@@ -91,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test,
             layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 0, 0},
             layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 1, 0},
             layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 1, 1},
-            {1, 0, 1}, {1, 0, 1}, {0, 0, 0}, {0, 0, 0},
+            {1, 0, 1}, {1, 0, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
             layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}
         },
     }));
