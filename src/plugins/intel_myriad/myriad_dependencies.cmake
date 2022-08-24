@@ -137,7 +137,7 @@ if(LINUX AND NOT ARM
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
             ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
-            SHA256 "bd759010abdb4d50a06cfd9c93315b687ec6cf89ba348cd78d83b05cadf422d8")
+            SHA256 "6b87e0f90c4f6290edd18955d2126476ef68f9e0a2152e6caf1ce8c421edb6ef")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(
