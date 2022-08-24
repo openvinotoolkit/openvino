@@ -106,7 +106,7 @@ TEST(cl_mem_check, check_2_inputs) {
 
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-    auto iter = devices.find(debug_configuration::get_device_id());
+    auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 
@@ -218,7 +218,7 @@ TEST(cl_mem_check, check_input) {
 
     device_query query(engine_types::ocl, runtime_types::ocl, static_cast<void*>(ocl_instance->_context.get()));
     auto devices = query.get_available_devices();
-    auto iter = devices.find(debug_configuration::get_device_id());
+    auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
 

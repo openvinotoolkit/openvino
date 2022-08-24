@@ -12,13 +12,7 @@
 
 namespace cldnn {
 
-std::string debug_configuration::get_device_id() {
-    auto inst = get_instance();
-    if (std::string(_device_id) == std::string("") && inst)
-        _device_id = inst->device_id.c_str();
-    return _device_id;
-}
-const char *debug_configuration::_device_id = "";
+int debug_configuration::device_id = 0;
 const char *debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.
@@ -160,8 +154,7 @@ debug_configuration::debug_configuration()
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , forced_impl_type(std::string())
-        , max_kernels_per_batch(0)
-        , device_id("0") {
+        , max_kernels_per_batch(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);

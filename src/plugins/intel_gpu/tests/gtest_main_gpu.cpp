@@ -33,24 +33,15 @@
 #include "../../intel_gpu/include/intel_gpu/runtime/debug_configuration.hpp"
 #include "gtest/gtest.h"
 #include "test_utils/test_utils.h"
+#include "gflags/gflags.h"
 
-#ifdef ARDUINO
-void setup() {
-    testing::InitGoogleTest();
-}
-
-void loop() {
-    RUN_ALL_TESTS();
-}
-
-#else
+DEFINE_int32(device_id, -1, "GPU Device ID (currently, a number)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
-    for (int i = 0; i + 1 < argc; i++)
-        if (!strcmp(argv[i], "-d"))
-            cldnn::debug_configuration::_device_id = argv[i + 1];
     testing::InitGoogleTest(&argc, argv);
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    if (FLAGS_device_id!=-1)
+        cldnn::debug_configuration::device_id = FLAGS_device_id;
     return RUN_ALL_TESTS();
 }
-#endif

@@ -25,8 +25,7 @@ private:
     debug_configuration();
 
 public:
-    static std::string get_device_id();
-    static const char *_device_id;
+    static int device_id;
     static const char *prefix;
     int help;                               // Print help messages
     int verbose;                            // Verbose execution
@@ -46,7 +45,6 @@ public:
     int serialize_compile;                  // Serialize creating primitives and compiling kernels
     std::string forced_impl_type;           // Force implementation type either ocl or onednn
     int max_kernels_per_batch;              // Maximum number of kernels in a batch during compiling kernels
-    std::string device_id;                  // Affects to debug_configuration::device_id()
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
 };

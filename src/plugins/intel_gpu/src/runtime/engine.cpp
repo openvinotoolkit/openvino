@@ -247,6 +247,12 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
         case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
         default: throw std::runtime_error("Invalid engine type");
     }
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        const auto& info = device->get_info();
+        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
+        GPU_DEBUG_COUT << "Device support immad: " << (info.supports_immad ? "YES" : "NO") << std::endl;
+    }
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
@@ -256,15 +262,8 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
 
-    auto iter = devices.find(debug_configuration::get_device_id());
+    auto iter = devices.find(std::to_string(debug_configuration::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-        const auto& info = device->get_info();
-        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
-        GPU_DEBUG_COUT << "Device support immad: " << (info.supports_immad ? "YES" : "NO") << std::endl;
-    }
 
     return engine::create(engine_type, runtime_type, device, configuration, task_executor);
 }

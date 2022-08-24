@@ -336,7 +336,7 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
 
     auto iter = device_map.find(m_config.device_id);
     if (iter == device_map.end())
-        iter = device_map.find(cldnn::debug_configuration::get_device_id());
+        iter = device_map.find(std::to_string(cldnn::debug_configuration::device_id));
     auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
 
     bool enable_profiling = (m_config.useProfiling ||
