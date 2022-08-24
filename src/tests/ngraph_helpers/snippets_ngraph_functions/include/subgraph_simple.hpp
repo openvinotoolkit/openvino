@@ -93,15 +93,13 @@ protected:
 /// Eltwise graph with 10 inputs and 2 outputs.
 /// Needed to test for a max number of inputs+outputs allowed.
 // in1   in2   in3 ... in10
-// Sinh  Sinh  Sinh ...Sinh
 // ........................
 //    Subtract    Power
 //          \   Sinh
 //          Result
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class EltwiseMaxNumParamsSinhFunction : public SnippetsFunctionBase {
+class EltwiseMaxNumParamsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseMaxNumParamsSinhFunction(const std::vector<Shape>& inputShapes) :
+    explicit EltwiseMaxNumParamsFunction(const std::vector<Shape>& inputShapes) :
             SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 10, "Got invalid number of input shapes");
     }

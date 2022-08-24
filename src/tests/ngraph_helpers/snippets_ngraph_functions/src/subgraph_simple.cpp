@@ -84,17 +84,15 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsFunction::initOriginal() const {
     return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1, data2});
 }
 
-std::shared_ptr<ov::Model> EltwiseMaxNumParamsSinhFunction::initOriginal() const {
+std::shared_ptr<ov::Model> EltwiseMaxNumParamsFunction::initOriginal() const {
     ParameterVector params;
-    std::vector<std::shared_ptr<Node>> sinh; // 10
     for (const auto& shape : input_shapes) {
         auto param = std::make_shared<op::v0::Parameter>(precision, shape);
         params.push_back(param);
-        sinh.push_back(std::make_shared<op::v0::Sinh>(param));
     }
     std::vector<std::shared_ptr<Node>> add; // 5
     for (size_t i = 0; i < input_shapes.size() / 2; i++) {
-        add.push_back(std::make_shared<op::v1::Add>(sinh[i * 2], sinh[i * 2 + 1]));
+        add.push_back(std::make_shared<op::v1::Add>(params[i * 2], params[i * 2 + 1]));
     }
     std::vector<std::shared_ptr<Node>> mul; // 2
     for (size_t i = 0; i < add.size() / 2; i++) {
