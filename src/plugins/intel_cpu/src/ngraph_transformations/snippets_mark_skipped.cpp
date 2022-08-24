@@ -240,22 +240,20 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
                                     NodeFusingType &updatedChainType, int& fusingAxis) {
     int num_non_const_inputs = 0;
     bool can_be_converted_to_FC = false;
-    ov::Shape bias_shape;
-    ov::Shape matmul_shape;
+    ov::PartialShape bias_shape;
+    ov::PartialShape matmul_shape;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
         if (ngraph::op::is_constant(parent)) {
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
-            const auto pshape = parent_out.get_partial_shape();
-            if (pshape.is_dynamic() || pshape.get_shape().empty())
+              matmul_shape = parent_out.get_partial_shape();
+              if (matmul_shape.size() == 0)
                 return false;
-            matmul_shape = pshape.get_shape();
             const auto& grandparents = parent->input_values();
             // first check that weights are constant and both activations and weights have static shape
             if (grandparents.size() == 2 &&
-                grandparents[0].get_partial_shape().is_static() &&
                 grandparents[1].get_partial_shape().is_static() &&
                 ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())) {
                 auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
@@ -420,7 +418,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     int channelAxis = DEFAULT_AXIS;
     for (auto &node : m->get_ordered_ops()) {
-        if (ngraph::op::is_constant(node))
+        if (ngraph::op::is_constant(node) || ov::is_type<ov::op::v0::Result>(node))
             continue;
 
         if (ngraph::op::is_parameter(node)) {
