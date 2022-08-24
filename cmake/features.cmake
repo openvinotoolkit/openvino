@@ -43,8 +43,7 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" ON)
 
-find_host_package(PythonInterp 3 QUIET)
-ie_option (ENABLE_DOCS "Build docs using Doxygen" ${PYTHONINTERP_FOUND})
+ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
 #
 # Inference Engine specific options
@@ -156,6 +155,7 @@ else()
     set(protoc_available ON)
 endif()
 
+find_host_package(PythonInterp 3 QUIET)
 ie_dependent_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND} "protoc_available" OFF)
 ie_dependent_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)

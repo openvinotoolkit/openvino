@@ -148,7 +148,6 @@ function(ov_ncc_naming_style)
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
                 ${venv_target_ncc_style}
-                "${venv_dependency_file_ncc_style}"
                 "${full_source_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"

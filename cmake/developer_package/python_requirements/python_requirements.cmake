@@ -114,7 +114,7 @@ endfunction()
 #
 # ov_create_virtualenv(REQUIREMENTS_FILE <requirements.txt file>
 #                      VIRTUALENV_NAME <tag / id of virtual env>
-#                      DEPENDENT_TARGET <tagret name>
+#                      [DEPENDENT_TARGET <tagret name>]
 #                      RESULT_VAR <result var name>
 #                      [VIRTUALENV_PYTHON_EXECUTABLE <var>]
 #                      [WARNING_MESSAGE <message>]
@@ -130,15 +130,15 @@ function(ov_create_virtualenv)
         IMMEDIATE_MODE
         )
     set(oneValueOptionalArgs
-        MESSAGE_MODE               # Set the type of message: { FATAL_ERROR | WARNING | ... }
-        WARNING_MESSAGE            # callback message
-        VIRTUALENV_PYTHON_EXECUTABLE
+        DEPENDENT_TARGET           # dependency target
         )
     set(oneValueRequiredArgs
         REQUIREMENTS_FILE          # File with requirement-specifiers to check
         VIRTUALENV_NAME            # tag / id of virtual env
         RESULT_VAR                 # Result varibale to set return code {ON | OFF}
-        DEPENDENT_TARGET           # dependency target
+        MESSAGE_MODE               # Set the type of message: { FATAL_ERROR | WARNING | ... }
+        WARNING_MESSAGE            # callback message
+        VIRTUALENV_PYTHON_EXECUTABLE
         )
     set(multiValueArgs)
 

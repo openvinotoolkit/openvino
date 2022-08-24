@@ -62,7 +62,6 @@ function(ov_check_python_build_conditions)
     # venv for Cython to build IE_API
     ov_create_virtualenv(REQUIREMENTS_FILE "${ie_python_req}"
                          VIRTUALENV_NAME ie_python
-                         DEPENDENT_TARGET venv_target_ie_python
                          RESULT_VAR ie_python_req_FOUND
                          WARNING_MESSAGE "install python3 -m install -r ${ie_python_req} for IE API 1.0"
                          VIRTUALENV_PYTHON_EXECUTABLE IE_PYTHON_PYTHON_EXECUTABLE
@@ -129,7 +128,6 @@ endif()
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
 ov_create_virtualenv(REQUIREMENTS_FILE "${wheel_reqs}"
                      VIRTUALENV_NAME wheels
-                     DEPENDENT_TARGET venv_target_wheel
                      RESULT_VAR wheel_req_FOUND
                      WARNING_MESSAGE "install ${wheel_reqs} to build 'openvino' wheel"
                      VIRTUALENV_PYTHON_EXECUTABLE WHEEL_PYTHON_EXECUTABLE
