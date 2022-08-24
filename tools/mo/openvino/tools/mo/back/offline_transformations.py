@@ -49,30 +49,8 @@ def compress_model(func: object):
     compress_model_transformation(func)
 
 
-def apply_offline_transformations(input_model: str, argv: argparse.Namespace):
-    # This variable is only needed by GenerateMappingFile transformation
-    # to produce correct mapping
-    extract_names = argv.framework in ['tf', 'mxnet', 'kaldi']
-
-    from openvino.runtime import serialize # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import generate_mapping_file # pylint: disable=import-error,no-name-in-module
-    from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
+def apply_offline_transformations(func, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
-
-    fem = FrontEndManager()
-
-    # We have to separate fe object lifetime from fem to
-    # avoid segfault during object destruction. So fe must
-    # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
-
-    func = read_model(input_model + "_tmp.xml")
-
-    if argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update:
-        return func
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
