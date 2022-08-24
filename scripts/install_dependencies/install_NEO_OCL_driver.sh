@@ -199,8 +199,9 @@ _uninstall_user_mode_redhat()
            "intel-igc-opencl")
     for package in "${PACKAGES[@]}"; do      
         echo "rpm -qa | grep $package"
+        found_package=""
         found_package=$(rpm -qa | grep "$package")
-        if [[ "${found_package}" == "" ]]; then
+        if [[ "${found_package}" != "" ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="rpm -e --nodeps ${found_package}"
             echo "$cmd"
@@ -225,8 +226,9 @@ _uninstall_user_mode_ubuntu()
               "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
+        found_package=""
         found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
-        if [[ "${found_package}" == "" ]]; then
+        if [[ "${found_package}" != "" ]]; then
             echo "Found installed user-mode driver, performing uninstall..."
             cmd="apt-get autoremove -y $package"
             echo "$cmd"
