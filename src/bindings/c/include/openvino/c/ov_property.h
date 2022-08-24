@@ -49,23 +49,23 @@ typedef enum {
                        //!< tasks. On the hybrid CPUs this option is default
 } ov_affinity_e;
 
-OPENVINO_C_API(const char* ov_property_key_supported_properties;)
-OPENVINO_C_API(const char* ov_property_key_available_devices;)
-OPENVINO_C_API(const char* ov_property_key_optimal_number_of_infer_requests;)
-OPENVINO_C_API(const char* ov_property_key_range_for_async_infer_requests;)
-OPENVINO_C_API(const char* ov_property_key_range_for_streams;)
-OPENVINO_C_API(const char* ov_property_key_device_full_name;)
-OPENVINO_C_API(const char* ov_property_key_device_capabilities;)
-OPENVINO_C_API(const char* ov_property_key_cache_dir;)
-OPENVINO_C_API(const char* ov_property_key_num_streams;)
-OPENVINO_C_API(const char* ov_property_key_affinity;)
-OPENVINO_C_API(const char* ov_property_key_inference_num_threads;)
-OPENVINO_C_API(const char* ov_property_key_hint_performance_mode;)
-OPENVINO_C_API(const char* ov_property_key_model_name;)
-OPENVINO_C_API(const char* ov_property_key_hint_inference_precision;)
-OPENVINO_C_API(const char* ov_property_key_optimal_batch_size;)
-OPENVINO_C_API(const char* ov_property_key_max_batch_size;)
-OPENVINO_C_API(const char* ov_property_key_hint_num_requests;)
+OPENVINO_C_VAR(const char*) ov_property_key_supported_properties;
+OPENVINO_C_VAR(const char*) ov_property_key_available_devices;
+OPENVINO_C_VAR(const char*) ov_property_key_optimal_number_of_infer_requests;
+OPENVINO_C_VAR(const char*) ov_property_key_range_for_async_infer_requests;
+OPENVINO_C_VAR(const char*) ov_property_key_range_for_streams;
+OPENVINO_C_VAR(const char*) ov_property_key_device_full_name;
+OPENVINO_C_VAR(const char*) ov_property_key_device_capabilities;
+OPENVINO_C_VAR(const char*) ov_property_key_cache_dir;
+OPENVINO_C_VAR(const char*) ov_property_key_num_streams;
+OPENVINO_C_VAR(const char*) ov_property_key_affinity;
+OPENVINO_C_VAR(const char*) ov_property_key_inference_num_threads;
+OPENVINO_C_VAR(const char*) ov_property_key_hint_performance_mode;
+OPENVINO_C_VAR(const char*) ov_property_key_model_name;
+OPENVINO_C_VAR(const char*) ov_property_key_hint_inference_precision;
+OPENVINO_C_VAR(const char*) ov_property_key_optimal_batch_size;
+OPENVINO_C_VAR(const char*) ov_property_key_max_batch_size;
+OPENVINO_C_VAR(const char*) ov_property_key_hint_num_requests;
 
 // Property
 /**
