@@ -4,10 +4,13 @@
 
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
-ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt"
-                      RESULT_VAR onnx_FOUND
-                      WARNING_MESSAGE "ONNX frontend unit tests will be skipped"
-                      MESSAGE_MODE WARNING)
+ov_create_virtualenv(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/core/tests/requirements_test_onnx.txt"
+                     VIRTUALENV_NAME onnx
+                     DEPENDENT_TARGET venv_target_onnx
+                     RESULT_VAR onnx_FOUND
+                     WARNING_MESSAGE "ONNX frontend unit tests will be skipped"
+                     VIRTUALENV_PYTHON_EXECUTABLE VIRTUAL_PYTHON_EXECUTABLE
+                     MESSAGE_MODE WARNING)
 
 function(ov_model_convert SRC DST OUT)
     set(onnx_gen_script "${OpenVINO_SOURCE_DIR}/src/core/tests/models/onnx/onnx_prototxt_converter.py")
@@ -49,9 +52,9 @@ function(ov_model_convert SRC DST OUT)
         if(ext STREQUAL ".prototxt")
             # convert .prototxt models to .onnx binary
             add_custom_command(OUTPUT ${full_out_name}
-                COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
+                COMMAND ${VIRTUAL_PYTHON_EXECUTABLE} ${onnx_gen_script}
                     "${SRC}/${in_file}" ${full_out_name}
-                DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
+                DEPENDS ${venv_target_onnx} ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"
                 JOB_POOL four_jobs
                 WORKING_DIRECTORY "${model_source_dir}")
@@ -100,10 +103,6 @@ if(ENABLE_TESTS)
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
                                              ${ie_onnx_import_out_files})
-
-    if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
-        add_dependencies(test_model_zoo paddle_test_models)
-    endif()
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

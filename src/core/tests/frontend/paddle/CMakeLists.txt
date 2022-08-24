@@ -19,10 +19,13 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt"
-                      MESSAGE_MODE WARNING
-                      WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
-                      RESULT_VAR paddlepaddle_FOUND)
+
+ov_create_virtualenv(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt"
+                     VIRTUALENV_NAME paddlepaddle
+                     DEPENDENT_TARGET venv_target_paddlepaddle
+                     RESULT_VAR paddlepaddle_FOUND
+                     WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
+                     MESSAGE_MODE WARNING)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
@@ -51,11 +54,14 @@ if(paddlepaddle_FOUND AND PADDLEDET_RESULT)
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
-            COMMAND ${SETENV} PYTHONPATH=${PADDLEDET_DIRNAME}${PATHSEP}$ENV{PYTHONPATH} && ${PYTHON_EXECUTABLE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
-            ${TEST_PADDLE_MODELS}
-            DEPENDS ${PADDLE_ALL_SCRIPTS}
+            COMMAND
+                ${SETENV} PYTHONPATH=${PADDLEDET_DIRNAME}${PATHSEP}$ENV{PYTHONPATH} && ${PYTHON_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
+                ${TEST_PADDLE_MODELS}
+            DEPENDS
+                ${venv_target_paddlepaddle}
+                ${PADDLE_ALL_SCRIPTS}
             )
     add_custom_target(paddle_test_models DEPENDS ${OUT_FILE})
 

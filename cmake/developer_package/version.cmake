@@ -21,6 +21,7 @@ function (commitHash VAR)
     execute_process(
             COMMAND git rev-parse --short=11 HEAD
             WORKING_DIRECTORY ${repo_root}
+            
             OUTPUT_VARIABLE GIT_COMMIT_HASH
             OUTPUT_STRIP_TRAILING_WHITESPACE)
     set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)

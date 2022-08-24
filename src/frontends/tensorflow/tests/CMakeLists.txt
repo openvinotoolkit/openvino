@@ -19,10 +19,12 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt"
-                     MESSAGE_MODE WARNING
+ov_create_virtualenv(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt"
+                     VIRTUALENV_NAME tensorflow
+                     DEPENDENT_TARGET venv_target_tensorflow
+                     RESULT_VAR tensorflow_FOUND
                      WARNING_MESSAGE "TensorFlow frontend unit tests will be skipped"
-                     RESULT_VAR paddlepaddle_FOUND)
+                     MESSAGE_MODE WARNING)
 
 set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
@@ -42,14 +44,17 @@ if (tensorflow_FOUND)
         set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
+            COMMAND
+                ${PYTHON_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
                 ${GEN_SCRIPT}
                 ${TEST_TENSORFLOW_MODELS}
                 ${OUT_DONE_FILE}
-                JOB_POOL four_jobs
-                DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
-                )
+            JOB_POOL
+                four_jobs
+            DEPENDS
+                ${venv_target_tensorflow}
+                ${TENSORFLOW_ALL_SCRIPTS})
     endforeach()
     add_custom_target(tensorflow_test_models DEPENDS ${OUT_FILES})
 
