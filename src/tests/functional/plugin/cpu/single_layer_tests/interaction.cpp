@@ -131,17 +131,17 @@ const std::vector<ElementType> inPrecisions = {
 };
 // the model has 27 inputs with same shape
 const std::vector<InputShape> input_shapes = {
-    //dynamic batch
+    // dynamic batch
     {
         {-1, 4},
         {{3, 4}, {5, 4}, {6, 4}}
     },
-    //dynamic shape
+    // dynamic shape
     {
         {ov::PartialShape::dynamic(2)},
         {{3, 4}, {5, 6}, {7, 8}}
     },
-    //static shape
+    // static shape
     {
         {3, 4},
         {{3, 4}}
