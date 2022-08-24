@@ -81,7 +81,7 @@ ov_status_e ov_compiled_model_create_infer_request(const ov_compiled_model_t* co
     return ov_status_e::OK;
 }
 
-ov_status_e ov_compiled_model_properies_to_anymap(const ov_properties_t* properties, ov::AnyMap& dest) {
+inline ov_status_e ov_compiled_model_properies_to_anymap(const ov_properties_t* properties, ov::AnyMap& dest) {
     if (!properties || properties->size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }

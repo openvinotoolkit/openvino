@@ -79,7 +79,7 @@ bool ov_model_is_dynamic(const ov_model_t* model) {
     return model->object->is_dynamic();
 }
 
-ov_status_e partial_shape_convert_to_cpp_object(const ov_partial_shape_t* partial_shape,
+inline ov_status_e partial_shape_convert_to_cpp_object(const ov_partial_shape_t* partial_shape,
                                                 std::vector<ov::Dimension>& dims) {
     if (!partial_shape) {
         return ov_status_e::INVALID_C_PARAM;

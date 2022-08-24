@@ -82,13 +82,14 @@ OPENVINO_C_API(const char* ov_property_key_hint_num_requests;)
  * @param size The list size.
  * @return ov_status_e a status code, return OK if successful
  */
-OPENVINO_C_API(ov_status_e) ov_properties_init(ov_properties_t* property, size_t size);
+OPENVINO_C_API(ov_status_e) ov_properties_create(ov_properties_t* property, size_t size);
 
 /**
  * @brief Deinitialized properties list.
+ * properties->list[i].value.ptr need be managed by user.
  * @ingroup property
  * @param property The properties list object will be deinitialized.
  */
-OPENVINO_C_API(void) ov_properties_deinit(ov_properties_t* property);
+OPENVINO_C_API(void) ov_properties_free(ov_properties_t* property);
 
 /** @} */  // end of Property

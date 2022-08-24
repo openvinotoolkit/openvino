@@ -29,7 +29,7 @@ typedef struct {
  * @param dims The dimensions data for this shape object, it's size should be equal to rank.
  * @return ov_status_e The return status code.
  */
-OPENVINO_C_API(ov_status_e) ov_shape_init(ov_shape_t* shape, int64_t rank, int64_t* dims);
+OPENVINO_C_API(ov_status_e) ov_shape_create(ov_shape_t* shape, int64_t rank, int64_t* dims);
 
 /**
  * @brief Free a shape object's internal memory.
@@ -37,4 +37,4 @@ OPENVINO_C_API(ov_status_e) ov_shape_init(ov_shape_t* shape, int64_t rank, int64
  * @param shape The input shape object pointer.
  * @return ov_status_e The return status code.
  */
-OPENVINO_C_API(ov_status_e) ov_shape_deinit(ov_shape_t* shape);
+OPENVINO_C_API(ov_status_e) ov_shape_free(ov_shape_t* shape);

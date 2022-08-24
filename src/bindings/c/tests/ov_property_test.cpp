@@ -3,9 +3,9 @@
 //
 #include "ov_test.hpp"
 
-TEST(ov_property, ov_properties_init_test) {
+TEST(ov_property, ov_properties_create_test) {
     ov_properties_t properties;
-    OV_ASSERT_OK(ov_properties_init(&properties, 6));
+    OV_ASSERT_OK(ov_properties_create(&properties, 6));
 
-    ov_properties_deinit(&properties);
+    ov_properties_free(&properties);
 }

@@ -72,7 +72,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
     int64_t dims[2] = {1, (int64_t)weights_content.size()};
-    ov_shape_init(&shape, 2, dims);
+    ov_shape_create(&shape, 2, dims);
     OV_ASSERT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     ASSERT_NE(nullptr, tensor);
 
@@ -82,7 +82,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
         ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
     ASSERT_NE(nullptr, model);
 
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_tensor_free(tensor);
     ov_model_free(model);
     ov_core_free(core);
@@ -130,7 +130,7 @@ TEST_P(ov_core, ov_core_set_property) {
     ASSERT_NE(nullptr, core);
 
     ov_properties_t properties;
-    OV_ASSERT_OK(ov_properties_init(&properties, 1));
+    OV_ASSERT_OK(ov_properties_create(&properties, 1));
 
     const char* key = ov_property_key_hint_performance_mode;
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
@@ -140,7 +140,7 @@ TEST_P(ov_core, ov_core_set_property) {
     properties.list[0].value = value;
 
     OV_ASSERT_OK(ov_core_set_property(core, device_name.c_str(), &properties));
-    ov_properties_deinit(&properties);
+    ov_properties_free(&properties);
     ov_core_free(core);
 }
 
@@ -164,7 +164,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     ASSERT_NE(nullptr, core);
 
     ov_properties_t properties;
-    OV_ASSERT_OK(ov_properties_init(&properties, 1));
+    OV_ASSERT_OK(ov_properties_create(&properties, 1));
 
     const char* key = ov_property_key_cache_dir;
     const char cache_dir[] = "./cache_dir";
@@ -179,7 +179,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     OV_ASSERT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
     EXPECT_STREQ(cache_dir, (char*)property_value.ptr);
 
-    ov_properties_deinit(&properties);
+    ov_properties_free(&properties);
     ov_any_free(&property_value);
     ov_core_free(core);
 }
@@ -191,7 +191,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     ASSERT_NE(nullptr, core);
 
     ov_properties_t properties;
-    OV_ASSERT_OK(ov_properties_init(&properties, 1));
+    OV_ASSERT_OK(ov_properties_create(&properties, 1));
 
     const char* key = ov_property_key_inference_num_threads;
     int32_t num = 8;
@@ -208,7 +208,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     EXPECT_EQ(num, res);
     ov_any_free(&property_value);
 
-    ov_properties_deinit(&properties);
+    ov_properties_free(&properties);
     ov_core_free(core);
 }
 
@@ -219,7 +219,7 @@ TEST_P(ov_core, ov_core_set_multiple_properties) {
     ASSERT_NE(nullptr, core);
 
     ov_properties_t properties;
-    OV_ASSERT_OK(ov_properties_init(&properties, 3));
+    OV_ASSERT_OK(ov_properties_create(&properties, 3));
 
     const char* key_1 = ov_property_key_hint_performance_mode;
     ov_performance_mode_e mode = ov_performance_mode_e::THROUGHPUT;
@@ -258,7 +258,7 @@ TEST_P(ov_core, ov_core_set_multiple_properties) {
     EXPECT_EQ(num, res_3);
     ov_any_free(&property_value_3);
 
-    ov_properties_deinit(&properties);
+    ov_properties_free(&properties);
 }
 
 TEST(ov_core, ov_core_get_available_devices) {

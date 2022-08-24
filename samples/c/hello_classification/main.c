@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
     int64_t dims[4] = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
-    ov_shape_init(&input_shape, 4, dims);
+    ov_shape_create(&input_shape, 4, dims);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
 err:
     free(results);
     image_free(&img);
-    ov_shape_deinit(&input_shape);
+    ov_shape_free(&input_shape);
     ov_output_node_list_free(&output_nodes);
     ov_output_node_list_free(&input_nodes);
     if (output_tensor)

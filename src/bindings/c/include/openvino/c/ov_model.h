@@ -143,7 +143,7 @@ ov_model_reshape_by_ports(const ov_model_t* model,
 OPENVINO_C_API(ov_status_e)
 ov_model_reshape_by_nodes(const ov_model_t* model,
                           const ov_output_node_t** output_nodes,
-                          const ov_partial_shape_t** partial_shapes,
+                          const ov_partial_shape_t* partial_shapes,
                           size_t size);
 
 /**

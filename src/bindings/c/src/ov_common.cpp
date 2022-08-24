@@ -27,7 +27,7 @@ char const* error_infos[] = {"success",
 const char* ov_get_error_info(ov_status_e status) {
     auto index = -status;
     auto max_index = sizeof(error_infos) / sizeof(error_infos[0]) - 1;
-    if (index > max_index)
+    if (static_cast<size_t>(index) > max_index)
         return error_infos[max_index];
     return error_infos[index];
 }

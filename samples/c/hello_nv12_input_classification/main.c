@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
     ov_element_type_e input_type = U8;
     size_t batch = 1;
     int64_t dims[4] = {batch, input_height * 3 / 2, input_width, 1};
-    ov_shape_init(&input_shape, 4, dims);
+    ov_shape_create(&input_shape, 4, dims);
     CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img_data, &tensor));
 
     // -------- Step 6. Set input tensor  --------
@@ -325,7 +325,7 @@ int main(int argc, char** argv) {
 err:
     free(results);
     free(img_data);
-    ov_shape_deinit(&input_shape);
+    ov_shape_free(&input_shape);
     ov_free(input_tensor_name);
     ov_free(output_tensor_name);
     ov_output_node_list_free(&output_nodes);

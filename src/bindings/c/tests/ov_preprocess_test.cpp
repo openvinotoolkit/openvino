@@ -230,7 +230,7 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_from) {
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
     int64_t dims[4] = {1, 416, 416, 4};
-    OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
+    OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
 
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
@@ -238,7 +238,7 @@ TEST(ov_preprocess, ov_preprocess_inputtensorinfo_set_from) {
     ov_preprocess_inputtensorinfo_free(input_tensor_info);
     ov_preprocess_inputinfo_free(input_info);
     ov_preprocess_prepostprocessor_free(preprocess);
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_model_free(model);
     ov_core_free(core);
 }
@@ -648,7 +648,7 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
     int64_t dims[4] = {1, 416, 416, 3};
-    OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
+    OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
 
     OV_ASSERT_OK(ov_tensor_create(ov_element_type_e::U8, shape, &tensor));
     OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, tensor));
@@ -688,7 +688,7 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
 
     ov_preprocess_inputtensorinfo_free(input_tensor_info);
     ov_tensor_free(tensor);
-    ov_shape_deinit(&shape);
+    ov_shape_free(&shape);
     ov_preprocess_preprocesssteps_free(input_process);
     ov_preprocess_inputmodelinfo_free(input_model);
     ov_preprocess_outputtensorinfo_free(output_tensor_info);

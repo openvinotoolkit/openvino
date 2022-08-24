@@ -24,25 +24,6 @@ typedef ov_dimension_t ov_rank_t;
  */
 
 /**
- * @brief Initialize a static rank object
- * @ingroup rank
- * @param rank The input rank pointer.
- * @param rank_value The rank value for this object, it should be not less than 0(>=0).
- * @return ov_status_e The return status code.
- */
-OPENVINO_C_API(ov_status_e) ov_rank_init(ov_rank_t* rank, int64_t rank_value);
-
-/**
- * @brief Initialize a dynamic rank object.
- * @ingroup rank
- * @param rank The input rank pointer.
- * @param min_rank The lower inclusive limit for the rank.
- * @param max_rank The upper inclusive limit for the rank.
- * @return ov_status_e The return status code.
- */
-OPENVINO_C_API(ov_status_e) ov_rank_init_dynamic(ov_rank_t* rank, int64_t min_rank, int64_t max_rank);
-
-/**
  * @brief Check this rank whether is dynamic
  * @ingroup rank
  * @param rank The rank pointer that will be checked.

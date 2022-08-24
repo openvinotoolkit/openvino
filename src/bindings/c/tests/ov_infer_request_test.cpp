@@ -30,7 +30,7 @@ inline void get_tensor_info(ov_model_t* model,
 
     ov_partial_shape_t p_shape;
     OV_EXPECT_OK(ov_node_list_get_partial_shape_by_index(&output_nodes, idx, &p_shape));
-    ov_partial_shape_deinit(&p_shape);
+    ov_partial_shape_free(&p_shape);
 
     ov_output_node_list_free(&output_nodes);
 }
@@ -66,7 +66,7 @@ protected:
         OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
         EXPECT_NE(nullptr, infer_request);
 
-        ov_shape_deinit(&tensor_shape);
+        ov_shape_free(&tensor_shape);
     }
     void TearDown() override {
         ov_tensor_free(input_tensor);
@@ -122,12 +122,12 @@ protected:
 
         ov_shape_t shape = {0, nullptr};
         int64_t dims[4] = {1, 224, 224, 3};
-        OV_ASSERT_OK(ov_shape_init(&shape, 4, dims));
+        OV_ASSERT_OK(ov_shape_create(&shape, 4, dims));
 
         ov_element_type_e type = U8;
         OV_ASSERT_OK(ov_tensor_create(type, shape, &input_tensor));
         OV_ASSERT_OK(ov_preprocess_inputtensorinfo_set_from(input_tensor_info, input_tensor));
-        OV_ASSERT_OK(ov_shape_deinit(&shape));
+        OV_ASSERT_OK(ov_shape_free(&shape));
 
         const char* layout_desc = "NHWC";
         ov_layout_t* layout = nullptr;
@@ -235,7 +235,7 @@ TEST_P(ov_infer_request, infer) {
     OV_EXPECT_OK(ov_infer_request_get_tensor(infer_request, out_tensor_name, &output_tensor));
     EXPECT_NE(nullptr, output_tensor);
 
-    ov_shape_deinit(&tensor_shape);
+    ov_shape_free(&tensor_shape);
     ov_free(out_tensor_name);
 }
 

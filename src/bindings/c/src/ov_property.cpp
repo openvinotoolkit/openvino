@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-ov_status_e ov_properties_init(ov_properties_t* property, size_t size) {
+ov_status_e ov_properties_create(ov_properties_t* property, size_t size) {
     if (!property || size < 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -18,9 +18,8 @@ ov_status_e ov_properties_init(ov_properties_t* property, size_t size) {
     return ov_status_e::OK;
 }
 
-void ov_properties_deinit(ov_properties_t* properties) {
-    if (properties && properties->list) {
-        // Notice: properties->list[i].value.ptr need be managed by user.
+void ov_properties_free(ov_properties_t* properties) {
+    if (properties && properties->list) {   
         delete[] properties->list;
         properties->size = 0;
     }

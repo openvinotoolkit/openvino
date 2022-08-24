@@ -12,7 +12,7 @@ ov_status_e ov_node_get_shape(ov_output_const_node_t* node, ov_shape_t* tensor_s
 
     try {
         auto shape = node->object->get_shape();
-        ov_shape_init(tensor_shape, shape.size(), nullptr);
+        ov_shape_create(tensor_shape, shape.size(), nullptr);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -27,7 +27,7 @@ ov_status_e ov_node_list_get_shape_by_index(const ov_output_node_list_t* nodes, 
 
     try {
         auto shape = nodes->output_nodes[idx].object->get_shape();
-        ov_shape_init(tensor_shape, shape.size(), nullptr);
+        ov_shape_create(tensor_shape, shape.size(), nullptr);
         std::copy_n(shape.begin(), shape.size(), tensor_shape->dims);
     }
     CATCH_OV_EXCEPTIONS
@@ -59,19 +59,22 @@ ov_status_e ov_node_list_get_partial_shape_by_index(const ov_output_node_list_t*
         auto pshape = nodes->output_nodes[idx].object->get_partial_shape();
         auto rank = pshape.rank();
 
-        ov_rank_init_dynamic(&partial_shape->rank, rank.get_min_length(), rank.get_max_length());
+        partial_shape->rank.min = rank.get_min_length();
+        partial_shape->rank.max = rank.get_max_length();
         if (rank.is_dynamic()) {
             partial_shape->dims = nullptr;
         } else {
             auto size = rank.get_length();
-            if (size != pshape.size()) {
+            if (static_cast<size_t>(size) != pshape.size()) {
                 return ov_status_e::PARAMETER_MISMATCH;
             }
             std::unique_ptr<ov_dimension_t> _dimensions(new ov_dimension_t[size]);
             partial_shape->dims = _dimensions.release();
             auto iter = pshape.begin();
             for (auto i = 0; iter != pshape.end(); iter++, i++) {
-                ov_dimension_init_dynamic(&partial_shape->dims[i], iter->get_min_length(), iter->get_max_length());
+                partial_shape->dims[i].min = iter->get_min_length();
+                partial_shape->dims[i].max = iter->get_max_length();
+
             }
         }
     }

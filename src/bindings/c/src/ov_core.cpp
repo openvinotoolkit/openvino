@@ -229,14 +229,14 @@ const std::map<ov_performance_mode_e, ov::hint::PerformanceMode> performance_mod
     {ov_performance_mode_e::LATENCY, ov::hint::PerformanceMode::LATENCY},
     {ov_performance_mode_e::CUMULATIVE_THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT}};
 
-ov_status_e ov_core_properies_to_anymap(const ov_properties_t* properties, ov::AnyMap& dest) {
+inline ov_status_e ov_core_properies_to_anymap(const ov_properties_t* properties, ov::AnyMap& dest) {
     if (!properties || properties->size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         auto size = properties->size;
-        for (auto i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             auto& property = properties->list[i];
             auto& value = property.value;
             std::string key = std::string(property.key);
