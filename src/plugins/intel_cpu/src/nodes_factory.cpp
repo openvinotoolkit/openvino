@@ -68,6 +68,7 @@
 #include "nodes/log_softmax.h"
 #include "nodes/strided_slice.h"
 #include "nodes/dft.h"
+#include "nodes/rdft.h"
 #include "nodes/non_max_suppression.h"
 #include "nodes/convert.h"
 #include "nodes/rnn.h"
@@ -87,6 +88,7 @@
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
 #include "nodes/eye.h"
+#include "nodes/mha.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -123,6 +125,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(MemoryOutput, Type::MemoryOutput);
     INTEL_CPU_NODE(Tile, Type::Tile);
     INTEL_CPU_NODE(DFT, Type::DFT);
+    INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(GatherTree, Type::GatherTree);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
     INTEL_CPU_NODE(FullyConnected, Type::FullyConnected);
@@ -186,6 +189,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(PriorBox, Type::PriorBox);
     INTEL_CPU_NODE(PriorBoxClustered, Type::PriorBoxClustered);
     INTEL_CPU_NODE(Eye, Type::Eye);
+    INTEL_CPU_NODE(MHA, Type::MHA);
 }
 
 #undef INTEL_CPU_NODE

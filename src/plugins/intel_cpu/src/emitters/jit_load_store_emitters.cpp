@@ -516,6 +516,34 @@ void jit_load_emitter::register_table_entries() {
     push_arg_entry_of("float_max", 0x7f7fffff, true);
 }
 
+void jit_load_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                                 const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+
+    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
+
+    emitter_postamble();
+}
+
+void jit_load_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                                const std::shared_ptr<const emitter_context> &emit_context,
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+
+    const auto* load_emitter_context = dynamic_cast<const ov::intel_cpu::load_emitter_context*>(emit_context.get());
+    if (load_emitter_context == nullptr) {
+        IE_THROW() << "Load emitter in " << name << " does not get load emmiter context.";
+    }
+
+    if (!entry_map_.empty() && load_emitter_context->is_fill_)
+        load_table_addr();
+
+    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
+
+    emitter_postamble();
+}
+
+
 /// STORE ///
 jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa,
     Precision exec_prc, emitter_in_out_map in_out_type)

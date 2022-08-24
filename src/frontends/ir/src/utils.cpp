@@ -113,4 +113,15 @@ void str_to_set_of_strings(const std::string& value, std::set<std::string>& res)
     }
 }
 
+void str_to_container(const std::string& value, std::vector<std::string>& res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        field = ov::util::trim(field);
+        if (!field.empty()) {
+            res.emplace_back(field);
+        }
+    }
+}
+
 }  // namespace ov
