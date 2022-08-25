@@ -140,7 +140,7 @@ inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_dev
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::available_devices);
 }
 
-bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
+inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
     auto supported_properties =
             ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=

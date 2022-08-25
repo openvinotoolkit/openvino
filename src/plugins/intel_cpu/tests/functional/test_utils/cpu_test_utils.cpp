@@ -349,7 +349,9 @@ auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
     return paramsVector;
 }
 
-void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function, std::string nodeType, size_t expectedCount) {
+inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
+                                           std::string nodeType,
+                                           size_t expectedCount) {
     ASSERT_NE(nullptr, function);
     size_t actualNodeCount = 0;
     for (const auto &node : function->get_ops()) {
