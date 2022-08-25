@@ -49,16 +49,19 @@ ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-# TODO: enable for all OSes
-ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
+if(UNIX AND NOT ANDROID)
+    set(STYLE_CHECKS_DEFAULT ON)
+else()
+    set(STYLE_CHECKS_DEFAULT OFF)
+endif()
+
+ie_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECKS_DEFAULT})
 
 ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
-# TODO: enable for all OSes
-ie_dependent_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON "UNIX;NOT ANDROID" OFF)
+ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 
-# TODO: enable for all OSes
-ie_dependent_option (ENABLE_NCC_STYLE "Enable ncc style check" ON "UNIX;NOT ANDROID" OFF)
+ie_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 

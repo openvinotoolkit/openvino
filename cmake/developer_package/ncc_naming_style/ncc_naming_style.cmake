@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT COMMAND ov_create_virtualenv)
-    message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after 'ov_create_virtualenv'")
+if(NOT COMMAND ov_check_pip_packages)
+    message(FATAL_ERROR "Internal error: ncc_naming_style.cmake must be included after ov_check_pip_packages")
 endif()
 
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
@@ -72,16 +72,12 @@ if(NOT EXISTS ${ncc_script_py})
 endif()
 
 if(ENABLE_NCC_STYLE)
-    # create virtual env
-    ov_create_virtualenv(REQUIREMENTS_FILE "${ncc_style_dir}/requirements_dev.txt"
-                         VIRTUALENV_NAME ncc_style
-                         DEPENDENT_TARGET venv_target_ncc_style
-                         RESULT_VAR python_clang_FOUND
-                         VIRTUALENV_PYTHON_EXECUTABLE NCC_STYLE_PYTHON_EXECUTABLE
-                         WARNING_MESSAGE "NCC style check will be unavailable"
-                         MESSAGE_MODE WARNING)
+    ov_check_pip_packages(REQUIREMENTS_FILE "${ncc_style_dir}/requirements_dev.txt"
+                          RESULT_VAR python_clang_FOUND
+                          WARNING_MESSAGE "NCC style check will be unavailable"
+                          MESSAGE_MODE WARNING)
     if(NOT python_clang_FOUND)
-        # Note: warnings is already thrown by `ov_create_virtualenv`
+        # Note: warnings is already thrown by `ov_check_pip_packages`
         set(ENABLE_NCC_STYLE OFF)
     endif()
 endif()
@@ -136,7 +132,7 @@ function(ov_ncc_naming_style)
                 ${output_file}
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${NCC_STYLE_PYTHON_EXECUTABLE}"
+                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "NCC_PY_SCRIPT=${ncc_script_py}"
                 -D "INPUT_FILE=${full_source_path}"
                 -D "OUTPUT_FILE=${output_file}"
@@ -147,7 +143,6 @@ function(ov_ncc_naming_style)
                 -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
-                ${venv_target_ncc_style}
                 "${full_source_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"

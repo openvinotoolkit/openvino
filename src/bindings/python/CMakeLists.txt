@@ -26,8 +26,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
-# set(ie_python_req "cython>=0.29.22")
+set(ie_python_req "cython>=0.29.22")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -51,7 +50,7 @@ function(ov_check_python_build_conditions)
         message(${message_mode} "Python 3.x interpreter is not found. OpenVINO Python API will be turned off (ENABLE_PYTHON is OFF)")
     endif()
 
-    # check pyopenvino requirements
+    # check pyopenvino requirements to OV 2.0 API
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_req_FOUND
                           WARNING_MESSAGE "install python3 -m install -r ${ov_python_req} for OV API 2.0 requirements"
@@ -59,14 +58,11 @@ function(ov_check_python_build_conditions)
     # ov_python_req are not mandatory for build
     set(ov_python_req_FOUND ON)
 
-    # venv for Cython to build IE_API
-    ov_create_virtualenv(REQUIREMENTS_FILE "${ie_python_req}"
-                         VIRTUALENV_NAME ie_python
+    # check for Cython requirement for build IE API 1.0
+    ov_check_pip_package(REQUIREMENT ${ie_python_req}
                          RESULT_VAR ie_python_req_FOUND
-                         WARNING_MESSAGE "install python3 -m install -r ${ie_python_req} for IE API 1.0"
-                         VIRTUALENV_PYTHON_EXECUTABLE IE_PYTHON_PYTHON_EXECUTABLE
-                         MESSAGE_MODE TRACE
-                         IMMEDIATE_MODE)
+                         WARNING_MESSAGE "install python3 -m install ${ie_python_req} for IE API 1.0 requirements"
+                         MESSAGE_MODE TRACE)
 
     # cython can be installed as a debian package, so pip requirements can be unsatisfied
     # so, let's check to find cython anyway
@@ -95,7 +91,6 @@ function(ov_check_python_build_conditions)
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
     endif()
 
-    set(IE_PYTHON_PYTHON_EXECUTABLE "${IE_PYTHON_PYTHON_EXECUTABLE}" PARENT_SCOPE)
     # to disable API 1.0
     set(ie_python_req_FOUND ${ie_python_req_FOUND} PARENT_SCOPE)
 endfunction()
@@ -126,13 +121,9 @@ else()
 endif()
 
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
-ov_create_virtualenv(REQUIREMENTS_FILE "${wheel_reqs}"
-                     VIRTUALENV_NAME wheels
-                     RESULT_VAR wheel_req_FOUND
-                     WARNING_MESSAGE "install ${wheel_reqs} to build 'openvino' wheel"
-                     VIRTUALENV_PYTHON_EXECUTABLE WHEEL_PYTHON_EXECUTABLE
-                     MESSAGE_MODE ${message_mode}
-                     IMMEDIATE_MODE)
+ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
+                      RESULT_VAR wheel_req_FOUND
+                      MESSAGE_MODE WARNING)
 
 if(wheel_req_FOUND AND "${CMAKE_SOURCE_DIR}" STREQUAL "${OpenVINO_SOURCE_DIR}")
     set(ENABLE_WHEEL_DEFAULT ON)
@@ -159,12 +150,7 @@ ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_
 #
 
 if(ie_python_req_FOUND)
-    function(ov_build_ie_api)
-        # use python from venv
-        set(PYTHON_EXECUTABLE ${IE_PYTHON_PYTHON_EXECUTABLE})
-        add_subdirectory(src/compatibility/openvino)
-    endfunction()
-    ov_build_ie_api()
+    add_subdirectory(src/compatibility/openvino)
 else()
     message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
 endif()
@@ -178,12 +164,7 @@ else()
 endif()
 
 if(ENABLE_WHEEL)
-    function(ov_build_wheel)
-        # use python from venv
-        set(PYTHON_EXECUTABLE "${WHEEL_PYTHON_EXECUTABLE}")
-        add_subdirectory(wheel)
-    endfunction()
-    ov_build_wheel()
+    add_subdirectory(wheel)
 endif()
 
 if(ENABLE_OV_CORE_UNIT_TESTS AND NOT DISABLE_PYBIND11)

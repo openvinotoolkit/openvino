@@ -275,7 +275,7 @@ function(ov_mark_target_as_cc)
     ie_mark_target_as_cc(${ARGN})
 endfunction()
 
-include(python_requirements/python_requirements)
+include(python_requirements)
 
 # Code style utils
 
