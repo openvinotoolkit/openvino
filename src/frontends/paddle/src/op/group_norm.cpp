@@ -10,31 +10,6 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-template <typename T>
-std::vector<T> get_monotonic_range(T end_value, T start_value = T{0}, T step = T{1}) {
-    auto value_count = static_cast<std::size_t>(std::floor((end_value - start_value) / step));
-    std::vector<T> range(value_count);
-    size_t n = start_value - step;
-    std::generate(std::begin(range), std::end(range), [&n, &step]() -> T {
-        return n += step;
-    });
-    return range;
-}
-
-std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const Output<ov::Node>& value,
-                                                              int64_t start_value,
-                                                              int64_t step) {
-    if (value.get_partial_shape().rank().is_static()) {
-        const auto range_value =
-            op::get_monotonic_range<int64_t>(value.get_partial_shape().rank().get_length(), start_value, step);
-        return default_opset::Constant::create(element::i64, {range_value.size()}, range_value);
-    }
-    const auto value_shape = std::make_shared<default_opset::ShapeOf>(value);
-    return std::make_shared<default_opset::Range>(default_opset::Constant::create(element::i64, {}, {start_value}),
-                                                  std::make_shared<default_opset::ShapeOf>(value_shape),
-                                                  default_opset::Constant::create(element::i64, {}, {step}),
-                                                  element::i64);
-}
 
 Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
                                                      const Output<ov::Node>& expected_rank) {
@@ -51,18 +26,24 @@ NamedOutputs group_norm(const NodeContext& node) {
     auto data = node.get_input("X");
     size_t num_groups = static_cast<size_t>(node.get_attribute<int32_t>("groups"));
     auto epsilon = node.get_attribute<float>("epsilon", 1e-5);
-    auto data_layout = node.get_attribute<std::string>("data_layout");
+    auto data_layout = node.get_attribute<std::string>("data_layout", "NCHW");
 
-    PADDLE_OP_CHECK(node, (data_layout == "NCHW" || data_layout == "NHWC"), "Not supported input data layout!");
+    const auto& pshape = data.get_partial_shape();
+    PADDLE_OP_CHECK(node, pshape.rank().is_static());
+    size_t rank_size = pshape.rank().get_length();
+    PADDLE_OP_CHECK(node, rank_size >= 2, "2-D and above tensors supported only");
+
     if (data_layout == "NHWC") {
-        auto perm1 = default_opset::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto values = std::vector<size_t>{0, rank_size - 1};
+        for (size_t i = 1; i < rank_size - 1; i++) {
+            values.push_back(i);
+        }
+        auto perm1 = default_opset::Constant::create(element::i64, Shape{rank_size}, values);
         data = std::make_shared<default_opset::Transpose>(data, perm1);
     }
-
+    // The process below creates a shape to which we need to reshape the input before normalization.
     auto num_groups_const = default_opset::Constant::create(element::i64, Shape{1}, {num_groups});
     auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-    const auto& pshape = data.get_partial_shape();
-    size_t rank_size = pshape.rank().get_length();
     auto shape = std::make_shared<default_opset::ShapeOf>(data);
     auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {0});
     auto split = std::make_shared<default_opset::Split>(shape, axis_node, rank_size);
@@ -72,9 +53,18 @@ NamedOutputs group_norm(const NodeContext& node) {
     for (size_t i = 2; i < rank_size; i++) {
         new_shape.push_back(splits[i]);
     }
+    // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
+    // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
+    // The reason is the lack of support for 5D MVN input by some plugins.
     auto reshaped_ = std::make_shared<default_opset::Concat>(new_shape, 0);
     auto data_reshaped = std::make_shared<default_opset::Reshape>(data, reshaped_, true);
-    const auto reduction_axes = op::get_monotonic_range_along_node_rank(data_reshaped, 1, 1);
+    const Output<ov::Node> data_reshaped_value = data_reshaped;
+    PADDLE_OP_CHECK(node, data_reshaped_value.get_partial_shape().rank().is_static());
+    size_t reshape_rank = data_reshaped_value.get_partial_shape().rank().get_length();
+    std::vector<size_t> range_value;
+    for (size_t i = 1; i < reshape_rank; i++)
+        range_value.push_back(i);
+    const auto reduction_axes = default_opset::Constant::create(element::i64, {range_value.size()}, range_value);
 
     auto mvn = std::make_shared<default_opset::MVN>(data_reshaped,
                                                     reduction_axes,
@@ -82,14 +72,12 @@ NamedOutputs group_norm(const NodeContext& node) {
                                                     epsilon,
                                                     ov::op::MVNEpsMode::INSIDE_SQRT);
     std::shared_ptr<ov::Node> result = std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
-
-    auto has_scale = node.has_input("Scale");
-    auto has_bias = node.has_input("Bias");
-
+    // The process below reshape the result that become standrd output after normalization.
     const auto data_rank = std::make_shared<default_opset::ShapeOf>(data_shape_node);
-    if (has_scale) {
+    if (node.has_input("Scale")) {
         auto scale = node.get_input("Scale");
         const auto& scale_shape = scale.get_partial_shape();
+        PADDLE_OP_CHECK(node, scale_shape.rank().is_static());
         auto scale_rank = scale_shape.rank().get_length();
         if (scale_rank == 1) {
             result =
@@ -99,9 +87,11 @@ NamedOutputs group_norm(const NodeContext& node) {
             result = std::make_shared<default_opset::Multiply>(result, scale);
         }
     }
-    if (has_bias) {
+
+    if (node.has_input("Bias")) {
         auto bias = node.get_input("Bias");
         const auto& bias_shape = bias.get_partial_shape();
+        PADDLE_OP_CHECK(node, bias_shape.rank().is_static());
         auto bias_rank = bias_shape.rank().get_length();
         if (bias_rank == 1) {
             result =
@@ -112,9 +102,15 @@ NamedOutputs group_norm(const NodeContext& node) {
     }
 
     if (data_layout == "NHWC") {
-        auto perm2 = default_opset::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto values = std::vector<size_t>{0};
+        for (size_t i = 2; i < rank_size; i++) {
+            values.push_back(i);
+        }
+        values.push_back(1);
+        auto perm2 = default_opset::Constant::create(element::i64, Shape{rank_size}, values);
         result = std::make_shared<default_opset::Transpose>(result, perm2);
     }
+
     return node.default_single_output_mapping({result}, {"Y"});
 }
 }  // namespace op
