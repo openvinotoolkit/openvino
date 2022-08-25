@@ -155,6 +155,7 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
+REGISTER_FACTORY(v3, NonZero);
 REGISTER_FACTORY(v3, ROIAlign);
 REGISTER_FACTORY(v3, ScatterUpdate);
 REGISTER_FACTORY(v3, ScatterElementsUpdate);
@@ -232,6 +233,7 @@ REGISTER_FACTORY(v8, RandomUniform)
 REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
+REGISTER_FACTORY(v8, Softmax);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, SoftSign)

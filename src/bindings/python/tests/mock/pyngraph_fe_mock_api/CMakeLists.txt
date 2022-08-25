@@ -11,7 +11,7 @@ source_group("src" FILES ${PYBIND_FE_SRC})
 pybind11_add_module(${PYBIND_FE_NAME} MODULE ${PYBIND_FE_SRC})
 
 set(DEPENDENCIES openvino_mock_py_frontend openvino::runtime)
-set(DEFINITIONS)
+set(DEFINITIONS IMPLEMENT_OPENVINO_API)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)
@@ -34,5 +34,5 @@ target_link_libraries(${PYBIND_FE_NAME} PRIVATE ${DEPENDENCIES})
 add_clang_format_target(${PYBIND_FE_NAME}_clang FOR_TARGETS ${PYBIND_FE_NAME})
 
 install(TARGETS ${PYBIND_FE_NAME}
-        DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}
+        DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
         COMPONENT tests EXCLUDE_FROM_ALL)

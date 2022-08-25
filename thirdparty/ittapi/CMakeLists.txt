@@ -5,7 +5,7 @@
 if(ENABLE_PROFILING_ITT)
     if(DEFINED INTEL_VTUNE_DIR OR DEFINED ENV{INTEL_VTUNE_DIR})
         find_package(ITT
-                     PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+                     PATHS "${OpenVINO_SOURCE_DIR}/src/common/itt/cmake"
                      NO_DEFAULT_PATH)
         if(NOT ITT_FOUND)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
@@ -24,6 +24,6 @@ if(ENABLE_PROFILING_ITT)
                      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/include>)
 
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
-        ov_install_static_lib(ittnotify openvino_common)
+        ov_install_static_lib(ittnotify ${OV_CPACK_COMP_CORE})
     endif()
 endif()

@@ -8,14 +8,14 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message(STATUS "Python version=${PYTHON_VERSION}")
+set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message(STATUS "Python version=${pyversion}")
 
 if(OpenVINO_SOURCE_DIR)
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
     endif()
 
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -76,7 +76,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 
@@ -92,19 +92,20 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_python_minimal_api(${PROJECT_NAME})
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
-    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
+    ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+                           HIDDEN)
 
     install(DIRECTORY ${PYTHON_SOURCE_DIR}/openvino
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             USE_SOURCE_PERMISSIONS
             PATTERN "test_utils" EXCLUDE)
 
     install(TARGETS ${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${PYTHON_VERSION}/openvino
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
+            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})
 
-    install(DIRECTORY ${PYTHON_BINDINGS_ROOT_DIR}/tests
+    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
