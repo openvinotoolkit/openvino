@@ -63,6 +63,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, tile_test_two_inputs,
             layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
             layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}
         }
     }));
 
@@ -94,6 +99,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, tile_test_single_input,
             layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
             layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}
         }
     }));
 
