@@ -68,7 +68,7 @@ def pytest_addoption(parser):
         "--api_2",
         action="store_true",
         help="Use new API 2.0 for model processing in Inference Engine",
-        default=False)
+        default=True)
 
 
 @pytest.fixture(scope="session")

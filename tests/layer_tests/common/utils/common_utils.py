@@ -88,8 +88,12 @@ def allclose(cur_array, ref_array, atol, rtol):
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
 
 
-def rename_ov_lib(current_lib_name: str, new_lib_name: str, lib_dir: Path):
-    current_lib_path = os.path.join(lib_dir, current_lib_name)
-    new_lib_path = os.path.join(lib_dir, new_lib_name)
-    logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
-    os.rename(current_lib_path, new_lib_path)
+def rename_ov_lib(files_to_rename: list, lib_dir: Path):
+    for pair in files_to_rename:
+        current_lib_path = os.path.join(lib_dir, pair[0])
+        new_lib_path = os.path.join(lib_dir, pair[1])
+        logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
+        if os.path.exists(new_lib_path):
+            logging.info("One of the lib is already renamed: {}".format(new_lib_path))
+            continue
+        os.replace(current_lib_path, new_lib_path)
