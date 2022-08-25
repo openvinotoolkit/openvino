@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_CPU)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCC)
@@ -33,6 +37,12 @@ if(TBB_FOUND AND TBB_VERSION VERSION_GREATER_EQUAL 2018 AND TBB_VERSION VERSION_
 endif()
 
 add_subdirectory(thirdparty)
+if(ENABLE_TESTS)
+    add_subdirectory(tests/unit)
+endif()
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests/functional)
+endif()
 
 # create plugin
 
