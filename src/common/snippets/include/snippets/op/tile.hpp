@@ -20,6 +20,14 @@ class Tile : public ngraph::op::Op {
 public:
     OPENVINO_OP("Tile", "SnippetsOpset");
 
+    /// \brief Construct an Tile
+    /// \param region The vector of pairs: emitters and the corresponding registers
+    /// \param increment Tile size - count of elements to load and store.
+    ///                  Vector Tile should have size of vector register and Scalar Tile should have 1
+    /// \param num_inputs Count of inputs
+    /// \param num_outputs Count of outputs
+    /// \param io_dims Vector of last dimensions of inputs and outputs
+    /// \param io_data_sizes Vector of data type sizes of inputs and outputs
     Tile(const std::vector<AllocatedEmitter>& region, size_t increment, size_t num_inputs, size_t num_outputs,
          const std::vector<size_t>& io_dims, const std::vector<size_t>& io_data_sizes);
     Tile() = default;

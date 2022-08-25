@@ -5,7 +5,7 @@
 #include <snippets/itt.hpp>
 #include "snippets/remarks.hpp"
 
-#include "snippets/pass/insert_convert_saturation_after_inputs.hpp"
+#include "snippets/pass/insert_convert_on_inputs.hpp"
 #include "snippets/snippets_isa.hpp"
 
 #include "ngraph/type.hpp"
@@ -42,8 +42,8 @@ bool insertConvertSaturationAfterNode(const std::shared_ptr<ngraph::Node>& node,
     return rewritten;
 }
 
-ngraph::snippets::pass::InsertConvertSaturationAfterInputs::InsertConvertSaturationAfterInputs(const ov::element::Type exec_type) {
-    MATCHER_SCOPE(InsertConvertSaturationAfterInputs);
+ngraph::snippets::pass::InsertConvertOnInputs::InsertConvertOnInputs(const ov::element::Type exec_type) {
+    MATCHER_SCOPE(InsertConvertOnInputs);
 
     auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
     auto scalar_pattern = pattern::wrap_type<opset1::Constant>(
@@ -51,7 +51,7 @@ ngraph::snippets::pass::InsertConvertSaturationAfterInputs::InsertConvertSaturat
     auto input = std::make_shared<pattern::op::Or>(OutputVector{ param_pattern, scalar_pattern });
 
     ngraph::matcher_pass_callback callback = [this, exec_type](ngraph::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertConvertSaturationAfterInputs")
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertConvertOnInputs")
         auto root = m.get_match_root();
 
         auto rewritten = insertConvertSaturationAfterNode(root, exec_type);

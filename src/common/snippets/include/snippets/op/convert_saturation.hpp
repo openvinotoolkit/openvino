@@ -15,12 +15,9 @@ namespace op {
  * @interface ConvertSaturation
  * @brief The implementation uses "saturation" conversion.
  *        It means that if the values are outside the limits
- *        of the maximum and minimum values of the data type, they are clamped.
+ *        of the maximum and minimum values of the destination data type, they are clamped.
  *        For example, int_32t ---> int8_t
  *                       129   --->  127
- *        Note: It isn't covered by specification of "Convert" op
- *              This op is used for conversion into and from FP32 after the correspoding Load
- *              and before Store to calculate in FP32 inside subgraph body in CPU Plugin
  * @ingroup snippets
  */
 class ConvertSaturation : public ov::op::v0::Convert {

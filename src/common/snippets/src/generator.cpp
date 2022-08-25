@@ -4,7 +4,7 @@
 
 #include "snippets/generator.hpp"
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/set_scalar_count_for_load_and_store.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/op/tile.hpp"
 #include "snippets/op/kernel.hpp"

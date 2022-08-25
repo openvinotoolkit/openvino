@@ -13,9 +13,9 @@
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants_to_scalars.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
-#include "snippets/pass/set_scalar_count_for_load_and_store.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/transform_convert_to_truncation.hpp"
-#include "snippets/pass/insert_convert_saturation_after_inputs.hpp"
+#include "snippets/pass/insert_convert_on_inputs.hpp"
 #include "snippets/pass/reset_type_relaxed_node_precision.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -243,16 +243,18 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
     // We should insert Converts after Parameters and Constant and before Results
     // to align precision inside Subgraph body that is supported by Plugin
-    align_precision(outputShapes, inputShapes, exec_type);
+    align_element_types(outputShapes, inputShapes, exec_type);
 
     exec_domain = outPShape.get_shape();
     return exec_domain;
 }
 
-void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes, const ov::element::Type exec_type) {
+void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
+                                                 const BlockedShapeVector& inputShapes,
+                                                 const ov::element::Type exec_type) {
     ngraph::pass::Manager p_manager;
     p_manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
-    p_manager.register_pass<snippets::pass::InsertConvertSaturationAfterInputs>(exec_type);
+    p_manager.register_pass<snippets::pass::InsertConvertOnInputs>(exec_type);
     p_manager.run_passes(m_body);
 
     const auto& body_results = m_body->get_results();
@@ -276,6 +278,11 @@ void snippets::op::Subgraph::align_precision(const BlockedShapeVector& outputSha
         body_results[i]->set_argument(0, convert);
     }
 
+    // After Convert insertion we should make the following steps:
+    //      - manually set output element types of type relaxed nodes to align element type inside subgraph body
+    //      - after Convert insertion on inputs and after scalars we should use ConstantFolding pass to convert
+    //        element type of Scalars before inference
+    //      - eliminate redundant Convert that could have been inserted
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ResetTypeRelaxedNodePrecision>(exec_type);
     manager.register_pass<ngraph::pass::ConstantFolding>();

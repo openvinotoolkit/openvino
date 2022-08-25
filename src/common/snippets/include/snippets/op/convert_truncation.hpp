@@ -13,12 +13,10 @@ namespace op {
 
 /**
  * @interface ConvertTruncation
- * @brief The implementation doesn't "saturation" conversion.
+ * @brief The implementation "truncation" conversion.
  *        It means that if there are overflow, the values will wrap around.
  *        For example, int_32t ---> int8_t
  *                       129   --->  -127
- *        Note: It is covered by specification of "Convert" op
- *              This op is used for real Convert ops inside subgraph body in CPU Plugin
  * @ingroup snippets
  */
 class ConvertTruncation : public ov::op::v0::Convert {

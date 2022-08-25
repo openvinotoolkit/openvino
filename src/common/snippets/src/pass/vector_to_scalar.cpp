@@ -4,7 +4,7 @@
 
 #include <snippets/itt.hpp>
 
-#include "snippets/pass/set_scalar_count_for_load_and_store.hpp"
+#include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/snippets_isa.hpp"
 
 #include <ngraph/rt_info.hpp>

@@ -8,7 +8,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <snippets/snippets_isa.hpp>
-#include <snippets/pass/set_scalar_count_for_load_and_store.hpp>
+#include <snippets/pass/vector_to_scalar.hpp>
 
 #include <transformations/init_node_info.hpp>
 

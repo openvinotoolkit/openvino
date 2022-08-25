@@ -110,8 +110,8 @@ public:
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
 private:
-    void align_precision(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes,
-                         const ov::element::Type exec_type);
+    void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes,
+                             const ov::element::Type exec_type);
     void convert_to_snippet_dialect();
     Shape exec_domain;
     std::shared_ptr<ov::Model> m_body;
