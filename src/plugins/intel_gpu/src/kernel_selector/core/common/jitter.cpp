@@ -1857,7 +1857,6 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     auto input_dt = input_tensor.GetDType();
 
     bool valid_broadcast_case = input_tensor.LogicalSize() == prim_output.Feature().v ||
-                                ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1)) ||
                                 input_tensor.LogicalSize() == 1;
 
     // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
@@ -1882,10 +1881,11 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
     bool safe_load = conf.boundary_check == FusedOpsConfiguration::BoundaryCheck::ENABLED;
 
+    bool f_axis_broadcast = ((input_tensor.Feature().v != prim_output.Feature().v) && (input_tensor.Feature().v == 1) && (vec_size == 1));
     // Change JitLoad to ignore LT_ALIGNED_READ LoadType if this input tensor has a planar format(SimpleLayout)
     if (desc.GetType() == KernelType::ELTWISE && input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
-        (input_tensor.SameDimsSizes(prim_output) || valid_broadcast_case) && input_tensor.LogicalSize() != 1) {
+        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) && input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         if (found_sub != std::string::npos) {
